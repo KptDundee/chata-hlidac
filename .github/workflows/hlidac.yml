@@ -41,7 +41,7 @@ jobs:
       - name: Zveřejnit web
         if: always() && hashFiles('data.enc') != ''
         run: |
-          mkdir pub && cp web/index.html data.enc pub/ && touch pub/.nojekyll
+          mkdir pub && cp web/* data.enc pub/ && touch pub/.nojekyll
           cd pub && git init -q -b gh-pages && git add -A
           git -c user.name=hlidac-bot -c user.email=hlidac-bot@users.noreply.github.com commit -qm data
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
