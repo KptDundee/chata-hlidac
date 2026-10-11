@@ -70,8 +70,8 @@ public final class BleListener {
     /** Spustí (nebo po 25 min restartuje) sken. Android po 30 min nepřetržitého skenu omezí výsledky. */
     @SuppressLint("MissingPermission")
     public synchronized void ensureRunning() {
-        String m = Prefs.s(ctx, Prefs.VICTRON_MAC).toUpperCase();
-        String k = Prefs.s(ctx, Prefs.VICTRON_KEY);
+        String m = Prefs.normMac(Prefs.s(ctx, Prefs.VICTRON_MAC));
+        String k = Prefs.s(ctx, Prefs.VICTRON_KEY).replaceAll("[^0-9a-fA-F]", "");
         if (m.isEmpty() || k.length() < 32) { stop(); lastError = "Měnič není nastavený"; return; }
         if (!m.equals(mac) || key == null) { stop(); mac = m; key = VictronParser.hex(k); }
         if (scanner != null && SystemClock.elapsedRealtime() - startedAt < 25 * 60_000L) return;

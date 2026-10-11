@@ -109,12 +109,13 @@ public class MainActivity extends Activity {
     private void save() {
         Prefs.get(this).edit()
                 .putString(Prefs.NTFY_TOPIC, topic.getText().toString().trim())
-                .putString(Prefs.VICTRON_MAC, mac.getText().toString().trim().toUpperCase(Locale.ROOT))
+                .putString(Prefs.VICTRON_MAC, Prefs.normMac(mac.getText().toString()))
                 .putString(Prefs.VICTRON_KEY, key.getText().toString().trim())
                 .putString(Prefs.TAPO_EMAIL, email.getText().toString().trim())
                 .putString(Prefs.TAPO_PASSWORD, pass.getText().toString())
                 .putString(Prefs.TAPO_IPS, ips.getText().toString().trim())
                 .apply();
+        mac.setText(Prefs.s(this, Prefs.VICTRON_MAC));   // ukáže upravený tvar
     }
 
     private void askPermissionsThenStart() {

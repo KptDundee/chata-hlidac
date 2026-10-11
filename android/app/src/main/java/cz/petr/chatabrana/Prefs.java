@@ -28,6 +28,15 @@ public final class Prefs {
 
     public static String s(Context c, String k) { return get(c).getString(k, "").trim(); }
 
+    /** MAC adresa v jakékoli podobě (c84f2a1b3d5e, C8-4F-…, c8:4f:…) → C8:4F:2A:1B:3D:5E */
+    public static String normMac(String raw) {
+        String h = raw == null ? "" : raw.replaceAll("[^0-9a-fA-F]", "").toUpperCase(java.util.Locale.ROOT);
+        if (h.length() != 12) return raw == null ? "" : raw.trim().toUpperCase(java.util.Locale.ROOT);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 12; i += 2) sb.append(i > 0 ? ":" : "").append(h, i, i + 2);
+        return sb.toString();
+    }
+
     public static List<String> tapoIps(Context c) {
         List<String> out = new ArrayList<>();
         for (String p : s(c, TAPO_IPS).split("[,;\\s]+")) {
