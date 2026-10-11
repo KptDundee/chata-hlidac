@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         Button save = button(l, "Uložit a spustit");
         save.setOnClickListener(v -> { save(); askPermissionsThenStart(); });
         Button now = button(l, "Odeslat teď");
-        now.setOnClickListener(v -> { save(); GatewayService.start(this); toast("Odesílám… (do 30 s)"); });
+        now.setOnClickListener(v -> { save(); GatewayService.start(this, true); toast("Odesílám… (do 30 s)"); });
         Button batt = button(l, "Povolit běh na pozadí (baterie: Neomezeno)");
         batt.setOnClickListener(v -> askBatteryExemption());
         Button test = button(l, "Test Bluetooth (15 s)");
@@ -145,7 +145,7 @@ public class MainActivity extends Activity {
 
     private void startGateway() {
         Prefs.get(this).edit().putLong(Prefs.LAST_SENT, 0).apply();
-        GatewayService.start(this);
+        GatewayService.start(this, true);
         toast("Spuštěno – první data za ~30 s");
         if (!getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName())) askBatteryExemption();
         refresh();

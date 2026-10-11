@@ -11,7 +11,6 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.os.SystemClock;
 
-import java.util.Collections;
 
 /**
  * Trvale (úsporně) poslouchá vysílání měniče Victron a sbírá průměr / maximum odběru
@@ -75,27 +74,60 @@ public final class BleListener {
 
     /** Spustí (nebo po 25 min restartuje) sken. Android po 30 min nepřetržitého skenu omezí výsledky. */
     @SuppressLint("MissingPermission")
-    public synchronized void ensureRunning() {
+    public void ensureRunning() { ensureRunning(false); }
+
+    /** Filtry: výrobce Victron + konkrétní MAC (jako náhodná i veřejná adresa – Victron používá náhodnou statickou). */
+    private java.util.List<ScanFilter> filters() {
+        java.util.List<ScanFilter> fl = new java.util.ArrayList<>();
+        fl.add(new ScanFilter.Builder().setManufacturerData(VictronParser.MANUFACTURER_ID, new byte[0]).build());
+        if (mac != null && BluetoothAdapter.checkBluetoothAddress(mac)) {
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                fl.add(new ScanFilter.Builder().setDeviceAddress(mac, android.bluetooth.BluetoothDevice.ADDRESS_TYPE_RANDOM).build());
+            }
+            fl.add(new ScanFilter.Builder().setDeviceAddress(mac).build());
+        }
+        return fl;
+    }
+
+    /** Krátké intenzivní hledání (když trvalý poslech nic nechytil). Volat mimo hlavní vlákno. */
+    @SuppressLint("MissingPermission")
+    public void burst(long ms) {
+        BluetoothLeScanner sc;
+        synchronized (this) {
+            stop();
+            BluetoothManager bm = (BluetoothManager) ctx.getSystemService(Context.BLUETOOTH_SERVICE);
+            BluetoothAdapter a = bm == null ? null : bm.getAdapter();
+            if (a == null || !a.isEnabled() || key == null) return;
+            sc = a.getBluetoothLeScanner();
+            if (sc == null) return;
+            try {
+                sc.startScan(filters(), new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(), cb);
+            } catch (Exception e) { lastError = "Nejde spustit sken: " + e.getMessage(); return; }
+        }
+        SystemClock.sleep(ms);
+        synchronized (this) { try { sc.stopScan(cb); } catch (Exception ignored) {} }
+        ensureRunning(true);
+    }
+
+    public synchronized int samples() { return n; }
+
+    public synchronized void ensureRunning(boolean force) {
         String m = Prefs.normMac(Prefs.s(ctx, Prefs.VICTRON_MAC));
         String k = Prefs.s(ctx, Prefs.VICTRON_KEY).replaceAll("[^0-9a-fA-F]", "");
         if (k.length() < 32) { stop(); lastError = "Chybí šifrovací klíč měniče (32 znaků)"; return; }
         if (!m.equals(mac) || key == null) { stop(); mac = m; key = VictronParser.hex(k); }
-        if (scanner != null && SystemClock.elapsedRealtime() - startedAt < 25 * 60_000L) return;
+        if (!force && scanner != null && SystemClock.elapsedRealtime() - startedAt < 25 * 60_000L) return;
         stop();
         BluetoothManager bm = (BluetoothManager) ctx.getSystemService(Context.BLUETOOTH_SERVICE);
         BluetoothAdapter a = bm == null ? null : bm.getAdapter();
         if (a == null || !a.isEnabled()) { lastError = "Bluetooth je vypnutý"; return; }
         scanner = a.getBluetoothLeScanner();
         if (scanner == null) { lastError = "Bluetooth sken není dostupný"; return; }
-        // filtr podle výrobce Victron (0x02E1) a typu „Instant readout“ (0x10) – nezávisle na typu MAC adresy
-        ScanFilter f = new ScanFilter.Builder()
-                .setManufacturerData(VictronParser.MANUFACTURER_ID, new byte[]{0x10}, new byte[]{(byte) 0xFF})
-                .build();
         ScanSettings s = new ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+                .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
                 .build();
         try {
-            scanner.startScan(Collections.singletonList(f), s, cb);
+            scanner.startScan(filters(), s, cb);
             startedAt = SystemClock.elapsedRealtime();
         } catch (Exception e) {
             lastError = "Nejde spustit sken: " + e.getMessage();

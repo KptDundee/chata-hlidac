@@ -36,8 +36,11 @@ public class GatewayService extends Service {
     private final ExecutorService exec = Executors.newSingleThreadExecutor();
     private long namesAt;
 
-    public static void start(Context c) {
-        Intent i = new Intent(c, GatewayService.class).setAction(ACTION_TICK);
+    public static void start(Context c) { start(c, false); }
+
+    /** @param restart true = restartovat Bluetooth poslech (po změně nastavení) */
+    public static void start(Context c, boolean restart) {
+        Intent i = new Intent(c, GatewayService.class).setAction(ACTION_TICK).putExtra("restart", restart);
         if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i); else c.startService(i);
     }
 
@@ -66,7 +69,7 @@ public class GatewayService extends Service {
         Notification n = notification("Spouštím…");
         if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
         else startForeground(NOTIF_ID, n);
-        ble.ensureRunning();
+        ble.ensureRunning(intent != null && intent.getBooleanExtra("restart", false));
         scheduleAlarm(this);
         tick();
         return START_STICKY;

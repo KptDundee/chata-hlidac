@@ -37,6 +37,7 @@ public final class Collector {
             StringBuilder sum = new StringBuilder();
 
             // 1) měnič Victron (Bluetooth)
+            if (ble.samples() == 0) ble.burst(20_000);   // trvalý poslech nic nechytil → 20 s intenzivně
             BleListener.Snapshot s = ble.takeSnapshot();
             if (s.avgVa != null) {
                 o.put("w", round(s.avgVa, 1));
