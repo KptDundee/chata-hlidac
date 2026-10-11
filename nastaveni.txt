@@ -32,7 +32,13 @@ regulator_offline_min = 120
 vecerni_souhrn_hodina = 20
 
 # --- Předpověď do rána ---
-# v noci odhadne podle poklesu napětí, jestli baterie vydrží do rána
+# po západu slunce spočítá z kapacity a noční spotřeby, jestli baterie vydrží do rána
 predpoved_noc = zapnuto
 # od kdy ráno panely reálně nabíjí (minut po východu slunce)
 nabijeni_od_vychodu_min = 90
+# kapacita solární baterie
+kapacita_Ah = 200
+# průměrná noční spotřeba na výstupu měniče (zásuvka Tapo: ~0,03 kWh/h = 30 W)
+noc_spotreba_W = 30
+# vlastní spotřeba měniče Victron 12/800 v režimu On
+menic_vlastni_W = 6

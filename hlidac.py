@@ -29,6 +29,7 @@ DEFAULTS = {
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 120, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
+    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
 }
 
 POINTS = {  # klíč: (dataPointId, itemId)
@@ -213,32 +214,65 @@ def sun_times(lat, lon, day):
     return out[0], out[1]
 
 
+# Klidové napětí AGM 12 V -> stav nabití % (přibližně)
+AGM_SOC = [(11.80, 0), (11.95, 10), (12.05, 20), (12.15, 30), (12.25, 40), (12.35, 50),
+           (12.45, 60), (12.55, 70), (12.65, 80), (12.75, 90), (12.85, 100)]
+
+
+def soc_from_v(v):
+    if v <= AGM_SOC[0][0]:
+        return 0.0
+    for (v1, s1), (v2, s2) in zip(AGM_SOC, AGM_SOC[1:]):
+        if v <= v2:
+            return s1 + (s2 - s1) * (v - v1) / (v2 - v1)
+    return 100.0
+
+
 def forecast(data, now, cfg):
-    """Odhad napětí ráno podle trendu za poslední 3 h bez slunce (lineární, ± hrubý)."""
-    t_now = now.timestamp()
-    pts = [p for p in data.get("points", [])
-           if p["t"] >= t_now - 3 * 3600 and p.get("bat_v") is not None and (p.get("pv_w") or 0) < 5]
-    rise, _ = sun_times(cfg["sirka"], cfg["delka"], now.date())
-    if rise and now >= rise:
-        rise, _ = sun_times(cfg["sirka"], cfg["delka"], (now + timedelta(days=1)).date())
-    if not rise or len(pts) < 6 or pts[-1]["t"] - pts[0]["t"] < 3600:
+    """Vydrží baterie do rána? Výpočet z kapacity a očekávané noční spotřeby.
+
+    Stav nabití se bere z napětí (vyhlazeně za posledních 30 min bez slunce),
+    spotřeba z nastavení (průměr na výstupu měniče + vlastní spotřeba měniče).
+    """
+    rise, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    if not rise:
         return None
-    n = len(pts)
-    xs = [(p["t"] - t_now) / 3600 for p in pts]
-    ys = [p["bat_v"] for p in pts]
-    mx, my = sum(xs) / n, sum(ys) / n
-    sxx = sum((x - mx) ** 2 for x in xs)
-    slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sxx if sxx else 0.0
-    v_now = my - slope * mx  # hodnota přímky v čase „teď“ (vyhlazená)
+    if now >= rise and now < set_:          # přes den se nepočítá
+        return None
+    if now >= set_:
+        rise, _ = sun_times(cfg["sirka"], cfg["delka"], (now + timedelta(days=1)).date())
+    t_now = now.timestamp()
+    pts = [p for p in data.get("points", []) if p["t"] >= t_now - 1800 and p.get("bat_v") is not None]
+    if not pts:
+        return None
+    v = sum(p["bat_v"] for p in pts) / len(pts) + 0.05   # +0,05 V za pokles pod malou zátěží
+    cap = cfg["kapacita_Ah"] or 200
+    draw = (cfg["noc_spotreba_W"] or 0) / 0.88 + (cfg["menic_vlastni_W"] or 0)   # W z baterie
+    a = draw / 12.2                                                             # A z baterie
     until = rise + timedelta(minutes=cfg["nabijeni_od_vychodu_min"] or 0)
     hours = (until.timestamp() - t_now) / 3600
-    f = {"slope": round(slope, 4), "v_now": round(v_now, 2), "until": int(until.timestamp()),
-         "v_until": round(v_now + slope * hours, 2), "n": n}
+    soc_now = soc_from_v(v)
+    soc_until = soc_now - a * hours / cap * 100
+    f = {"until": int(until.timestamp()), "soc_now": round(soc_now), "soc_until": round(soc_until),
+         "draw_w": round(draw), "ah_night": round(a * hours), "n": len(pts)}
     for key, lim in (("t_crit", cfg["baterie_kriticka_V"]), ("t_off", cfg["odpojeni_V"])):
-        if lim is not None and slope < -0.002 and v_now > lim:
-            t = t_now + (v_now - lim) / -slope * 3600
-            if t < until.timestamp():
-                f[key] = int(t)
+        if lim is None:
+            continue
+        ah_left = (soc_now - soc_from_v(lim)) / 100 * cap
+        if ah_left <= 0:
+            f[key] = int(t_now)
+        elif a > 0 and ah_left / a < hours:
+            f[key] = int(t_now + ah_left / a * 3600)
+    # skutečný noční trend napětí (jen pro kontrolu, z doby po západu)
+    night = [p for p in data.get("points", []) if p["t"] >= max(t_now - 3 * 3600, set_.timestamp() if now >= set_ else 0)
+             and p.get("bat_v") is not None and (p.get("pv_w") or 0) < 5]
+    if len(night) >= 6 and night[-1]["t"] - night[0]["t"] >= 3600:
+        xs = [(p["t"] - t_now) / 3600 for p in night]
+        ys = [p["bat_v"] for p in night]
+        mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+        sxx = sum((x - mx) ** 2 for x in xs)
+        if sxx:
+            f["slope"] = round(sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sxx, 4)
     return f
 
 
@@ -246,11 +280,12 @@ def forecast_text(f):
     if not f:
         return None
     hm = lambda t: datetime.fromtimestamp(t, TZ).strftime("%H:%M")
+    tail = f" (noc ~{f['ah_night']} Ah při ~{f['draw_w']} W)"
     if f.get("t_off"):
-        return f"Do rána nevydrží: ~{hm(f.get('t_crit', f['t_off']))} pod alarmem, ~{hm(f['t_off'])} se vypne měnič"
+        return f"Do rána nevydrží: pod alarm ~{hm(f.get('t_crit', f['t_off']))}, měnič se vypne ~{hm(f['t_off'])}" + tail
     if f.get("t_crit"):
-        return f"Do rána těsně: pod alarm kolem {hm(f['t_crit'])}, ráno ~{fmt(f['v_until'], 2)} V"
-    return f"Do rána vydrží: v {hm(f['until'])} odhad ~{fmt(f['v_until'], 2)} V"
+        return f"Do rána těsně: pod alarm kolem {hm(f['t_crit'])}" + tail
+    return f"Do rána vydrží: teď ~{f['soc_now']} %, v {hm(f['until'])} ~{max(f['soc_until'], 0)} %" + tail
 
 
 def fmt(x, d=0):
@@ -369,7 +404,7 @@ def check(v, st, now, topic, cfg, rise, set_):
         f = st.get("_forecast")
         if night and f and f.get("t_crit") and not st.get("night_warned"):
             ntfy(topic, "🌙 Baterie do rána nejspíš nevydrží",
-                 f"{forecast_text(f)}.\nPokles {fmt(-f['slope'] * 1000)} mV/h ({f['n']} měření). Zvaž odpojení něčeho teď.\n{line}", 4, "crescent_moon,warning")
+                 f"{forecast_text(f)}.\nZvaž odpojení něčeho teď, nebo ráno počítej s EcoFlow.\n{line}", 4, "crescent_moon,warning")
             st["night_warned"] = True
 
     # Večerní souhrn

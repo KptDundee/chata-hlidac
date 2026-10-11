@@ -193,13 +193,14 @@ function render(){
   $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}`;
   $("advice").textContent = s.a;
   const f = d.forecast, fc = $("fc");
-  if(f && f.n >= 6 && Date.now()/1000 < f.until){
+  if(f && f.until && Date.now()/1000 < f.until){
     const hm = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
     let c, ic, txt;
     if(f.t_off){c="--crit";ic="!";txt=`Do rána nevydrží – pod alarm ~${hm(f.t_crit||f.t_off)}, měnič se vypne ~${hm(f.t_off)}`;}
-    else if(f.t_crit){c="--serious";ic="↓";txt=`Do rána těsně – pod ${nf(CRIT_V,1)} V kolem ${hm(f.t_crit)}, ráno ~${nf(f.v_until,2)} V`;}
-    else {c="--good";ic="✓";txt=`Do rána vydrží – v ${hm(f.until)} odhad ~${nf(f.v_until,2)} V`;}
-    fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} <span class="sub">(pokles ${nf(-f.slope*1000)} mV/h)</span></span>`;
+    else if(f.t_crit){c="--serious";ic="↓";txt=`Do rána těsně – pod ${nf(CRIT_V,1)} V kolem ${hm(f.t_crit)}`;}
+    else {c="--good";ic="✓";txt=`Do rána vydrží – teď ~${f.soc_now} %, v ${hm(f.until)} ~${Math.max(f.soc_until,0)} %`;}
+    const trend = f.slope!=null ? ` · skutečný pokles ${nf(-f.slope*1000)} mV/h` : "";
+    fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} <span class="sub">(noc ~${f.ah_night} Ah při ~${f.draw_w} W${trend})</span></span>`;
     fc.classList.remove("hide");
   } else fc.classList.add("hide");
   $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,soc||0))+"%";
