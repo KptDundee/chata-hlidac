@@ -31,6 +31,8 @@ public final class BleListener {
     private VictronParser.Inverter last;
     private long lastSeen;
     private String lastError;
+    private int victronAds;            // kolik vysílání Victron (jakéhokoli) jsme od posledního odeslání zachytili
+    private String otherMac;           // jiné Victron zařízení, které vidíme (pro diagnostiku)
 
     public BleListener(Context ctx) { this.ctx = ctx.getApplicationContext(); }
 
@@ -52,7 +54,11 @@ public final class BleListener {
         if (r.getScanRecord() == null || key == null) return;
         byte[] d = r.getScanRecord().getManufacturerSpecificData(VictronParser.MANUFACTURER_ID);
         if (d == null) return;
+        victronAds++;
+        String addr = r.getDevice() == null ? "" : r.getDevice().getAddress();
+        boolean macOk = addr.equalsIgnoreCase(mac);
         try {
+            // rozhoduje hlavně šifrovací klíč: měnič poznáme podle toho, že jde dešifrovat
             VictronParser.Inverter inv = VictronParser.parse(d, key);
             last = inv;
             lastSeen = SystemClock.elapsedRealtime();
@@ -63,7 +69,7 @@ public final class BleListener {
                 maxVa = Math.max(maxVa, inv.acVa);
             }
         } catch (Exception e) {
-            lastError = e.getMessage();
+            if (macOk) lastError = e.getMessage(); else otherMac = addr;
         }
     }
 
@@ -72,7 +78,7 @@ public final class BleListener {
     public synchronized void ensureRunning() {
         String m = Prefs.normMac(Prefs.s(ctx, Prefs.VICTRON_MAC));
         String k = Prefs.s(ctx, Prefs.VICTRON_KEY).replaceAll("[^0-9a-fA-F]", "");
-        if (m.isEmpty() || k.length() < 32) { stop(); lastError = "Měnič není nastavený"; return; }
+        if (k.length() < 32) { stop(); lastError = "Chybí šifrovací klíč měniče (32 znaků)"; return; }
         if (!m.equals(mac) || key == null) { stop(); mac = m; key = VictronParser.hex(k); }
         if (scanner != null && SystemClock.elapsedRealtime() - startedAt < 25 * 60_000L) return;
         stop();
@@ -81,8 +87,10 @@ public final class BleListener {
         if (a == null || !a.isEnabled()) { lastError = "Bluetooth je vypnutý"; return; }
         scanner = a.getBluetoothLeScanner();
         if (scanner == null) { lastError = "Bluetooth sken není dostupný"; return; }
-        if (!BluetoothAdapter.checkBluetoothAddress(mac)) { lastError = "Špatná MAC adresa měniče (formát AA:BB:CC:DD:EE:FF)"; scanner = null; return; }
-        ScanFilter f = new ScanFilter.Builder().setDeviceAddress(mac).build();
+        // filtr podle výrobce Victron (0x02E1) a typu „Instant readout“ (0x10) – nezávisle na typu MAC adresy
+        ScanFilter f = new ScanFilter.Builder()
+                .setManufacturerData(VictronParser.MANUFACTURER_ID, new byte[]{0x10}, new byte[]{(byte) 0xFF})
+                .build();
         ScanSettings s = new ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
                 .build();
@@ -111,6 +119,12 @@ public final class BleListener {
         s.last = last;
         s.ageSec = lastSeen == 0 ? -1 : (SystemClock.elapsedRealtime() - lastSeen) / 1000;
         s.error = lastError;
+        if (n == 0 && s.error == null) {
+            if (scanner == null) s.error = "Bluetooth sken neběží";
+            else if (victronAds == 0) s.error = "žádné vysílání Victron (Instant readout zapnutý? VictronConnect zavřený? poloha zapnutá?)";
+            else s.error = "vidím Victron " + otherMac + ", ale ne " + mac + " – zkontroluj MAC";
+        }
+        victronAds = 0;
         sumVa = 0; n = 0; maxVa = -1;
         return s;
     }
