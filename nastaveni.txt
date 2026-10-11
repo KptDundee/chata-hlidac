@@ -1,0 +1,32 @@
+# Nastavení hlídače chaty
+# Uprav číslo za "=" (desetinná tečka nebo čárka). "vypnuto" podmínku vypne.
+# Platí od dalšího běhu hlídače (do 10 minut).
+
+# --- Poloha chaty (pro východ a západ slunce) ---
+sirka = 50.08
+delka = 14.42
+
+# --- Baterie nabitá na 100 % (regulátor přejde do Float) ---
+nabito = zapnuto
+
+# --- Panely nevyrábí za denního světla ---
+# hlídá se od východu + rezerva do západu - rezerva
+panely_nevyrabi = zapnuto
+panely_min_W = 5
+panely_rezerva_min = 45
+panely_po_dobu_min = 30
+
+# --- Napětí baterie (AGM 12 V) ---
+# slábne: s rezervou ještě před alarmem regulátoru
+baterie_slabne_V = 12.2
+baterie_slabne_reset_V = 12.5
+# kritické = alarm regulátoru (Undervoltage Alarm 12,00 / recovery 12,20)
+baterie_kriticka_V = 12.0
+baterie_kriticka_reset_V = 12.2
+# regulátor odpojil zátěž (Low Voltage Disconnect 11,60 / recovery 12,80)
+odpojeni_V = 11.6
+odpojeni_reset_V = 12.8
+
+# --- Ostatní ---
+regulator_offline_min = 120
+vecerni_souhrn_hodina = 20

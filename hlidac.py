@@ -7,7 +7,7 @@ import os
 import sys
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 API_BASE = "https://hncloudapi.epsolarpv.com/usrCloud"
@@ -18,11 +18,17 @@ TZ = ZoneInfo("Europe/Prague")
 DATA_FILE = "data.enc"
 KEEP_DETAIL_DAYS = 14
 
-# Hranice pro AGM 12 V (lze upravit)
-WARN_V, WARN_RESET_V = 12.2, 12.5
-CRIT_V, CRIT_RESET_V = 12.0, 12.4
-STALE_MIN = 120          # data z cloudu starší než 2 h => regulátor offline
-SUMMARY_HOUR = 20        # večerní souhrn po 20:00
+CONFIG_FILE = "nastaveni.txt"
+DASHBOARD = "https://kptdundee.github.io/chata-hlidac/"
+DEFAULTS = {
+    "sirka": 50.08, "delka": 14.42,
+    "nabito": True,
+    "panely_nevyrabi": True, "panely_min_W": 5, "panely_rezerva_min": 45, "panely_po_dobu_min": 30,
+    "baterie_slabne_V": 12.2, "baterie_slabne_reset_V": 12.5,
+    "baterie_kriticka_V": 12.0, "baterie_kriticka_reset_V": 12.2,
+    "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
+    "regulator_offline_min": 120, "vecerni_souhrn_hodina": 20,
+}
 
 POINTS = {  # klíč: (dataPointId, itemId)
     "pv_w": (101415607, "34"),
@@ -98,6 +104,7 @@ def ntfy(topic, title, msg, prio=3, tags=""):
     body = {"topic": topic, "title": title, "message": msg, "priority": prio}
     if tags:
         body["tags"] = tags.split(",")
+    body["click"] = DASHBOARD  # ťuknutím se otevře přehled
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json"}, method="POST")
     for attempt in range(3):
@@ -154,6 +161,57 @@ def record(data, v, now):
     data["updated"] = ts
 
 
+def load_config(path=CONFIG_FILE):
+    """Načte nastaveni.txt (klíč = hodnota); chybné řádky ignoruje."""
+    cfg = dict(DEFAULTS)
+    try:
+        lines = open(path, encoding="utf-8").read().splitlines()
+    except OSError:
+        return cfg
+    for ln in lines:
+        ln = ln.split("#", 1)[0].strip()
+        if "=" not in ln:
+            continue
+        k, val = (x.strip() for x in ln.split("=", 1))
+        if k not in DEFAULTS:
+            continue
+        low = val.lower()
+        if isinstance(DEFAULTS[k], bool):
+            cfg[k] = low in ("zapnuto", "ano", "on", "true", "1")
+        elif low in ("vypnuto", "ne", "off"):
+            cfg[k] = None
+        else:
+            try:
+                cfg[k] = float(val.replace(",", "."))
+            except ValueError:
+                print("Nastavení: neplatná hodnota", k, "=", val)
+    return cfg
+
+
+def sun_times(lat, lon, day):
+    """Východ a západ slunce (NOAA) v místním čase; (None, None) při polárním dni/noci."""
+    import math
+    rad = math.radians
+    n = day.timetuple().tm_yday
+    out = []
+    for rising in (True, False):
+        t = n + ((6 if rising else 18) - lon / 15) / 24
+        M = 0.9856 * t - 3.289
+        L = (M + 1.916 * math.sin(rad(M)) + 0.020 * math.sin(rad(2 * M)) + 282.634) % 360
+        RA = math.degrees(math.atan(0.91764 * math.tan(rad(L)))) % 360
+        RA = (RA + (L // 90) * 90 - (RA // 90) * 90) / 15
+        sd = 0.39782 * math.sin(rad(L))
+        cd = math.cos(math.asin(sd))
+        ch = (math.cos(rad(90.833)) - sd * math.sin(rad(lat))) / (cd * math.cos(rad(lat)))
+        if abs(ch) > 1:
+            return None, None
+        H = (360 - math.degrees(math.acos(ch)) if rising else math.degrees(math.acos(ch))) / 15
+        UT = (H + RA - 0.06571 * t - 6.622 - lon / 15) % 24
+        base = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+        out.append((base + timedelta(hours=UT)).astimezone(TZ))
+    return out[0], out[1]
+
+
 def fmt(x, d=0):
     return "?" if x is None else f"{x:.{d}f}".replace(".", ",")
 
@@ -164,6 +222,10 @@ def main():
     data = load_data(key)
     st = data.setdefault("state", {})
     now = datetime.now(TZ)
+    cfg = load_config()
+    rise, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    data["cfg"] = cfg
+    data["sun"] = [int(rise.timestamp()), int(set_.timestamp())] if rise else None
     data["checked"] = int(now.timestamp())
     try:
         v = read_values(login(acc, pw))
@@ -176,58 +238,92 @@ def main():
         return
     st["err_n"] = 0
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
-    if v.get("age_min") is not None and v["age_min"] <= STALE_MIN:
+    if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
         record(data, v, now)
     try:
-        check(v, st, now, topic)
+        check(v, st, now, topic, cfg, rise, set_)
     finally:
         save_data(key, data)
 
 
-def check(v, st, now, topic):
+def check(v, st, now, topic, cfg, rise, set_):
     bv, status = v["bat_v"], int(v["status"]) if v["status"] is not None else None
-    line = (f"Baterie {fmt(bv, 2)} V, {fmt(v['bat_soc'])} %, panely {fmt(v['pv_w'])} W, "
+    pv = v["pv_w"]
+    line = (f"Baterie {fmt(bv, 2)} V, {fmt(v['bat_soc'])} %, panely {fmt(pv)} W, "
             f"{STATUS.get(status, status)}, dnes {fmt(v['day_kwh'], 2)} kWh")
     print(now.isoformat(), line, f"(stáří dat {v['age_min']:.0f} min)" if v["age_min"] is not None else "")
+    hm = lambda d: d.strftime("%H:%M")
 
     if os.environ.get("TEST") == "1":
         ntfy(topic, "🔔 Hlídač chaty – test", line, 3, "white_check_mark")
 
     # Regulátor offline
-    stale = v["age_min"] is None or v["age_min"] > STALE_MIN
+    stale = v["age_min"] is None or v["age_min"] > cfg["regulator_offline_min"]
     if stale and not st.get("stale"):
         ntfy(topic, "📡 Regulátor neposílá data", f"Poslední data z cloudu před {v['age_min'] or 0:.0f} min. Zkontroluj Wi‑Fi modul / internet.", 4, "warning")
     st["stale"] = stale
     if stale or bv is None:
         return
 
-    # Nabitá baterie (fáze Float, 2 kontroly po sobě)
+    # Baterie na 100 % (fáze Float, 2 kontroly po sobě)
     st["float_n"] = min(st.get("float_n", 0) + 1, 2) if status == 1 else 0
-    if st["float_n"] >= 2 and not st.get("full_sent"):
-        ntfy(topic, "☀️ Solární baterie nabitá", f"Regulátor je ve fázi Float. {line}. Můžeš ji zase připojit.", 4, "sunny")
+    if cfg["nabito"] and st["float_n"] >= 2 and not st.get("full_sent"):
+        ntfy(topic, "🔋 Baterie nabitá na 100 %", f"Regulátor přešel do Float. Můžeš zapojit náročnější spotřebič (nabíjení apod.).\n{line}", 4, "battery,sunny")
         st["full_sent"] = True
-    if status != 1:
+    if status != 1 and bv < 13.2:  # další „nabito“ až po vybití pod Boost Recovery 13,2 V
         st["full_sent"] = False
 
-    # Nízké napětí (2 kontroly po sobě, s hysterezí)
-    for key, lim, reset, title, text, prio in (
-        ("crit", CRIT_V, CRIT_RESET_V, "🛑 Odpoj solární baterii", "Napětí pod 12,0 V – nevybíjej dál, přepni na EcoFlow.", 5),
-        ("warn", WARN_V, WARN_RESET_V, "⚠️ Solární baterie slábne", "Napětí pod 12,2 V (~50 %). Šetři spotřebu.", 4),
-    ):
+    # Panely nevyrábí za denního světla
+    if cfg["panely_nevyrabi"] and rise and pv is not None:
+        m = timedelta(minutes=cfg["panely_rezerva_min"] or 0)
+        daylight = rise + m <= now <= set_ - m
+        full = status == 1 or bv >= 13.5  # plná baterie => regulátor sám omezí výkon
+        if daylight and pv < (cfg["panely_min_W"] or 0) and not full:
+            st.setdefault("pv_low_since", int(now.timestamp()))
+            low_min = (now.timestamp() - st["pv_low_since"]) / 60
+            if low_min >= (cfg["panely_po_dobu_min"] or 0) - 1 and not st.get("pv_sent"):
+                ntfy(topic, "🌥 Panely nevyrábí",
+                     f"Už {low_min:.0f} min jen {fmt(pv)} W, i když je den (slunce dnes {hm(rise)}–{hm(set_)}). "
+                     f"Sníh, zastínění, nebo vypadlý kabel?\n{line}", 4, "warning")
+                st["pv_sent"] = True
+        else:
+            st.pop("pv_low_since", None)
+            if st.get("pv_sent") and pv >= max(20, (cfg["panely_min_W"] or 0) * 4):
+                ntfy(topic, "☀️ Panely zase vyrábí", line, 2, "sunny")
+                st["pv_sent"] = False
+        if now > set_:
+            st["pv_sent"] = False
+
+    # Nízké napětí (2 kontroly po sobě, s hysterezí); posílá se jen nejhorší úroveň
+    levels = (
+        ("off", "odpojeni", "🔌 Regulátor odpojuje zátěž",
+         "Napětí na úrovni ochranného odpojení regulátoru ({lim} V). Zátěž se vrátí až nad {reset} V.", 5),
+        ("crit", "baterie_kriticka", "🛑 Odpoj spotřebiče",
+         "Napětí pod {lim} V – alarm regulátoru. Nevybíjej dál, přepni na EcoFlow.", 5),
+        ("warn", "baterie_slabne", "⚠️ Solární baterie slábne",
+         "Napětí pod {lim} V (~50 %). Šetři spotřebu.", 4),
+    )
+    worse = False
+    for key, name, title, text, prio in levels:
+        lim, reset = cfg[name + "_V"], cfg[name + "_reset_V"]
+        if lim is None:
+            continue
         st[key + "_n"] = min(st.get(key + "_n", 0) + 1, 2) if bv < lim else 0
         if st[key + "_n"] >= 2 and not st.get(key + "_sent"):
-            ntfy(topic, title, f"{text}\n{line}", prio, "warning")
+            if not worse:
+                ntfy(topic, title, text.format(lim=fmt(lim, 2), reset=fmt(reset or lim, 2)) + "\n" + line, prio, "warning")
             st[key + "_sent"] = True
-            if key == "crit":
-                st["warn_sent"] = True  # nespamovat i varováním
-        if bv > reset:
+        if bv > (reset if reset is not None else lim):
             st[key + "_sent"] = False
+        worse = worse or bool(st.get(key + "_sent"))
 
     # Večerní souhrn
+    h = cfg["vecerni_souhrn_hodina"]
     today = now.strftime("%Y-%m-%d")
-    if now.hour >= SUMMARY_HOUR and st.get("summary_day") != today:
+    if h is not None and now.hour >= h and st.get("summary_day") != today:
+        sun = f"\nSlunce zítra cca {hm(rise)}–{hm(set_)}" if rise else ""
         ntfy(topic, "📊 Chata – dnešní souhrn",
-             f"Výroba dnes {fmt(v['day_kwh'], 2)} kWh\nBaterie {fmt(bv, 2)} V ({fmt(v['bat_soc'])} %), dnes min {fmt(v['min_v'], 2)} V / max {fmt(v['max_v'], 2)} V\nTeplota baterie {fmt(v['bat_t'], 1)} °C", 2, "bar_chart")
+             f"Výroba dnes {fmt(v['day_kwh'], 2)} kWh\nBaterie {fmt(bv, 2)} V ({fmt(v['bat_soc'])} %), dnes min {fmt(v['min_v'], 2)} V / max {fmt(v['max_v'], 2)} V\nTeplota baterie {fmt(v['bat_t'], 1)} °C{sun}", 2, "bar_chart")
         st["summary_day"] = today
 
 

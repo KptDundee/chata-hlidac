@@ -118,7 +118,7 @@ summary{cursor:pointer;color:var(--text2);padding:6px 0}
   </div>
 
   <section class="charts">
-    <div class="card chart"><h2>Napětí baterie</h2><div class="cs">V · čárkovaně limity 12,2 V (slábne) a 12,0 V (odpojit)</div><div id="c_v"></div></div>
+    <div class="card chart"><h2>Napětí baterie</h2><div class="cs" id="vlim">V · čárkovaně limity upozornění</div><div id="c_v"></div></div>
     <div class="card chart"><h2>Výkon panelů</h2><div class="cs">W</div><div id="c_pv"></div></div>
     <div class="card chart"><h2>Výroba po dnech</h2><div class="cs">kWh · posledních 30 dní</div><div id="c_day"></div></div>
     <div class="card chart"><h2>Nejnižší napětí dne</h2><div class="cs">V · posledních 30 dní</div><div id="c_min"></div></div>
@@ -136,7 +136,7 @@ summary{cursor:pointer;color:var(--text2);padding:6px 0}
 
 <script>
 "use strict";
-const WARN_V = 12.2, CRIT_V = 12.0;
+let WARN_V = 12.2, CRIT_V = 12.0, OFF_V = 11.6;
 const STATUS = {0:"nenabíjí",1:"udržovací (Float)",2:"nabíjí (Boost)",3:"vyrovnávací (Equalize)"};
 const $ = id => document.getElementById(id);
 const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
@@ -164,15 +164,17 @@ async function load(pw){
 /* ---------- stav baterie ---------- */
 function batState(v, st, status){
   if(v==null) return {c:"--muted",i:"?",t:"bez dat",a:"Žádná čerstvá data z regulátoru."};
-  if(v < CRIT_V) return {c:"--crit",i:"!",t:"Odpojit spotřebiče",a:"Napětí je pod 12,0 V – odpoj spotřebiče, ať se AGM baterie nepoškodí."};
-  if(v < WARN_V) return {c:"--serious",i:"↓",t:"Baterie slábne",a:"Pod 12,2 V – omez spotřebu, večer to může dojít."};
-  if(status===1) return {c:"--good",i:"✓",t:"Nabito",a:"Baterie je plná (Float) – můžeš zase připojit spotřebiče."};
+  if(v < OFF_V) return {c:"--crit",i:"!",t:"Zátěž odpojena",a:`Pod ${nf(OFF_V,1)} V – regulátor odpojuje zátěž, aby chránil baterii.`};
+  if(v < CRIT_V) return {c:"--crit",i:"!",t:"Odpojit spotřebiče",a:`Napětí je pod ${nf(CRIT_V,1)} V – odpoj spotřebiče, ať se AGM baterie nepoškodí.`};
+  if(v < WARN_V) return {c:"--serious",i:"↓",t:"Baterie slábne",a:`Pod ${nf(WARN_V,1)} V – omez spotřebu, večer to může dojít.`};
+  if(status===1) return {c:"--good",i:"✓",t:"Nabito",a:"Baterie je na 100 % (Float) – můžeš zapojit náročnější spotřebič."};
   if(status===2||status===3) return {c:"--good",i:"↑",t:"Nabíjí se",a:"Panely nabíjí baterii."};
   return {c:"--good",i:"✓",t:"V pořádku",a:"Napětí je v bezpečném pásmu."};
 }
 
 function render(){
   const d = DATA, last = d.last || {}, pts = d.points || [];
+  if(d.cfg){WARN_V=d.cfg.baterie_slabne_V??WARN_V;CRIT_V=d.cfg.baterie_kriticka_V??CRIT_V;OFF_V=d.cfg.odpojeni_V??OFF_V;}
   const lp = pts[pts.length-1] || {};
   const bv = last.bat_v ?? lp.bat_v, soc = last.bat_soc ?? lp.bat_soc, status = last.status ?? lp.status;
   const s = batState(bv, d.state, status);
@@ -196,8 +198,10 @@ function render(){
   const age = last.age_min;
   $("upd").textContent = d.updated ? `Data z regulátoru ${ago(d.updated)}` + (age!=null&&age>120?" ⚠ regulátor neposílá data":"") : "Zatím žádná data";
   const err = d.state && d.state.err_n;
-  $("cloud").textContent = (d.checked?`Kontrola ${ago(d.checked)}`:"") + (err?` · cloud nedostupný (${err}× za sebou)`:" · cloud OK");
+  const sun = d.sun ? ` · ☀ ${new Date(d.sun[0]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}–${new Date(d.sun[1]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}` : "";
+  $("cloud").textContent = (d.checked?`Kontrola ${ago(d.checked)}`:"") + (err?` · cloud nedostupný (${err}× za sebou)`:" · cloud OK") + sun;
 
+  $("vlim").textContent = `V · čárkovaně ${nf(WARN_V,1)} V (slábne) a ${nf(CRIT_V,1)} V (alarm)`;
   const from = Date.now()/1000 - HOURS*3600;
   const win = pts.filter(p=>p.t>=from);
   lineChart($("c_v"), win, "bat_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});

@@ -4,9 +4,11 @@ Každých 10 minut (GitHub Actions) načte data solárního regulátoru EPEVER X
 uloží je do zašifrované historie a:
 
 **posílá upozornění do aplikace ntfy v telefonu**
-- ☀️ solární baterie nabitá (fáze Float) – můžeš ji připojit
+- 🔋 baterie na 100 % (fáze Float) – můžeš zapojit náročnější spotřebič
+- 🌥 panely nevyrábí, i když je den (východ/západ slunce + rezerva)
 - ⚠️ napětí pod 12,2 V (~50 %)
-- 🛑 napětí pod 12,0 V – odpojit, nevybíjet dál
+- 🛑 napětí pod 12,0 V – alarm regulátoru, odpojit spotřebiče
+- 🔌 napětí na úrovni ochranného odpojení regulátoru (11,6 V)
 - 📡 regulátor neposílá data déle než 2 h
 - 📊 večerní souhrn po 20:00
 
@@ -16,7 +18,7 @@ uloží je do zašifrované historie a:
 Data na webu jsou zašifrovaná (AES-GCM, klíč z hesla `DATA_KEY`); bez hesla je nikdo nepřečte.
 Kód v repozitáři žádná hesla neobsahuje – ta jsou jen v GitHub Secrets.
 
-Hranice se mění nahoře v `hlidac.py`. Ruční spuštění: **Actions → Hlídač chaty → Run workflow**
+Podmínky a hranice se mění v souboru **`nastaveni.txt`** (jde upravit i z telefonu v aplikaci GitHub). Ruční spuštění: **Actions → Hlídač chaty → Run workflow**
 (zaškrtnutím „test“ přijde zkušební upozornění).
 
 Potřebné Secrets (Settings → Secrets and variables → Actions):
