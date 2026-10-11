@@ -30,6 +30,7 @@ DEFAULTS = {
     "regulator_offline_min": 120, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
+    "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
 }
 
@@ -312,6 +313,7 @@ def main():
     data["checked"] = int(now.timestamp())
     rivers = read_ecoflow(data, st, now, topic, cfg)
     inv = read_inverter(data, topic, now)
+    check_gateway(inv, st, now, topic, cfg)
     if inv and now.timestamp() - inv["t"] < 1200:   # alarm / vypnutí hlášené samotným měničem
         al = inv.get("al") if inv.get("al") not in ("0", "NONE", "No alarm") else None
         if al and st.get("inv_al") != al:
@@ -348,7 +350,7 @@ def read_inverter(data, topic, now):
 
     Formát zprávy: JSON {"w": průměr VA, "max": max VA, "v": napětí baterie, "st": stav, "al": alarm}.
     """
-    url = f"https://ntfy.sh/{topic}-menic/json?poll=1&since=30m"
+    url = f"https://ntfy.sh/{topic}-menic/json?poll=1&since=12h"
     try:
         lines = urllib.request.urlopen(url, timeout=20).read().decode().strip().splitlines()
     except Exception as e:
@@ -376,12 +378,54 @@ def read_inverter(data, topic, now):
                 inv[k] = round(x, 2)
         except (KeyError, TypeError, ValueError):
             pass
+    ph = body.get("ph")
+    if isinstance(ph, dict) and ph.get("b") is not None and ph["b"] >= 0:
+        inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
+    tp = body.get("tp")
+    if isinstance(tp, list):
+        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip") if p.get(k) is not None}
+                     for p in tp if isinstance(p, dict)][:12]
     for k in ("st", "al"):
         if body.get(k) not in (None, ""):
             inv[k] = str(body[k])[:40]
+    if "w" not in inv:   # bez Bluetooth dat z měniče použít zásuvku Tapo za měničem
+        import re
+        for p in inv.get("tp", []):
+            if p.get("w") is not None and re.search(r"m[eě]ni[cč]|inverter|220|230", str(p.get("n", "")), re.I):
+                inv["w"], inv["src"] = p["w"], "tapo"
+                break
+    if "w" not in inv and not inv.get("tp") and "ph" not in inv:
+        return None
     data["inverter"] = inv
     print(f"Měnič: {fmt(inv.get('w'))} W (max {fmt(inv.get('max'))}), {fmt(inv.get('v'), 2)} V, {inv.get('st', '')}")
     return inv
+
+
+def check_gateway(inv, st, now, topic, cfg):
+    """Brána na chatě (telefon / ESP32): mlčí? má telefon vybitou baterii?"""
+    if inv:
+        st["gw_seen"] = True
+    if not cfg["brana_hlidat"] or not st.get("gw_seen"):
+        return
+    age = (now.timestamp() - inv["t"]) / 60 if inv else 99999
+    lim = cfg["brana_ticho_min"] or 60
+    if age > lim and not st.get("gw_silent"):
+        ntfy(topic, "📵 Brána na chatě neposílá data",
+             f"Telefon u měniče se neozval {'přes 12 h' if age > 700 else f'{age:.0f} min'}. Vybitý, vypnutá Wi-Fi, nebo ho Android uspal?", 4, "warning")
+        st["gw_silent"] = True
+    if age <= lim:
+        if st.get("gw_silent"):
+            ntfy(topic, "📱 Brána na chatě zase posílá", "Data z telefonu u měniče znovu chodí.", 2, "white_check_mark")
+        st["gw_silent"] = False
+    ph = (inv or {}).get("ph")
+    low = cfg["telefon_baterie_pod"]
+    if ph and low is not None and age <= lim:
+        b = ph.get("b")
+        if b is not None and b <= low and not ph.get("c") and not st.get("ph_low"):
+            ntfy(topic, f"🪫 Telefon na chatě má {b:.0f} %", "Brána brzy přestane posílat data – dobij ho (nebo zkontroluj nabíječku / zásuvku).", 4, "battery,warning")
+            st["ph_low"] = True
+        if b is not None and (b > low + 10 or ph.get("c")):
+            st["ph_low"] = False
 
 
 def read_ecoflow(data, st, now, topic, cfg):

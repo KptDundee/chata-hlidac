@@ -49,3 +49,10 @@ river_vymenit = zapnuto
 river_vymenit_pod = 15
 # upozornit, když se River při nabíjení (generátor) nabije na 100 %
 river_nabita = zapnuto
+
+# --- Brána na chatě (telefon u měniče) ---
+# upozornit, když brána přestane posílat data
+brana_hlidat = zapnuto
+brana_ticho_min = 60
+# upozornit, když baterie telefonu klesne pod (%)
+telefon_baterie_pod = 15

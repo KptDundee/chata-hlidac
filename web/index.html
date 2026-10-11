@@ -142,6 +142,7 @@ header button{white-space:nowrap}
     <div class="card tile"><div class="l">Proud baterie</div><div class="v" id="t_a">–</div><div class="n" id="t_a_n"></div></div>
   </section>
 
+  <section class="card hide" id="plugs" style="margin-bottom:12px"></section>
   <section class="tiles hide" id="rivers" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></section>
 
   <div class="ctrl">
@@ -238,6 +239,14 @@ function render(){
         <div class="n">${st}${r.online?t:""}${old?" · data jsou stará":""}</div></div>`;}).join("");
     rvEl.classList.remove("hide");
   } else rvEl.classList.add("hide");
+  const gw = d.inverter, gwFresh = gw && Date.now()/1000 - gw.t < 1800;
+  const pl = $("plugs"), tp = (gw && gwFresh && gw.tp) || [], ph = gw && gw.ph;
+  if(tp.length || ph){
+    const rows = tp.slice().sort((a,b)=>(b.w??-1)-(a.w??-1)).map(p=>`<div class="row" style="padding:8px 0"><div class="t"><b style="font-weight:500">${p.n||("Zásuvka ."+p.ip)}</b>${p.err?`<span style="color:var(--serious)">nedostupná</span>`:p.wh!=null?`<span>dnes ${nf(p.wh/1000,2)} kWh</span>`:""}</div><div style="font-variant-numeric:tabular-nums;font-weight:600">${p.w!=null?nf(p.w)+" W":"–"}</div></div>`).join("");
+    const phTxt = ph ? `<div class="row" style="padding:8px 0"><div class="t"><b style="font-weight:500">📱 Telefon na chatě</b><span>${ph.c?"nabíjí se":"na baterii"}${ph.t!=null?` · ${nf(ph.t,0)} °C`:""}${gwFresh?"":` · ozval se ${ago(gw.t)}`}</span></div><div style="font-weight:600;${ph.b<=(d.cfg?.telefon_baterie_pod??15)?"color:var(--crit)":""}">${nf(ph.b)} %</div></div>` : "";
+    pl.innerHTML = `<div class="sub" style="margin-bottom:2px">Zásuvky${gw.src==="tapo"?" · odběr měniče ze zásuvky":""}</div>${rows}${phTxt}`;
+    pl.classList.remove("hide");
+  } else pl.classList.add("hide");
   const f = d.forecast, fc = $("fc");
   if(f && f.until && Date.now()/1000 < f.until){
     const hm = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
@@ -433,6 +442,11 @@ const SETTINGS = [
     ["river_vymenit","River skoro vybitá","Upozornit, ať ji vyměníš","","", "sw"],
     ["river_vymenit_pod","Vyměnit pod","","%",5,"num"],
     ["river_nabita","River nabitá při nabíjení","Můžeš vypnout generátor","","", "sw"],
+  ]],
+  ["Brána na chatě (telefon)", [
+    ["brana_hlidat","Upozornit, když brána mlčí","Telefon u měniče přestal posílat data","","", "sw"],
+    ["brana_ticho_min","Mlčí déle než","","min",10,"num"],
+    ["telefon_baterie_pod","Baterie telefonu pod","","%",5,"num"],
   ]],
   ["Pro pokročilé", [
     ["baterie_slabne_reset_V","Varování „slábne“ znovu až nad","","V",0.05,"num"],
