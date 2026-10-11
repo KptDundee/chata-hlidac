@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chata – elektřina</title>
+<meta name="theme-color" content="#1a1a19">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%23eb6834'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f3f2ee;--surface:#fcfcfb;--text:#0b0b0b;--text2:#52514e;--muted:#8a8984;--line:#e4e3de;--grid:#ecebe6;
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;
+  --good:#0ca30c;--warn:#fab219;--serious:#ec835a;--crit:#d03b3b;
+  --radius:16px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111110;--surface:#1a1a19;--text:#f0efec;--text2:#c3c2b7;--muted:#8c8b84;--line:#2c2c2a;--grid:#262624;
+  --s1:#3987e5;--s2:#d95926;--s3:#1baf7a;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:960px;margin:0 auto;padding:16px 16px 48px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 16px}
+h1{font-size:20px;margin:0;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--text2);font-size:13px}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:10px;padding:7px 12px;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.hero{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px}
+.big{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.bigv{font-size:52px;font-weight:700;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.bigv small{font-size:22px;font-weight:600;color:var(--text2);margin-left:4px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 12px 5px 8px;font-weight:600;font-size:14px;color:var(--text);border:1px solid var(--line)}
+.pill i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-style:normal;color:#fff;font-size:12px;font-weight:800}
+.advice{margin-top:10px;color:var(--text2)}
+.socbar{margin-top:14px;height:10px;border-radius:5px;background:var(--grid);overflow:hidden}
+.socbar div{height:100%;border-radius:5px;background:var(--s1)}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px}
+@media(min-width:640px){.tiles{grid-template-columns:repeat(4,1fr)}}
+.tile .l{color:var(--text2);font-size:13px}
+.tile .v{font-size:26px;font-weight:650;font-variant-numeric:tabular-nums;margin-top:2px}
+.tile .v small{font-size:14px;color:var(--text2);font-weight:500;margin-left:3px}
+.tile .n{color:var(--muted);font-size:12px;margin-top:2px}
+.ctrl{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:20px 0 12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;border-radius:0;padding:7px 12px;background:transparent;color:var(--text2)}
+.seg button[aria-pressed=true]{background:var(--text);color:var(--surface);font-weight:600}
+.charts{display:grid;gap:12px}
+@media(min-width:800px){.charts{grid-template-columns:1fr 1fr}}
+.chart h2{font-size:15px;margin:0;font-weight:600}
+.chart .cs{color:var(--text2);font-size:12px;margin:2px 0 8px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y}
+.chart text{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.tip{position:fixed;pointer-events:none;background:var(--text);color:var(--surface);padding:6px 9px;border-radius:8px;font-size:12px;line-height:1.35;white-space:nowrap;z-index:9;opacity:0;transition:opacity .1s;font-variant-numeric:tabular-nums}
+.tip b{font-weight:650}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}
+th,td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--text2);font-weight:600}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--text2);padding:6px 0}
+.login{max-width:360px;margin:12vh auto 0}
+.login input{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);margin:12px 0}
+.login button{width:100%;background:var(--text);color:var(--surface);font-weight:600;padding:10px}
+.err{color:var(--crit);font-size:13px;min-height:18px}
+.hide{display:none!important}
+.foot{margin-top:24px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.foot a{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<section id="login" class="login card hide">
+  <h1>⚡ Chata – elektřina</h1>
+  <p class="sub">Data jsou zašifrovaná. Zadej heslo (DATA_KEY).</p>
+  <form id="lf">
+    <input id="pw" type="password" autocomplete="current-password" placeholder="Heslo" required>
+    <div class="err" id="lerr"></div>
+    <button type="submit" id="lbtn">Odemknout</button>
+  </form>
+</section>
+
+<main id="app" class="hide">
+  <header>
+    <div><h1>⚡ Chata – elektřina</h1><div class="sub" id="upd">…</div></div>
+    <button id="refresh" title="Obnovit">↻</button>
+  </header>
+
+  <section class="hero">
+    <div class="card">
+      <div class="sub">Solární baterie (AGM 12 V 200 Ah)</div>
+      <div class="big" style="margin-top:6px">
+        <div class="bigv" id="bv">–<small>V</small></div>
+        <span class="pill" id="pill"></span>
+      </div>
+      <div class="advice" id="advice"></div>
+      <div class="socbar" role="progressbar" aria-label="Stav nabití" id="socbar"><div style="width:0"></div></div>
+    </div>
+  </section>
+
+  <section class="tiles">
+    <div class="card tile"><div class="l">Nabití (SOC)</div><div class="v" id="t_soc">–</div><div class="n" id="t_soc_n"></div></div>
+    <div class="card tile"><div class="l">Panely teď</div><div class="v" id="t_pv">–</div><div class="n" id="t_pv_n"></div></div>
+    <div class="card tile"><div class="l">Vyrobeno dnes</div><div class="v" id="t_day">–</div><div class="n" id="t_day_n"></div></div>
+    <div class="card tile"><div class="l">Proud baterie</div><div class="v" id="t_a">–</div><div class="n" id="t_a_n"></div></div>
+  </section>
+
+  <div class="ctrl">
+    <div class="seg" id="range" role="group" aria-label="Období">
+      <button data-h="24" aria-pressed="true">24 h</button>
+      <button data-h="48" aria-pressed="false">48 h</button>
+      <button data-h="168" aria-pressed="false">7 dní</button>
+      <button data-h="336" aria-pressed="false">14 dní</button>
+    </div>
+  </div>
+
+  <section class="charts">
+    <div class="card chart"><h2>Napětí baterie</h2><div class="cs">V · čárkovaně limity 12,2 V (slábne) a 12,0 V (odpojit)</div><div id="c_v"></div></div>
+    <div class="card chart"><h2>Výkon panelů</h2><div class="cs">W</div><div id="c_pv"></div></div>
+    <div class="card chart"><h2>Výroba po dnech</h2><div class="cs">kWh · posledních 30 dní</div><div id="c_day"></div></div>
+    <div class="card chart"><h2>Nejnižší napětí dne</h2><div class="cs">V · posledních 30 dní</div><div id="c_min"></div></div>
+  </section>
+
+  <details class="card" style="margin-top:12px">
+    <summary>Tabulka po dnech</summary>
+    <table><thead><tr><th>Den</th><th>Výroba kWh</th><th>Min V</th><th>Max V</th><th>Min SOC %</th></tr></thead><tbody id="tbl"></tbody></table>
+  </details>
+
+  <div class="foot"><span id="cloud"></span><a href="#" id="logout">Odhlásit</a></div>
+</main>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+"use strict";
+const WARN_V = 12.2, CRIT_V = 12.0;
+const STATUS = {0:"nenabíjí",1:"udržovací (Float)",2:"nabíjí (Boost)",3:"vyrovnávací (Equalize)"};
+const $ = id => document.getElementById(id);
+const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const nf = (x,d=0) => x==null||isNaN(x) ? "–" : Number(x).toLocaleString("cs-CZ",{minimumFractionDigits:d,maximumFractionDigits:d});
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const fmtT = t => new Date(t*1000).toLocaleString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"});
+const ago = t => { const m = Math.round((Date.now()/1000 - t)/60); return m<1?"právě teď":m<60?`před ${m} min`:m<1440?`před ${Math.floor(m/60)} h ${m%60} min`:`před ${Math.floor(m/1440)} dny`; };
+
+let DATA = null, HOURS = 24, PW = null;
+
+async function decrypt(enc, pw){
+  const salt=b64(enc.salt), iv=b64(enc.iv), ct=b64(enc.ct);
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:200000,hash:"SHA-256"}, base, {name:"AES-GCM",length:256}, false, ["decrypt"]);
+  const pt = await crypto.subtle.decrypt({name:"AES-GCM",iv}, key, ct);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function load(pw){
+  const r = await fetch("data.enc?"+Date.now(), {cache:"no-store"});
+  if(!r.ok) throw new Error("nodata");
+  return decrypt(await r.json(), pw);
+}
+
+/* ---------- stav baterie ---------- */
+function batState(v, st, status){
+  if(v==null) return {c:"--muted",i:"?",t:"bez dat",a:"Žádná čerstvá data z regulátoru."};
+  if(v < CRIT_V) return {c:"--crit",i:"!",t:"Odpojit spotřebiče",a:"Napětí je pod 12,0 V – odpoj spotřebiče, ať se AGM baterie nepoškodí."};
+  if(v < WARN_V) return {c:"--serious",i:"↓",t:"Baterie slábne",a:"Pod 12,2 V – omez spotřebu, večer to může dojít."};
+  if(status===1) return {c:"--good",i:"✓",t:"Nabito",a:"Baterie je plná (Float) – můžeš zase připojit spotřebiče."};
+  if(status===2||status===3) return {c:"--good",i:"↑",t:"Nabíjí se",a:"Panely nabíjí baterii."};
+  return {c:"--good",i:"✓",t:"V pořádku",a:"Napětí je v bezpečném pásmu."};
+}
+
+function render(){
+  const d = DATA, last = d.last || {}, pts = d.points || [];
+  const lp = pts[pts.length-1] || {};
+  const bv = last.bat_v ?? lp.bat_v, soc = last.bat_soc ?? lp.bat_soc, status = last.status ?? lp.status;
+  const s = batState(bv, d.state, status);
+  $("bv").innerHTML = `${nf(bv,2)}<small>V</small>`;
+  $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}`;
+  $("advice").textContent = s.a;
+  $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,soc||0))+"%";
+  $("socbar").setAttribute("aria-valuenow", soc ?? 0);
+  $("t_soc").innerHTML = `${nf(soc)}<small>%</small>`;
+  $("t_soc_n").textContent = "odhad regulátoru";
+  $("t_pv").innerHTML = `${nf(last.pv_w ?? lp.pv_w)}<small>W</small>`;
+  $("t_pv_n").textContent = last.pv_v!=null ? `${nf(last.pv_v,1)} V` : STATUS[status] || "";
+  $("t_day").innerHTML = `${nf(last.day_kwh,2)}<small>kWh</small>`;
+  const tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
+  const days = Object.keys(d.days||{}).sort();
+  const sum30 = days.slice(-30).reduce((a,k)=>a+(d.days[k].solar_kwh||0),0);
+  $("t_day_n").textContent = `30 dní: ${nf(sum30,1)} kWh`;
+  const a = last.bat_a ?? lp.bat_a;
+  $("t_a").innerHTML = `${nf(a,1)}<small>A</small>`;
+  $("t_a_n").textContent = STATUS[status] || "";
+  const age = last.age_min;
+  $("upd").textContent = d.updated ? `Data z regulátoru ${ago(d.updated)}` + (age!=null&&age>120?" ⚠ regulátor neposílá data":"") : "Zatím žádná data";
+  const err = d.state && d.state.err_n;
+  $("cloud").textContent = (d.checked?`Kontrola ${ago(d.checked)}`:"") + (err?` · cloud nedostupný (${err}× za sebou)`:" · cloud OK");
+
+  const from = Date.now()/1000 - HOURS*3600;
+  const win = pts.filter(p=>p.t>=from);
+  lineChart($("c_v"), win, "bat_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
+  lineChart($("c_pv"), win, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true});
+  const dd = days.slice(-30).map(k=>({k,...d.days[k]}));
+  barChart($("c_day"), dd, "solar_kwh", css("--s2"), {unit:"kWh",dec:2});
+  dotChart($("c_min"), dd, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
+  $("tbl").innerHTML = days.slice().reverse().slice(0,60).map(k=>{const x=d.days[k];return `<tr><td>${new Date(k).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}</td><td>${nf(x.solar_kwh,2)}</td><td>${nf(x.min_v,2)}</td><td>${nf(x.max_v,2)}</td><td>${x.soc_min!=null&&x.soc_min<999?nf(x.soc_min):"–"}</td></tr>`}).join("") || `<tr><td colspan="5">Zatím žádné dny</td></tr>`;
+}
+
+/* ---------- grafy (čisté SVG) ---------- */
+const W=600, H=220, M={l:40,r:10,t:10,b:24};
+const NS="http://www.w3.org/2000/svg";
+function niceTicks(lo,hi,n=4){const span=hi-lo||1,step0=span/n,mag=Math.pow(10,Math.floor(Math.log10(step0))),f=step0/mag,step=(f<1.5?1:f<3?2:f<7?5:10)*mag;const out=[];for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step)out.push(+v.toFixed(6));return out;}
+function frame(el, lo, hi, dec){
+  el.innerHTML=""; const svg=document.createElementNS(NS,"svg"); svg.setAttribute("viewBox",`0 0 ${W} ${H}`); el.appendChild(svg);
+  const y=v=>M.t+(H-M.t-M.b)*(1-(v-lo)/(hi-lo||1));
+  let g=""; for(const t of niceTicks(lo,hi)){g+=`<line x1="${M.l}" x2="${W-M.r}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)"/><text x="${M.l-6}" y="${y(t)+4}" text-anchor="end">${nf(t,dec)}</text>`;}
+  svg.innerHTML=g; return {svg,y};
+}
+function empty(el,msg="Zatím málo dat – graf se naplní během pár hodin."){el.innerHTML=`<div class="sub" style="padding:40px 0;text-align:center">${msg}</div>`;}
+function xLabels(svg,t0,t1,x){
+  const span=t1-t0, stepH = span<=86400*1.1?6:span<=172800*1.1?12:span<=7*86400*1.1?24:48;
+  let s=""; const d=new Date(t0*1000); d.setMinutes(0,0,0); d.setHours(Math.ceil(d.getHours()/stepH)*stepH);
+  for(let t=d.getTime()/1000;t<=t1;t+=stepH*3600){const dt=new Date(t*1000);const lab=stepH>=24?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):dt.getHours()===0?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):dt.getHours()+":00";s+=`<text x="${x(t)}" y="${H-6}" text-anchor="middle">${lab}</text>`;}
+  svg.insertAdjacentHTML("beforeend",s);
+}
+function refLines(svg,y,refs){let s="";for(const[v,c]of refs||[])s+=`<line x1="${M.l}" x2="${W-M.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(${c})" stroke-width="1.5" stroke-dasharray="5 4"/>`;svg.insertAdjacentHTML("beforeend",s);}
+const tip=$("tip");
+function showTip(ev,html){tip.innerHTML=html;tip.style.opacity=1;const r=tip.getBoundingClientRect();let px=ev.clientX+12,py=ev.clientY-r.height-12;if(px+r.width>innerWidth-8)px=ev.clientX-r.width-12;if(py<8)py=ev.clientY+16;tip.style.left=px+"px";tip.style.top=py+"px";}
+function hideTip(){tip.style.opacity=0;}
+
+function lineChart(el, pts, key, color, o){
+  const p=pts.filter(q=>q[key]!=null); if(p.length<2) return empty(el);
+  let lo=Math.min(...p.map(q=>q[key])), hi=Math.max(...p.map(q=>q[key]));
+  for(const[v]of o.refs||[]){lo=Math.min(lo,v);hi=Math.max(hi,v);}
+  if(o.zero) lo=0; const pad=(hi-lo)*(o.pad||.1)||1; hi+=pad; if(!o.zero) lo-=pad*.5;
+  const {svg,y}=frame(el,lo,hi,o.dec>0?1:0);
+  const t0=Date.now()/1000-HOURS*3600, t1=Date.now()/1000;
+  const x=t=>M.l+(W-M.l-M.r)*(t-t0)/(t1-t0);
+  xLabels(svg,t0,t1,x); refLines(svg,y,o.refs);
+  // mezery v datech > 40 min přeruší čáru
+  let dPath="",prev=null; for(const q of p){dPath+=(prev&&q.t-prev.t<2400?"L":"M")+x(q.t).toFixed(1)+","+y(q[key]).toFixed(1);prev=q;}
+  if(o.area){let a="",seg=[];const flush=()=>{if(seg.length>1)a+=`M${x(seg[0].t)},${y(lo)}`+seg.map(q=>`L${x(q.t)},${y(q[key])}`).join("")+`L${x(seg[seg.length-1].t)},${y(lo)}Z`;seg=[];};prev=null;for(const q of p){if(prev&&q.t-prev.t>=2400)flush();seg.push(q);prev=q;}flush();svg.insertAdjacentHTML("beforeend",`<path d="${a}" fill="${color}" opacity=".14"/>`);}
+  svg.insertAdjacentHTML("beforeend",`<path d="${dPath}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" stroke-width="1" opacity="0"/><circle class="cd" r="4.5" fill="${color}" stroke="var(--surface)" stroke-width="2" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
+  const ch=svg.querySelector(".ch"), cd=svg.querySelector(".cd");
+  const move=ev=>{const r=svg.getBoundingClientRect();const tx=t0+(t1-t0)*((ev.clientX-r.left)*W/r.width-M.l)/(W-M.l-M.r);let best=p[0];for(const q of p)if(Math.abs(q.t-tx)<Math.abs(best.t-tx))best=q;const X=x(best.t),Y=y(best[key]);ch.setAttribute("x1",X);ch.setAttribute("x2",X);ch.setAttribute("opacity",.5);cd.setAttribute("cx",X);cd.setAttribute("cy",Y);cd.setAttribute("opacity",1);
+    let extra=key==="bat_v"&&best.bat_soc!=null?`<br>SOC ${nf(best.bat_soc)} %`:"";if(key==="bat_v"&&best.bat_a!=null)extra+=` · ${nf(best.bat_a,1)} A`;
+    showTip(ev,`${fmtT(best.t)}<br><b>${nf(best[key],o.dec)} ${o.unit}</b>${extra}`);};
+  const leave=()=>{ch.setAttribute("opacity",0);cd.setAttribute("opacity",0);hideTip();};
+  svg.addEventListener("pointermove",move);svg.addEventListener("pointerdown",move);svg.addEventListener("pointerleave",leave);
+}
+function dayLabel(k){return new Date(k).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"});}
+function barChart(el, dd, key, color, o){
+  const p=dd.filter(q=>q[key]!=null); if(!p.length) return empty(el,"Zatím žádné celé dny.");
+  const hi=Math.max(...p.map(q=>q[key]))*1.15||1; const {svg,y}=frame(el,0,hi,1);
+  const n=Math.max(p.length,7), bw=(W-M.l-M.r)/n, w=Math.max(2,Math.min(28,bw-2));
+  let s=""; p.forEach((q,i)=>{const cx=M.l+bw*i+bw/2, top=y(q[key]), h=y(0)-top, r=Math.min(4,w/2,h);
+    s+=`<path d="M${cx-w/2},${y(0)}V${top+r}Q${cx-w/2},${top} ${cx-w/2+r},${top}H${cx+w/2-r}Q${cx+w/2},${top} ${cx+w/2},${top+r}V${y(0)}Z" fill="${color}"/>`;
+    s+=`<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    if(i%Math.ceil(p.length/6)===0||i===p.length-1)s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${dayLabel(q.k)}</text>`;});
+  svg.insertAdjacentHTML("beforeend",s);
+  hover(svg,p,q=>`${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br><b>${nf(q[key],o.dec)} ${o.unit}</b>`);
+}
+function dotChart(el, dd, key, color, o){
+  const p=dd.filter(q=>q[key]!=null); if(!p.length) return empty(el,"Zatím žádné celé dny.");
+  let lo=Math.min(...p.map(q=>q[key]),CRIT_V)-.2, hi=Math.max(...p.map(q=>q[key]),WARN_V)+.2;
+  const {svg,y}=frame(el,lo,hi,1); refLines(svg,y,o.refs);
+  const n=Math.max(p.length,7), bw=(W-M.l-M.r)/n; let s="",line="";
+  p.forEach((q,i)=>{const cx=M.l+bw*i+bw/2;line+=(i?"L":"M")+cx+","+y(q[key]);
+    const c=q[key]<CRIT_V?"var(--crit)":q[key]<WARN_V?"var(--serious)":color;
+    s+=`<circle cx="${cx}" cy="${y(q[key])}" r="4.5" fill="${c}" stroke="var(--surface)" stroke-width="2"/><rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    if(i%Math.ceil(p.length/6)===0||i===p.length-1)s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${dayLabel(q.k)}</text>`;});
+  svg.insertAdjacentHTML("beforeend",`<path d="${line}" fill="none" stroke="${color}" stroke-width="1.5" opacity=".35"/>`+s);
+  hover(svg,p,q=>`${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br>min <b>${nf(q.min_v,2)} V</b>${q.max_v!=null?` · max ${nf(q.max_v,2)} V`:""}`);
+}
+function hover(svg,p,html){
+  svg.addEventListener("pointermove",ev=>{const i=ev.target.dataset&&ev.target.dataset.i;if(i==null)return hideTip();showTip(ev,html(p[+i]));});
+  svg.addEventListener("pointerdown",ev=>{const i=ev.target.dataset&&ev.target.dataset.i;if(i!=null)showTip(ev,html(p[+i]));});
+  svg.addEventListener("pointerleave",hideTip);
+}
+
+/* ---------- ovládání ---------- */
+$("range").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;HOURS=+b.dataset.h;store.set("range",HOURS);for(const x of $("range").children)x.setAttribute("aria-pressed",x===b);render();});
+const sr=+store.get("range"); if(sr){HOURS=sr;for(const x of $("range").children)x.setAttribute("aria-pressed",+x.dataset.h===sr);}
+
+async function refresh(){
+  try{DATA=await load(PW);render();}
+  catch(e){if(e.message==="nodata"){$("upd").textContent="Data zatím nejsou – počkej na první běh hlídače.";}}
+}
+async function unlock(pw, silent){
+  try{DATA=await load(pw);PW=pw;store.set("pw",pw);$("login").classList.add("hide");$("app").classList.remove("hide");render();return true;}
+  catch(e){if(!silent)$("lerr").textContent=e.message==="nodata"?"Data zatím neexistují – spusť hlídače na GitHubu.":"Špatné heslo.";$("login").classList.remove("hide");$("app").classList.add("hide");return false;}
+}
+$("lf").addEventListener("submit",async e=>{e.preventDefault();$("lerr").textContent="";$("lbtn").textContent="Odemykám…";await unlock($("pw").value);$("lbtn").textContent="Odemknout";});
+$("refresh").addEventListener("click",refresh);
+$("logout").addEventListener("click",e=>{e.preventDefault();store.del("pw");location.reload();});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&PW)refresh();});
+setInterval(()=>{if(PW&&!document.hidden)refresh();},5*60*1000);
+setInterval(()=>{if(DATA)render();},60*1000);
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>DATA&&render());
+(async()=>{const s=store.get("pw");if(!(s&&await unlock(s,true)))$("login").classList.remove("hide");})();
+</script>
+</body>
+</html>

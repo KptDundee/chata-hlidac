@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Hlídač chaty: čte Solar Guardian (EPEVER cloud) a posílá upozornění přes ntfy."""
+import base64
 import hashlib
 import json
 import os
@@ -14,7 +15,8 @@ DISPATCH = "https://hncomm.epsolarpv.com:7100/"
 APP_ID = "po246089zkljagiusdgq"
 DEVICE_NO = "05070616093TM23Y-00076"  # brána regulátoru XTRA-N
 TZ = ZoneInfo("Europe/Prague")
-STATE_FILE = "state.json"
+DATA_FILE = "data.enc"
+KEEP_DETAIL_DAYS = 14
 
 # Hranice pro AGM 12 V (lze upravit)
 WARN_V, WARN_RESET_V = 12.2, 12.5
@@ -102,16 +104,77 @@ def ntfy(topic, title, msg, prio=3, tags=""):
     print("NTFY:", title, "|", msg)
 
 
+def _key(passphrase, salt):
+    return hashlib.pbkdf2_hmac("sha256", passphrase.encode(), salt, 200_000, 32)
+
+
+def load_data(passphrase):
+    if not os.path.exists(DATA_FILE):
+        return {"state": {}, "points": [], "days": {}}
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    e = json.load(open(DATA_FILE))
+    salt, iv, ct = (base64.b64decode(e[k]) for k in ("salt", "iv", "ct"))
+    return json.loads(AESGCM(_key(passphrase, salt)).decrypt(iv, ct, None))
+
+
+def save_data(passphrase, data):
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    salt, iv = os.urandom(16), os.urandom(12)
+    ct = AESGCM(_key(passphrase, salt)).encrypt(iv, json.dumps(data, separators=(",", ":")).encode(), None)
+    b = lambda x: base64.b64encode(x).decode()
+    json.dump({"v": 1, "salt": b(salt), "iv": b(iv), "ct": b(ct)}, open(DATA_FILE, "w"))
+
+
+def record(data, v, now):
+    """Uloží bod historie a denní souhrn."""
+    ts = int(now.timestamp())
+    p = {"t": ts}
+    for k in ("bat_v", "bat_a", "bat_soc", "pv_w", "bat_t", "status"):
+        if v.get(k) is not None:
+            p[k] = round(v[k], 2)
+    data["points"].append(p)
+    cutoff = ts - KEEP_DETAIL_DAYS * 86400
+    data["points"] = [x for x in data["points"] if x["t"] >= cutoff]
+    day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
+    for k, src in (("solar_kwh", "day_kwh"), ("min_v", "min_v"), ("max_v", "max_v")):
+        if v.get(src) is not None:
+            day[k] = round(v[src], 2)
+    if v.get("bat_soc") is not None:
+        day["soc_min"] = min(day.get("soc_min", 999), v["bat_soc"])
+    data["updated"] = ts
+
+
 def fmt(x, d=0):
     return "?" if x is None else f"{x:.{d}f}".replace(".", ",")
 
 
 def main():
     acc, pw, topic = os.environ["SG_ACCOUNT"], os.environ["SG_PASSWORD"], os.environ["NTFY_TOPIC"]
-    st = json.load(open(STATE_FILE)) if os.path.exists(STATE_FILE) else {}
-    before = json.dumps(st, sort_keys=True)
-    v = read_values(login(acc, pw))
+    key = os.environ["DATA_KEY"]
+    data = load_data(key)
+    st = data.setdefault("state", {})
     now = datetime.now(TZ)
+    data["checked"] = int(now.timestamp())
+    try:
+        v = read_values(login(acc, pw))
+    except Exception as e:  # výpadek cloudu: nespadnout, po ~2 h upozornit
+        print("Chyba čtení cloudu:", e)
+        st["err_n"] = st.get("err_n", 0) + 1
+        if st["err_n"] == 12:
+            ntfy(topic, "📡 Hlídač nemůže číst Solar Guardian", f"Už ~2 hodiny selhává čtení cloudu: {str(e)[:150]}", 4, "warning")
+        save_data(key, data)
+        return
+    st["err_n"] = 0
+    data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
+    if v.get("age_min") is not None and v["age_min"] <= STALE_MIN:
+        record(data, v, now)
+    try:
+        check(v, st, now, topic)
+    finally:
+        save_data(key, data)
+
+
+def check(v, st, now, topic):
     bv, status = v["bat_v"], int(v["status"]) if v["status"] is not None else None
     line = (f"Baterie {fmt(bv, 2)} V, {fmt(v['bat_soc'])} %, panely {fmt(v['pv_w'])} W, "
             f"{STATUS.get(status, status)}, dnes {fmt(v['day_kwh'], 2)} kWh")
@@ -126,7 +189,7 @@ def main():
         ntfy(topic, "📡 Regulátor neposílá data", f"Poslední data z cloudu před {v['age_min'] or 0:.0f} min. Zkontroluj Wi‑Fi modul / internet.", 4, "warning")
     st["stale"] = stale
     if stale or bv is None:
-        return save(st, before)
+        return
 
     # Nabitá baterie (fáze Float, 2 kontroly po sobě)
     st["float_n"] = min(st.get("float_n", 0) + 1, 2) if status == 1 else 0
@@ -156,13 +219,6 @@ def main():
         ntfy(topic, "📊 Chata – dnešní souhrn",
              f"Výroba dnes {fmt(v['day_kwh'], 2)} kWh\nBaterie {fmt(bv, 2)} V ({fmt(v['bat_soc'])} %), dnes min {fmt(v['min_v'], 2)} V / max {fmt(v['max_v'], 2)} V\nTeplota baterie {fmt(v['bat_t'], 1)} °C", 2, "bar_chart")
         st["summary_day"] = today
-    return save(st, before)
-
-
-def save(st, before):
-    if json.dumps(st, sort_keys=True) != before:
-        json.dump(st, open(STATE_FILE, "w"), indent=1, sort_keys=True)
-        print("state changed")
 
 
 if __name__ == "__main__":
