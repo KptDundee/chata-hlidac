@@ -30,6 +30,7 @@ DEFAULTS = {
     "regulator_offline_min": 120, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
+    "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
 }
 
 POINTS = {  # klíč: (dataPointId, itemId)
@@ -303,6 +304,7 @@ def main():
     data["cfg"] = cfg
     data["sun"] = [int(rise.timestamp()), int(set_.timestamp())] if rise else None
     data["checked"] = int(now.timestamp())
+    rivers = read_ecoflow(data, st, now, topic, cfg)
     try:
         v = read_values(login(acc, pw))
     except (Exception, SystemExit) as e:  # výpadek cloudu: nespadnout, po ~2 h upozornit
@@ -316,12 +318,68 @@ def main():
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
     if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
         record(data, v, now)
+        if rivers:
+            data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w")} for r in rivers]
     data["forecast"] = forecast(data, now, cfg)
     st["_forecast"] = data["forecast"]
+    st["_rivers"] = [{"name": r["name"], "soc": r.get("soc")} for r in (rivers or [])]
     try:
         check(v, st, now, topic, cfg, rise, set_)
     finally:
         save_data(key, data)
+
+
+def read_ecoflow(data, st, now, topic, cfg):
+    """Načte River 2 Pro z EcoFlow API (jen když jsou nastavené klíče) a pohlídá je."""
+    ak = os.environ.get("ECOFLOW_ACCESS_KEY", "").strip()
+    sk = os.environ.get("ECOFLOW_SECRET_KEY", "").strip()
+    if not (ak and sk):
+        return None
+    try:
+        import ecoflow
+        host, rivers = ecoflow.read_rivers(ak, sk, st.get("eco_host"))
+    except Exception as e:
+        print("Chyba EcoFlow:", e)
+        st["eco_err"] = st.get("eco_err", 0) + 1
+        if st["eco_err"] == 12:
+            ntfy(topic, "📡 Hlídač nemůže číst EcoFlow", f"Už ~2 hodiny selhává čtení EcoFlow: {str(e)[:150]}", 3, "warning")
+        return None
+    st["eco_err"] = 0
+    st["eco_host"] = host
+    data["rivers"] = rivers
+    data["rivers_t"] = int(now.timestamp())
+    for r in rivers:
+        print(f"EcoFlow {r['name']}: {fmt(r.get('soc'))} %, vstup {fmt(r.get('in_w'))} W, výstup {fmt(r.get('out_w'))} W"
+              + ("" if r["online"] else " (offline)"))
+        check_river(r, st, topic, cfg)
+    return rivers
+
+
+def check_river(r, st, topic, cfg):
+    soc, k = r.get("soc"), "rv_" + str(r["sn"])[-6:]
+    if soc is None or not r["online"]:
+        return
+    name = r["name"]
+    io = f"{name}: {fmt(soc)} %, nabíjení {fmt(r.get('in_w'))} W, odběr {fmt(r.get('out_w'))} W"
+    # Skoro vybitá -> vyměnit
+    lim = cfg["river_vymenit_pod"]
+    if cfg["river_vymenit"] and lim is not None:
+        if soc <= lim and not st.get(k + "_low"):
+            mins = r.get("dsg_min")
+            rest = f" Zbývá asi {fmt(mins / 60, 1)} h." if mins and mins < 6000 else ""
+            ntfy(topic, f"🔄 Vyměň River ({fmt(soc)} %)", f"{io}.{rest}\nPřepoj spotřebiče na druhou River a tuhle nabij.", 4, "battery,warning")
+            st[k + "_low"] = True
+        if soc > lim + 10:
+            st[k + "_low"] = False
+    # Nabitá při nabíjení (generátor) -> vypnout generátor
+    charging = (r.get("in_w") or 0) > 20
+    if cfg["river_nabita"]:
+        if soc >= 100 and (charging or st.get(k + "_chg")) and not st.get(k + "_full"):
+            ntfy(topic, f"⛽ {name} nabitá na 100 %", f"Můžeš vypnout generátor (nebo přepojit nabíjení na druhou River).\n{io}", 4, "fuelpump,white_check_mark")
+            st[k + "_full"] = True
+        if soc < 95:
+            st[k + "_full"] = False
+    st[k + "_chg"] = charging
 
 
 def check(v, st, now, topic, cfg, rise, set_):
@@ -412,6 +470,8 @@ def check(v, st, now, topic, cfg, rise, set_):
     today = now.strftime("%Y-%m-%d")
     if h is not None and now.hour >= h and st.get("summary_day") != today:
         sun = f"\nSlunce zítra cca {hm(rise)}–{hm(set_)}" if rise else ""
+        for r in st.get("_rivers") or []:
+            sun += f"\n{r['name']}: {fmt(r.get('soc'))} %"
         ft = forecast_text(st.get("_forecast"))
         sun += f"\n{ft}" if ft else ""
         ntfy(topic, "📊 Chata – dnešní souhrn",

@@ -9,6 +9,7 @@ uloží je do zašifrované historie a:
 - ⚠️ napětí pod 12,2 V (~50 %)
 - 🛑 napětí pod 12,0 V – alarm regulátoru, odpojit spotřebiče
 - 🔌 napětí na úrovni ochranného odpojení regulátoru (11,6 V)
+- 🔄 River skoro vybitá – vyměnit; ⛽ River nabitá generátorem – vypnout generátor
 - 📡 regulátor neposílá data déle než 2 h
 - 📊 večerní souhrn po 20:00
 
@@ -22,4 +23,5 @@ Podmínky a hranice se mění v souboru **`nastaveni.txt`** (jde upravit i z tel
 (zaškrtnutím „test“ přijde zkušební upozornění).
 
 Potřebné Secrets (Settings → Secrets and variables → Actions):
-`SG_ACCOUNT`, `SG_PASSWORD`, `NTFY_TOPIC`, `DATA_KEY`.
+`SG_ACCOUNT`, `SG_PASSWORD`, `NTFY_TOPIC`, `DATA_KEY`;
+volitelně `ECOFLOW_ACCESS_KEY`, `ECOFLOW_SECRET_KEY` (z developer-eu.ecoflow.com).

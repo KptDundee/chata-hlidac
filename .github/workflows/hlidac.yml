@@ -35,6 +35,9 @@ jobs:
           SG_PASSWORD: ${{ secrets.SG_PASSWORD }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           DATA_KEY: ${{ secrets.DATA_KEY }}
+          ECOFLOW_ACCESS_KEY: ${{ secrets.ECOFLOW_ACCESS_KEY }}
+          ECOFLOW_SECRET_KEY: ${{ secrets.ECOFLOW_SECRET_KEY }}
+          ECOFLOW_DEBUG: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test && '1' || '0' }}
         run: python3 hlidac.py
 

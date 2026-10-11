@@ -141,6 +141,8 @@ header button{white-space:nowrap}
     <div class="card tile"><div class="l">Proud baterie</div><div class="v" id="t_a">–</div><div class="n" id="t_a_n"></div></div>
   </section>
 
+  <section class="tiles hide" id="rivers" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></section>
+
   <div class="ctrl">
     <div class="seg" id="range" role="group" aria-label="Období">
       <button data-h="24" aria-pressed="true">24 h</button>
@@ -221,6 +223,19 @@ function render(){
   $("bv").innerHTML = `${nf(bv,2)}<small>V</small>`;
   $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}`;
   $("advice").textContent = s.a;
+  const rv = d.rivers || [], rvEl = $("rivers");
+  if(rv.length){
+    const old = d.rivers_t && Date.now()/1000 - d.rivers_t > 3600;
+    rvEl.innerHTML = rv.map(r=>{
+      const soc = r.soc, low = soc!=null && soc <= (d.cfg?.river_vymenit_pod ?? 15);
+      const chg = (r.in_w||0) > 20, mins = chg ? r.chg_min : r.dsg_min;
+      const t = mins && mins < 6000 ? ` · ${chg?"plná za":"vydrží"} ${Math.floor(mins/60)} h ${Math.round(mins%60)} min` : "";
+      const st = !r.online ? "vypnutá / offline" : chg ? `⚡ nabíjí ${nf(r.in_w)} W` : (r.out_w||0) > 1 ? `odběr ${nf(r.out_w)} W` : "v klidu";
+      return `<div class="card tile"><div class="l">🔋 ${r.name}</div><div class="v" ${low?'style="color:var(--crit)"':""}>${nf(soc)}<small>%</small></div>
+        <div class="socbar" style="margin-top:8px;height:6px"><div style="width:${Math.max(0,Math.min(100,soc||0))}%;background:${low?"var(--crit)":"var(--s3)"}"></div></div>
+        <div class="n">${st}${r.online?t:""}${old?" · data jsou stará":""}</div></div>`;}).join("");
+    rvEl.classList.remove("hide");
+  } else rvEl.classList.add("hide");
   const f = d.forecast, fc = $("fc");
   if(f && f.until && Date.now()/1000 < f.until){
     const hm = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
@@ -229,7 +244,7 @@ function render(){
     else if(f.t_crit){c="--serious";ic="↓";txt=`Do rána těsně – pod ${nf(CRIT_V,1)} V kolem ${hm(f.t_crit)}`;}
     else {c="--good";ic="✓";txt=`Do rána vydrží – teď ~${f.soc_now} %, v ${hm(f.until)} ~${Math.max(f.soc_until,0)} %`;}
     const trend = f.slope!=null ? ` · skutečný pokles ${nf(-f.slope*1000)} mV/h` : "";
-    fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} <span class="sub">(noc ~${f.ah_night} Ah při ~${f.draw_w} W${trend})</span></span>`;
+    fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} ${f.ah_night!=null?`<span class="sub">(noc ~${f.ah_night} Ah při ~${f.draw_w} W${trend})</span>`:""}</span>`;
     fc.classList.remove("hide");
   } else fc.classList.add("hide");
   $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,soc||0))+"%";
@@ -402,6 +417,11 @@ const SETTINGS = [
     ["menic_vlastni_W","Vlastní spotřeba měniče","Victron v režimu On ~6 W","W",1,"num"],
     ["kapacita_Ah","Kapacita baterie","","Ah",10,"num"],
     ["nabijeni_od_vychodu_min","Panely začnou nabíjet","Minut po východu slunce","min",15,"num"],
+  ]],
+  ["EcoFlow River", [
+    ["river_vymenit","River skoro vybitá","Upozornit, ať ji vyměníš","","", "sw"],
+    ["river_vymenit_pod","Vyměnit pod","","%",5,"num"],
+    ["river_nabita","River nabitá při nabíjení","Můžeš vypnout generátor","","", "sw"],
   ]],
   ["Pro pokročilé", [
     ["baterie_slabne_reset_V","Varování „slábne“ znovu až nad","","V",0.05,"num"],
