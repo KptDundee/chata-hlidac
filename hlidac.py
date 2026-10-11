@@ -120,7 +120,11 @@ def load_data(passphrase):
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     e = json.load(open(DATA_FILE))
     salt, iv, ct = (base64.b64decode(e[k]) for k in ("salt", "iv", "ct"))
-    return json.loads(AESGCM(_key(passphrase, salt)).decrypt(iv, ct, None))
+    try:
+        return json.loads(AESGCM(_key(passphrase, salt)).decrypt(iv, ct, None))
+    except Exception:  # heslo DATA_KEY se změnilo -> začít novou historii
+        print("Historii nejde odšifrovat (změněné DATA_KEY?) – začínám novou.")
+        return {"state": {}, "points": [], "days": {}}
 
 
 def save_data(passphrase, data):
@@ -156,7 +160,7 @@ def fmt(x, d=0):
 
 def main():
     acc, pw, topic = os.environ["SG_ACCOUNT"], os.environ["SG_PASSWORD"], os.environ["NTFY_TOPIC"]
-    key = os.environ["DATA_KEY"]
+    key = os.environ["DATA_KEY"].strip()
     data = load_data(key)
     st = data.setdefault("state", {})
     now = datetime.now(TZ)

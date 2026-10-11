@@ -75,7 +75,7 @@ summary{cursor:pointer;color:var(--text2);padding:6px 0}
   <h1>⚡ Chata – elektřina</h1>
   <p class="sub">Data jsou zašifrovaná. Zadej heslo (DATA_KEY).</p>
   <form id="lf">
-    <input id="pw" type="password" autocomplete="current-password" placeholder="Heslo" required>
+    <input id="pw" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="current-password" placeholder="Heslo" required>
     <div class="err" id="lerr"></div>
     <button type="submit" id="lbtn">Odemknout</button>
   </form>
@@ -290,7 +290,7 @@ async function unlock(pw, silent){
   try{DATA=await load(pw);PW=pw;store.set("pw",pw);$("login").classList.add("hide");$("app").classList.remove("hide");render();return true;}
   catch(e){if(!silent)$("lerr").textContent=e.message==="nodata"?"Data zatím neexistují – spusť hlídače na GitHubu.":"Špatné heslo.";$("login").classList.remove("hide");$("app").classList.add("hide");return false;}
 }
-$("lf").addEventListener("submit",async e=>{e.preventDefault();$("lerr").textContent="";$("lbtn").textContent="Odemykám…";await unlock($("pw").value);$("lbtn").textContent="Odemknout";});
+$("lf").addEventListener("submit",async e=>{e.preventDefault();$("lerr").textContent="";$("lbtn").textContent="Odemykám…";await unlock($("pw").value.trim());$("lbtn").textContent="Odemknout";});
 $("refresh").addEventListener("click",refresh);
 $("logout").addEventListener("click",e=>{e.preventDefault();store.del("pw");location.reload();});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&PW)refresh();});
