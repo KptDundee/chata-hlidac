@@ -248,14 +248,20 @@ def forecast(data, now, cfg):
         return None
     v = sum(p["bat_v"] for p in pts) / len(pts) + 0.05   # +0,05 V za pokles pod malou zátěží
     cap = cfg["kapacita_Ah"] or 200
-    draw = (cfg["noc_spotreba_W"] or 0) / 0.88 + (cfg["menic_vlastni_W"] or 0)   # W z baterie
+    ac = cfg["noc_spotreba_W"] or 0
+    measured = [p["ac_w"] for p in data.get("points", [])
+                if p.get("ac_w") is not None and p["t"] >= t_now - 3 * 3600 and (p.get("pv_w") or 0) < 5]
+    if len(measured) >= 6:                       # aspoň hodina změřeného nočního odběru
+        ac = sum(measured) / len(measured)
+    draw = ac / 0.88 + (cfg["menic_vlastni_W"] or 0)   # W z baterie
     a = draw / 12.2                                                             # A z baterie
     until = rise + timedelta(minutes=cfg["nabijeni_od_vychodu_min"] or 0)
     hours = (until.timestamp() - t_now) / 3600
     soc_now = soc_from_v(v)
     soc_until = soc_now - a * hours / cap * 100
     f = {"until": int(until.timestamp()), "soc_now": round(soc_now), "soc_until": round(soc_until),
-         "draw_w": round(draw), "ah_night": round(a * hours), "n": len(pts)}
+         "draw_w": round(draw), "ah_night": round(a * hours), "n": len(pts),
+         "measured": len(measured) >= 6}
     for key, lim in (("t_crit", cfg["baterie_kriticka_V"]), ("t_off", cfg["odpojeni_V"])):
         if lim is None:
             continue
@@ -305,6 +311,12 @@ def main():
     data["sun"] = [int(rise.timestamp()), int(set_.timestamp())] if rise else None
     data["checked"] = int(now.timestamp())
     rivers = read_ecoflow(data, st, now, topic, cfg)
+    inv = read_inverter(data, topic, now)
+    if inv and now.timestamp() - inv["t"] < 1200:   # alarm / vypnutí hlášené samotným měničem
+        al = inv.get("al") if inv.get("al") not in ("0", "NONE", "No alarm") else None
+        if al and st.get("inv_al") != al:
+            ntfy(topic, "⚠️ Měnič hlásí alarm", f"Victron: {al} (stav {inv.get('st', '?')}), baterie {fmt(inv.get('v'), 2)} V.", 4, "warning")
+        st["inv_al"] = al
     try:
         v = read_values(login(acc, pw))
     except (Exception, SystemExit) as e:  # výpadek cloudu: nespadnout, po ~2 h upozornit
@@ -318,6 +330,8 @@ def main():
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
     if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
         record(data, v, now)
+        if inv and now.timestamp() - inv["t"] < 1200 and inv.get("w") is not None:
+            data["points"][-1]["ac_w"] = inv["w"]
         if rivers:
             data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w")} for r in rivers]
     data["forecast"] = forecast(data, now, cfg)
@@ -327,6 +341,47 @@ def main():
         check(v, st, now, topic, cfg, rise, set_)
     finally:
         save_data(key, data)
+
+
+def read_inverter(data, topic, now):
+    """Poslední zpráva z ESP32 u měniče (posílá do ntfy tématu <NTFY_TOPIC>-menic každých 10 min).
+
+    Formát zprávy: JSON {"w": průměr VA, "max": max VA, "v": napětí baterie, "st": stav, "al": alarm}.
+    """
+    url = f"https://ntfy.sh/{topic}-menic/json?poll=1&since=30m"
+    try:
+        lines = urllib.request.urlopen(url, timeout=20).read().decode().strip().splitlines()
+    except Exception as e:
+        print("Měnič (ntfy):", e)
+        return None
+    last = None
+    for ln in lines:
+        try:
+            m = json.loads(ln)
+            if m.get("event") == "message":
+                last = m
+        except ValueError:
+            pass
+    if not last:
+        return None
+    try:
+        body = json.loads(last.get("message") or "{}")
+    except ValueError:
+        return None
+    inv = {"t": int(last.get("time") or now.timestamp())}
+    for k in ("w", "max", "v"):
+        try:
+            x = float(body[k])
+            if x >= 0 and (k != "v" or x > 5):   # -1 / 0 = měnič zatím nic nevyslal
+                inv[k] = round(x, 2)
+        except (KeyError, TypeError, ValueError):
+            pass
+    for k in ("st", "al"):
+        if body.get(k) not in (None, ""):
+            inv[k] = str(body[k])[:40]
+    data["inverter"] = inv
+    print(f"Měnič: {fmt(inv.get('w'))} W (max {fmt(inv.get('max'))}), {fmt(inv.get('v'), 2)} V, {inv.get('st', '')}")
+    return inv
 
 
 def read_ecoflow(data, st, now, topic, cfg):

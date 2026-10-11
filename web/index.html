@@ -127,6 +127,7 @@ header button{white-space:nowrap}
       <div class="big" style="margin-top:6px">
         <div class="bigv" id="bv">–<small>V</small></div>
         <span class="pill" id="pill"></span>
+        <div class="hide" id="load" style="margin-left:auto;text-align:right"><div class="sub">Odběr teď</div><div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums" id="loadv">–</div><div class="sub" id="loadn"></div></div>
       </div>
       <div class="advice" id="advice"></div>
       <div class="fc hide" id="fc"></div>
@@ -155,6 +156,7 @@ header button{white-space:nowrap}
   <section class="charts">
     <div class="card chart"><h2>Napětí baterie</h2><div class="cs" id="vlim">V · čárkovaně limity upozornění</div><div id="c_v"></div></div>
     <div class="card chart"><h2>Výkon panelů</h2><div class="cs">W</div><div id="c_pv"></div></div>
+    <div class="card chart hide" id="c_ac_card"><h2>Odběr z měniče</h2><div class="cs">W · průměr za 10 min (lednice, nabíječky…)</div><div id="c_ac"></div></div>
     <div class="card chart"><h2>Výroba po dnech</h2><div class="cs">kWh · posledních 30 dní</div><div id="c_day"></div></div>
     <div class="card chart"><h2>Nejnižší napětí dne</h2><div class="cs">V · posledních 30 dní</div><div id="c_min"></div></div>
   </section>
@@ -272,6 +274,15 @@ function render(){
   const win = pts.filter(p=>p.t>=from);
   lineChart($("c_v"), win, "bat_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
   lineChart($("c_pv"), win, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true});
+  const hasAc = pts.some(p=>p.ac_w!=null);
+  $("c_ac_card").classList.toggle("hide", !hasAc);
+  if(hasAc) lineChart($("c_ac"), win, "ac_w", css("--s1"), {unit:"W",dec:0,zero:true,area:true});
+  const inv = d.inverter, fresh = inv && Date.now()/1000 - inv.t < 1800;
+  $("load").classList.toggle("hide", !inv);
+  if(inv){
+    $("loadv").innerHTML = `${fresh?nf(inv.w):"–"}<small style="font-size:15px;color:var(--text2);margin-left:3px">W</small>`;
+    $("loadn").textContent = fresh ? (inv.max!=null?`špička ${nf(inv.max)} W`:"") + (inv.al && !/^(0|NONE|No alarm)$/.test(inv.al) ? ` · ⚠ ${inv.al}` : "") : `měnič mlčí ${ago(inv.t)}`;
+  }
   const dd = days.slice(-30).map(k=>({k,...d.days[k]}));
   barChart($("c_day"), dd, "solar_kwh", css("--s2"), {unit:"kWh",dec:2});
   dotChart($("c_min"), dd, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});

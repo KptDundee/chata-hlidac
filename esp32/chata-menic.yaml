@@ -1,0 +1,105 @@
+# ESP32 u měniče Victron Phoenix 12/800 VE.Direct Smart
+# Chytá Bluetooth „Instant readout“ z měniče a každých 10 minut pošle průměrný odběr
+# do ntfy tématu <NTFY_TOPIC>-menic, odkud si ho bere hlídač na GitHubu.
+#
+# Nahrání: https://web.esphome.io (Chrome, ESP32 připojená USB kabelem) – návod v README.
+# Hodnoty v secrets.yaml (wifi, ntfy téma, MAC a klíč měniče) – NIKDY je nedávej do repozitáře.
+
+esphome:
+  name: chata-menic
+  friendly_name: Chata měnič
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+  level: INFO
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: light
+  ap:
+    ssid: "Chata-menic-setup"
+
+captive_portal:
+
+external_components:
+  - source: github://Fabian-Schmidt/esphome-victron_ble
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: false
+
+victron_ble:
+  - id: menic
+    mac_address: !secret victron_mac
+    bindkey: !secret victron_key
+
+sensor:
+  - platform: victron_ble
+    victron_ble_id: menic
+    id: ac_raw
+    name: "Odběr AC"
+    type: AC_APPARENT_POWER
+  - platform: victron_ble
+    victron_ble_id: menic
+    id: bat_v
+    name: "Napětí baterie"
+    type: BATTERY_VOLTAGE
+
+  # průměr a maximum za posledních 10 minut
+  - platform: copy
+    source_id: ac_raw
+    id: ac_avg
+    internal: true
+    filters:
+      - throttle_average: 10min
+  - platform: copy
+    source_id: ac_raw
+    id: ac_max
+    internal: true
+    filters:
+      - max:
+          window_size: 600
+          send_every: 600
+
+text_sensor:
+  - platform: victron_ble
+    victron_ble_id: menic
+    id: stav
+    name: "Stav měniče"
+    type: DEVICE_STATE
+  - platform: victron_ble
+    victron_ble_id: menic
+    id: alarm
+    name: "Alarm měniče"
+    type: ALARM_REASON
+
+http_request:
+  verify_ssl: false
+  timeout: 15s
+
+interval:
+  - interval: 10min
+    then:
+      - if:
+          condition:
+            wifi.connected:
+          then:
+            - http_request.post:
+                url: !secret ntfy_url
+                request_headers:
+                  Title: "data"
+                  Priority: "1"
+                body: !lambda |-
+                  char b[200];
+                  float w = isnan(id(ac_avg).state) ? id(ac_raw).state : id(ac_avg).state;
+                  float mx = isnan(id(ac_max).state) ? w : id(ac_max).state;
+                  snprintf(b, sizeof(b), "{\"w\":%.1f,\"max\":%.0f,\"v\":%.2f,\"st\":\"%s\",\"al\":\"%s\"}",
+                           isnan(w) ? -1.0f : w, isnan(mx) ? -1.0f : mx,
+                           isnan(id(bat_v).state) ? 0.0f : id(bat_v).state,
+                           id(stav).state.c_str(), id(alarm).state.c_str());
+                  return std::string(b);
