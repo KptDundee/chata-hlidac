@@ -76,14 +76,11 @@ public final class BleListener {
     @SuppressLint("MissingPermission")
     public void ensureRunning() { ensureRunning(false); }
 
-    /** Filtry: výrobce Victron + konkrétní MAC (jako náhodná i veřejná adresa – Victron používá náhodnou statickou). */
+    /** Filtry: výrobce Victron (zachytí i náhodnou MAC) + konkrétní MAC. */
     private java.util.List<ScanFilter> filters() {
         java.util.List<ScanFilter> fl = new java.util.ArrayList<>();
         fl.add(new ScanFilter.Builder().setManufacturerData(VictronParser.MANUFACTURER_ID, new byte[0]).build());
         if (mac != null && BluetoothAdapter.checkBluetoothAddress(mac)) {
-            if (android.os.Build.VERSION.SDK_INT >= 33) {
-                fl.add(new ScanFilter.Builder().setDeviceAddress(mac, android.bluetooth.BluetoothDevice.ADDRESS_TYPE_RANDOM).build());
-            }
             fl.add(new ScanFilter.Builder().setDeviceAddress(mac).build());
         }
         return fl;
