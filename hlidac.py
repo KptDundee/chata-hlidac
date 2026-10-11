@@ -28,6 +28,7 @@ DEFAULTS = {
     "baterie_kriticka_V": 12.0, "baterie_kriticka_reset_V": 12.2,
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 120, "vecerni_souhrn_hodina": 20,
+    "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
 }
 
 POINTS = {  # klíč: (dataPointId, itemId)
@@ -212,6 +213,46 @@ def sun_times(lat, lon, day):
     return out[0], out[1]
 
 
+def forecast(data, now, cfg):
+    """Odhad napětí ráno podle trendu za poslední 3 h bez slunce (lineární, ± hrubý)."""
+    t_now = now.timestamp()
+    pts = [p for p in data.get("points", [])
+           if p["t"] >= t_now - 3 * 3600 and p.get("bat_v") is not None and (p.get("pv_w") or 0) < 5]
+    rise, _ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    if rise and now >= rise:
+        rise, _ = sun_times(cfg["sirka"], cfg["delka"], (now + timedelta(days=1)).date())
+    if not rise or len(pts) < 6 or pts[-1]["t"] - pts[0]["t"] < 3600:
+        return None
+    n = len(pts)
+    xs = [(p["t"] - t_now) / 3600 for p in pts]
+    ys = [p["bat_v"] for p in pts]
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sxx if sxx else 0.0
+    v_now = my - slope * mx  # hodnota přímky v čase „teď“ (vyhlazená)
+    until = rise + timedelta(minutes=cfg["nabijeni_od_vychodu_min"] or 0)
+    hours = (until.timestamp() - t_now) / 3600
+    f = {"slope": round(slope, 4), "v_now": round(v_now, 2), "until": int(until.timestamp()),
+         "v_until": round(v_now + slope * hours, 2), "n": n}
+    for key, lim in (("t_crit", cfg["baterie_kriticka_V"]), ("t_off", cfg["odpojeni_V"])):
+        if lim is not None and slope < -0.002 and v_now > lim:
+            t = t_now + (v_now - lim) / -slope * 3600
+            if t < until.timestamp():
+                f[key] = int(t)
+    return f
+
+
+def forecast_text(f):
+    if not f:
+        return None
+    hm = lambda t: datetime.fromtimestamp(t, TZ).strftime("%H:%M")
+    if f.get("t_off"):
+        return f"Do rána nevydrží: ~{hm(f.get('t_crit', f['t_off']))} pod alarmem, ~{hm(f['t_off'])} se vypne měnič"
+    if f.get("t_crit"):
+        return f"Do rána těsně: pod alarm kolem {hm(f['t_crit'])}, ráno ~{fmt(f['v_until'], 2)} V"
+    return f"Do rána vydrží: v {hm(f['until'])} odhad ~{fmt(f['v_until'], 2)} V"
+
+
 def fmt(x, d=0):
     return "?" if x is None else f"{x:.{d}f}".replace(".", ",")
 
@@ -240,6 +281,8 @@ def main():
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
     if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
         record(data, v, now)
+    data["forecast"] = forecast(data, now, cfg)
+    st["_forecast"] = data["forecast"]
     try:
         check(v, st, now, topic, cfg, rise, set_)
     finally:
@@ -296,8 +339,8 @@ def check(v, st, now, topic, cfg, rise, set_):
 
     # Nízké napětí (2 kontroly po sobě, s hysterezí); posílá se jen nejhorší úroveň
     levels = (
-        ("off", "odpojeni", "🔌 Regulátor odpojuje zátěž",
-         "Napětí na úrovni ochranného odpojení regulátoru ({lim} V). Zátěž se vrátí až nad {reset} V.", 5),
+        ("off", "odpojeni", "🔌 Měnič se vypíná – 230 V nejde",
+         "Napětí pod {lim} V – měnič Victron (a výstup LOAD regulátoru) se vypíná kvůli ochraně baterie.", 5),
         ("crit", "baterie_kriticka", "🛑 Odpoj spotřebiče",
          "Napětí pod {lim} V – alarm regulátoru. Nevybíjej dál, přepni na EcoFlow.", 5),
         ("warn", "baterie_slabne", "⚠️ Solární baterie slábne",
@@ -317,11 +360,25 @@ def check(v, st, now, topic, cfg, rise, set_):
             st[key + "_sent"] = False
         worse = worse or bool(st.get(key + "_sent"))
 
+    # Předpověď do rána (jednou za noc)
+    if cfg["predpoved_noc"] and set_:
+        from_t = set_ + timedelta(hours=1)
+        night = now >= from_t or (rise and now < rise)
+        if not night:
+            st["night_warned"] = False
+        f = st.get("_forecast")
+        if night and f and f.get("t_crit") and not st.get("night_warned"):
+            ntfy(topic, "🌙 Baterie do rána nejspíš nevydrží",
+                 f"{forecast_text(f)}.\nPokles {fmt(-f['slope'] * 1000)} mV/h ({f['n']} měření). Zvaž odpojení něčeho teď.\n{line}", 4, "crescent_moon,warning")
+            st["night_warned"] = True
+
     # Večerní souhrn
     h = cfg["vecerni_souhrn_hodina"]
     today = now.strftime("%Y-%m-%d")
     if h is not None and now.hour >= h and st.get("summary_day") != today:
         sun = f"\nSlunce zítra cca {hm(rise)}–{hm(set_)}" if rise else ""
+        ft = forecast_text(st.get("_forecast"))
+        sun += f"\n{ft}" if ft else ""
         ntfy(topic, "📊 Chata – dnešní souhrn",
              f"Výroba dnes {fmt(v['day_kwh'], 2)} kWh\nBaterie {fmt(bv, 2)} V ({fmt(v['bat_soc'])} %), dnes min {fmt(v['min_v'], 2)} V / max {fmt(v['max_v'], 2)} V\nTeplota baterie {fmt(v['bat_t'], 1)} °C{sun}", 2, "bar_chart")
         st["summary_day"] = today

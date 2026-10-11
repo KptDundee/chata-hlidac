@@ -64,6 +64,10 @@ summary{cursor:pointer;color:var(--text2);padding:6px 0}
 .login{max-width:360px;margin:12vh auto 0}
 .login input{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);margin:12px 0}
 .login button{width:100%;background:var(--text);color:var(--surface);font-weight:600;padding:10px}
+.fc{margin-top:10px;padding:8px 12px;border-radius:10px;background:var(--bg);font-size:14px;display:flex;gap:8px;align-items:center}
+.fc i{font-style:normal;font-weight:800;white-space:nowrap}
+header button{white-space:nowrap}
+#live[disabled]{opacity:.7}
 .err{color:var(--crit);font-size:13px;min-height:18px}
 .hide{display:none!important}
 .foot{margin-top:24px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -86,8 +90,14 @@ summary{cursor:pointer;color:var(--text2);padding:6px 0}
 <main id="app" class="hide">
   <header>
     <div><h1>⚡ Chata – elektřina</h1><div class="sub" id="upd">…</div></div>
-    <button id="refresh" title="Obnovit">↻</button>
+    <div style="display:flex;gap:8px"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button></div>
   </header>
+  <div class="card hide" id="tokbox" style="margin-bottom:12px">
+    <b>Načítání na povel</b>
+    <p class="sub" style="margin:6px 0">Tlačítko spustí hlídače na GitHubu (asi 1–2 min). Potřebuje jednou GitHub token jen pro tenhle repozitář s oprávněním <i>Actions: Read and write</i>. Uloží se jen v tomhle telefonu.</p>
+    <input id="tok" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_…" style="width:100%;font:inherit;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)">
+    <div style="display:flex;gap:8px;margin-top:8px"><button id="toksave" style="background:var(--text);color:var(--surface);font-weight:600">Uložit a načíst</button><button id="tokcancel">Zrušit</button></div>
+  </div>
 
   <section class="hero">
     <div class="card">
@@ -97,6 +107,7 @@ summary{cursor:pointer;color:var(--text2);padding:6px 0}
         <span class="pill" id="pill"></span>
       </div>
       <div class="advice" id="advice"></div>
+      <div class="fc hide" id="fc"></div>
       <div class="socbar" role="progressbar" aria-label="Stav nabití" id="socbar"><div style="width:0"></div></div>
     </div>
   </section>
@@ -181,6 +192,16 @@ function render(){
   $("bv").innerHTML = `${nf(bv,2)}<small>V</small>`;
   $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}`;
   $("advice").textContent = s.a;
+  const f = d.forecast, fc = $("fc");
+  if(f && f.n >= 6 && Date.now()/1000 < f.until){
+    const hm = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
+    let c, ic, txt;
+    if(f.t_off){c="--crit";ic="!";txt=`Do rána nevydrží – pod alarm ~${hm(f.t_crit||f.t_off)}, měnič se vypne ~${hm(f.t_off)}`;}
+    else if(f.t_crit){c="--serious";ic="↓";txt=`Do rána těsně – pod ${nf(CRIT_V,1)} V kolem ${hm(f.t_crit)}, ráno ~${nf(f.v_until,2)} V`;}
+    else {c="--good";ic="✓";txt=`Do rána vydrží – v ${hm(f.until)} odhad ~${nf(f.v_until,2)} V`;}
+    fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} <span class="sub">(pokles ${nf(-f.slope*1000)} mV/h)</span></span>`;
+    fc.classList.remove("hide");
+  } else fc.classList.add("hide");
   $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,soc||0))+"%";
   $("socbar").setAttribute("aria-valuenow", soc ?? 0);
   $("t_soc").innerHTML = `${nf(soc)}<small>%</small>`;
@@ -298,6 +319,34 @@ async function unlock(pw, silent){
 }
 $("lf").addEventListener("submit",async e=>{e.preventDefault();$("lerr").textContent="";$("lbtn").textContent="Odemykám…";await unlock($("pw").value.trim());$("lbtn").textContent="Odemknout";});
 $("refresh").addEventListener("click",refresh);
+
+/* ---------- načíst teď: spustí GitHub Actions a čeká na nová data ---------- */
+const REPO = "KptDundee/chata-hlidac";
+let liveTimer = null;
+async function triggerLive(){
+  const tok = store.get("ghtok");
+  if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
+  const btn = $("live"); btn.disabled = true; btn.textContent = "Spouštím…";
+  const since = Date.now()/1000;
+  try{
+    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{
+      method:"POST", headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"},
+      body:JSON.stringify({ref:"main",inputs:{test:false}})});
+    if(r.status===401||r.status===403||r.status===404){store.del("ghtok");throw new Error("Token nefunguje – zadej ho znovu.");}
+    if(!r.ok) throw new Error("GitHub odpověděl "+r.status);
+  }catch(e){ btn.disabled=false; btn.textContent="⚡ Načíst"; $("upd").textContent=e.message; if(!store.get("ghtok"))$("tokbox").classList.remove("hide"); return; }
+  clearInterval(liveTimer); triggerLive.lp = 0;
+  liveTimer = setInterval(async()=>{
+    const s = Math.round(Date.now()/1000 - since);
+    btn.textContent = `⏳ ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+    if(s - (triggerLive.lp||0) >= 10){ triggerLive.lp = s; try{ const d = await load(PW); if(d.checked > since){ DATA=d; render(); done("Hotovo – čerstvá data"); } }catch(e){} }
+    if(s > 240) done("Trvá to déle – data se doplní sama");
+  },1000);
+  function done(msg){ clearInterval(liveTimer); btn.disabled=false; btn.textContent="⚡ Načíst"; $("upd").textContent = msg + " · " + $("upd").textContent; }
+}
+$("live").addEventListener("click",triggerLive);
+$("toksave").addEventListener("click",()=>{const t=$("tok").value.trim();if(!t)return;store.set("ghtok",t);$("tok").value="";$("tokbox").classList.add("hide");triggerLive();});
+$("tokcancel").addEventListener("click",()=>$("tokbox").classList.add("hide"));
 $("logout").addEventListener("click",e=>{e.preventDefault();store.del("pw");location.reload();});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&PW)refresh();});
 setInterval(()=>{if(PW&&!document.hidden)refresh();},5*60*1000);
