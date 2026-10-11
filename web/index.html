@@ -68,6 +68,28 @@ summary{cursor:pointer;color:var(--text2);padding:6px 0}
 .fc i{font-style:normal;font-weight:800;white-space:nowrap}
 header button{white-space:nowrap}
 #live[disabled]{opacity:.7}
+.set{position:fixed;inset:0;background:var(--bg);z-index:20;overflow:auto;-webkit-overflow-scrolling:touch}
+.set .wrap{padding-bottom:110px}
+.set h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin:22px 4px 8px;font-weight:600}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-weight:600;font-size:15px}
+.row .t span{display:block;color:var(--text2);font-size:12.5px;margin-top:2px}
+.row.off .t,.row.off .num{opacity:.4}
+.num{display:flex;align-items:center;gap:6px;flex:none}
+.num input{width:74px;font:inherit;font-size:16px;font-variant-numeric:tabular-nums;text-align:center;padding:8px 6px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)}
+.num small{color:var(--text2);min-width:26px}
+.sw{position:relative;width:50px;height:30px;flex:none}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw i{position:absolute;inset:0;border-radius:15px;background:var(--line);transition:.15s}
+.sw i::after{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.15s}
+.sw input:checked+i{background:var(--good)}
+.sw input:checked+i::after{left:23px}
+.sw input:focus-visible+i{outline:2px solid var(--s1);outline-offset:2px}
+.savebar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line);display:flex;gap:10px;justify-content:center;z-index:21}
+.savebar button{flex:1;max-width:300px;padding:12px}
+.primary{background:var(--text)!important;color:var(--surface)!important;font-weight:600}
 .err{color:var(--crit);font-size:13px;min-height:18px}
 .hide{display:none!important}
 .foot{margin-top:24px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -90,11 +112,11 @@ header button{white-space:nowrap}
 <main id="app" class="hide">
   <header>
     <div><h1>⚡ Chata – elektřina</h1><div class="sub" id="upd">…</div></div>
-    <div style="display:flex;gap:8px"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button></div>
+    <div style="display:flex;gap:8px"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div>
   </header>
   <div class="card hide" id="tokbox" style="margin-bottom:12px">
     <b>Načítání na povel</b>
-    <p class="sub" style="margin:6px 0">Tlačítko spustí hlídače na GitHubu (asi 1–2 min). Potřebuje jednou GitHub token jen pro tenhle repozitář s oprávněním <i>Actions: Read and write</i>. Uloží se jen v tomhle telefonu.</p>
+    <p class="sub" style="margin:6px 0">Pro „Načíst“ a ukládání nastavení je potřeba jednou vložit GitHub token jen pro tenhle repozitář s oprávněními <i>Actions</i> a <i>Contents: Read and write</i>. Uloží se jen v tomhle telefonu.</p>
     <input id="tok" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_…" style="width:100%;font:inherit;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)">
     <div style="display:flex;gap:8px;margin-top:8px"><button id="toksave" style="background:var(--text);color:var(--surface);font-weight:600">Uložit a načíst</button><button id="tokcancel">Zrušit</button></div>
   </div>
@@ -140,9 +162,16 @@ header button{white-space:nowrap}
     <table><thead><tr><th>Den</th><th>Výroba kWh</th><th>Min V</th><th>Max V</th><th>Min SOC %</th></tr></thead><tbody id="tbl"></tbody></table>
   </details>
 
-  <div class="foot"><span id="cloud"></span><span><a href="https://github.com/KptDundee/chata-hlidac/edit/main/nastaveni.txt" target="_blank" rel="noopener">⚙ Nastavení</a> · <a href="#" id="logout">Odhlásit</a></span></div>
+  <div class="foot"><span id="cloud"></span><span><a href="#" id="openset">⚙ Nastavení</a> · <a href="#" id="logout">Odhlásit</a></span></div>
 </main>
 </div>
+<section class="set hide" id="set" aria-label="Nastavení">
+ <div class="wrap">
+  <header><div><h1>⚙ Nastavení</h1><div class="sub" id="setsub">Kdy ti má hlídač poslat upozornění</div></div><button id="setclose" title="Zavřít">✕</button></header>
+  <div id="setbody"><div class="card sub">Načítám…</div></div>
+ </div>
+ <div class="savebar"><button id="setcancel">Zrušit</button><button id="setsave" class="primary">Uložit</button></div>
+</section>
 <div class="tip" id="tip"></div>
 
 <script>
@@ -348,6 +377,126 @@ async function triggerLive(){
 $("live").addEventListener("click",triggerLive);
 $("toksave").addEventListener("click",()=>{const t=$("tok").value.trim();if(!t)return;store.set("ghtok",t);$("tok").value="";$("tokbox").classList.add("hide");triggerLive();});
 $("tokcancel").addEventListener("click",()=>$("tokbox").classList.add("hide"));
+
+/* ---------- nastavení (uživatelsky) ---------- */
+// [klíč, popis, vysvětlení, jednotka, krok, typ]  typ: "sw" přepínač, "num" číslo, "opt" číslo s vypínačem
+const SETTINGS = [
+  ["Upozornění", [
+    ["nabito","Baterie nabitá na 100 %","Můžeš zapojit náročnější spotřebič","","", "sw"],
+    ["panely_nevyrabi","Panely nevyrábí přes den","Sníh, stín nebo vypadlý kabel","","", "sw"],
+    ["predpoved_noc","Předpověď do rána","Večer upozorní, když baterie nevydrží do rána","","", "sw"],
+    ["vecerni_souhrn_hodina","Večerní souhrn","Hodina, kdy přijde přehled dne","h",1,"opt"],
+  ]],
+  ["Napětí baterie", [
+    ["baterie_slabne_V","Baterie slábne","Varování s rezervou","V",0.05,"num"],
+    ["baterie_kriticka_V","Odpoj spotřebiče","Alarm regulátoru","V",0.05,"num"],
+    ["odpojeni_V","Měnič se vypíná","Ochrana baterie v měniči Victron","V",0.05,"num"],
+  ]],
+  ["Panely", [
+    ["panely_min_W","Za „nevyrábí“ považuj méně než","","W",1,"num"],
+    ["panely_po_dobu_min","Po dobu aspoň","Aby neotravoval jeden mrak","min",5,"num"],
+    ["panely_rezerva_min","Nehlídat po východu / před západem","Ráno a večer slunce nestačí","min",5,"num"],
+  ]],
+  ["Noc a spotřeba", [
+    ["noc_spotreba_W","Noční spotřeba","Průměr za měničem (lednice, nabíječky)","W",5,"num"],
+    ["menic_vlastni_W","Vlastní spotřeba měniče","Victron v režimu On ~6 W","W",1,"num"],
+    ["kapacita_Ah","Kapacita baterie","","Ah",10,"num"],
+    ["nabijeni_od_vychodu_min","Panely začnou nabíjet","Minut po východu slunce","min",15,"num"],
+  ]],
+  ["Pro pokročilé", [
+    ["baterie_slabne_reset_V","Varování „slábne“ znovu až nad","","V",0.05,"num"],
+    ["baterie_kriticka_reset_V","Alarm znovu až nad","","V",0.05,"num"],
+    ["odpojeni_reset_V","„Měnič se vypíná“ znovu až nad","","V",0.05,"num"],
+    ["regulator_offline_min","Regulátor neposílá data déle než","","min",10,"num"],
+  ]],
+];
+const GH = "https://api.github.com/repos/"+REPO+"/contents/nastaveni.txt";
+let SET = {text:"", sha:null, vals:{}};
+const utf8b64 = { dec:s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,"")),c=>c.charCodeAt(0))),
+                  enc:s=>{const b=new TextEncoder().encode(s);let r="";for(const x of b)r+=String.fromCharCode(x);return btoa(r);} };
+function parseCfg(t){const o={};for(let ln of t.split("\n")){ln=ln.split("#")[0].trim();const i=ln.indexOf("=");if(i>0)o[ln.slice(0,i).trim()]=ln.slice(i+1).trim();}return o;}
+const isOn = v => /^(zapnuto|ano|on|true|1)$/i.test(String(v));
+const isOff = v => /^(vypnuto|ne|off|false)$/i.test(String(v));
+
+async function openSettings(){
+  const tok = store.get("ghtok");
+  $("set").classList.remove("hide"); document.body.style.overflow="hidden";
+  if(!tok){ $("setbody").innerHTML=`<div class="card"><b>Nejdřív GitHub token</b><p class="sub">Aby se nastavení dalo uložit, vlož token (návod ti poslal Claude). Musí mít oprávnění <i>Contents: Read and write</i> a <i>Actions: Read and write</i>.</p><input id="tok2" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_…" style="width:100%;font:inherit;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)"><button id="tok2save" class="primary" style="margin-top:8px;width:100%">Uložit token</button></div>`;
+    $("tok2save").onclick=()=>{const t=$("tok2").value.trim();if(t){store.set("ghtok",t);openSettings();}}; return; }
+  $("setbody").innerHTML=`<div class="card sub">Načítám…</div>`;
+  try{
+    const r = await fetch(GH+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+    if(r.status===401){store.del("ghtok");throw new Error("Token nefunguje – zadej ho znovu.");}
+    if(!r.ok) throw new Error("GitHub odpověděl "+r.status+(r.status===403||r.status===404?" – token asi nemá oprávnění Contents.":""));
+    const j = await r.json(); SET.text = utf8b64.dec(j.content); SET.sha = j.sha; SET.vals = parseCfg(SET.text);
+  }catch(e){ $("setbody").innerHTML=`<div class="card"><b>Nastavení nejde načíst</b><p class="sub">${e.message}</p><button id="tokreset">Zadat token znovu</button></div>`; $("tokreset").onclick=()=>{store.del("ghtok");openSettings();}; return; }
+  renderSettings();
+}
+function renderSettings(){
+  const v = SET.vals; let html="";
+  for(const [title, items] of SETTINGS){
+    html += `<h2>${title}</h2><div class="card" style="padding:4px 16px">`;
+    for(const [k,label,help,unit,step,type] of items){
+      const val = v[k] ?? "";
+      if(type==="sw"){
+        html += `<label class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><span class="sw"><input type="checkbox" data-k="${k}" data-t="sw" ${isOn(val)?"checked":""}><i></i></span></label>`;
+      } else if(type==="opt"){
+        const on = !isOff(val);
+        html += `<div class="row ${on?"":"off"}" id="r_${k}"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="number" inputmode="numeric" step="${step}" min="0" max="23" data-k="${k}" data-t="num" value="${on?val:20}"><small>${unit}</small></div><label class="sw" title="Zapnout / vypnout"><input type="checkbox" data-opt="${k}" ${on?"checked":""}><i></i></label></div>`;
+      } else {
+        html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="number" inputmode="decimal" step="${step}" data-k="${k}" data-t="num" value="${String(val).replace(",",".")}"><small>${unit}</small></div></div>`;
+      }
+    }
+    html += `</div>`;
+  }
+  html += `<p class="sub" style="margin:16px 4px">Změny se projeví do 10 minut. Uložením se zároveň spustí kontrola.</p>`;
+  $("setbody").innerHTML = html;
+  for(const cb of $("setbody").querySelectorAll("[data-opt]")) cb.onchange=()=>$("r_"+cb.dataset.opt).classList.toggle("off",!cb.checked);
+}
+function collectSettings(){
+  const out = {}, errs=[];
+  for(const el of $("setbody").querySelectorAll("[data-k]")){
+    const k = el.dataset.k;
+    if(el.dataset.t==="sw"){ out[k] = el.checked ? "zapnuto" : "vypnuto"; continue; }
+    const opt = $("setbody").querySelector(`[data-opt="${k}"]`);
+    if(opt && !opt.checked){ out[k]="vypnuto"; continue; }
+    const n = parseFloat(String(el.value).replace(",","."));
+    if(isNaN(n)){ errs.push(k); continue; }
+    out[k] = String(n);
+  }
+  const f = k => parseFloat(out[k]);
+  if(!(f("baterie_slabne_V") > f("baterie_kriticka_V") && f("baterie_kriticka_V") > f("odpojeni_V")))
+    errs.push("Napětí musí jít shora dolů: slábne > odpoj spotřebiče > měnič se vypíná.");
+  return {out, errs};
+}
+async function saveSettings(){
+  const {out, errs} = collectSettings();
+  if(errs.length){ alertBar(errs.filter(e=>e.length>30)[0] || "Zkontroluj zadaná čísla."); return; }
+  let text = SET.text;
+  for(const [k,val] of Object.entries(out)){
+    const re = new RegExp("^(\\s*"+k+"\\s*=\\s*)([^#\\n]*?)(\\s*(#.*)?)$","m");
+    text = re.test(text) ? text.replace(re, (m,a,b,c)=>a+val+c) : text.replace(/\n*$/,"\n")+`${k} = ${val}\n`;
+  }
+  const btn=$("setsave"); btn.disabled=true; btn.textContent="Ukládám…";
+  try{
+    if(text !== SET.text){
+      const r = await fetch(GH,{method:"PUT",headers:{Authorization:"Bearer "+store.get("ghtok"),Accept:"application/vnd.github+json"},
+        body:JSON.stringify({message:"Nastavení z aplikace",content:utf8b64.enc(text),sha:SET.sha,branch:"main"})});
+      if(r.status===409){ throw new Error("Nastavení se mezitím změnilo – otevři ho znovu."); }
+      if(!r.ok) throw new Error("Uložení selhalo ("+r.status+")"+(r.status===403||r.status===404?" – token nemá oprávnění Contents: Read and write.":""));
+      const j = await r.json(); SET.sha = j.content.sha; SET.text = text; SET.vals = parseCfg(text);
+    }
+    closeSettings(); $("upd").textContent="✓ Nastavení uloženo"; triggerLive();
+  }catch(e){ alertBar(e.message); }
+  finally{ btn.disabled=false; btn.textContent="Uložit"; }
+}
+function alertBar(msg){ $("setsub").innerHTML=`<span style="color:var(--crit)">${msg}</span>`; }
+function closeSettings(){ $("set").classList.add("hide"); document.body.style.overflow=""; $("setsub").textContent="Kdy ti má hlídač poslat upozornění"; }
+$("openset").addEventListener("click",e=>{e.preventDefault();openSettings();});
+$("openset2").addEventListener("click",openSettings);
+$("setclose").addEventListener("click",closeSettings);
+$("setcancel").addEventListener("click",closeSettings);
+$("setsave").addEventListener("click",saveSettings);
 $("logout").addEventListener("click",e=>{e.preventDefault();store.del("pw");location.reload();});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&PW)refresh();});
 setInterval(()=>{if(PW&&!document.hidden)refresh();},5*60*1000);
