@@ -21,7 +21,7 @@ panely_po_dobu_min = 30
 baterie_slabne_V = 12.2
 baterie_slabne_reset_V = 12.5
 # kritické = alarm regulátoru (Undervoltage Alarm 12,00 / recovery 12,20)
-baterie_kriticka_V = 12.0
+baterie_kriticka_V = 12
 baterie_kriticka_reset_V = 12.2
 # vypnutí měniče Victron (Vypnutí vybité baterie 11,60) = i LOAD regulátoru (11,60 / 12,80)
 odpojeni_V = 11.6
@@ -29,7 +29,7 @@ odpojeni_reset_V = 12.8
 
 # --- Ostatní ---
 regulator_offline_min = 120
-vecerni_souhrn_hodina = 20
+vecerni_souhrn_hodina = 22
 
 # --- Předpověď do rána ---
 # po západu slunce spočítá z kapacity a noční spotřeby, jestli baterie vydrží do rána
