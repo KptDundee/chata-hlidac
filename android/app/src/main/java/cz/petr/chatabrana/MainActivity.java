@@ -64,6 +64,13 @@ public class MainActivity extends Activity {
         now.setOnClickListener(v -> { save(); GatewayService.start(this); toast("Odesílám… (do 30 s)"); });
         Button batt = button(l, "Povolit běh na pozadí (baterie: Neomezeno)");
         batt.setOnClickListener(v -> askBatteryExemption());
+        Button test = button(l, "Test Bluetooth (15 s)");
+        test.setOnClickListener(v -> {
+            save();
+            test.setEnabled(false);
+            test.setText("Testuji… (15 s)");
+            BleTest.run(this, () -> { test.setEnabled(true); test.setText("Test Bluetooth (15 s)"); refresh(); });
+        });
         Button stop = button(l, "Zastavit");
         stop.setOnClickListener(v -> { GatewayService.stop(this); toast("Zastaveno"); refresh(); });
 
