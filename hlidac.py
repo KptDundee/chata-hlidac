@@ -157,9 +157,17 @@ def record(data, v, now):
     cutoff = ts - KEEP_DETAIL_DAYS * 86400
     data["points"] = [x for x in data["points"] if x["t"] >= cutoff]
     day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
-    for k, src in (("solar_kwh", "day_kwh"), ("min_v", "min_v"), ("max_v", "max_v")):
-        if v.get(src) is not None:
-            day[k] = round(v[src], 2)
+    # Regulátor denní počítadla v noci nuluje (po setmění) → držet maximum / minimum za kalendářní den
+    if v.get("day_kwh") is not None:
+        day["solar_kwh"] = round(max(day.get("solar_kwh", 0), v["day_kwh"]), 2)
+    lows = [x for x in (v.get("min_v"), v.get("bat_v")) if x]
+    highs = [x for x in (v.get("max_v"), v.get("bat_v")) if x]
+    if lows:
+        day["min_v"] = round(min(lows + ([day["min_v"]] if "min_v" in day else [])), 2)
+    if highs:
+        day["max_v"] = round(max(highs + ([day["max_v"]] if "max_v" in day else [])), 2)
+    # ať upozornění i souhrn pracují s denními hodnotami, ne s vynulovaným počítadlem
+    v["day_kwh"], v["min_v"], v["max_v"] = day.get("solar_kwh"), day.get("min_v"), day.get("max_v")
     if v.get("bat_soc") is not None:
         day["soc_min"] = min(day.get("soc_min", 999), v["bat_soc"])
     data["updated"] = ts

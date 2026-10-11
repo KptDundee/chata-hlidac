@@ -270,8 +270,9 @@ function render(){
   $("t_soc_n").textContent = "odhad regulátoru";
   $("t_pv").innerHTML = `${nf(last.pv_w ?? lp.pv_w)}<small>W</small>`;
   $("t_pv_n").textContent = last.pv_v!=null ? `${nf(last.pv_v,1)} V` : STATUS[status] || "";
-  $("t_day").innerHTML = `${nf(last.day_kwh,2)}<small>kWh</small>`;
   const tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
+  const todayKwh = Math.max(last.day_kwh||0, (d.days&&d.days[tday]&&d.days[tday].solar_kwh)||0);
+  $("t_day").innerHTML = `${nf(todayKwh,2)}<small>kWh</small>`;
   const days = Object.keys(d.days||{}).sort();
   const sum30 = days.slice(-30).reduce((a,k)=>a+(d.days[k].solar_kwh||0),0);
   $("t_day_n").textContent = `30 dní: ${nf(sum30,1)} kWh`;
