@@ -242,7 +242,13 @@ function render(){
   const gw = d.inverter, gwFresh = gw && Date.now()/1000 - gw.t < 1800;
   const pl = $("plugs"), tp = (gw && gwFresh && gw.tp) || [], ph = gw && gw.ph;
   if(tp.length || ph){
-    const rows = tp.slice().sort((a,b)=>(b.w??-1)-(a.w??-1)).map(p=>`<div class="row" style="padding:8px 0"><div class="t"><b style="font-weight:500">${p.n||("Zásuvka ."+p.ip)}</b>${p.err?`<span style="color:var(--serious)">nedostupná</span>`:p.wh!=null?`<span>dnes ${nf(p.wh/1000,2)} kWh</span>`:""}</div><div style="font-variant-numeric:tabular-nums;font-weight:600">${p.w!=null?nf(p.w)+" W":"–"}</div></div>`).join("");
+    const rank = p => p.off ? -3 : p.err ? -2 : p.w ?? -1;
+    const rows = tp.slice().sort((a,b)=>rank(b)-rank(a)).map(p=>{
+      const sub = p.off ? `<span>vypnutá / bez napájení</span>` : p.err ? `<span style="color:var(--serious)">chyba: ${p.err}</span>`
+        : p.nm ? `<span>${p.on===1?"zapnutá":p.on===0?"vypnutá":""} · spotřebu neměří</span>` : p.wh!=null ? `<span>dnes ${nf(p.wh/1000,2)} kWh</span>` : "";
+      const val = p.off || p.nm ? "" : p.w!=null ? nf(p.w)+" W" : "–";
+      return `<div class="row" style="padding:8px 0${p.off?";opacity:.5":""}"><div class="t"><b style="font-weight:500">${p.n||("Zásuvka ."+p.ip)}</b>${sub}</div><div style="font-variant-numeric:tabular-nums;font-weight:600">${val}</div></div>`;
+    }).join("");
     const phTxt = ph ? `<div class="row" style="padding:8px 0"><div class="t"><b style="font-weight:500">📱 Telefon na chatě</b><span>${ph.c?"nabíjí se":"na baterii"}${ph.t!=null?` · ${nf(ph.t,0)} °C`:""}${gwFresh?"":` · ozval se ${ago(gw.t)}`}</span></div><div style="font-weight:600;${ph.b<=(d.cfg?.telefon_baterie_pod??15)?"color:var(--crit)":""}">${nf(ph.b)} %</div></div>` : "";
     pl.innerHTML = `<div class="sub" style="margin-bottom:2px">Zásuvky${gw.src==="tapo"?" · odběr měniče ze zásuvky":""}</div>${rows}${phTxt}`;
     pl.classList.remove("hide");

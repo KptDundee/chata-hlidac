@@ -383,7 +383,7 @@ def read_inverter(data, topic, now):
         inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
     tp = body.get("tp")
     if isinstance(tp, list):
-        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip") if p.get(k) is not None}
+        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm") if p.get(k) is not None}
                      for p in tp if isinstance(p, dict)][:12]
     for k in ("st", "al"):
         if body.get(k) not in (None, ""):

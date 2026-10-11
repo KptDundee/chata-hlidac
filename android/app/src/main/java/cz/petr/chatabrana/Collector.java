@@ -23,6 +23,8 @@ public final class Collector {
     private final BleListener ble;
     private final Map<String, TapoKlap> tapo = new HashMap<>();
     private final Map<String, String> names = new HashMap<>();
+    private final Map<String, String> models = new HashMap<>();
+    private final Map<String, String> lastState = new HashMap<>();   // ať se do záznamu nepíše pořád dokola totéž
 
     public Collector(Context ctx, BleListener ble) {
         this.ctx = ctx.getApplicationContext();
@@ -57,15 +59,16 @@ public final class Collector {
             // 2) zásuvky Tapo (místní Wi-Fi)
             JSONArray plugs = new JSONArray();
             String email = Prefs.s(ctx, Prefs.TAPO_EMAIL), pass = Prefs.s(ctx, Prefs.TAPO_PASSWORD);
-            int ok = 0, total = 0;
+            int ok = 0, total = 0, off = 0;
             if (!email.isEmpty()) {
                 for (String ip : Prefs.tapoIps(ctx)) {
                     total++;
                     JSONObject p = readPlug(ip, email, pass);
-                    if (p != null) { plugs.put(p); if (!p.has("err")) ok++; }
+                    if (p != null) { plugs.put(p); if (p.has("off")) off++; else if (!p.has("err")) ok++; }
                 }
                 if (plugs.length() > 0) o.put("tp", plugs);
                 sum.append(", zásuvky ").append(ok).append('/').append(total);
+                if (off > 0) sum.append(" (").append(off).append(" vypnuté)");
             }
 
             // 3) baterie telefonu
@@ -110,27 +113,52 @@ public final class Collector {
                     String nick = info.optString("nickname", "");
                     try { nick = new String(Base64.decode(nick, Base64.DEFAULT), StandardCharsets.UTF_8); } catch (Exception ignored) {}
                     names.put(ip, nick.isEmpty() ? ip : nick);
-                    p.put("on", info.optBoolean("device_on") ? 1 : 0);
-                    p.put("m", info.optString("model", ""));
+                    models.put(ip, info.optString("model", ""));
                 }
             }
             p.put("n", names.containsKey(ip) ? names.get(ip) : ip);
+            String model = models.containsKey(ip) ? models.get(ip) : "";
+            p.put("m", model);
+            if (model.startsWith("P100") || model.startsWith("P105")) {   // tyto zásuvky spotřebu neměří
+                JSONObject info = new JSONObject(t.call("get_device_info")).optJSONObject("result");
+                if (info != null) p.put("on", info.optBoolean("device_on") ? 1 : 0);
+                p.put("nm", 1);
+                note(ip, "ok", null);
+                return p;
+            }
             JSONObject res = new JSONObject(t.call("get_energy_usage"));
             JSONObject e = res.optJSONObject("result");
             if (res.optInt("error_code", 0) == 0 && e != null) {
                 if (e.has("current_power")) p.put("w", round(e.getDouble("current_power") / 1000.0, 1));
                 if (e.has("today_energy")) p.put("wh", e.getInt("today_energy"));
+            } else {
+                p.put("nm", 1);   // zásuvka spotřebu neměří
             }
+            note(ip, "ok", null);
         } catch (Exception ex) {
             tapo.remove(ip);   // příště nové přihlášení
-            try { p.put("err", String.valueOf(ex.getMessage())); } catch (Exception ignored) {}
-            Prefs.log(ctx, "Zásuvka " + ip + ": " + ex.getMessage());
+            String msg = String.valueOf(ex.getMessage());
+            boolean unreachable = ex instanceof java.net.SocketTimeoutException || ex instanceof java.net.ConnectException
+                    || ex instanceof java.net.NoRouteToHostException || msg.contains("Failed to connect") || msg.contains("timed out");
+            try {
+                if (!p.has("n") && names.containsKey(ip)) p.put("n", names.get(ip));
+                if (unreachable) p.put("off", 1); else p.put("err", msg);
+            } catch (Exception ignored) {}
+            note(ip, unreachable ? "off" : "err", unreachable ? "nedostupná (vypnutá / bez napájení)" : msg);
         }
         return p;
     }
 
+    /** Do záznamu jen změny stavu zásuvky. */
+    private void note(String ip, String state, String msg) {
+        String prev = lastState.put(ip, state);
+        if (state.equals(prev)) return;
+        if (msg != null) Prefs.log(ctx, "Zásuvka " + ip + ": " + msg);
+        else if (prev != null) Prefs.log(ctx, "Zásuvka " + ip + ": zase dostupná");
+    }
+
     /** Po hodině se znovu načtou názvy zásuvek (kdyby se přejmenovaly). */
-    public void forgetNames() { names.clear(); }
+    public void forgetNames() { names.clear(); models.clear(); }
 
     private static void post(String url, String body) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
