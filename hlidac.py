@@ -100,8 +100,14 @@ def ntfy(topic, title, msg, prio=3, tags=""):
         body["tags"] = tags.split(",")
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json"}, method="POST")
-    urllib.request.urlopen(req, timeout=30).read()
-    print("NTFY:", title, "|", msg)
+    for attempt in range(3):
+        try:
+            urllib.request.urlopen(req, timeout=30).read()
+            print("NTFY:", title, "|", msg)
+            return
+        except Exception as e:  # výpadek ntfy nesmí shodit hlídače
+            print("NTFY chyba:", e)
+            time.sleep(5)
 
 
 def _key(passphrase, salt):
@@ -157,7 +163,7 @@ def main():
     data["checked"] = int(now.timestamp())
     try:
         v = read_values(login(acc, pw))
-    except Exception as e:  # výpadek cloudu: nespadnout, po ~2 h upozornit
+    except (Exception, SystemExit) as e:  # výpadek cloudu: nespadnout, po ~2 h upozornit
         print("Chyba čtení cloudu:", e)
         st["err_n"] = st.get("err_n", 0) + 1
         if st["err_n"] == 12:
