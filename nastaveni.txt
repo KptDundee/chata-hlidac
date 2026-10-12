@@ -58,8 +58,8 @@ brana_ticho_min = 60
 telefon_baterie_pod = 15
 
 # --- Zásuvky Tapo (konec IP adresy) ---
-# zásuvka za měničem (odběr ze solární baterie)
-zasuvka_menic = 157
+# zásuvka za měničem, která MĚŘÍ (odběr ze solární baterie); prázdné = podle názvu „220V měnič“
+zasuvka_menic = 
 # zásuvky na EcoFlow River (zimní provoz)
 zasuvky_river = 172, 190, 165
 # zásuvka, přes kterou nabíjí generátor
