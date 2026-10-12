@@ -111,7 +111,7 @@ def plan(data, st, cfg, now, preds_kwh_1panel, need_kwh, mode):
     lab, found = label_panels(data, cfg, today)
     n_now = int(cfg.get("panely_pocet") or 1)
     fuse = cfg.get("pojistka_A") or 30
-    lim = fuse * (cfg.get("pojistka_rezerva") or 0.85)
+    lim = fuse * (cfg.get("pojistka_rezerva") or 1.0)        # přidat 2. panel: nejhorší případ do jmenovitého proudu pojistky
     curve = []
     for i in range(0, 181, 5):
         d = today + timedelta(days=i)
@@ -124,6 +124,10 @@ def plan(data, st, cfg, now, preds_kwh_1panel, need_kwh, mode):
            "top": [{"d": k, "a": pa} for k, pa in c0["top"]],
            "curve": [{"d": c["d"], "p2": c["p2"], "src": c["src"]} for c in curve[::3]],
            "found": found, "rec": None, "msg": None}
+    best = max(((d.get("pa"), k) for k, d in data.get("days", {}).items()
+                if lab.get(k) == 2 and d.get("pa") and d["pa"] <= 45), default=None)
+    if best:
+        res["proven"] = {"a": best[0], "d": best[1]}           # nejvíc naměřeno se 2 panely (a pojistka vydržela)
     measured = lambda c: c["src"] != "odhad"
     safe_from = None
     for i, c in enumerate(curve):
@@ -131,7 +135,7 @@ def plan(data, st, cfg, now, preds_kwh_1panel, need_kwh, mode):
         if len(ahead) >= 6 and all(x["p2"] <= lim for x in ahead):     # bezpečné aspoň ~90 dní dopředu
             safe_from = c["d"]
             break
-    lim_rm = fuse * 0.95                       # odpojit radit až nad 95 % pojistky (co dosud vydrželo, je v pořádku)
+    lim_rm = fuse * 1.15                       # odpojit radit až nad 115 % (pojistka snese 100 % trvale, pálí ~135 %+)
     res["lim_rm"] = round(lim_rm, 1)
     unsafe_at = next((c["d"] for c in curve if c["p2"] > lim_rm and measured(c)), None)
     res["safe_from"], res["unsafe_at"] = safe_from, unsafe_at

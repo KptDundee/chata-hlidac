@@ -38,7 +38,7 @@ DEFAULTS = {
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
     "pocasi": True, "rezim": "auto", "zima_pripojit_od": 85, "zima_pripojit_do": 60,
     "sezona_upozornit": True,
-    "panely_pocet": 2, "panel_Wp": 410, "pojistka_A": 30, "pojistka_rezerva": 0.85, "panely_doporucit": True,
+    "panely_pocet": 2, "panel_Wp": 410, "pojistka_A": 30, "pojistka_rezerva": 1.0, "panely_doporucit": True,
 }
 
 POINTS = {  # klíč: (dataPointId, itemId)
@@ -964,7 +964,7 @@ def fuse_check(v, st, now, topic, cfg):
     """Nabíjecí proud blízko pojistky mezi regulátorem a baterií."""
     a = v.get("bat_a")
     fuse = cfg.get("pojistka_A") or 30
-    lim = fuse * 0.9                       # okamžité varování až při 90 % pojistky (plánuje se s rezervou 85 %)
+    lim = fuse * 1.1                       # okamžité varování nad 110 % (pojistka snese 100 % trvale, pálí až ~135 %)
     if a is None:
         return
     day = now.strftime("%Y-%m-%d")
