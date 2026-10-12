@@ -541,6 +541,10 @@ def main():
     data["cfg"] = cfg
     data["sun"] = [int(rise.timestamp()), int(set_.timestamp())] if rise else None
     data["checked"] = int(now.timestamp())
+    try:
+        data["ver"] = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")).read().strip()
+    except OSError:
+        data["ver"] = None
     rivers = read_ecoflow(data, st, now, topic, cfg)
     inv = read_inverter(data, topic, now, cfg)
     read_plug_history(data, topic)
@@ -861,6 +865,8 @@ def read_inverter(data, topic, now, cfg=None):
     if isinstance(tp, list):
         inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm") if p.get(k) is not None}
                      for p in tp if isinstance(p, dict)][:12]
+    if body.get("av"):
+        inv["av"] = str(body["av"])[:12]       # verze aplikace na Flipu
     for k in ("st", "al"):
         if body.get(k) not in (None, ""):
             inv[k] = str(body[k])[:40]

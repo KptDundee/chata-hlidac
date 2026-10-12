@@ -40,7 +40,7 @@ public class MainActivity extends Activity {
         l.setPadding(pad, pad, pad, pad);
 
         TextView title = new TextView(this);
-        title.setText("Chata brána");
+        title.setText("Chata brána " + Collector.appVersion(this));
         title.setTextSize(24);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         l.addView(title);

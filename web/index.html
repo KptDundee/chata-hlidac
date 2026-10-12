@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
+<script>const WEB_VER = "1.1", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -22,14 +23,20 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
 .wrap{max-width:960px;margin:0 auto;padding:16px 16px 48px}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 16px}
-h1{font-size:20px;margin:0;font-weight:650;letter-spacing:-.01em}
+header{margin:4px 0 16px}
+header .hrow{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin-top:6px}
+h1{font-size:clamp(17px,5.2vw,22px);margin:0;font-weight:700;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+h1 .ver{font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+.htop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.hleft{flex:1 1 150px;min-width:150px}
+.hright{flex:0 1 auto;min-width:0;max-width:58%;text-align:right}
 .sub{color:var(--text2);font-size:13px}
 button,.btn{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:10px;padding:7px 12px;cursor:pointer}
 button:focus-visible,input:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
 .hero{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px}
 .big{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.vbad{color:var(--crit)!important;font-weight:600}
 .bigv{font-size:52px;font-weight:700;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .bigv small{font-size:22px;font-weight:600;color:var(--text2);margin-left:4px}
 .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 12px 5px 8px;font-weight:600;font-size:14px;color:var(--text);border:1px solid var(--line)}
@@ -111,8 +118,9 @@ header button{white-space:nowrap}
 
 <main id="app" class="hide">
   <header>
-    <div><h1>⚡ Chata – elektřina</h1><div class="sub" id="upd">…</div></div>
-    <div style="display:flex;gap:8px"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.1</span></h1>
+    <div class="hrow"><div class="sub" id="upd">…</div>
+    <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
   <div class="card hide" id="tokbox" style="margin-bottom:12px">
     <b>Načítání na povel</b>
@@ -123,11 +131,13 @@ header button{white-space:nowrap}
 
   <section class="hero">
     <div class="card">
-      <div class="sub">Solární baterie (AGM 12 V 200 Ah)</div>
-      <div class="big" style="margin-top:6px">
-        <div class="bigv" id="bv">–<small>V</small></div>
-        <span class="pill" id="pill"></span>
-        <div class="hide" id="load" style="margin-left:auto;text-align:right"><div class="sub" id="loadh">Odběr teď</div><div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums" id="loadv">–</div><div class="sub" id="loaddc" style="font-weight:600;color:var(--text)"></div><div class="sub" id="loadn"></div></div>
+      <div class="htop">
+        <div class="hleft">
+          <div class="sub">Solární baterie</div>
+          <div class="bigv" id="bv" style="margin-top:6px">–<small>V</small></div>
+          <span class="pill" id="pill" style="margin-top:10px"></span>
+        </div>
+        <div class="hright hide" id="load"><div class="sub" id="loadh">Odběr teď</div><div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px" id="loadv">–</div><div class="sub" id="loaddc" style="font-weight:600;color:var(--text);margin-top:4px"></div><div class="sub" id="loadn" style="margin-top:2px"></div></div>
       </div>
       <div class="advice" id="advice"></div>
       <div class="sub hide" id="invsync" style="margin-top:8px"></div>
@@ -178,7 +188,7 @@ header button{white-space:nowrap}
     <table><thead><tr><th>Den</th><th>Výroba kWh</th><th>Min V</th><th>Max V</th><th>Min SOC %</th></tr></thead><tbody id="tbl"></tbody></table>
   </details>
 
-  <div class="foot"><span id="cloud"></span><span><a href="#" id="openset">⚙ Nastavení</a> · <a href="#" id="logout">Odhlásit</a></span></div>
+  <div class="foot"><span><span id="cloud"></span><br><span id="vers"></span></span><span><a href="#" id="openset">⚙ Nastavení</a> · <a href="#" id="logout">Odhlásit</a></span></div>
 </main>
 </div>
 <section class="set hide" id="set" aria-label="Nastavení">
@@ -252,7 +262,7 @@ function render(){
   const s = batState(bv, d.state, status);
   $("bv").innerHTML = `${nf(bv,2)}<small>V</small>`;
   const pvNow = last.pv_w ?? lp.pv_w;
-  $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}${pvNow!=null && pvNow>=1 ? ` · ☀ ${nf(pvNow)} W` : ""}`;
+  $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}${pvNow!=null && pvNow>=1 ? `<span style="white-space:nowrap">· ☀ ${nf(pvNow)}&nbsp;W</span>` : ""}`;
   $("advice").textContent = s.a;
   const rv = d.rivers || [], rvEl = $("rivers");
   if(rv.length){
@@ -353,21 +363,23 @@ function render(){
     const idle = (d.cfg && d.cfg.menic_vlastni_W != null) ? d.cfg.menic_vlastni_W : 6;
     const dc = fresh && inv.w!=null ? inv.w/0.88 + idle : null;
     const dcs = inv.mw!=null ? inv.mw/0.88 + idle : dc;
-    $("loaddc").textContent = inv.rw!=null
-      ? `měnič ${nf(inv.mw)} W · River ${nf(inv.rw)} W` + (inv.mw>1 ? ` · ze solární ~${nf(dcs)} W` : "")
-      : dc!=null ? `z baterie ~${nf(dc)} W (${nf(dc/12.3,1)} A)` : "";
+    const nw = a => a.filter(Boolean).map(x => `<span style="white-space:nowrap">${x}</span>`).join(" · ");
+    $("loaddc").innerHTML = inv.rw!=null
+      ? nw([`měnič ${nf(inv.mw)} W`, `River ${nf(inv.rw)} W`, inv.mw>1 ? `ze solární ~${nf(dcs)} W` : ""])
+      : dc!=null ? nw([`z baterie ~${nf(dc)} W`, `(${nf(dc/12.3,1)} A)`]) : "";
     const g = fresh && inv.gen;
     $("gen").classList.toggle("hide", !(g && (g.w>5 || g.wh>0)));
     if(g) $("gen").innerHTML = `⛽ Generátor ${g.w>5?`nabíjí <b>${nf(g.w)} W</b>`:"stojí"}${g.wh!=null?` · dnes dodal <b>${nf(g.wh/1000,2)} kWh</b>`:""}`;
     $("loadh").textContent = inv.rw!=null ? "Odběr chaty teď" : fromTapo ? "Odběr teď · zásuvka za měničem" : "Odběr teď · měnič Victron";
     const stCz = {INVERTING:"běží", OFF:"vypnutý", LOW_POWER:"úsporný režim", FAULT:"PORUCHA"}[inv.st] || inv.st || "";
-    $("loadn").textContent = !fresh ? `brána mlčí ${ago(inv.t)}`
-      : fromTapo ? (inv.va!=null ? [`Victron ${nf(inv.va)} VA`, stCz, inv.v!=null?`${nf(inv.v,2)} V`:""].filter(Boolean).join(" · ") : "Victron zatím neposílá")
-      : [inv.age>120?`před ${Math.round(inv.age/60)} min`:"", inv.max!=null?`špička ${nf(inv.max)} W`:"", stCz, inv.v!=null?`${nf(inv.v,2)} V`:"", inv.al && !/^(0|NONE|No alarm)$/.test(inv.al) ? `⚠ ${inv.al}` : ""].filter(Boolean).join(" · ");
+    $("loadn").innerHTML = !fresh ? `brána mlčí ${ago(inv.t)}`
+      : fromTapo ? (inv.va!=null ? nw([`Victron ${nf(inv.va)} VA`, stCz, inv.v!=null?`${nf(inv.v,2)} V`:""]) : "Victron zatím neposílá")
+      : nw([inv.age>120?`před ${Math.round(inv.age/60)} min`:"", inv.max!=null?`špička ${nf(inv.max)} W`:"", stCz, inv.v!=null?`${nf(inv.v,2)} V`:"", inv.al && !/^(0|NONE|No alarm)$/.test(inv.al) ? `⚠ ${inv.al}` : ""]);
   }
   const dd = days.slice(-30).map(k=>({k,...d.days[k]}));
   renderProd(days);
   renderLog(d.log || []);
+  renderVers(d);
   const hd = days.filter(k=>d.days[k].h).slice(-90).map(k=>({k, v:d.days[k].h.mv10, h:d.days[k].h}));
   const base = d.health_base;
   $("healthcs").textContent = "pokles napětí za noc v mV na 10 Ah z baterie · nižší = lepší" + (base ? ` · výchozí stav ${nf(base)} mV` : "");
@@ -428,6 +440,16 @@ function lineChart(el, pts, key, color, o){
   svg.addEventListener("pointermove",move);svg.addEventListener("pointerdown",move);svg.addEventListener("pointerleave",leave);
 }
 let PROD = "d";
+function renderVers(d){
+  const cmp = (a,b) => { const x=String(a).split(".").map(Number), y=String(b).split(".").map(Number); return (x[0]-y[0]) || ((x[1]||0)-(y[1]||0)); };
+  const av = d.inverter && d.inverter.av;
+  const flip = !d.inverter ? "Flip –" : !av ? `<span class="vbad">Flip stará verze – nahraj ${FLIP_VER}</span>`
+    : cmp(av, FLIP_VER) < 0 ? `<span class="vbad">Flip ${av} – nahraj ${FLIP_VER}</span>` : `Flip ${av}`;
+  const hl = d.ver ? (d.ver !== WEB_VER ? `<span class="vbad">hlídač ${d.ver}</span>` : `hlídač ${d.ver}`) : "hlídač ?";
+  $("vers").innerHTML = `Verze: web ${WEB_VER} · ${hl} · ${flip}`;
+  $("ver").textContent = "v" + WEB_VER;
+}
+
 function renderLog(lg){
   const esc = t => String(t).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const tm = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});

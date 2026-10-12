@@ -97,6 +97,8 @@ public final class Collector {
                 sum.append(", telefon ").append(pct).append(" %");
             }
 
+            o.put("av", appVersion());
+
             // 4) odeslat
             String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
             if (topic.isEmpty()) return "Chybí ntfy téma v nastavení";
@@ -271,6 +273,14 @@ public final class Collector {
         c.disconnect();
         if (code >= 300) throw new Exception("ntfy HTTP " + code);
     }
+
+    /** Verze aplikace (versionName z build.gradle) – hlídač ji ukáže na webu. */
+    static String appVersion(Context c) {
+        try { return c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName; }
+        catch (Exception e) { return "?"; }
+    }
+
+    private String appVersion() { return appVersion(ctx); }
 
     private static double round(double v, int d) {
         double f = Math.pow(10, d);
