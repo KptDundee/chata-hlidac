@@ -45,11 +45,16 @@ public final class Collector {
                 o.put("w", round(s.avgVa, 1));
                 o.put("max", s.maxVa);
                 sum.append(String.format(Locale.US, "měnič %.0f W", s.avgVa));
+            } else if (s.last != null && s.last.acVa != null && s.ageSec >= 0 && s.ageSec < 1800) {
+                // tentokrát nic nechytil, ale poslední hodnota je mladší než 30 min → poslat ji (označenou stářím)
+                o.put("w", s.last.acVa);
+                o.put("age", s.ageSec);
+                sum.append(String.format(Locale.US, "měnič %d W (před %d min)", s.last.acVa, s.ageSec / 60));
             } else {
                 o.put("w", -1);
                 sum.append("měnič: ").append(s.error != null ? s.error : "žádná data");
             }
-            if (s.last != null && s.ageSec >= 0 && s.ageSec < 900) {
+            if (s.last != null && s.ageSec >= 0 && s.ageSec < 1800) {
                 if (s.last.batteryV != null) o.put("v", s.last.batteryV);
                 o.put("st", s.last.stateName());
                 o.put("al", s.last.alarmName());

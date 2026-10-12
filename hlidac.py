@@ -379,6 +379,8 @@ def read_inverter(data, topic, now):
     except ValueError:
         return None
     inv = {"t": int(last.get("time") or now.timestamp())}
+    if isinstance(body.get("age"), (int, float)):
+        inv["age"] = int(body["age"])
     for k in ("w", "max", "v"):
         try:
             x = float(body[k])

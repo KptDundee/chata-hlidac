@@ -201,6 +201,15 @@ async function decrypt(enc, pw){
   return JSON.parse(new TextDecoder().decode(pt));
 }
 async function load(pw){
+  // s tokenem rovnou z GitHubu (bez čekání na zveřejnění stránky, ~1 min rychlejší); jinak ze stránky
+  const tok = store.get("ghtok");
+  if(tok){
+    try{
+      const g = await fetch("https://api.github.com/repos/KptDundee/chata-hlidac/contents/data.enc?ref=gh-pages&t="+Date.now(),
+        {headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github.raw"}, cache:"no-store"});
+      if(g.ok) return decrypt(await g.json(), pw);
+    }catch(e){}
+  }
   const r = await fetch("data.enc?"+Date.now(), {cache:"no-store"});
   if(!r.ok) throw new Error("nodata");
   return decrypt(await r.json(), pw);
@@ -302,7 +311,7 @@ function render(){
     const stCz = {INVERTING:"běží", OFF:"vypnutý", LOW_POWER:"úsporný režim", FAULT:"PORUCHA"}[inv.st] || inv.st || "";
     $("loadn").textContent = !fresh ? `brána mlčí ${ago(inv.t)}`
       : fromTapo ? "Victron zatím neposílá"
-      : [inv.max!=null?`špička ${nf(inv.max)} W`:"", stCz, inv.v!=null?`${nf(inv.v,2)} V`:"", inv.al && !/^(0|NONE|No alarm)$/.test(inv.al) ? `⚠ ${inv.al}` : ""].filter(Boolean).join(" · ");
+      : [inv.age>120?`před ${Math.round(inv.age/60)} min`:"", inv.max!=null?`špička ${nf(inv.max)} W`:"", stCz, inv.v!=null?`${nf(inv.v,2)} V`:"", inv.al && !/^(0|NONE|No alarm)$/.test(inv.al) ? `⚠ ${inv.al}` : ""].filter(Boolean).join(" · ");
   }
   const dd = days.slice(-30).map(k=>({k,...d.days[k]}));
   barChart($("c_day"), dd, "solar_kwh", css("--s2"), {unit:"kWh",dec:2});
