@@ -77,6 +77,9 @@ public final class Collector {
                 if (off > 0) sum.append(" (").append(off).append(" vypnuté)");
             }
 
+            // 2b) jednou denně: hodinová historie spotřeby zásuvky za měničem (pro ukazatel zdraví baterie)
+            if (!email.isEmpty()) sendPlugHistory(email, pass);
+
             // 3) baterie telefonu
             Intent b = ctx.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
             if (b != null) {
@@ -153,6 +156,50 @@ public final class Collector {
             note(ip, unreachable ? "off" : "err", unreachable ? "nedostupná (vypnutá / bez napájení)" : msg);
         }
         return p;
+    }
+
+    /** Najde zásuvku za měničem (název obsahuje „měnič“, „220“ …) a pošle hodinovou spotřebu za posledních 30 dní. */
+    private void sendPlugHistory(String email, String pass) {
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new java.util.Date());
+        if (today.equals(Prefs.get(ctx).getString("hist_sent", ""))) return;
+        String ip = null;
+        for (Map.Entry<String, String> e : names.entrySet()) {
+            if (e.getValue().toLowerCase(Locale.ROOT).matches(".*(m[eě]ni[cč]|inverter|220|230).*")) { ip = e.getKey(); break; }
+        }
+        if (ip == null) return;
+        try {
+            TapoKlap t = tapo.get(ip);
+            if (t == null) { t = new TapoKlap(ip, email, pass); tapo.put(ip, t); }
+            JSONObject days = new JSONObject();
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0);
+            cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0);
+            java.text.SimpleDateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US);
+            int okDays = 0;
+            for (int back = 1; back <= 30; back++) {
+                java.util.Calendar d = (java.util.Calendar) cal.clone();
+                d.add(java.util.Calendar.DAY_OF_MONTH, -back);
+                long start = d.getTimeInMillis() / 1000;
+                String par = "{\"start_timestamp\":" + start + ",\"end_timestamp\":" + (start + 86400 - 1) + ",\"interval\":60}";
+                JSONObject r = new JSONObject(t.call("get_energy_data", par));
+                JSONObject res = r.optJSONObject("result");
+                if (r.optInt("error_code", 0) != 0 || res == null) break;
+                JSONArray data = res.optJSONArray("data");
+                if (data == null || data.length() < 24) continue;
+                JSONArray h = new JSONArray();
+                for (int i = 0; i < 24; i++) h.put(data.optInt(i, -1));
+                days.put(df.format(d.getTime()), h);
+                okDays++;
+            }
+            if (okDays > 0) {
+                String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
+                post("https://ntfy.sh/" + topic + "-menic-hist", new JSONObject().put("d", days).toString());
+                Prefs.log(ctx, "Historie zásuvky za měničem odeslána: " + okDays + " dní");
+            }
+            Prefs.get(ctx).edit().putString("hist_sent", today).apply();
+        } catch (Exception e) {
+            Prefs.log(ctx, "Historie zásuvky: " + e.getMessage());
+        }
     }
 
     /** Do záznamu jen změny stavu zásuvky. */

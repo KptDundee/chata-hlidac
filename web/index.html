@@ -162,6 +162,7 @@ header button{white-space:nowrap}
     <div class="card chart"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 id="prodh">Výroba po dnech</h2>
       <div class="seg" id="prodseg" style="font-size:13px"><button data-m="d" aria-pressed="true">Dny</button><button data-m="m" aria-pressed="false">Měsíce</button><button data-m="y" aria-pressed="false">Roky</button></div></div>
       <div class="cs" id="prodcs">kWh · posledních 30 dní</div><div id="c_day"></div></div>
+    <div class="card chart" id="healthcard"><h2>Zdraví baterie</h2><div class="cs" id="healthcs">pokles napětí za noc v mV na 10 Ah odebraných z baterie · nižší = lepší</div><div id="c_health"></div></div>
     <div class="card chart"><h2>Nejnižší napětí dne</h2><div class="cs">V · posledních 30 dní</div><div id="c_min"></div></div>
   </section>
 
@@ -335,6 +336,11 @@ function render(){
   }
   const dd = days.slice(-30).map(k=>({k,...d.days[k]}));
   renderProd(days);
+  const hd = days.filter(k=>d.days[k].h).slice(-90).map(k=>({k, v:d.days[k].h.mv10, h:d.days[k].h}));
+  const base = d.health_base;
+  $("healthcs").textContent = "pokles napětí za noc v mV na 10 Ah z baterie · nižší = lepší" + (base ? ` · výchozí stav ${nf(base)} mV` : "");
+  if(hd.length) barChart($("c_health"), hd, "v", css("--s3"), {unit:"mV",dec:0,tip:q=>`noc na ${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br><b>${nf(q.v)} mV / 10 Ah</b><br>${nf(q.h.vs,2)} → ${nf(q.h.ve,2)} V, odebráno ${nf(q.h.ah)} Ah${base?`<br>${q.v>base*1.2?"⚠ horší než výchozí":"v normě"}`:""}`});
+  else empty($("c_health"), "První noci se spočítají, až bude spotřeba za měničem a napětí za celou noc (nebo historie ze zásuvky).");
   dotChart($("c_min"), dd, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   $("tbl").innerHTML = days.slice().reverse().slice(0,60).map(k=>{const x=d.days[k];return `<tr><td>${new Date(k).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}</td><td>${nf(x.solar_kwh,2)}</td><td>${nf(x.min_v,2)}</td><td>${nf(x.max_v,2)}</td><td>${x.soc_min!=null&&x.soc_min<999?nf(x.soc_min):"–"}</td></tr>`}).join("") || `<tr><td colspan="5">Zatím žádné dny</td></tr>`;
 }

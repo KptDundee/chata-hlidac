@@ -126,8 +126,33 @@ def history(token, dp_id, start, end, base=None):
         offset += page
 
 
-def import_history(token, data, st, now, budget_s=90):
-    """Postupně (po měsících, odzadu) doplní denní výrobu a min/max napětí ze Solar Guardianu."""
+def night_window(date, cfg):
+    """Noc končící ráno dne `date`: od západu (předchozí den) + 1 h do východu slunce."""
+    _, set_prev = sun_times(cfg["sirka"], cfg["delka"], date - timedelta(days=1))
+    rise, _ = sun_times(cfg["sirka"], cfg["delka"], date)
+    if not rise or not set_prev:
+        return None, None
+    return set_prev + timedelta(hours=1), rise
+
+
+def night_voltages(series, date, cfg):
+    """series = [(unix_s, V)] → (V na začátku noci, V na konci noci) jako medián 30 min."""
+    ts, te = night_window(date, cfg)
+    if not ts:
+        return None
+    a, b = ts.timestamp(), te.timestamp()
+    first = sorted(v for t, v in series if a <= t < a + 1800 and v > 5)
+    last = sorted(v for t, v in series if b - 1800 <= t < b and v > 5)
+    if not first or not last:
+        return None
+    return {"vs": round(first[len(first) // 2], 3), "ve": round(last[len(last) // 2], 3),
+            "ts": int(a), "te": int(b)}
+
+
+def import_history(token, data, st, now, cfg, budget_s=90):
+    """Postupně (po měsících, odzadu) doplní denní výrobu, min/max napětí a noční napětí ze Solar Guardianu."""
+    if not st.get("hist_v2"):              # nová verze importu (s nočním napětím) → projít znovu
+        st.update({"hist_v2": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
     if st.get("hist_done"):
         return
     t0 = time.time()
@@ -142,9 +167,11 @@ def import_history(token, data, st, now, budget_s=90):
         end = (start + timedelta(days=32)).replace(day=1)
         got = 0
         try:
-            daily = {}
+            daily, vser = {}, []
             for key in ("day_kwh", "bat_v"):
                 for ms, val in history(token, POINTS[key][0], start, end):
+                    if key == "bat_v":
+                        vser.append((ms / 1000, val))
                     dk = datetime.fromtimestamp(ms / 1000, TZ).strftime("%Y-%m-%d")
                     dd = daily.setdefault(dk, {})
                     if key == "day_kwh":
@@ -161,6 +188,10 @@ def import_history(token, data, st, now, budget_s=90):
                     day["min_v"] = round(min(day.get("min_v", 99), dd["min_v"]), 2)
                 if "max_v" in dd:
                     day["max_v"] = round(max(day.get("max_v", 0), dd["max_v"]), 2)
+            for dk in daily:
+                nv = night_voltages(vser, datetime.strptime(dk, "%Y-%m-%d").date(), cfg)
+                if nv and "nv" not in data["days"][dk]:
+                    data["days"][dk]["nv"] = nv
         except Exception as e:
             print("Import historie:", e)
             st["hist_err"] = st.get("hist_err", 0) + 1
@@ -337,6 +368,61 @@ def soc_from_v(v):
     return 100.0
 
 
+def battery_health(data, now, cfg):
+    """Ukazatel zdraví baterie za noci: pokles napětí (mV) na 10 Ah odebraných z baterie.
+
+    Noční napětí: z živých bodů (nebo z importu Solar Guardianu), odběr: ze zásuvky za měničem
+    (živé body po 10 min, nebo hodinová historie ze zásuvky). Čím vyšší číslo, tím menší kapacita.
+    """
+    idle = cfg["menic_vlastni_W"] or 0
+    hourly = data.get("plug_hourly", {})
+    pts = data.get("points", [])
+    for dk, day in data["days"].items():
+        if "h" in day:
+            continue
+        date = datetime.strptime(dk, "%Y-%m-%d").date()
+        ts, te = night_window(date, cfg)
+        if not ts or te > now:
+            continue
+        a, b = ts.timestamp(), te.timestamp()
+        nv = day.get("nv")
+        if not nv:
+            nv = night_voltages([(p["t"], p["bat_v"]) for p in pts if p.get("bat_v")], date, cfg)
+        if not nv:
+            continue
+        # odběr ve W za měničem během noci
+        ah, covered, src = 0.0, 0.0, None
+        live = [p for p in pts if a <= p["t"] < b and p.get("ac_w") is not None]
+        if len(live) * 600 >= 0.8 * (b - a):
+            for p in live:
+                ah += (p["ac_w"] / 0.88 + idle) * (600 / 3600) / 12.3
+            covered, src = len(live) * 600, "live"
+        else:
+            for t0 in range(int(a // 3600) * 3600, int(b), 3600):
+                hk = datetime.fromtimestamp(t0, TZ)
+                wh = (hourly.get(hk.strftime("%Y-%m-%d")) or [None] * 24)[hk.hour] if hk.strftime("%Y-%m-%d") in hourly else None
+                if wh is None:
+                    continue
+                part = (min(t0 + 3600, b) - max(t0, a)) / 3600
+                if part <= 0:
+                    continue
+                ah += (wh * part / 0.88 + idle * part) / 12.3
+                covered += part * 3600
+            src = "tapo"
+        if covered < 0.8 * (b - a) or ah < 5:
+            continue
+        drop = (nv["vs"] - nv["ve"]) * 1000
+        day["h"] = {"mv10": round(drop / ah * 10, 1), "ah": round(ah, 1), "vs": nv["vs"], "ve": nv["ve"], "src": src}
+
+
+def health_baseline(data):
+    vals = [d["h"]["mv10"] for k, d in sorted(data["days"].items()) if "h" in d]
+    if len(vals) < 7:
+        return None, vals
+    first = sorted(vals[:14])
+    return first[len(first) // 2], vals
+
+
 def forecast(data, now, cfg):
     """Vydrží baterie do rána? Výpočet z kapacity a očekávané noční spotřeby.
 
@@ -420,6 +506,7 @@ def main():
     data["checked"] = int(now.timestamp())
     rivers = read_ecoflow(data, st, now, topic, cfg)
     inv = read_inverter(data, topic, now)
+    read_plug_history(data, topic)
     check_gateway(inv, st, now, topic, cfg)
     if inv and now.timestamp() - inv["t"] < 1200:   # alarm / vypnutí hlášené samotným měničem
         al = inv.get("al") if inv.get("al") not in ("0", "NONE", "No alarm") else None
@@ -462,9 +549,23 @@ def main():
         if rivers:
             data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w")} for r in rivers]
     try:
-        import_history(token, data, st, now)
+        import_history(token, data, st, now, cfg)
     except Exception as e:
         print("Import historie selhal:", e)
+    try:
+        battery_health(data, now, cfg)
+        base, vals = health_baseline(data)
+        data["health_base"] = base
+        if base and len(vals) >= 30:
+            recent = sorted(vals[-14:])
+            med = recent[len(recent) // 2]
+            month = now.strftime("%Y-%m")
+            if med > base * 1.2 and st.get("health_warned") != month:
+                ntfy(topic, "🔋 Baterie možná ztrácí kapacitu",
+                     f"V noci teď napětí klesá o {fmt(med, 0)} mV na 10 Ah, na začátku sledování {fmt(base, 0)} mV (+{fmt((med / base - 1) * 100, 0)} %).", 3, "battery")
+                st["health_warned"] = month
+    except Exception as e:
+        print("Zdraví baterie:", e)
     data["forecast"] = forecast(data, now, cfg)
     st["_forecast"] = data["forecast"]
     st["_rivers"] = [{"name": r["name"], "soc": r.get("soc")} for r in (rivers or [])]
@@ -537,6 +638,33 @@ def read_inverter(data, topic, now):
     data["inverter"] = inv
     print(f"Měnič: {fmt(inv.get('w'))} W (max {fmt(inv.get('max'))}), {fmt(inv.get('v'), 2)} V, {inv.get('st', '')}")
     return inv
+
+
+def read_plug_history(data, topic):
+    """Hodinová spotřeba zásuvky za měničem, kterou jednou denně pošle Flip: {"d": {"YYYY-MM-DD": [24× Wh]}}."""
+    try:
+        lines = urllib.request.urlopen(f"https://ntfy.sh/{topic}-menic-hist/json?poll=1&since=12h", timeout=20).read().decode().splitlines()
+    except Exception as e:
+        print("Historie zásuvky (ntfy):", e)
+        return
+    hourly = data.setdefault("plug_hourly", {})
+    n = 0
+    for ln in lines:
+        try:
+            m = json.loads(ln)
+            if m.get("event") != "message":
+                continue
+            body = json.loads(m.get("message") or "{}")
+        except ValueError:
+            continue
+        for dk, arr in (body.get("d") or {}).items():
+            if isinstance(arr, list) and len(arr) == 24:
+                hourly[dk] = [None if x is None or x < 0 else x for x in arr]
+                n += 1
+    for dk in sorted(hourly)[:-400]:
+        hourly.pop(dk)
+    if n:
+        print(f"Historie zásuvky: {n} dní")
 
 
 def check_gateway(inv, st, now, topic, cfg):

@@ -42,9 +42,13 @@ public final class TapoKlap {
     }
 
     /** Zavolá metodu (např. get_device_info, get_energy_usage) a vrátí JSON odpovědi jako text. */
-    public String call(String method) throws Exception {
+    public String call(String method) throws Exception { return call(method, null); }
+
+    /** @param paramsJson např. {"start_timestamp":…,"end_timestamp":…,"interval":60} nebo null */
+    public String call(String method, String paramsJson) throws Exception {
         if (session == null) handshake();
-        String req = "{\"method\":\"" + method + "\",\"request_time_milis\":" + System.currentTimeMillis() + "}";
+        String req = "{\"method\":\"" + method + "\"" + (paramsJson != null ? ",\"params\":" + paramsJson : "")
+                + ",\"request_time_milis\":" + System.currentTimeMillis() + "}";
         Session.Enc e = session.encrypt(req.getBytes(StandardCharsets.UTF_8));
         Resp r = post("/app/request?seq=" + e.seq, e.payload, cookie);
         if (r.code != 200) { session = null; throw new Exception("Tapo " + host + ": HTTP " + r.code); }
