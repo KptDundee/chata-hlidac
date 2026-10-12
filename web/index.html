@@ -246,7 +246,8 @@ function render(){
   const bv = last.bat_v ?? lp.bat_v, soc = last.bat_soc ?? lp.bat_soc, status = last.status ?? lp.status;
   const s = batState(bv, d.state, status);
   $("bv").innerHTML = `${nf(bv,2)}<small>V</small>`;
-  $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}`;
+  const pvNow = last.pv_w ?? lp.pv_w;
+  $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}${pvNow!=null && pvNow>=1 ? ` · ☀ ${nf(pvNow)} W` : ""}`;
   $("advice").textContent = s.a;
   const rv = d.rivers || [], rvEl = $("rivers");
   if(rv.length){
@@ -265,14 +266,25 @@ function render(){
   const pl = $("plugs"), tp = (gw && gwFresh && gw.tp) || [], ph = gw && gw.ph;
   if(tp.length || ph){
     const rank = p => p.off ? -3 : p.err ? -2 : p.w ?? -1;
-    const rows = tp.slice().sort((a,b)=>rank(b)-rank(a)).map(p=>{
+    const c = d.cfg || {}, ipl = t => String(t||"").split(/[,;\s]+/).filter(Boolean);
+    const rivIps = ipl(c.zasuvky_river), genIp = String(c.zasuvka_generator||""), autoIp = String(c.river_auto_ip||"");
+    const isMenic = p => String(c.zasuvka_menic||"")===p.ip || (!c.zasuvka_menic && /m[eě]ni[cč]|inverter|220|230/i.test(p.n||""));
+    const group = p => isMenic(p) ? 0 : rivIps.includes(p.ip) ? 2 : p.ip===genIp ? 3 : 1;
+    const gname = ["Měnič celkem (solární baterie)","Spotřebiče za měničem","Na EcoFlow River","Generátor"];
+    const row = p=>{
       const sub = p.off ? `<span>vypnutá / bez napájení</span>` : p.err ? `<span style="color:var(--serious)">chyba: ${p.err}</span>`
         : p.nm ? `<span>${p.on===1?"zapnutá":p.on===0?"vypnutá":""} · spotřebu neměří</span>` : p.wh!=null ? `<span>dnes ${nf(p.wh/1000,2)} kWh</span>` : "";
       const val = p.off || p.nm ? "" : p.w!=null ? nf(p.w)+" W" : "–";
-      return `<div class="row" data-ip="${p.ip}" style="padding:8px 0;cursor:pointer${p.off?";opacity:.5":""}"><div class="t"><b style="font-weight:500">${p.n||("Zásuvka ."+p.ip)}</b>${sub}</div><div style="font-variant-numeric:tabular-nums;font-weight:600">${val} <span style="color:var(--muted);font-weight:400">›</span></div></div>`;
-    }).join("");
+      const tag = p.ip===autoIp ? ` <span style="font-size:11px;color:var(--s1)">· nabíjení River</span>` : "";
+      return `<div class="row" data-ip="${p.ip}" style="padding:8px 0;cursor:pointer${p.off?";opacity:.5":""}"><div class="t"><b style="font-weight:500">${p.n||("Zásuvka ."+p.ip)}${tag}</b>${sub}</div><div style="font-variant-numeric:tabular-nums;font-weight:600">${val} <span style="color:var(--muted);font-weight:400">›</span></div></div>`;
+    };
+    let rows = "";
+    for(let g=0; g<4; g++){
+      const ps = tp.filter(p=>group(p)===g).sort((a,b)=>rank(b)-rank(a));
+      if(ps.length) rows += `<div class="sub" style="margin:10px 0 0;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em">${gname[g]}</div>` + ps.map(row).join("");
+    }
     const phTxt = ph ? `<div class="row" style="padding:8px 0"><div class="t"><b style="font-weight:500">📱 Telefon na chatě</b><span>${ph.c?"nabíjí se":"na baterii"}${ph.t!=null?` · ${nf(ph.t,0)} °C`:""}${gwFresh?"":` · ozval se ${ago(gw.t)}`}</span></div><div style="font-weight:600;${ph.b<=(d.cfg?.telefon_baterie_pod??15)?"color:var(--crit)":""}">${nf(ph.b)} %</div></div>` : "";
-    pl.innerHTML = `<div class="sub" style="margin-bottom:2px">Zásuvky${gw.src==="tapo"?" · odběr měniče ze zásuvky":""}</div>${rows}${phTxt}`;
+    pl.innerHTML = `<b>Zásuvky</b>${rows}${phTxt}`;
     pl.classList.remove("hide");
   } else pl.classList.add("hide");
   if(PLUG) renderPlug();
