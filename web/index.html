@@ -127,7 +127,7 @@ header button{white-space:nowrap}
       <div class="big" style="margin-top:6px">
         <div class="bigv" id="bv">–<small>V</small></div>
         <span class="pill" id="pill"></span>
-        <div class="hide" id="load" style="margin-left:auto;text-align:right"><div class="sub" id="loadh">Odběr teď</div><div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums" id="loadv">–</div><div class="sub" id="loadn"></div></div>
+        <div class="hide" id="load" style="margin-left:auto;text-align:right"><div class="sub" id="loadh">Odběr teď</div><div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums" id="loadv">–</div><div class="sub" id="loaddc" style="font-weight:600;color:var(--text)"></div><div class="sub" id="loadn"></div></div>
       </div>
       <div class="advice" id="advice"></div>
       <div class="sub hide" id="invsync" style="margin-top:8px"></div>
@@ -324,6 +324,9 @@ function render(){
   if(inv){
     $("loadv").innerHTML = `${fresh?nf(inv.w):"–"}<small style="font-size:15px;color:var(--text2);margin-left:3px">W</small>`;
     const fromTapo = inv.src === "tapo";
+    const idle = (d.cfg && d.cfg.menic_vlastni_W != null) ? d.cfg.menic_vlastni_W : 6;
+    const dc = fresh && inv.w!=null ? inv.w/0.88 + idle : null;
+    $("loaddc").textContent = dc!=null ? `z baterie ~${nf(dc)} W (${nf(dc/12.3,1)} A)` : "";
     $("loadh").textContent = fromTapo ? "Odběr teď · zásuvka za měničem" : "Odběr teď · měnič Victron";
     const stCz = {INVERTING:"běží", OFF:"vypnutý", LOW_POWER:"úsporný režim", FAULT:"PORUCHA"}[inv.st] || inv.st || "";
     $("loadn").textContent = !fresh ? `brána mlčí ${ago(inv.t)}`
