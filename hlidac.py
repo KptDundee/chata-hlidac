@@ -30,6 +30,7 @@ DEFAULTS = {
     "regulator_offline_min": 120, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
+    "zasuvka_menic": "157", "zasuvky_river": "172, 190", "zasuvka_generator": "115",
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
 }
@@ -320,6 +321,8 @@ def load_config(path=CONFIG_FILE):
         low = val.lower()
         if isinstance(DEFAULTS[k], bool):
             cfg[k] = low in ("zapnuto", "ano", "on", "true", "1")
+        elif isinstance(DEFAULTS[k], str):
+            cfg[k] = val
         elif low in ("vypnuto", "ne", "off"):
             cfg[k] = None
         else:
@@ -392,10 +395,10 @@ def battery_health(data, now, cfg):
             continue
         # odběr ve W za měničem během noci
         ah, covered, src = 0.0, 0.0, None
-        live = [p for p in pts if a <= p["t"] < b and p.get("ac_w") is not None]
+        live = [p for p in pts if a <= p["t"] < b and p.get("mw", p.get("ac_w")) is not None]
         if len(live) * 600 >= 0.8 * (b - a):
             for p in live:
-                ah += (p["ac_w"] / 0.88 + idle) * (600 / 3600) / 12.3
+                ah += (p.get("mw", p.get("ac_w")) / 0.88 + idle) * (600 / 3600) / 12.3
             covered, src = len(live) * 600, "live"
         else:
             for t0 in range(int(a // 3600) * 3600, int(b), 3600):
@@ -443,8 +446,8 @@ def forecast(data, now, cfg):
     v = sum(p["bat_v"] for p in pts) / len(pts) + 0.05   # +0,05 V za pokles pod malou zátěží
     cap = cfg["kapacita_Ah"] or 200
     ac = cfg["noc_spotreba_W"] or 0
-    measured = [p["ac_w"] for p in data.get("points", [])
-                if p.get("ac_w") is not None and p["t"] >= t_now - 3 * 3600 and (p.get("pv_w") or 0) < 5]
+    measured = [p.get("mw", p.get("ac_w")) for p in data.get("points", [])
+                if p.get("mw", p.get("ac_w")) is not None and p["t"] >= t_now - 3 * 3600 and (p.get("pv_w") or 0) < 5]
     if len(measured) >= 6:                       # aspoň hodina změřeného nočního odběru
         ac = sum(measured) / len(measured)
     draw = ac / 0.88 + (cfg["menic_vlastni_W"] or 0)   # W z baterie
@@ -505,7 +508,7 @@ def main():
     data["sun"] = [int(rise.timestamp()), int(set_.timestamp())] if rise else None
     data["checked"] = int(now.timestamp())
     rivers = read_ecoflow(data, st, now, topic, cfg)
-    inv = read_inverter(data, topic, now)
+    inv = read_inverter(data, topic, now, cfg)
     read_plug_history(data, topic)
     check_gateway(inv, st, now, topic, cfg)
     if inv and now.timestamp() - inv["t"] < 1200:   # alarm / vypnutí hlášené samotným měničem
@@ -531,6 +534,10 @@ def main():
             pt = data["points"][-1]
             if inv.get("w") is not None:
                 pt["ac_w"] = inv["w"]
+            if inv.get("mw") is not None:
+                pt["mw"] = inv["mw"]
+            if (inv.get("gen") or {}).get("w") is not None:
+                pt["gw"] = inv["gen"]["w"]
             if inv.get("v") is not None:            # napětí měřené měničem
                 pt["iv"] = inv["v"]
             if inv.get("lw") is not None:           # odběr ve stejném okamžiku jako to napětí
@@ -575,7 +582,12 @@ def main():
         save_data(key, data)
 
 
-def read_inverter(data, topic, now):
+def ips(txt):
+    import re
+    return [x for x in re.split(r"[,;\s]+", str(txt or "")) if x]
+
+
+def read_inverter(data, topic, now, cfg=None):
     """Poslední zpráva z ESP32 u měniče (posílá do ntfy tématu <NTFY_TOPIC>-menic každých 10 min).
 
     Formát zprávy: JSON {"w": průměr VA, "max": max VA, "v": napětí baterie, "st": stav, "al": alarm}.
@@ -625,14 +637,28 @@ def read_inverter(data, topic, now):
     for k in ("st", "al"):
         if body.get(k) not in (None, ""):
             inv[k] = str(body[k])[:40]
-    # Spotřeba: přednost má skutečný výkon (W) ze zásuvky Tapo za měničem; Victron měří VA (u malých zátěží víc).
-    import re
-    for p in inv.get("tp", []):
-        if p.get("w") is not None and re.search(r"m[eě]ni[cč]|inverter|220|230", str(p.get("n", "")), re.I):
-            if "w" in inv:
-                inv["va"] = inv["w"]          # Victron VA si necháme pro informaci
-            inv["w"], inv["src"] = p["w"], "tapo"
-            break
+    # Spotřeba ze zásuvek Tapo (skutečné W): za měničem (solární baterie) + na River (zimní provoz).
+    # Victron měří VA (u malých zátěží víc) – necháme ho pro informaci.
+    cfg = cfg or DEFAULTS
+    by_ip = {p.get("ip"): p for p in inv.get("tp", []) if p.get("ip")}
+    menic = by_ip.get(str(cfg.get("zasuvka_menic") or "").strip())
+    if not menic:                        # záloha: podle názvu
+        import re
+        menic = next((p for p in inv.get("tp", []) if re.search(r"m[eě]ni[cč]|inverter|220|230", str(p.get("n", "")), re.I)), None)
+    rivers = [by_ip[i] for i in ips(cfg.get("zasuvky_river")) if i in by_ip]
+    gen = by_ip.get(str(cfg.get("zasuvka_generator") or "").strip())
+    if menic and menic.get("w") is not None:
+        if "w" in inv:
+            inv["va"] = inv["w"]
+        inv["mw"] = menic["w"]           # odběr ze solární baterie (přes měnič)
+        inv["w"], inv["src"] = menic["w"], "tapo"
+    rw = [p["w"] for p in rivers if p.get("w") is not None]
+    if rw:
+        inv["rw"] = round(sum(rw), 1)    # odběr z River (zimní provoz)
+        inv["w"] = round((inv.get("mw") or 0) + inv["rw"], 1)
+        inv["src"] = "tapo"
+    if gen and (gen.get("w") is not None or gen.get("wh") is not None):
+        inv["gen"] = {"w": gen.get("w"), "wh": gen.get("wh"), "off": gen.get("off")}
     if "w" not in inv and not inv.get("tp") and "ph" not in inv:
         return None
     data["inverter"] = inv

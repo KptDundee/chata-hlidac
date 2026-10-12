@@ -131,6 +131,7 @@ header button{white-space:nowrap}
       </div>
       <div class="advice" id="advice"></div>
       <div class="sub hide" id="invsync" style="margin-top:8px"></div>
+      <div class="sub hide" id="gen" style="margin-top:6px"></div>
       <div class="fc hide" id="fc"></div>
       <div class="socbar" role="progressbar" aria-label="Stav nabití" id="socbar"><div style="width:0"></div></div>
     </div>
@@ -327,8 +328,14 @@ function render(){
     const fromTapo = inv.src === "tapo";
     const idle = (d.cfg && d.cfg.menic_vlastni_W != null) ? d.cfg.menic_vlastni_W : 6;
     const dc = fresh && inv.w!=null ? inv.w/0.88 + idle : null;
-    $("loaddc").textContent = dc!=null ? `z baterie ~${nf(dc)} W (${nf(dc/12.3,1)} A)` : "";
-    $("loadh").textContent = fromTapo ? "Odběr teď · zásuvka za měničem" : "Odběr teď · měnič Victron";
+    const dcs = inv.mw!=null ? inv.mw/0.88 + idle : dc;
+    $("loaddc").textContent = inv.rw!=null
+      ? `měnič ${nf(inv.mw)} W · River ${nf(inv.rw)} W` + (inv.mw>1 ? ` · ze solární ~${nf(dcs)} W` : "")
+      : dc!=null ? `z baterie ~${nf(dc)} W (${nf(dc/12.3,1)} A)` : "";
+    const g = fresh && inv.gen;
+    $("gen").classList.toggle("hide", !(g && (g.w>5 || g.wh>0)));
+    if(g) $("gen").innerHTML = `⛽ Generátor ${g.w>5?`nabíjí <b>${nf(g.w)} W</b>`:"stojí"}${g.wh!=null?` · dnes dodal <b>${nf(g.wh/1000,2)} kWh</b>`:""}`;
+    $("loadh").textContent = inv.rw!=null ? "Odběr chaty teď" : fromTapo ? "Odběr teď · zásuvka za měničem" : "Odběr teď · měnič Victron";
     const stCz = {INVERTING:"běží", OFF:"vypnutý", LOW_POWER:"úsporný režim", FAULT:"PORUCHA"}[inv.st] || inv.st || "";
     $("loadn").textContent = !fresh ? `brána mlčí ${ago(inv.t)}`
       : fromTapo ? (inv.va!=null ? [`Victron ${nf(inv.va)} VA`, stCz, inv.v!=null?`${nf(inv.v,2)} V`:""].filter(Boolean).join(" · ") : "Victron zatím neposílá")
@@ -540,6 +547,11 @@ const SETTINGS = [
     ["brana_ticho_min","Mlčí déle než","","min",10,"num"],
     ["telefon_baterie_pod","Baterie telefonu pod","","%",5,"num"],
   ]],
+  ["Zásuvky (konec IP adresy)", [
+    ["zasuvka_menic","Zásuvka za měničem","Odběr ze solární baterie","",0,"txt"],
+    ["zasuvky_river","Zásuvky na River","Zimní provoz, oddělit čárkou","",0,"txt"],
+    ["zasuvka_generator","Zásuvka generátoru","Kolik generátor dodává","",0,"txt"],
+  ]],
   ["Pro pokročilé", [
     ["baterie_slabne_reset_V","Varování „slábne“ znovu až nad","","V",0.05,"num"],
     ["baterie_kriticka_reset_V","Alarm znovu až nad","","V",0.05,"num"],
@@ -575,7 +587,9 @@ function renderSettings(){
     html += `<h2>${title}</h2><div class="card" style="padding:4px 16px">`;
     for(const [k,label,help,unit,step,type] of items){
       const val = v[k] ?? "";
-      if(type==="sw"){
+      if(type==="txt"){
+        html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="text" data-k="${k}" data-t="txt" value="${String(val)}" style="width:110px"></div></div>`;
+      } else if(type==="sw"){
         html += `<label class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><span class="sw"><input type="checkbox" data-k="${k}" data-t="sw" ${isOn(val)?"checked":""}><i></i></span></label>`;
       } else if(type==="opt"){
         const on = !isOff(val);
@@ -595,6 +609,7 @@ function collectSettings(){
   for(const el of $("setbody").querySelectorAll("[data-k]")){
     const k = el.dataset.k;
     if(el.dataset.t==="sw"){ out[k] = el.checked ? "zapnuto" : "vypnuto"; continue; }
+    if(el.dataset.t==="txt"){ out[k] = el.value.replace(/[^0-9.,; ]/g,"").trim(); continue; }
     const opt = $("setbody").querySelector(`[data-opt="${k}"]`);
     if(opt && !opt.checked){ out[k]="vypnuto"; continue; }
     const n = parseFloat(String(el.value).replace(",","."));
