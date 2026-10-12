@@ -31,6 +31,8 @@ DEFAULTS = {
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
     "zasuvka_menic": "", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
+    "river_auto": True, "river_auto_ip": "157", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
+    "river_auto_v_off": 12.5, "river_auto_off_min": 20,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
 }
@@ -578,8 +580,63 @@ def main():
     st["_rivers"] = [{"name": r["name"], "soc": r.get("soc")} for r in (rivers or [])]
     try:
         check(v, st, now, topic, cfg, rise, set_)
+        river_auto(v, st, now, topic, cfg, rise, set_, data)
     finally:
         save_data(key, data)
+
+
+def send_cmd(topic, ip, on, reason):
+    """Povel pro Flip (brána na chatě): zapnout / vypnout zásuvku Tapo."""
+    body = json.dumps({"ip": str(ip), "on": bool(on), "id": int(time.time()), "why": reason})
+    req = urllib.request.Request(f"https://ntfy.sh/{topic}-cmd", data=body.encode(),
+                                 headers={"Title": "cmd", "Priority": "1"}, method="POST")
+    urllib.request.urlopen(req, timeout=20).read()
+
+
+def river_auto(v, st, now, topic, cfg, rise, set_, data):
+    """Automatické nabíjení River přebytkem ze slunce přes zásuvku za měničem."""
+    ip = str(cfg.get("river_auto_ip") or "").strip()
+    if not cfg.get("river_auto") or not ip:
+        if st.get("ra_on"):              # automatika vypnutá v nastavení → zásuvku vypnout
+            send_cmd(topic, ip or "157", False, "automatika vypnuta")
+            st["ra_on"] = False
+        data["river_auto"] = None
+        return
+    bv, pv = v.get("bat_v"), v.get("pv_w")
+    status = int(v["status"]) if v.get("status") is not None else None
+    stale = v.get("age_min") is None or v["age_min"] > cfg["regulator_offline_min"]
+    on = bool(st.get("ra_on"))
+    reason = None
+    day = rise and set_ and rise <= now <= set_ - timedelta(minutes=30)
+    if stale or bv is None or pv is None:
+        if on:
+            on, reason = False, "regulátor neposílá data"
+    elif not on:
+        if day and status == 1 and pv >= (cfg["river_auto_pv_on"] or 0) and bv >= (cfg["river_auto_v_off"] or 0) + 0.3:
+            on, reason = True, f"baterie plná, panely {fmt(pv)} W"
+    else:
+        lowpv = pv < (cfg["river_auto_pv_off"] or 0)
+        st["ra_low"] = (st.get("ra_low", 0) + 10) if lowpv else 0
+        if bv < (cfg["river_auto_v_off"] or 0):
+            on, reason = False, f"napětí klesla na {fmt(bv, 2)} V"
+        elif st["ra_low"] >= (cfg["river_auto_off_min"] or 0):
+            on, reason = False, f"panely jen {fmt(pv)} W"
+        elif not day:
+            on, reason = False, "blíží se západ slunce"
+    if reason:
+        send_cmd(topic, ip, on, reason)
+        ntfy(topic, "🔌 Nabíjení River zapnuto" if on else "🔌 Nabíjení River vypnuto",
+             f"Zásuvka .{ip}: {reason}. Baterie {fmt(bv, 2)} V, panely {fmt(pv)} W.", 3, "electric_plug")
+        st["ra_on"], st["ra_since"], st["ra_low"] = on, int(now.timestamp()), 0
+    elif on and now.timestamp() - st.get("ra_sent", 0) > 3600:
+        send_cmd(topic, ip, True, "trvá")       # jednou za hodinu připomenout (kdyby se povel ztratil)
+        st["ra_sent"] = int(now.timestamp())
+    if reason:
+        st["ra_sent"] = int(now.timestamp())
+    data["river_auto"] = {"on": on, "since": st.get("ra_since"), "ip": ip, "why": reason or st.get("ra_why")}
+    if reason:
+        st["ra_why"] = reason
+        data["river_auto"]["why"] = reason
 
 
 def ips(txt):

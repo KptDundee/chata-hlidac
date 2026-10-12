@@ -66,6 +66,7 @@ public final class Collector {
             JSONArray plugs = new JSONArray();
             String email = Prefs.s(ctx, Prefs.TAPO_EMAIL), pass = Prefs.s(ctx, Prefs.TAPO_PASSWORD);
             int ok = 0, total = 0, off = 0;
+            if (!email.isEmpty()) applyCommands(email, pass);
             if (!email.isEmpty()) {
                 for (String ip : Prefs.tapoIps(ctx)) {
                     total++;
@@ -156,6 +157,50 @@ public final class Collector {
             note(ip, unreachable ? "off" : "err", unreachable ? "nedostupná (vypnutá / bez napájení)" : msg);
         }
         return p;
+    }
+
+    /** Povely od hlídače (ntfy téma <topic>-cmd): {"ip":"157","on":true,"id":…,"why":"…"} → přepnout zásuvku. */
+    private void applyCommands(String email, String pass) {
+        String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
+        if (topic.isEmpty()) return;
+        try {
+            HttpURLConnection c = (HttpURLConnection) new URL("https://ntfy.sh/" + topic + "-cmd/json?poll=1&since=3h").openConnection();
+            c.setConnectTimeout(15000);
+            c.setReadTimeout(15000);
+            String body;
+            try (java.io.InputStream in = c.getInputStream()) {
+                java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[4096];
+                int n;
+                while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                body = bo.toString("UTF-8");
+            } finally { c.disconnect(); }
+            JSONObject last = null;
+            for (String ln : body.split("\n")) {
+                if (ln.trim().isEmpty()) continue;
+                JSONObject m = new JSONObject(ln);
+                if (!"message".equals(m.optString("event"))) continue;
+                try { last = new JSONObject(m.optString("message")); } catch (Exception ignored) {}
+            }
+            if (last == null) return;
+            long id = last.optLong("id", 0);
+            long done = Prefs.get(ctx).getLong("cmd_done", 0);
+            if (id <= done) return;
+            String ip = last.optString("ip", "");
+            if (ip.matches("\\d+")) ip = "192.168.0." + ip;
+            boolean on = last.optBoolean("on", false);
+            TapoKlap t = tapo.get(ip);
+            if (t == null) { t = new TapoKlap(ip, email, pass); tapo.put(ip, t); }
+            JSONObject r = new JSONObject(t.call("set_device_info", "{\"device_on\":" + on + "}"));
+            if (r.optInt("error_code", -1) == 0) {
+                Prefs.get(ctx).edit().putLong("cmd_done", id).apply();
+                Prefs.log(ctx, "Zásuvka " + ip + " " + (on ? "ZAPNUTA" : "VYPNUTA") + " (" + last.optString("why", "povel") + ")");
+            } else {
+                Prefs.log(ctx, "Povel pro " + ip + " selhal: " + r);
+            }
+        } catch (Exception e) {
+            Prefs.log(ctx, "Povely: " + e.getMessage());
+        }
     }
 
     /** Najde zásuvku za měničem (název obsahuje „měnič“, „220“ …) a pošle hodinovou spotřebu za posledních 30 dní. */

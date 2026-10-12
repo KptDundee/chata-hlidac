@@ -64,3 +64,12 @@ zasuvka_menic =
 zasuvky_river = 172, 190, 165
 # zásuvka, přes kterou nabíjí generátor
 zasuvka_generator = 115
+
+# --- Automatické nabíjení River přebytkem ze slunce ---
+# zapne zásuvku, když je solární baterie plná (Float) a panely dávají dost; vypne při poklesu
+river_auto = zapnuto
+river_auto_ip = 157
+river_auto_pv_on = 150
+river_auto_pv_off = 100
+river_auto_v_off = 12.5
+river_auto_off_min = 20

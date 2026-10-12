@@ -132,6 +132,7 @@ header button{white-space:nowrap}
       <div class="advice" id="advice"></div>
       <div class="sub hide" id="invsync" style="margin-top:8px"></div>
       <div class="sub hide" id="gen" style="margin-top:6px"></div>
+      <div class="sub hide" id="rauto" style="margin-top:6px"></div>
       <div class="fc hide" id="fc"></div>
       <div class="socbar" role="progressbar" aria-label="Stav nabití" id="socbar"><div style="width:0"></div></div>
     </div>
@@ -298,6 +299,12 @@ function render(){
   const days = Object.keys(d.days||{}).sort();
   const sum30 = days.slice(-30).reduce((a,k)=>a+(d.days[k].solar_kwh||0),0);
   $("t_day_n").textContent = last.month_kwh!=null ? `měsíc ${nf(last.month_kwh,1)} · celkem ${nf(last.total_kwh,0)} kWh` : `30 dní: ${nf(sum30,1)} kWh`;
+  const ra = d.river_auto;
+  $("rauto").classList.toggle("hide", !ra);
+  if(ra){
+    const since = ra.since ? new Date(ra.since*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}) : "";
+    $("rauto").innerHTML = ra.on ? `🔌 <b>Nabíjení River zapnuto</b>${since?` od ${since}`:""}${ra.why?` · ${ra.why}`:""}` : `🔌 Nabíjení River vypnuto${ra.why?` · ${ra.why}`:""} <span style="opacity:.7">(automatika čeká na plnou baterii a slunce)</span>`;
+  }
   const gi = d.inverter, giFresh = gi && Date.now()/1000 - gi.t < 1800;
   if(giFresh && gi.v!=null){
     const lw = gi.lw!=null ? gi.lw : (gi.va ?? gi.w);
@@ -541,6 +548,14 @@ const SETTINGS = [
     ["river_vymenit","River skoro vybitá","Upozornit, ať ji vyměníš","","", "sw"],
     ["river_vymenit_pod","Vyměnit pod","","%",5,"num"],
     ["river_nabita","River nabitá při nabíjení","Můžeš vypnout generátor","","", "sw"],
+  ]],
+  ["Automatické nabíjení River", [
+    ["river_auto","Nabíjet River přebytkem ze slunce","Zapne zásuvku, když je solární baterie plná","","", "sw"],
+    ["river_auto_ip","Zásuvka nabíjení River","Konec IP adresy","",0,"txt"],
+    ["river_auto_pv_on","Zapnout, když panely dávají aspoň","","W",10,"num"],
+    ["river_auto_pv_off","Vypnout, když panely klesnou pod","","W",10,"num"],
+    ["river_auto_off_min","…po dobu","","min",10,"num"],
+    ["river_auto_v_off","Vypnout, když napětí klesne pod","","V",0.05,"num"],
   ]],
   ["Brána na chatě (telefon)", [
     ["brana_hlidat","Upozornit, když brána mlčí","Telefon u měniče přestal posílat data","","", "sw"],
