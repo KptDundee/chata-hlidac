@@ -38,6 +38,7 @@ DEFAULTS = {
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
     "pocasi": True, "rezim": "auto", "zima_pripojit_od": 85, "zima_pripojit_do": 60,
     "sezona_upozornit": True,
+    "panely_pocet": 2, "panel_Wp": 410, "pojistka_A": 30, "pojistka_rezerva": 0.85, "panely_doporucit": True,
 }
 
 POINTS = {  # klíč: (dataPointId, itemId)
@@ -157,8 +158,8 @@ def night_voltages(series, date, cfg):
 
 def import_history(token, data, st, now, cfg, budget_s=90):
     """Postupně (po měsících, odzadu) doplní denní výrobu, min/max napětí a noční napětí ze Solar Guardianu."""
-    if not st.get("hist_v5"):              # nová verze importu (+ kdy byla plná, nejnižší napětí) → projít znovu
-        st.update({"hist_v3": True, "hist_v4": True, "hist_v5": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
+    if not st.get("hist_v6"):              # nová verze importu (+ plná, nejnižší napětí, špička proudu) → projít znovu
+        st.update({"hist_v3": True, "hist_v4": True, "hist_v5": True, "hist_v6": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
         for d in data["days"].values():
             d.pop("nv", None)
             d.pop("h", None)
@@ -220,6 +221,9 @@ def import_history(token, data, st, now, cfg, budget_s=90):
                     dser = [x for x in cser if a0 <= x["t"] < a0 + 86400]
                     if any(x.get("s") is not None for x in dser):
                         data["days"][dk]["fl"] = next((x["t"] for x in dser if x.get("s") == 1), 0)
+                    aa = [x["a"] for x in dser if x.get("a") is not None and x.get("s") != 1]
+                    if aa:
+                        data["days"][dk]["pa"] = round(max(aa), 1)
                     vv = [x["v"] for x in dser if x.get("v") and x["v"] > 5]
                     if vv:
                         data["days"][dk]["mp"] = round(min(vv), 2)
@@ -362,6 +366,8 @@ def record(data, v, now):
     if v.get("status") is not None and int(v["status"]) == 1 and not day.get("fl"):
         day["fl"] = ts
     day.setdefault("fl", 0)
+    if v.get("bat_a") is not None and (v.get("status") is None or int(v["status"]) != 1):
+        day["pa"] = round(max(day.get("pa", 0), v["bat_a"]), 1)
     if v.get("bat_v") and v["bat_v"] > 5:
         day["mp"] = round(min(day.get("mp", 99), v["bat_v"]), 2)
     data["updated"] = ts
@@ -742,6 +748,7 @@ def main():
     try:
         mode = detect_mode(data, st, cfg, now, inv)
         track_soc(data, st, v, now, cfg, inv, mode)
+        fuse_check(v, st, now, topic, cfg)
     except Exception as e:
         print("Režim / SOC:", e)
         log("err", f"Odhad nabití: {type(e).__name__} {str(e)[:90]}")
@@ -953,6 +960,20 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
     st["summary_ts"] = int(now.timestamp())
 
 
+def fuse_check(v, st, now, topic, cfg):
+    """Nabíjecí proud blízko pojistky mezi regulátorem a baterií."""
+    a = v.get("bat_a")
+    fuse = cfg.get("pojistka_A") or 30
+    lim = fuse * 0.9                       # okamžité varování až při 90 % pojistky (plánuje se s rezervou 85 %)
+    if a is None:
+        return
+    day = now.strftime("%Y-%m-%d")
+    if a >= lim and st.get("fuse_day") != day:
+        ntfy(topic, f"⚡ Nabíjecí proud {fmt(a, 1)} A – blízko pojistky {fmt(fuse)} A",
+             f"Panely teď dávají {fmt(v.get('pv_w'))} W. Pokud jsou zapojené dva panely, odpoj jeden, ať se nespálí pojistka.", 5, "warning,zap")
+        st["fuse_day"] = day
+
+
 def track_soc(data, st, v, now, cfg, inv, mode):
     """Vlastní odhad stavu nabití: počítání Ah (nabíjení − odběr), v noci zpřesnění podle napětí, Float = 100 %."""
     cap = cfg["kapacita_Ah"] or 200
@@ -1095,15 +1116,32 @@ def weather_and_outlook(data, st, cfg, now, topic, mode):
         data["wxo"] = None
         return
     import pocasi
+    import panely
+    n_now = int(cfg.get("panely_pocet") or 1)
+    nh = data.setdefault("np_hist", [])
+    if not nh:                                  # 2 panely zapojené zhruba od začátku září 2026 (podle Petra)
+        nh.append(["2026-09-01", 2] if n_now == 2 else [now.date().isoformat(), n_now])
+    if nh[-1][1] != n_now:                      # změna v nastavení = přepojení panelů
+        nh.append([now.date().isoformat(), n_now])
+        log("ev", f"Zapojené panely: {n_now}")
+    lab, _ = panely.label_panels(data, cfg, now.date())
     pocasi.update_weather(data, cfg, now, log=lambda m: (print(m), "selhal" in m and log("err", m)))
     pocasi.evaluate(data, cfg, sun_times, now.date())
-    preds, bf, bn = pocasi.predict_days(data, cfg, sun_times, now)
+    preds, bf, bn = pocasi.predict_days(data, cfg, sun_times, now, lab, n_now)
     pocasi.remember_forecast(data, preds, now)
     acc, med = pocasi.accuracy(data, now.date())
     ol = outlook(data, st, cfg, now, mode, preds)
     typ = pocasi.typical_kwh(data, cfg, sun_times, now.date(), now.date())
+    need = ol["dc_day"] / 1000 / 0.9 if ol else None
+    pp = panely.plan(data, st, cfg, now, [(p["d"], p["k1"]) for p in preds], need, mode)
     data["wxo"] = {"preds": preds, "bias": round(bf, 2), "bias_n": bn, "acc": acc, "acc_med": med,
-                   "ol": ol, "typ": typ, "t": int(now.timestamp())}
+                   "ol": ol, "typ": typ, "t": int(now.timestamp()), "pan": pp}
+    if cfg.get("panely_doporucit") and pp.get("rec") and now.hour >= 18 and \
+            (st.get("pan_rec") != pp["rec"] or now.timestamp() - st.get("pan_sent", 0) > 7 * 86400):
+        title = {"add": "🔆 Zapoj druhý panel", "wait": "⏳ Jeden panel nestačí – druhý ještě ne",
+                 "remove": "⚠️ Odpoj druhý panel"}[pp["rec"]]
+        ntfy(topic, title, pp["msg"] + "\nPo přepojení přepni počet panelů v Nastavení.", 4 if pp["rec"] == "remove" else 3, "sunny")
+        st["pan_rec"], st["pan_sent"] = pp["rec"], int(now.timestamp())
     if not ol:
         return
     days = ol["days"]

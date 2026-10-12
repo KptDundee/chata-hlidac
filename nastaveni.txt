@@ -89,3 +89,13 @@ zima_pripojit_od = 85
 zima_pripojit_do = 60
 # upozornit na přechod zima ↔ léto
 sezona_upozornit = zapnuto
+
+# --- Panely a pojistka ---
+# kolik panelů je teď zapojeno (léto 1, zima 2) – přepni po fyzickém přepojení
+panely_pocet = 2
+panel_Wp = 410
+# pojistka mezi regulátorem a baterií
+pojistka_A = 30
+# plánovat s rezervou (0,85 = do 85 % pojistky)
+pojistka_rezerva = 0.85
+panely_doporucit = zapnuto

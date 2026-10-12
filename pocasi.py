@@ -99,7 +99,7 @@ def _doy_dist(a, b):
     return min(x, 365 - x)
 
 
-def training_rows(data, cfg, sun_times, target, today):
+def training_rows(data, cfg, sun_times, target, today, lab=None):
     """Dny použitelné k učení pro datum `target`: známé počasí, výroba, baterie nebyla brzy plná."""
     rows = []
     wx = data.get("wx", {})
@@ -123,7 +123,7 @@ def training_rows(data, cfg, sun_times, target, today):
                 continue                        # plná dřív než 1,5 h před západem → výroba přiškrcená
         age = (target - dd).days / 365.0
         wgt = math.exp(-dist / 15) * (0.6 ** max(age, 0))
-        rows.append((w[1], max(w[0] - w[1], 0.0), kwh, wgt))
+        rows.append((w[1], max(w[0] - w[1], 0.0), kwh / ((lab or {}).get(k, 1) or 1), wgt))   # výroba na 1 panel
     return rows
 
 
@@ -148,10 +148,10 @@ def fit(rows):
     return max(a, 0.0), max(b, 0.0), len(rows)
 
 
-def model_for(data, cfg, sun_times, target, today, cache):
+def model_for(data, cfg, sun_times, target, today, cache, lab=None):
     k = target.isoformat()
     if k not in cache:
-        cache[k] = fit(training_rows(data, cfg, sun_times, target, today))
+        cache[k] = fit(training_rows(data, cfg, sun_times, target, today, lab))
     return cache[k]
 
 
@@ -187,8 +187,8 @@ def evaluate(data, cfg, sun_times, today):
         data["fclog"].pop(k)
 
 
-def predict_days(data, cfg, sun_times, now):
-    """Předpověď výroby (kWh) na dnes + 7 dní. Vrací list dictů."""
+def predict_days(data, cfg, sun_times, now, lab=None, n_panels=1):
+    """Předpověď výroby (kWh) na dnes + 7 dní pro aktuální počet panelů. Vrací list dictů (k1 = na 1 panel)."""
     fc = data.get("wxf") or {}
     today = now.date()
     cache = {}
@@ -197,12 +197,13 @@ def predict_days(data, cfg, sun_times, now):
     for k in sorted(fc):
         w = fc[k]
         dd = Date.fromisoformat(k)
-        m = model_for(data, cfg, sun_times, dd, today, cache)
+        m = model_for(data, cfg, sun_times, dd, today, cache, lab)
         if not m:
             continue
         a, b, n = m
-        raw = a * w["d"] + b * max(w["g"] - w["d"], 0)
-        out.append({"d": k, "raw": round(raw, 3), "kwh": round(raw * bf, 2), "txt": w.get("txt", ""),
+        raw1 = a * w["d"] + b * max(w["g"] - w["d"], 0)
+        raw = raw1 * n_panels
+        out.append({"d": k, "raw": round(raw, 3), "kwh": round(raw * bf, 2), "k1": round(raw1 * bf, 2), "txt": w.get("txt", ""),
                     "code": w.get("code"), "tmax": w.get("tmax"), "tmin": w.get("tmin"),
                     "a": round(a, 3), "b": round(b, 3), "n": n})
     return out, bf, bn
