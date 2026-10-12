@@ -240,7 +240,30 @@ def read_values(token):
     return out
 
 
-def ntfy(topic, title, msg, prio=3, tags=""):
+EVENTS = []   # události tohoto běhu → data["log"] (deník do večerního souhrnu a na web)
+
+
+def log(kind, text):
+    """kind: 'ev' = událost / upozornění, 'auto' = automatika, 'err' = chyba."""
+    EVENTS.append({"t": int(time.time()), "k": kind, "x": str(text)[:160]})
+
+
+def flush_log(data):
+    lg = data.setdefault("log", [])
+    for e in EVENTS:
+        if e["k"] == "err":          # opakovaná stejná chyba → jeden řádek s počtem
+            key = e["x"][:40]
+            prev = next((x for x in reversed(lg[-30:]) if x["k"] == "err" and x["x"][:40] == key), None)
+            if prev and e["t"] - prev.get("t2", prev["t"]) < 45 * 60:
+                prev["t2"], prev["n"], prev["x"] = e["t"], prev.get("n", 1) + 1, e["x"]
+                continue
+        lg.append(e)
+    EVENTS.clear()
+    cut = time.time() - 14 * 86400
+    data["log"] = [x for x in lg if x.get("t2", x["t"]) >= cut][-600:]
+
+
+def ntfy(topic, title, msg, prio=3, tags="", note=None):
     body = {"topic": topic, "title": title, "message": msg, "priority": prio}
     if tags:
         body["tags"] = tags.split(",")
@@ -251,10 +274,13 @@ def ntfy(topic, title, msg, prio=3, tags=""):
         try:
             urllib.request.urlopen(req, timeout=30).read()
             print("NTFY:", title, "|", msg)
+            if "bar_chart" not in tags and "test" not in title:
+                log("auto" if title.startswith("🔌") else "ev", note or title)
             return
         except Exception as e:  # výpadek ntfy nesmí shodit hlídače
             print("NTFY chyba:", e)
             time.sleep(5)
+    log("err", f"Notifikace nedoručena: {title}")
 
 
 def _key(passphrase, salt):
@@ -275,6 +301,7 @@ def load_data(passphrase):
 
 
 def save_data(passphrase, data):
+    flush_log(data)
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     salt, iv = os.urandom(16), os.urandom(12)
     ct = AESGCM(_key(passphrase, salt)).encrypt(iv, json.dumps(data, separators=(",", ":")).encode(), None)
@@ -528,12 +555,19 @@ def main():
         v = read_values(token)
     except (Exception, SystemExit) as e:  # výpadek cloudu: nespadnout, po ~2 h upozornit
         print("Chyba čtení cloudu:", e)
+        log("err", f"Solar Guardian nejde přečíst: {str(e)[:100]}")
+        note_run(data, now, sg=False, inv=inv)
+        try:
+            daily_summary(data, None, st, now, topic, cfg, rise, set_)
+        except Exception as e2:
+            print("Souhrn:", e2)
         st["err_n"] = st.get("err_n", 0) + 1
         if st["err_n"] == 12:
             ntfy(topic, "📡 Hlídač nemůže číst Solar Guardian", f"Už ~2 hodiny selhává čtení cloudu: {str(e)[:150]}", 4, "warning")
         save_data(key, data)
         return
     st["err_n"] = 0
+    st["sg_ok"] = True
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
     if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
         record(data, v, now)
@@ -566,6 +600,7 @@ def main():
         import_history(token, data, st, now, cfg)
     except Exception as e:
         print("Import historie selhal:", e)
+        log("err", f"Import historie Solar Guardian: {str(e)[:100]}")
     try:
         battery_health(data, now, cfg)
         base, vals = health_baseline(data)
@@ -580,12 +615,20 @@ def main():
                 st["health_warned"] = month
     except Exception as e:
         print("Zdraví baterie:", e)
+        log("err", f"Výpočet zdraví baterie: {str(e)[:100]}")
     data["forecast"] = forecast(data, now, cfg)
     st["_forecast"] = data["forecast"]
     st["_rivers"] = [{"name": r["name"], "soc": r.get("soc")} for r in (rivers or [])]
+    note_run(data, now, sg=True, inv=inv)
     try:
-        check(v, st, now, topic, cfg, rise, set_)
-        river_auto(v, st, now, topic, cfg, rise, set_, data)
+        for name, fn in (("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_)),
+                         ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
+                         ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_))):
+            try:
+                fn()
+            except Exception as e:          # chyba jedné části nesmí shodit ostatní
+                print(name, "selhalo:", e)
+                log("err", f"{name}: {type(e).__name__} {str(e)[:100]}")
     finally:
         save_data(key, data)
 
@@ -595,10 +638,20 @@ def send_cmd(topic, ip, on, reason):
     body = json.dumps({"ip": str(ip), "on": bool(on), "id": int(time.time()), "why": reason})
     req = urllib.request.Request(f"https://ntfy.sh/{topic}-cmd", data=body.encode(),
                                  headers={"Title": "cmd", "Priority": "1"}, method="POST")
-    urllib.request.urlopen(req, timeout=20).read()
+    try:
+        urllib.request.urlopen(req, timeout=20).read()
+        return True
+    except Exception as e:
+        log("err", f"Povel pro zásuvku .{ip} neodešel: {str(e)[:80]}")
+        return False
 
 
-def river_auto(v, st, now, topic, cfg, rise, set_, data):
+def dur(sec):
+    m = int(sec // 60)
+    return f"{m // 60} h {m % 60:02d} min" if m >= 60 else f"{m} min"
+
+
+def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
     """Automatické nabíjení River přebytkem ze slunce přes zásuvku za měničem."""
     ip = str(cfg.get("river_auto_ip") or "").strip()
     if not cfg.get("river_auto") or not ip:
@@ -628,20 +681,132 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data):
             on, reason = False, f"panely jen {fmt(pv)} W"
         elif not day:
             on, reason = False, "blíží se západ slunce"
+    if on:                          # počítat dobu nabíjení za den
+        day_ = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
+        day_["ra_min"] = day_.get("ra_min", 0) + 10
     if reason:
         send_cmd(topic, ip, on, reason)
+        ran = f" (běželo {dur(now.timestamp() - st['ra_since'])})" if not on and st.get("ra_since") else ""
         ntfy(topic, "🔌 Nabíjení River zapnuto" if on else "🔌 Nabíjení River vypnuto",
-             f"Zásuvka .{ip}: {reason}. Baterie {fmt(bv, 2)} V, panely {fmt(pv)} W.", 3, "electric_plug")
+             f"Zásuvka .{ip}: {reason}{ran}. Baterie {fmt(bv, 2)} V, panely {fmt(pv)} W.", 3, "electric_plug",
+             note=f"🔌 River {'ZAP' if on else 'VYP'} – {reason}{ran} · {fmt(bv, 2)} V, {fmt(pv)} W")
+        st["ra_chk"] = False
         st["ra_on"], st["ra_since"], st["ra_low"] = on, int(now.timestamp()), 0
     elif on and now.timestamp() - st.get("ra_sent", 0) > 3600:
         send_cmd(topic, ip, True, "trvá")       # jednou za hodinu připomenout (kdyby se povel ztratil)
         st["ra_sent"] = int(now.timestamp())
     if reason:
         st["ra_sent"] = int(now.timestamp())
+    # ověřit, že zásuvka povel opravdu provedla (brána hlásí stav P100 "on")
+    if inv and not reason and st.get("ra_since") and now.timestamp() - st["ra_since"] > 25 * 60 and now.timestamp() - inv["t"] < 1200:
+        p = next((x for x in inv.get("tp", []) if x.get("ip") == ip), None)
+        real = None if not p else (None if p.get("off") else (bool(p["on"]) if p.get("on") is not None else None))
+        if real is not None and real != on and not st.get("ra_chk"):
+            log("err", f"Zásuvka .{ip} je {'vypnutá' if on else 'zapnutá'}, ale automatika chce {'ZAP' if on else 'VYP'} – brána povel neprovedla?")
+            st["ra_chk"] = True
+        elif p and p.get("off") and on and not st.get("ra_chk"):
+            log("err", f"Zásuvka .{ip} je nedostupná (bez napájení?) – River se nenabíjí")
+            st["ra_chk"] = True
     data["river_auto"] = {"on": on, "since": st.get("ra_since"), "ip": ip, "why": reason or st.get("ra_why")}
     if reason:
         st["ra_why"] = reason
         data["river_auto"]["why"] = reason
+
+
+def note_run(data, now, sg, inv):
+    """Záznam o běhu hlídače: [čas, regulátor OK, brána čerstvá, napětí z Victronu]."""
+    fresh = bool(inv) and now.timestamp() - inv["t"] < 1800
+    runs = data.setdefault("runs", [])
+    runs.append([int(now.timestamp()), int(sg), int(fresh), int(bool(fresh and inv.get("v")))])
+    cut = now.timestamp() - 3 * 86400
+    data["runs"] = [r for r in runs if r[0] >= cut]
+
+
+def daily_summary(data, v, st, now, topic, cfg, rise, set_):
+    """Večerní souhrn: čísla za den + deník (automatika, upozornění, chyby) + jak spolehlivě vše běželo."""
+    h = cfg["vecerni_souhrn_hodina"]
+    today = now.strftime("%Y-%m-%d")
+    if h is None or now.hour < h or st.get("summary_day") == today:
+        return
+    flush_log(data)
+    since = st.get("summary_ts") or int(now.timestamp()) - 86400
+    since = max(since, int(now.timestamp()) - 36 * 3600)
+    hm = lambda t: datetime.fromtimestamp(t, TZ).strftime("%H:%M")
+    day = data["days"].get(today, {})
+    v = v or data.get("last") or {}
+    L = []
+    # --- čísla ---
+    full = next((e for e in data.get("log", []) if e["t"] >= since and e["x"].startswith("🔋 Baterie nabitá")), None)
+    L.append(f"☀️ Výroba {fmt(day.get('solar_kwh'), 2)} kWh" + (f" · 100 % v {hm(full['t'])}" if full else " · 100 % nedosaženo"))
+    pts = [p for p in data["points"] if p["t"] >= since and p.get("bat_v")]
+    if pts:
+        lo = min(pts, key=lambda p: p["bat_v"])
+        hi = max(pts, key=lambda p: p["bat_v"])
+        L.append(f"🔋 Teď {fmt(v.get('bat_v'), 2)} V ({fmt(v.get('bat_soc'))} %) · min {fmt(lo['bat_v'], 2)} V v {hm(lo['t'])} · max {fmt(hi['bat_v'], 2)} V")
+    elif v.get("bat_v") is not None:
+        L.append(f"🔋 Teď {fmt(v.get('bat_v'), 2)} V ({fmt(v.get('bat_soc'))} %)")
+    inv = data.get("inverter") or {}
+    names = data.get("plug_names", {})
+    tp = day.get("tp", {})
+    mip = inv.get("mip")
+    if mip and tp.get(mip) is not None:
+        extra = [f"{names.get(ip, '.' + ip)} {fmt(tp[ip] / 1000, 2)}" for ip in sorted(tp, key=lambda i: -tp[i])
+                 if ip != mip and ip not in ips(cfg.get("zasuvky_river")) and ip != str(cfg.get("zasuvka_generator")) and tp[ip] > 20][:3]
+        L.append(f"⚡ Ze solární baterie (měnič) {fmt(tp[mip] / 1000, 2)} kWh" + (f" · z toho {', '.join(extra)}" if extra else ""))
+    rv = [tp[i] for i in ips(cfg.get("zasuvky_river")) if tp.get(i)]
+    if rv and sum(rv) > 20:
+        L.append(f"🔌 Z River {fmt(sum(rv) / 1000, 2)} kWh")
+    g = tp.get(str(cfg.get("zasuvka_generator") or ""))
+    if g and g > 20:
+        L.append(f"⛽ Generátor dodal {fmt(g / 1000, 2)} kWh")
+    if day.get("ra_min"):
+        L.append(f"🔌 Nabíjení River ze slunce celkem {dur(day['ra_min'] * 60)}")
+    for r in st.get("_rivers") or []:
+        L.append(f"🔋 {r['name']}: {fmt(r.get('soc'))} %")
+    ft = forecast_text(st.get("_forecast"))
+    if ft:
+        L.append(f"🌙 {ft}")
+    # --- deník ---
+    ev = [e for e in data.get("log", []) if e.get("t2", e["t"]) >= since]
+    errs = [e for e in ev if e["k"] == "err"]
+    rest = [e for e in ev if e["k"] != "err"]
+    L.append("")
+    if rest:
+        L.append("Deník:")
+        for e in rest[-20:]:
+            L.append(f"{hm(e['t'])} {e['x']}")
+        if len(rest) > 20:
+            L.insert(len(L) - 20, f"(+ {len(rest) - 20} starších)")
+    else:
+        L.append("Deník: klid, nic se nedělo.")
+    if errs:
+        L.append("")
+        L.append("⚠️ Chyby:")
+        for e in errs[-10:]:
+            n = e.get("n", 1)
+            when = f"{hm(e['t'])}–{hm(e['t2'])}, {n}×" if n > 1 else hm(e["t"])
+            L.append(f"{when}: {e['x']}")
+    # --- spolehlivost ---
+    runs = [r for r in data.get("runs", []) if r[0] >= since]
+    if runs:
+        exp = max(1, round((now.timestamp() - since) / 600))
+        gap = max([b[0] - a[0] for a, b in zip(runs, runs[1:])] + [0]) / 60
+        sg = sum(r[1] for r in runs) * 100 // len(runs)
+        gw = sum(r[2] for r in runs) * 100 // len(runs)
+        vi = sum(r[3] for r in runs) * 100 // len(runs)
+        L.append("")
+        L.append(f"Provoz: hlídač {len(runs)}/{exp} běhů" + (f" (nejdelší pauza {gap:.0f} min)" if gap > 30 else "")
+                 + f" · regulátor {sg} % · brána {gw} % · Victron {vi} %")
+    if rise:
+        L.append(f"Slunce zítra cca {rise.strftime('%H:%M')}–{set_.strftime('%H:%M')}")
+    ne = len(errs)
+    title = "📊 Chata – souhrn dne" + (f" · ⚠️ {ne} {'chyba' if ne == 1 else 'chyby' if ne < 5 else 'chyb'}" if errs else " · bez chyb")
+    msg = "\n".join(L)
+    if len(msg.encode()) > 3900:
+        msg = msg.encode()[:3900].decode(errors="ignore") + "…"
+    ntfy(topic, title, msg, 3 if errs else 2, "bar_chart")
+    st["summary_day"] = today
+    st["summary_ts"] = int(now.timestamp())
 
 
 def ips(txt):
@@ -713,6 +878,7 @@ def read_inverter(data, topic, now, cfg=None):
         if "w" in inv:
             inv["va"] = inv["w"]
         inv["mw"] = menic["w"]           # odběr ze solární baterie (přes měnič)
+        inv["mip"] = menic.get("ip")
         inv["w"], inv["src"] = menic["w"], "tapo"
     rw = [p["w"] for p in rivers if p.get("w") is not None]
     if rw:
@@ -759,6 +925,11 @@ def check_gateway(inv, st, now, topic, cfg):
     """Brána na chatě (telefon / ESP32): mlčí? má telefon vybitou baterii?"""
     if inv:
         st["gw_seen"] = True
+    fresh = bool(inv) and now.timestamp() - inv["t"] < 1800
+    if st.get("gw_fresh") is not None and fresh != st["gw_fresh"]:
+        if not cfg["brana_hlidat"]:
+            log("ev", "Brána (Flip) zase posílá data" if fresh else "Brána (Flip) přestala posílat data")
+    st["gw_fresh"] = fresh
     if not cfg["brana_hlidat"] or not st.get("gw_seen"):
         return
     age = (now.timestamp() - inv["t"]) / 60 if inv else 99999
@@ -793,6 +964,7 @@ def read_ecoflow(data, st, now, topic, cfg):
         host, rivers = ecoflow.read_rivers(ak, sk, st.get("eco_host"))
     except Exception as e:
         print("Chyba EcoFlow:", e)
+        log("err", f"EcoFlow nejde přečíst: {str(e)[:100]}")
         st["eco_err"] = st.get("eco_err", 0) + 1
         if st["eco_err"] == 12:
             ntfy(topic, "📡 Hlídač nemůže číst EcoFlow", f"Už ~2 hodiny selhává čtení EcoFlow: {str(e)[:150]}", 3, "warning")
@@ -918,18 +1090,6 @@ def check(v, st, now, topic, cfg, rise, set_):
                  f"{forecast_text(f)}.\nZvaž odpojení něčeho teď, nebo ráno počítej s EcoFlow.\n{line}", 4, "crescent_moon,warning")
             st["night_warned"] = True
 
-    # Večerní souhrn
-    h = cfg["vecerni_souhrn_hodina"]
-    today = now.strftime("%Y-%m-%d")
-    if h is not None and now.hour >= h and st.get("summary_day") != today:
-        sun = f"\nSlunce zítra cca {hm(rise)}–{hm(set_)}" if rise else ""
-        for r in st.get("_rivers") or []:
-            sun += f"\n{r['name']}: {fmt(r.get('soc'))} %"
-        ft = forecast_text(st.get("_forecast"))
-        sun += f"\n{ft}" if ft else ""
-        ntfy(topic, "📊 Chata – dnešní souhrn",
-             f"Výroba dnes {fmt(v['day_kwh'], 2)} kWh\nBaterie {fmt(bv, 2)} V ({fmt(v['bat_soc'])} %), dnes min {fmt(v['min_v'], 2)} V / max {fmt(v['max_v'], 2)} V\nTeplota baterie {fmt(v['bat_t'], 1)} °C{sun}", 2, "bar_chart")
-        st["summary_day"] = today
 
 
 if __name__ == "__main__":

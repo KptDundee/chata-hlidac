@@ -29,6 +29,7 @@ odpojeni_reset_V = 12.8
 
 # --- Ostatní ---
 regulator_offline_min = 120
+# ve kterou hodinu poslat souhrn dne: výroba, spotřeba, deník automatiky a upozornění, chyby, spolehlivost
 vecerni_souhrn_hodina = 22
 
 # --- Předpověď do rána ---

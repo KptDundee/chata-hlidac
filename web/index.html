@@ -168,6 +168,11 @@ header button{white-space:nowrap}
     <div class="card chart"><h2>Nejnižší napětí dne</h2><div class="cs">V · posledních 30 dní</div><div id="c_min"></div></div>
   </section>
 
+  <details class="card" style="margin-top:12px" id="logcard">
+    <summary>Deník událostí <span class="sub" id="logsum"></span></summary>
+    <div id="logbody" style="margin-top:8px;font-size:14px;line-height:1.5"></div>
+  </details>
+
   <details class="card" style="margin-top:12px">
     <summary>Tabulka po dnech</summary>
     <table><thead><tr><th>Den</th><th>Výroba kWh</th><th>Min V</th><th>Max V</th><th>Min SOC %</th></tr></thead><tbody id="tbl"></tbody></table>
@@ -362,6 +367,7 @@ function render(){
   }
   const dd = days.slice(-30).map(k=>({k,...d.days[k]}));
   renderProd(days);
+  renderLog(d.log || []);
   const hd = days.filter(k=>d.days[k].h).slice(-90).map(k=>({k, v:d.days[k].h.mv10, h:d.days[k].h}));
   const base = d.health_base;
   $("healthcs").textContent = "pokles napětí za noc v mV na 10 Ah z baterie · nižší = lepší" + (base ? ` · výchozí stav ${nf(base)} mV` : "");
@@ -422,6 +428,25 @@ function lineChart(el, pts, key, color, o){
   svg.addEventListener("pointermove",move);svg.addEventListener("pointerdown",move);svg.addEventListener("pointerleave",leave);
 }
 let PROD = "d";
+function renderLog(lg){
+  const esc = t => String(t).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const tm = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
+  const dk = t => new Date(t*1000).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"});
+  const day = Date.now()/1000 - 86400;
+  const ne = lg.filter(e => e.k==="err" && (e.t2||e.t) >= day).length;
+  $("logsum").textContent = ne ? `· ⚠️ za 24 h chyb: ${ne}` : "· za 24 h bez chyb";
+  if(!lg.length){ $("logbody").innerHTML = `<p class="sub">Zatím prázdný – plní se od teď.</p>`; return; }
+  let html = "", cur = "";
+  for(const e of lg.slice().reverse().slice(0,200)){
+    const k = dk(e.t);
+    if(k !== cur){ cur = k; html += `<div class="sub" style="margin:10px 0 2px;font-weight:600">${k}</div>`; }
+    const when = e.n > 1 ? `${tm(e.t)}–${tm(e.t2)} <span class="sub">${e.n}×</span>` : tm(e.t);
+    const col = e.k==="err" ? "var(--crit)" : e.k==="auto" ? "var(--text)" : "var(--text)";
+    html += `<div style="display:flex;gap:10px"><span class="sub" style="min-width:${e.n>1?92:42}px;font-variant-numeric:tabular-nums">${when}</span><span style="color:${col}">${e.k==="err"?"⚠️ ":""}${esc(e.x)}</span></div>`;
+  }
+  $("logbody").innerHTML = html;
+}
+
 function renderProd(days){
   const D = DATA.days || {};
   if(PROD === "d"){
