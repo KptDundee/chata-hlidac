@@ -61,6 +61,6 @@ telefon_baterie_pod = 15
 # zásuvka za měničem (odběr ze solární baterie)
 zasuvka_menic = 157
 # zásuvky na EcoFlow River (zimní provoz)
-zasuvky_river = 172, 190
+zasuvky_river = 172, 190, 165
 # zásuvka, přes kterou nabíjí generátor
 zasuvka_generator = 115

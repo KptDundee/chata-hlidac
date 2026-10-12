@@ -30,7 +30,7 @@ DEFAULTS = {
     "regulator_offline_min": 120, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
-    "zasuvka_menic": "157", "zasuvky_river": "172, 190", "zasuvka_generator": "115",
+    "zasuvka_menic": "157", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
 }
