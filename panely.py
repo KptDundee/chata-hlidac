@@ -77,71 +77,84 @@ def label_panels(data, cfg, today):
     return lab, found
 
 
-def peak_per_panel(data, cfg, target, lab):
-    """Nejhorší (nejvyšší) proud na 1 panel pro roční dobu `target` – z historie ± 15 dní, přepočteno na sílu slunce."""
+def peak_two(data, cfg, target, lab):
+    """Nejvyšší proud se 2 panely pro roční dobu `target` (± 15 dní, všechny roky, přepočteno na sílu slunce).
+
+    Přednostně ze dnů, kdy 2 panely opravdu jely (naměřeno, nic se nenásobí). Jen když takové dny nejsou
+    (pozdní jaro, léto), se vezme 1 panel × 2. Hodnoty nad 45 A jsou chyba dat a vyřadí se.
+    """
     lat = cfg["sirka"]
     g_t = ghi_clear_noon(target, lat)
-    vals = []
+    two, one = [], []
     for k, d in data.get("days", {}).items():
-        if not d.get("pa") or d["pa"] < 2:
+        pa = d.get("pa")
+        if not pa or pa < 2 or pa > 45:
             continue
         dd = Date.fromisoformat(k)
         if _doy_dist(dd, target) > 15:
             continue
-        vals.append(d["pa"] / lab.get(k, 1) * g_t / ghi_clear_noon(dd, lat))
-    if len(vals) >= 4:
-        vals.sort()
-        return vals[-1], "měření", len(vals)
-    # bez dat: odhad z výkonu panelu (410 Wp, ztráty ~20 %, 13,5 V) a síly slunce
+        x = pa * g_t / ghi_clear_noon(dd, lat)
+        (two if lab.get(k, 1) == 2 else one).append((x, k, pa))
+    if len(two) >= 4:
+        two.sort()
+        return two[-1][0], "2 panely", len(two), [(k, pa) for _, k, pa in two[-3:]][::-1]
+    if len(one) >= 4:
+        one.sort()
+        return one[-1][0] * 2, "1 panel × 2", len(one), [(k, pa) for _, k, pa in one[-3:]][::-1]
     wp = cfg.get("panel_Wp") or 410
-    return wp * 0.8 / 13.5 * min(1.15, g_t / 850), "odhad", 0
+    return 2 * wp * 0.8 / 13.5 * min(1.15, g_t / 850), "odhad", 0, []
 
 
 def plan(data, st, cfg, now, preds_kwh_1panel, need_kwh, mode):
     """Doporučení kolik panelů zapojit + výhled špičkového proudu. preds_kwh_1panel: [(den, kWh na 1 panel)]."""
     today = now.date()
-    lab, thr = label_panels(data, cfg, today)
+    lab, found = label_panels(data, cfg, today)
     n_now = int(cfg.get("panely_pocet") or 1)
     fuse = cfg.get("pojistka_A") or 30
     lim = fuse * (cfg.get("pojistka_rezerva") or 0.85)
     curve = []
     for i in range(0, 181, 5):
         d = today + timedelta(days=i)
-        p1, src, n = peak_per_panel(data, cfg, d, lab)
-        curve.append({"d": d.isoformat(), "p1": round(p1, 1), "src": src, "n": n})
-    p1_now = curve[0]["p1"]
-    res = {"n": n_now, "fuse": fuse, "lim": round(lim, 1), "peak_now": round(p1_now * n_now, 1),
-           "peak1": round(p1_now, 1), "peak2": round(p1_now * 2, 1), "src": curve[0]["src"],
-           "curve": [{"d": c["d"], "p2": round(c["p1"] * 2, 1), "p1": c["p1"]} for c in curve[::3]],
-           "found": thr, "rec": None, "msg": None}
-    # první den, kdy jsou 2 panely bezpečné natrvalo (do konce zimy), a kdy přestanou být
+        p2, src, n, top = peak_two(data, cfg, d, lab)
+        curve.append({"d": d.isoformat(), "p2": round(p2, 1), "src": src, "n": n, "top": top})
+    c0 = curve[0]
+    p2_now = c0["p2"]
+    res = {"n": n_now, "fuse": fuse, "lim": round(lim, 1), "peak2": p2_now, "peak1": round(p2_now / 2, 1),
+           "peak_now": p2_now if n_now == 2 else round(p2_now / 2, 1), "src": c0["src"],
+           "top": [{"d": k, "a": pa} for k, pa in c0["top"]],
+           "curve": [{"d": c["d"], "p2": c["p2"], "src": c["src"]} for c in curve[::3]],
+           "found": found, "rec": None, "msg": None}
+    measured = lambda c: c["src"] != "odhad"
     safe_from = None
     for i, c in enumerate(curve):
         ahead = curve[i:i + 18]
-        if len(ahead) >= 6 and all(x["p1"] * 2 <= lim for x in ahead):   # bezpečné aspoň ~90 dní dopředu
+        if len(ahead) >= 6 and all(x["p2"] <= lim for x in ahead):     # bezpečné aspoň ~90 dní dopředu
             safe_from = c["d"]
             break
-    unsafe_at = next((c["d"] for c in curve if c["p1"] * 2 > lim and c["src"] == "měření"), None)
+    lim_rm = fuse * 0.95                       # odpojit radit až nad 95 % pojistky (co dosud vydrželo, je v pořádku)
+    res["lim_rm"] = round(lim_rm, 1)
+    unsafe_at = next((c["d"] for c in curve if c["p2"] > lim_rm and measured(c)), None)
     res["safe_from"], res["unsafe_at"] = safe_from, unsafe_at
-    if curve[0]["src"] != "měření":            # bez naměřených proudů pro tuhle roční dobu neradit (jen odhad)
+    if not measured(c0):                       # bez naměřených proudů pro tuhle roční dobu neradit
         return res
     if n_now == 1:
-        short = need_kwh and preds_kwh_1panel and \
-            sum(k for _, k in preds_kwh_1panel[1:6]) / max(1, len(preds_kwh_1panel[1:6])) < need_kwh * 0.9
+        nxt = [k for _, k in preds_kwh_1panel[1:6]]
+        avg = sum(nxt) / len(nxt) if nxt else None
+        short = need_kwh and avg is not None and avg < need_kwh * 0.9
         winterish = now.month in (9, 10, 11, 12, 1, 2) or mode == "zima"
         if short and winterish:
             if safe_from and safe_from <= today.isoformat():
                 res["rec"] = "add"
-                res["msg"] = (f"Jeden panel už nestačí (příští dny ~{sum(k for _, k in preds_kwh_1panel[1:6]) / max(1, len(preds_kwh_1panel[1:6])):.2f} kWh/den, "
-                              f"chata potřebuje ~{need_kwh:.2f}). Druhý panel je už bezpečný: za jasného dne max ~{p1_now * 2:.0f} A (pojistka {fuse:.0f} A).")
+                res["msg"] = (f"Jeden panel už nestačí (příští dny ~{avg:.2f} kWh/den, chata potřebuje ~{need_kwh:.2f}). "
+                              f"Druhý panel je už bezpečný: za jasného dne max ~{p2_now:.0f} A (pojistka {fuse:.0f} A).")
             else:
                 res["rec"] = "wait"
-                res["msg"] = (f"Jeden panel už nestačí, ale se dvěma by za jasného dne teklo až ~{p1_now * 2:.0f} A (pojistka {fuse:.0f} A). "
+                res["msg"] = (f"Jeden panel už nestačí, ale se dvěma by za jasného dne teklo až ~{p2_now:.0f} A (pojistka {fuse:.0f} A). "
                               + (f"Druhý panel bude bezpečný zhruba od {fmt_d(safe_from)}" if safe_from else "Zatím počkej."))
     else:
         if unsafe_at and unsafe_at <= (today + timedelta(days=14)).isoformat():
             res["rec"] = "remove"
-            top = max(c['p1'] for c in curve[:4]) * 2
+            top = max(c["p2"] for c in curve[:4])
             res["msg"] = (f"Se dvěma panely už teď může za jasného dne téct až ~{top:.0f} A (pojistka {fuse:.0f} A). Zvaž odpojení druhého panelu."
                           if unsafe_at <= today.isoformat() else
                           f"Slunce sílí: se dvěma panely může za jasného dne téct až ~{top:.0f} A (pojistka {fuse:.0f} A). "

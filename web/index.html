@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "1.6", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "1.7", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -118,7 +118,7 @@ header button{white-space:nowrap}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.6</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.7</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -513,7 +513,8 @@ function renderWx(d){
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>🔆 Zapojené panely: ${pn.n}</b><span class="sub">pojistka ${nf(pn.fuse)} A${curA!=null?` · teď ${nf(curA,1)} A`:""}</span></div>
       <div class="sub" style="margin-top:4px">Za jasného dne teď až ~<b>${nf(pn.peak_now)} A</b> (1 panel ~${nf(pn.peak1)} A, 2 panely ~${nf(pn.peak2)} A)${pn.src==="odhad"?" – zatím odhad, zpřesní se z měření":""}.</div>
       ${pn.msg?`<div style="margin-top:6px;color:var(${recCol})"><b>${pn.rec==="remove"?"⚠️":pn.rec==="add"?"✓":"⏳"}</b> ${pn.msg}</div>`:`<div style="margin-top:6px">✓ ${pn.n===2?(pn.unsafe_at?`Dva panely jsou bezpečné zhruba do ${new Date(pn.unsafe_at).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"})} – pak včas upozorním.`:"Dva panely jsou bezpečné."):"Jeden panel zatím stačí."}</div>`}
-      <div class="sub" style="margin-top:6px;font-size:12px">Nejvyšší proud se 2 panely za jasného dne: ${mrow}<br>Červeně = přes ${nf(pn.lim,1)} A (85 % pojistky). Počítá se nejhorší naměřený případ pro danou roční dobu.</div></div>`;
+      <div class="sub" style="margin-top:6px;font-size:12px">Nejvyšší proud se 2 panely za jasného dne: ${mrow}<br>Červeně = přes ${nf(pn.lim,1)} A (85 % pojistky). Počítá se nejhorší naměřený případ pro danou roční dobu${pn.src==="2 panely"?" ze dnů, kdy jely 2 panely":pn.src==="1 panel × 2"?" (z dnů s 1 panelem × 2)":""}.
+      ${pn.top && pn.top.length ? `<br>Teď vychází z: ${pn.top.map(t=>`${new Date(t.d).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric",year:"numeric"})} <b>${nf(t.a,1)} A</b>`).join(" · ")}` : ""}</div></div>`;
   }
   el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>Počasí a výroba</b>
       <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · chata na River":"☀️ letní provoz · chata na solární baterii"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
