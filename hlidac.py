@@ -130,12 +130,12 @@ def history(token, dp_id, start, end, base=None):
 
 
 def night_window(date, cfg):
-    """Noc končící ráno dne `date`: od západu (předchozí den) + 1 h do východu slunce."""
+    """Noc končící ráno dne `date`: od západu (předchozí den) + 2 h (odezní povrchový náboj) do východu slunce."""
     _, set_prev = sun_times(cfg["sirka"], cfg["delka"], date - timedelta(days=1))
     rise, _ = sun_times(cfg["sirka"], cfg["delka"], date)
     if not rise or not set_prev:
         return None, None
-    return set_prev + timedelta(hours=1), rise
+    return set_prev + timedelta(hours=2), rise
 
 
 def night_voltages(series, date, cfg):
@@ -154,8 +154,11 @@ def night_voltages(series, date, cfg):
 
 def import_history(token, data, st, now, cfg, budget_s=90):
     """Postupně (po měsících, odzadu) doplní denní výrobu, min/max napětí a noční napětí ze Solar Guardianu."""
-    if not st.get("hist_v2"):              # nová verze importu (s nočním napětím) → projít znovu
-        st.update({"hist_v2": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
+    if not st.get("hist_v3"):              # nová verze importu (noc od západu + 2 h) → projít znovu
+        st.update({"hist_v3": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
+        for d in data["days"].values():
+            d.pop("nv", None)
+            d.pop("h", None)
     if st.get("hist_done"):
         return
     t0 = time.time()
@@ -193,7 +196,7 @@ def import_history(token, data, st, now, cfg, budget_s=90):
                     day["max_v"] = round(max(day.get("max_v", 0), dd["max_v"]), 2)
             for dk in daily:
                 nv = night_voltages(vser, datetime.strptime(dk, "%Y-%m-%d").date(), cfg)
-                if nv and "nv" not in data["days"][dk]:
+                if nv:
                     data["days"][dk]["nv"] = nv
         except Exception as e:
             print("Import historie:", e)
@@ -417,7 +420,9 @@ def battery_health(data, now, cfg):
         if covered < 0.8 * (b - a) or ah < 5:
             continue
         drop = (nv["vs"] - nv["ve"]) * 1000
-        day["h"] = {"mv10": round(drop / ah * 10, 1), "ah": round(ah, 1), "vs": nv["vs"], "ve": nv["ve"], "src": src}
+        mv10 = drop / ah * 10
+        day["h"] = {"mv10": round(mv10, 1), "ah": round(ah, 1), "vs": nv["vs"], "ve": nv["ve"], "src": src,
+                    "cap": round(min(260, cfg["kapacita_Ah"] * 52 / mv10)) if mv10 > 5 else None}
 
 
 def health_baseline(data):

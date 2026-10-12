@@ -365,7 +365,13 @@ function render(){
   const hd = days.filter(k=>d.days[k].h).slice(-90).map(k=>({k, v:d.days[k].h.mv10, h:d.days[k].h}));
   const base = d.health_base;
   $("healthcs").textContent = "pokles napětí za noc v mV na 10 Ah z baterie · nižší = lepší" + (base ? ` · výchozí stav ${nf(base)} mV` : "");
-  if(hd.length) barChart($("c_health"), hd, "v", css("--s3"), {unit:"mV",dec:0,tip:q=>`noc na ${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br><b>${nf(q.v)} mV / 10 Ah</b><br>${nf(q.h.vs,2)} → ${nf(q.h.ve,2)} V, odebráno ${nf(q.h.ah)} Ah${base?`<br>${q.v>base*1.2?"⚠ horší než výchozí":"v normě"}`:""}`});
+  const band = v => v<=65?["dobrá","--good"]:v<=85?["opotřebovaná","--warn"]:v<=110?["slabá","--serious"]:["špatná","--crit"];
+  if(hd.length){
+    const recent = hd.slice(-14).map(x=>x.v).sort((a,b)=>a-b), med = recent[Math.floor(recent.length/2)];
+    const [bl, bc] = band(med), cap = Math.round(Math.min(260,(d.cfg?.kapacita_Ah||200)*52/med));
+    $("healthcs").innerHTML = `pokles napětí za noc v mV na 10 Ah · nižší = lepší<br><b style="color:var(${bc})">● ${bl}</b> · medián 14 nocí ${nf(med)} mV · odhad kapacity <b>~${cap} Ah</b>${base?` · výchozí ${nf(base)} mV`:""}`;
+    barChart($("c_health"), hd, "v", css("--s3"), {unit:"mV",dec:0,color:q=>css(band(q.v)[1]),tip:q=>`noc na ${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br><b>${nf(q.v)} mV / 10 Ah · ${band(q.v)[0]}</b><br>${nf(q.h.vs,2)} → ${nf(q.h.ve,2)} V, odebráno ${nf(q.h.ah)} Ah${q.h.cap?`<br>odhad kapacity ~${q.h.cap} Ah`:""}<br><span style="opacity:.7">${q.h.src==="live"?"z měření po 10 min":"z hodinové historie zásuvky"}</span>`});
+  }
   else empty($("c_health"), "První noci se spočítají, až bude spotřeba za měničem a napětí za celou noc (nebo historie ze zásuvky).");
   dotChart($("c_min"), dd, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   $("tbl").innerHTML = days.slice().reverse().slice(0,60).map(k=>{const x=d.days[k];return `<tr><td>${new Date(k).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}</td><td>${nf(x.solar_kwh,2)}</td><td>${nf(x.min_v,2)}</td><td>${nf(x.max_v,2)}</td><td>${x.soc_min!=null&&x.soc_min<999?nf(x.soc_min):"–"}</td></tr>`}).join("") || `<tr><td colspan="5">Zatím žádné dny</td></tr>`;
@@ -464,7 +470,7 @@ function barChart(el, dd, key, color, o){
   const hi=Math.max(...p.map(q=>q[key]))*1.15||1; const {svg,y}=frame(el,0,hi,1);
   const n=Math.max(p.length,7), bw=(W-M.l-M.r)/n, w=Math.max(2,Math.min(28,bw-2));
   let s=""; p.forEach((q,i)=>{const cx=M.l+bw*i+bw/2, top=y(q[key]), h=y(0)-top, r=Math.min(4,w/2,h);
-    s+=`<path d="M${cx-w/2},${y(0)}V${top+r}Q${cx-w/2},${top} ${cx-w/2+r},${top}H${cx+w/2-r}Q${cx+w/2},${top} ${cx+w/2},${top+r}V${y(0)}Z" fill="${color}"/>`;
+    s+=`<path d="M${cx-w/2},${y(0)}V${top+r}Q${cx-w/2},${top} ${cx-w/2+r},${top}H${cx+w/2-r}Q${cx+w/2},${top} ${cx+w/2},${top+r}V${y(0)}Z" fill="${o.color?o.color(q):color}"/>`;
     s+=`<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
     if(i%Math.ceil(p.length/6)===0||i===p.length-1)s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${(o.label||dayLabel)(q.k)}</text>`;});
   svg.insertAdjacentHTML("beforeend",s);
