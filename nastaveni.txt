@@ -74,3 +74,18 @@ river_auto_pv_on = 150
 river_auto_pv_off = 100
 river_auto_v_off = 12.5
 river_auto_off_min = 20
+
+# --- Ostatní odběr za měničem (světla, kamery, wifi) = zásuvka měniče − lednice ---
+zasuvka_lednice = 185
+ostatni_hlidat = zapnuto
+
+# --- Počasí a zimní provoz ---
+# předpověď výroby podle počasí (Open-Meteo), učí se z historie panelů
+pocasi = zapnuto
+# provoz: auto (pozná podle měniče a River) / leto / zima
+rezim = auto
+# zima: den vhodný k připojení chaty na solární baterii
+zima_pripojit_od = 85
+zima_pripojit_do = 60
+# upozornit na přechod zima ↔ léto
+sezona_upozornit = zapnuto

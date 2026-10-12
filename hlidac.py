@@ -35,6 +35,9 @@ DEFAULTS = {
     "river_auto_v_off": 12.5, "river_auto_off_min": 20,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
+    "zasuvka_lednice": "185", "ostatni_hlidat": True,
+    "pocasi": True, "rezim": "auto", "zima_pripojit_od": 85, "zima_pripojit_do": 60,
+    "sezona_upozornit": True,
 }
 
 POINTS = {  # klíč: (dataPointId, itemId)
@@ -154,8 +157,8 @@ def night_voltages(series, date, cfg):
 
 def import_history(token, data, st, now, cfg, budget_s=90):
     """Postupně (po měsících, odzadu) doplní denní výrobu, min/max napětí a noční napětí ze Solar Guardianu."""
-    if not st.get("hist_v4"):              # nová verze importu (+ proud a stav pro kapacitu z nabíjení) → projít znovu
-        st.update({"hist_v3": True, "hist_v4": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
+    if not st.get("hist_v5"):              # nová verze importu (+ kdy byla plná, nejnižší napětí) → projít znovu
+        st.update({"hist_v3": True, "hist_v4": True, "hist_v5": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
         for d in data["days"].values():
             d.pop("nv", None)
             d.pop("h", None)
@@ -212,6 +215,14 @@ def import_history(token, data, st, now, cfg, budget_s=90):
                     data["days"][dk]["nv"] = nv
                 if "c" not in data["days"][dk] and date < now.date():
                     data["days"][dk]["c"] = charge_metric(cser, date, cfg, lf) or False
+                if date < now.date():
+                    a0 = datetime(date.year, date.month, date.day, tzinfo=TZ).timestamp()
+                    dser = [x for x in cser if a0 <= x["t"] < a0 + 86400]
+                    if any(x.get("s") is not None for x in dser):
+                        data["days"][dk]["fl"] = next((x["t"] for x in dser if x.get("s") == 1), 0)
+                    vv = [x["v"] for x in dser if x.get("v") and x["v"] > 5]
+                    if vv:
+                        data["days"][dk]["mp"] = round(min(vv), 2)
         except Exception as e:
             print("Import historie:", e)
             st["hist_err"] = st.get("hist_err", 0) + 1
@@ -347,6 +358,12 @@ def record(data, v, now):
     v["day_kwh"], v["min_v"], v["max_v"] = day.get("solar_kwh"), day.get("min_v"), day.get("max_v")
     if v.get("bat_soc") is not None:
         day["soc_min"] = min(day.get("soc_min", 999), v["bat_soc"])
+    # kdy poprvé přešla do Float (0 = dnes ještě ne) – pro učení předpovědi (plná baterie = přiškrcená výroba)
+    if v.get("status") is not None and int(v["status"]) == 1 and not day.get("fl"):
+        day["fl"] = ts
+    day.setdefault("fl", 0)
+    if v.get("bat_v") and v["bat_v"] > 5:
+        day["mp"] = round(min(day.get("mp", 99), v["bat_v"]), 2)
     data["updated"] = ts
 
 
@@ -679,6 +696,9 @@ def main():
             plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
             if plugs:
                 pt["tp"] = plugs
+            ow = other_load(data, st, cfg, now, topic, inv, st.get("ra_on"))
+            if ow is not None:
+                pt["ow"] = ow
             day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
             names = data.setdefault("plug_names", {})
             for p in inv.get("tp", []):
@@ -718,8 +738,16 @@ def main():
     st["_forecast"] = data["forecast"]
     st["_rivers"] = [{"name": r["name"], "soc": r.get("soc")} for r in (rivers or [])]
     note_run(data, now, sg=True, inv=inv)
+    mode = "leto"
     try:
-        for name, fn in (("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_)),
+        mode = detect_mode(data, st, cfg, now, inv)
+        track_soc(data, st, v, now, cfg, inv, mode)
+    except Exception as e:
+        print("Režim / SOC:", e)
+        log("err", f"Odhad nabití: {type(e).__name__} {str(e)[:90]}")
+    try:
+        for name, fn in (("Počasí a výhled", lambda: weather_and_outlook(data, st, cfg, now, topic, mode)),
+                         ("Ostatní odběr", lambda: other_load_check(data, st, cfg, now, topic)),("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_)),
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_))):
             try:
@@ -864,6 +892,24 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
     ft = forecast_text(st.get("_forecast"))
     if ft:
         L.append(f"🌙 {ft}")
+    if day.get("on") is not None:
+        L.append(f"💡 Světla, kamery, wifi v noci ~{fmt(day['on'])} W")
+    wxo = data.get("wxo") or {}
+    ol = wxo.get("ol") or {}
+    od = ol.get("days") or []
+    if len(od) > 1:
+        t = od[1]
+        line = f"🌤 Zítra {t['txt'] or ''} ~{fmt(t['kwh'], 1)} kWh"
+        if ol.get("mode") == "zima":
+            okd = next((x for x in od[1:] if x.get("ok")), None)
+            line += f" · solární baterie ~{t['m']} % ráno"
+            line += (f"\n☀️ Připojit chatu na solární baterii jde nejdřív: {datetime.strptime(okd['d'], '%Y-%m-%d').strftime('%-d. %-m.')}"
+                     if okd else "\n❄️ Příštích 7 dní nebude solární baterie dost nabitá k připojení")
+        else:
+            line += f" · baterie večer ~{t['e']} %, ráno pak ~{t['nm']} %"
+        L.append(line)
+    if wxo.get("acc_med") is not None:
+        L.append(f"🎯 Předpověď výroby: odchylka obvykle ±{wxo['acc_med']} % (posledních {len(wxo.get('acc') or [])} dní)")
     # --- deník ---
     ev = [e for e in data.get("log", []) if e.get("t2", e["t"]) >= since]
     errs = [e for e in ev if e["k"] == "err"]
@@ -905,6 +951,226 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
     ntfy(topic, title, msg, 3 if errs else 2, "bar_chart")
     st["summary_day"] = today
     st["summary_ts"] = int(now.timestamp())
+
+
+def track_soc(data, st, v, now, cfg, inv, mode):
+    """Vlastní odhad stavu nabití: počítání Ah (nabíjení − odběr), v noci zpřesnění podle napětí, Float = 100 %."""
+    cap = cfg["kapacita_Ah"] or 200
+    bv, ba, status = v.get("bat_v"), v.get("bat_a"), v.get("status")
+    if not bv:
+        return
+    s, t0 = st.get("soc"), st.get("soc_t")
+    ts = now.timestamp()
+    fresh = inv and ts - inv["t"] < 1800
+    load_w = inv.get("mw") if fresh and inv.get("mw") is not None else (0 if mode == "zima" else cfg["noc_spotreba_W"] or 0)
+    idle = 0 if mode == "zima" else (cfg["menic_vlastni_W"] or 0)
+    load_a = (load_w / 0.88 + idle) / bv if load_w or idle else 0.0
+    rise, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    night = rise and (now < rise - timedelta(minutes=10) or now > set_ + timedelta(hours=2))
+    if status is not None and int(status) == 1:
+        st["soc_fl"] = st.get("soc_fl", 0) + 1
+    else:
+        st["soc_fl"] = 0
+    if st["soc_fl"] >= 2:
+        s = 100.0
+    elif s is None or t0 is None or ts - t0 > 6 * 3600:
+        s = soc_from_v(bv + load_a * 0.015) if (v.get("pv_w") or 0) < 5 else (v.get("bat_soc") or 50)
+    else:
+        dt = min(ts - t0, 1800)
+        s += ((ba or 0) * 0.92 - load_a) * dt / 3600 / cap * 100
+        if night and load_a < 6:                # v klidu napětí ≈ stav nabití → pomalu dorovnat
+            s += (soc_from_v(bv + load_a * 0.015) - s) * 0.15
+    s = max(0.0, min(100.0, s))
+    st["soc"], st["soc_t"] = s, ts
+    data["soc_est"] = round(s)
+
+
+def detect_mode(data, st, cfg, now, inv):
+    """Letní provoz = chata jede z měniče (solární baterie); zimní = měnič vypnutý, chatu napájí River."""
+    want = str(cfg.get("rezim") or "auto").strip().lower()
+    if want in ("leto", "léto", "zima"):
+        mode = "zima" if want == "zima" else "leto"
+        data["mode"] = {"m": mode, "auto": False}
+        st["mode"] = mode
+        return mode
+    guess = None
+    if inv and now.timestamp() - inv["t"] < 3600:
+        st_off = str(inv.get("st", "")).upper() in ("OFF",)
+        mplug = next((p for p in inv.get("tp", []) if p.get("ip") == inv.get("mip")), None)
+        menic_dead = st_off or (mplug is not None and (mplug.get("off") or (mplug.get("w") is not None and mplug["w"] < 1)))
+        river_w = inv.get("rw") or 0
+        if menic_dead and river_w > 3:
+            guess = "zima"
+        elif (inv.get("mw") or 0) > 3:
+            guess = "leto"
+    mode = st.get("mode") or "leto"
+    if guess and guess != mode:                 # přepnout až po 3 bězích za sebou (30 min)
+        st["mode_n"] = st.get("mode_n", 0) + 1
+        if st["mode_n"] >= 3:
+            log("ev", "Přechod na zimní provoz (chatu napájí River)" if guess == "zima" else "Přechod na letní provoz (chata jede ze solární baterie)")
+            mode, st["mode_n"], st["mode_since"] = guess, 0, int(now.timestamp())
+    else:
+        st["mode_n"] = 0
+    st["mode"] = mode
+    data["mode"] = {"m": mode, "auto": True, "since": st.get("mode_since")}
+    return mode
+
+
+def cabin_consumption(data, cfg, mode, now):
+    """Spotřeba chaty za den (Wh na výstupu, AC) – medián posledních 7 celých dní."""
+    inv = data.get("inverter") or {}
+    mip = inv.get("mip") or str(cfg.get("zasuvka_menic") or "").strip()
+    rivers = ips(cfg.get("zasuvky_river"))
+    vals = []
+    for k in sorted(data["days"])[-9:-1]:
+        tp = data["days"][k].get("tp") or {}
+        if mode == "zima":
+            x = sum(tp.get(i, 0) for i in rivers)
+        else:
+            x = tp.get(mip) if mip else None
+        if x and x > 50:
+            vals.append(x)
+    if len(vals) >= 2:
+        vals.sort()
+        return vals[len(vals) // 2]
+    return (cfg["noc_spotreba_W"] or 30) * 24
+
+
+def outlook(data, st, cfg, now, mode, preds):
+    """Simulace stavu solární baterie na 7 dní podle předpovědi výroby a spotřeby chaty.
+
+    Léto: chata jede ze solární baterie celý den i noc.
+    Zima: solární baterie se jen nabíjí; den „k připojení“ = ráno ≥ zima_pripojit_od a po dni
+    s chatou na solární baterii zůstane ≥ zima_pripojit_do.
+    """
+    cap = cfg["kapacita_Ah"] or 200
+    idle = cfg["menic_vlastni_W"] or 0
+    ac_day = cabin_consumption(data, cfg, mode, now)               # Wh AC za 24 h
+    dc_day = ac_day / 0.88 + idle * 24                             # Wh z baterie za 24 h (při zapojení)
+    soc = data.get("soc_est")
+    if soc is None or not preds:
+        return None
+    today = now.date().isoformat()
+    produced = (data["days"].get(today) or {}).get("solar_kwh") or 0
+    rows = []
+    for p in preds[:7]:
+        dd = Date_from(p["d"])
+        rise, set_ = sun_times(cfg["sirka"], cfg["delka"], dd)
+        light_h = (set_ - rise).total_seconds() / 3600 if rise else 10
+        kwh = p["kwh"]
+        if p["d"] == today:
+            kwh = max(0.0, kwh - produced) if now < set_ else 0.0
+            frac_day = max(0.0, min(1.0, (set_ - now).total_seconds() / 3600 / light_h)) if rise and now < set_ else 0.0
+        else:
+            frac_day = 1.0
+        gain = kwh * 1000 * 0.9 / 12.8 / cap * 100                     # % z výroby
+        day_use = dc_day * light_h / 24 / 12.4 / cap * 100 * frac_day  # % spotřeba přes den
+        night_use = dc_day * (24 - light_h) / 24 / 12.4 / cap * 100     # % spotřeba v noci
+        morning = soc
+        r = {"d": p["d"], "kwh": p["kwh"], "txt": p["txt"], "m": round(morning)}
+        if mode == "zima":
+            full_day_use = dc_day * light_h / 24 / 12.4 / cap * 100
+            r["after"] = round(max(0, min(100, morning + gain - full_day_use)))
+            r["ok"] = bool(p["d"] != today and morning >= (cfg["zima_pripojit_od"] or 85)
+                           and r["after"] >= (cfg["zima_pripojit_do"] or 60))
+            soc = min(100.0, soc + gain)                               # bez připojení se jen nabíjí
+            r["e"] = round(soc)
+        else:
+            e = morning + gain - day_use
+            r["waste"] = round(max(0.0, e - 100) / 100 * cap * 12.8 / 1000, 2)
+            e = max(0.0, min(100.0, e))
+            r["e"] = round(e)
+            soc = max(0.0, e - night_use)
+            r["nm"] = round(soc)                                       # ráno dalšího dne
+        rows.append(r)
+    return {"mode": mode, "days": rows, "ac_day": round(ac_day), "dc_day": round(dc_day)}
+
+
+def Date_from(k):
+    return datetime.strptime(k, "%Y-%m-%d").date()
+
+
+def weather_and_outlook(data, st, cfg, now, topic, mode):
+    if not cfg.get("pocasi"):
+        data["wxo"] = None
+        return
+    import pocasi
+    pocasi.update_weather(data, cfg, now, log=lambda m: (print(m), "selhal" in m and log("err", m)))
+    pocasi.evaluate(data, cfg, sun_times, now.date())
+    preds, bf, bn = pocasi.predict_days(data, cfg, sun_times, now)
+    pocasi.remember_forecast(data, preds, now)
+    acc, med = pocasi.accuracy(data, now.date())
+    ol = outlook(data, st, cfg, now, mode, preds)
+    typ = pocasi.typical_kwh(data, cfg, sun_times, now.date(), now.date())
+    data["wxo"] = {"preds": preds, "bias": round(bf, 2), "bias_n": bn, "acc": acc, "acc_med": med,
+                   "ol": ol, "typ": typ, "t": int(now.timestamp())}
+    if not ol:
+        return
+    days = ol["days"]
+    # zima: zítra je den k připojení solární baterie
+    if mode == "zima" and len(days) > 1 and now.hour >= 18:
+        t = days[1]
+        tomorrow = t["d"]
+        if t.get("ok") and st.get("connect_sent") != tomorrow:
+            ntfy(topic, "☀️ Zítra můžeš chatu připojit na solární baterii",
+                 f"Ráno ~{t['m']} %, zítra {t['txt'] or ''} ~{fmt(t['kwh'], 1)} kWh, po dni s chatou zbyde ~{t['after']} %.\n"
+                 f"Večer zase přepoj na River.", 3, "sunny,battery")
+            st["connect_sent"] = tomorrow
+    # přechody sezón (nejvýš jednou za 14 dní)
+    if cfg.get("sezona_upozornit") and len(days) >= 5 and now.hour >= 18 and now.timestamp() - st.get("season_sent", 0) > 14 * 86400:
+        avg = sum(d["kwh"] for d in days[1:6]) / 5
+        need = ol["dc_day"] / 1000 / 0.9
+        mon = now.month
+        if mode == "leto" and mon in (9, 10, 11, 12, 1) and avg < need * 0.9 and min(d["nm"] for d in days[1:6]) < 40:
+            ntfy(topic, "🍂 Blíží se zimní provoz",
+                 f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den, chata potřebuje ~{fmt(need, 2)} kWh/den.\n"
+                 f"Solární baterie by ráno klesla až na ~{min(d['nm'] for d in days[1:6])} %. Zvaž přechod na River.", 3, "fallen_leaf")
+            st["season_sent"] = int(now.timestamp())
+        elif mode == "zima" and mon in (2, 3, 4, 5) and avg > need * 1.3:
+            ntfy(topic, "🌱 Můžeš přejít na letní provoz",
+                 f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den, chata potřebuje ~{fmt(need, 2)} kWh/den.", 3, "seedling")
+            st["season_sent"] = int(now.timestamp())
+
+
+def other_load(data, st, cfg, now, topic, inv, ra_on):
+    """Ostatní odběr za měničem (světla, kamery, wifi) = zásuvka měniče − lednice (bez doby nabíjení River)."""
+    if not inv or now.timestamp() - inv["t"] > 1200 or inv.get("mw") is None or ra_on:
+        return None
+    fr = next((p for p in inv.get("tp", []) if p.get("ip") == str(cfg.get("zasuvka_lednice") or "").strip()), None)
+    if not fr or fr.get("w") is None:
+        return None
+    ow = round(max(0.0, inv["mw"] - fr["w"]), 1)
+    return ow
+
+
+def other_load_check(data, st, cfg, now, topic):
+    """Noční medián ostatního odběru (0–5 h) po dnech; upozornit na výraznou změnu."""
+    pts = data.get("points", [])
+    today = now.strftime("%Y-%m-%d")
+    for k in sorted(data["days"])[-8:]:
+        day = data["days"][k]
+        if "on" in day:
+            continue
+        a0 = datetime.strptime(k, "%Y-%m-%d").replace(tzinfo=TZ).timestamp()
+        if k == today and now.hour < 5:
+            continue
+        vals = sorted(p["ow"] for p in pts if a0 <= p["t"] < a0 + 5 * 3600 and p.get("ow") is not None)
+        if len(vals) >= 12:
+            day["on"] = vals[len(vals) // 2]
+    if not cfg.get("ostatni_hlidat"):
+        return
+    k = today
+    cur = (data["days"].get(k) or {}).get("on")
+    hist = sorted(d["on"] for kk, d in data["days"].items() if kk < k and d.get("on") is not None)[-14:]
+    if cur is None or len(hist) < 5 or st.get("on_sent") == k:
+        return
+    med = sorted(hist)[len(hist) // 2]
+    if abs(cur - med) > max(5, med * 0.5):
+        what = "víc" if cur > med else "míň"
+        ntfy(topic, f"💡 V noci šlo {what} proudu na světla/kamery/wifi",
+             f"Ostatní odběr za měničem v noci ~{fmt(cur)} W, obvykle ~{fmt(med)} W."
+             + (" Nezůstalo něco zapnuté?" if cur > med else " Nevypadla kamera nebo wifi?"), 3, "bulb")
+        st["on_sent"] = k
 
 
 def ips(txt):
@@ -974,11 +1240,12 @@ def read_inverter(data, topic, now, cfg=None):
         menic = next((p for p in inv.get("tp", []) if re.search(r"m[eě]ni[cč]|inverter|220|230", str(p.get("n", "")), re.I)), None)
     rivers = [by_ip[i] for i in ips(cfg.get("zasuvky_river")) if i in by_ip]
     gen = by_ip.get(str(cfg.get("zasuvka_generator") or "").strip())
+    if menic:
+        inv["mip"] = menic.get("ip")     # i když je vypnutá (zimní provoz: měnič vypnutý)
     if menic and menic.get("w") is not None:
         if "w" in inv:
             inv["va"] = inv["w"]
         inv["mw"] = menic["w"]           # odběr ze solární baterie (přes měnič)
-        inv["mip"] = menic.get("ip")
         inv["w"], inv["src"] = menic["w"], "tapo"
     rw = [p["w"] for p in rivers if p.get("w") is not None]
     if rw:

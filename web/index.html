@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "1.4", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "1.5", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -118,7 +118,7 @@ header button{white-space:nowrap}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.4</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.5</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -155,6 +155,7 @@ header button{white-space:nowrap}
     <div class="card tile"><div class="l">Spotřebováno dnes</div><div class="v" id="t_a">–</div><div class="n" id="t_a_n"></div></div>
   </section>
 
+  <section class="card hide" id="wxcard" style="margin-bottom:12px"></section>
   <section class="card hide" id="plugs" style="margin-bottom:12px"></section>
   <section class="tiles hide" id="rivers" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></section>
 
@@ -304,7 +305,12 @@ function render(){
       if(ps.length) rows += `<div class="sub" style="margin:10px 0 0;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em">${gname[g]}</div>` + ps.map(row).join("");
     }
     const phTxt = ph ? `<div class="row" style="padding:8px 0"><div class="t"><b style="font-weight:500">📱 Telefon na chatě</b><span>${ph.c?"nabíjí se":"na baterii"}${ph.t!=null?` · ${nf(ph.t,0)} °C`:""}${gwFresh?"":` · ozval se ${ago(gw.t)}`}</span></div><div style="font-weight:600;${ph.b<=(d.cfg?.telefon_baterie_pod??15)?"color:var(--crit)":""}">${nf(ph.b)} %</div></div>` : "";
-    pl.innerHTML = `<b>Zásuvky</b>${rows}${phTxt}`;
+    const lp2 = pts[pts.length-1] || {};
+    const owNow = gwFresh && lp2.ow!=null && Date.now()/1000 - lp2.t < 1800 ? lp2.ow : null;
+    const onv = Object.keys(d.days||{}).sort().slice(-7).map(k=>d.days[k].on).filter(x=>x!=null).sort((a,b)=>a-b);
+    const onMed = onv.length ? onv[Math.floor(onv.length/2)] : null;
+    const owRow = (owNow!=null || onMed!=null) ? `<div class="row" style="padding:8px 0"><div class="t"><b style="font-weight:500">💡 Ostatní za měničem</b><span>světla, kamery, wifi (měnič − lednice)${onMed!=null?` · v noci obvykle ~${nf(onMed)} W`:""}</span></div><div style="font-variant-numeric:tabular-nums;font-weight:600">${owNow!=null?nf(owNow)+" W":"–"}</div></div>` : "";
+    pl.innerHTML = `<b>Zásuvky</b>${rows}${owRow}${phTxt}`;
     pl.classList.remove("hide");
   } else pl.classList.add("hide");
   if(PLUG) renderPlug();
@@ -319,10 +325,12 @@ function render(){
     fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} ${f.ah_night!=null?`<span class="sub">(noc ~${f.ah_night} Ah při ~${f.draw_w} W${trend})</span>`:""}</span>`;
     fc.classList.remove("hide");
   } else fc.classList.add("hide");
-  $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,soc||0))+"%";
+  $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,(d.soc_est ?? soc)||0))+"%";
+  renderWx(d);
   $("socbar").setAttribute("aria-valuenow", soc ?? 0);
-  $("t_soc").innerHTML = `${nf(soc)}<small>%</small>`;
-  $("t_soc_n").textContent = "odhad regulátoru";
+  const se = d.soc_est;
+  $("t_soc").innerHTML = `${nf(se ?? soc)}<small>%</small>`;
+  $("t_soc_n").textContent = se!=null ? `odhad hlídače · regulátor ${nf(soc)} %` : "odhad regulátoru";
   $("t_pv").innerHTML = `${nf(last.pv_w ?? lp.pv_w)}<small>W</small>`;
   $("t_pv_n").textContent = last.pv_v!=null ? `${nf(last.pv_v,1)} V` : STATUS[status] || "";
   const tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
@@ -459,6 +467,49 @@ function renderVers(d){
   $("ver").textContent = "v" + WEB_VER;
 }
 
+function renderWx(d){
+  const el = $("wxcard"), w = d.wxo;
+  if(!w || !w.preds || !w.preds.length){ el.classList.add("hide"); return; }
+  const ol = w.ol || {}, days = ol.days || [], zima = ol.mode === "zima";
+  const dn = k => { const x=new Date(k+"T12:00"); const t=new Date(); t.setHours(12,0,0,0);
+    const diff=Math.round((x-t)/864e5); return diff===0?"dnes":diff===1?"zítra":x.toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"}); };
+  const dshort = k => { const s=dn(k); if(s==="dnes"||s==="zítra") return s; const x=new Date(k+"T12:00"); return x.toLocaleDateString("cs-CZ",{weekday:"short"})+" "+x.getDate()+"."; };
+  const icon = c => c==null?"·":c<=1?"☀️":c===2?"⛅":c===3?"☁️":c<=48?"🌫":c<=67||(c>=80&&c<=82)?"🌧":c<=86?"🌨":"⛈";
+  const preds = w.preds.slice(0,7), maxK = Math.max(0.2, ...preds.map(p=>p.kwh), (ol.dc_day||0)/1000/0.9);
+  const need = ol.dc_day ? ol.dc_day/1000/0.9 : null;
+  // doporučení
+  let rec = "";
+  const t = days[1];
+  if(zima){
+    const okd = days.slice(1).find(x=>x.ok);
+    rec = okd ? `☀️ Chatu půjde přes den připojit na solární baterii <b>${dn(okd.d)}</b> (ráno ~${okd.m} %, po dni ~${okd.after} %).`
+              : `❄️ Příštích 7 dní nebude solární baterie dost nabitá k připojení (zatím ~${days[0]?.e ?? "?"} %).`;
+  } else if(t){
+    const low = days.slice(1).find(x=>x.nm!=null && x.nm < 35);
+    rec = low ? `⚠️ Podle předpovědi bude baterie <b>${dn(low.d)}</b> ráno jen ~${low.nm} % – málo slunce na spotřebu chaty.`
+              : `✓ Na příští dny výroba stačí – baterie ráno neklesne pod ~${Math.min(...days.slice(1).map(x=>x.nm))} %.`;
+  }
+  const bars = preds.map((p,i)=>{ const o = days.find(x=>x.d===p.d) || {}; const h = Math.round(p.kwh/maxK*60);
+    const col = zima ? (o.ok?"var(--good)":"var(--s1)") : (need && p.kwh>=need ? "var(--good)" : "var(--s1)");
+    const sub = zima ? (o.e!=null?`${o.e} %`:"") : (o.nm!=null?`${o.nm} %`:"");
+    return `<div style="flex:1;min-width:0;text-align:center" title="${p.txt}">
+      <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden">${dshort(p.d)}</div>
+      <div style="font-size:18px;line-height:1.3">${icon(p.code)}</div>
+      <div style="height:64px;display:flex;align-items:flex-end;justify-content:center;position:relative">${need?`<div style="position:absolute;left:0;right:0;bottom:${Math.round(need/maxK*60)}px;border-top:1.5px dashed var(--muted)"></div>`:""}<div style="width:62%;max-width:26px;height:${Math.max(2,h)}px;background:${col};border-radius:4px 4px 0 0"></div></div>
+      <div style="font-size:12px;font-weight:600;font-variant-numeric:tabular-nums">${nf(p.kwh,p.kwh<1?2:1)}</div>
+      <div style="font-size:10.5px;color:var(--muted);white-space:nowrap">${sub}</div></div>`; }).join("");
+  const acc = w.acc_med!=null ? `Předpověď se učí z tvých panelů: posledních ${w.acc.length} dní odchylka obvykle ±${w.acc_med} %${w.bias && Math.abs(w.bias-1)>0.04?` · oprava ×${nf(w.bias,2)}`:""}.`
+    : `Předpověď se učí z historie tvých panelů; přesnost se ukáže po pár dnech porovnávání.`;
+  const accRows = (w.acc||[]).slice(-7).reverse().map(a=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--line)"><span>${dn(a.d)}</span><span style="font-variant-numeric:tabular-nums">předpověď ${nf(a.p,2)} → skutečnost <b>${nf(a.a,2)}</b> kWh</span></div>`).join("");
+  el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>Počasí a výroba</b>
+      <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · chata na River":"☀️ letní provoz · chata na solární baterii"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
+    <div style="margin-top:8px">${rec}</div>
+    <div style="display:flex;gap:4px;margin-top:12px">${bars}</div>
+    <div class="sub" style="margin-top:6px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně spotřeba chaty ~${nf(need,2)} kWh/den`:""}${zima?" · pod sloupcem stav solární baterie večer, zeleně den vhodný k připojení":" · pod sloupcem stav baterie příští ráno, zeleně den, kdy výroba pokryje spotřebu"}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
+    <details style="margin-top:2px"><summary style="font-size:13px">Jak přesně předpovídá</summary><div class="sub" style="font-size:12.5px;line-height:1.5">${acc}<br>Model zná zvlášť přímé a rozptýlené světlo a pro každou roční dobu se učí z minulých let – v zimě sám zjistí, že přímé slunce na panely nedopadá. Dny, kdy byla baterie brzy plná (výroba přiškrcená), do učení nepočítá.</div>${accRows?`<div style="font-size:12.5px;margin-top:6px">${accRows}</div>`:""}</details>`;
+  el.classList.remove("hide");
+}
+
 function renderLog(lg){
   const esc = t => String(t).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const tm = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
@@ -534,6 +585,14 @@ function barChart(el, dd, key, color, o){
 }
 const ZONES=[[80,"dobrá","--good"],[60,"opotřebovaná","--warn"],[45,"slabá","--serious"],[0,"vyměnit","--crit"]];
 const zoneOf = pct => ZONES.find(z=>pct>=z[0]);
+function deepTxt(d, days){
+  const by = {}; for(const k of days){ const x=d.days[k], v = x.mp ?? null; if(v==null) continue; const m=k.slice(0,7); (by[m] ||= {n12:0,n118:0,all:0}); by[m].all++; if(v<12.0) by[m].n12++; if(v<11.8) by[m].n118++; }
+  const ms = Object.keys(by).sort().slice(-3).reverse(); if(!ms.length) return "";
+  const nm = m => new Date(m+"-15").toLocaleDateString("cs-CZ",{month:"long"});
+  const cur = by[ms[0]];
+  const col = cur.n118 ? "--crit" : cur.n12 ? "--serious" : "--good";
+  return `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px"><b style="color:var(${col})">${cur.n12?"⚠":"✓"} Hluboké vybití</b> (pod 12,0 V): ${ms.map(m=>`${nm(m)} <b>${by[m].n12}×</b>${by[m].n118?` (z toho ${by[m].n118}× pod 11,8)`:""}`).join(" · ")}<br><span class="sub">Každé vybití pod 12 V zkracuje AGM život – čím méně, tím déle baterie vydrží.</span></div>`;
+}
 function renderCap(d, days){
   const nom = d.cfg?.kapacita_Ah || 200;
   const med = a => { a=a.filter(x=>x!=null).sort((x,y)=>x-y); return a.length ? a[Math.floor(a.length/2)] : null; };
@@ -563,6 +622,7 @@ function renderCap(d, days){
   $("hverdict").innerHTML = `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;color:var(${z[2]})">● ${z[1][0].toUpperCase()+z[1].slice(1)}</span>
     <span style="font-size:18px;font-weight:600">~${Math.round(cur)} Ah <span class="sub" style="font-size:14px">= ${pct(cur)} % z ${nom} Ah</span></span></div>
     <div style="margin-top:4px">${advice}</div>
+    ${deepTxt(d, days)}
     <div class="sub" style="margin-top:6px">${recentV!=null?`Posledních 14 dní: ${curN} ${curN===1?"měření":curN<5?"měření":"měření"}`:`Poslední měření: ${new Date(rows[rows.length-1].t).toLocaleDateString("cs-CZ")}`}${cmp?`<br>${cmp}`:""}</div>`;
   // graf: medián po týdnech (krátká historie) nebo měsících
   const span = rows[rows.length-1].t - rows[0].t, monthly = span > 120*D;
@@ -693,6 +753,13 @@ const SETTINGS = [
     ["river_auto_off_min","…po dobu","","min",10,"num"],
     ["river_auto_v_off","Vypnout, když napětí klesne pod","","V",0.05,"num"],
   ]],
+  ["Počasí a zimní provoz", [
+    ["pocasi","Předpověď výroby podle počasí","Učí se z historie tvých panelů","","", "sw"],
+    ["rezim","Provoz","Automaticky pozná podle měniče a River",["auto","leto","zima"],["automaticky","letní","zimní"],"sel"],
+    ["zima_pripojit_od","Zima: připojit solár, když je ráno aspoň","Stav solární baterie","%",5,"num"],
+    ["zima_pripojit_do","…a po dni s chatou zbyde aspoň","","%",5,"num"],
+    ["sezona_upozornit","Upozornit na přechod zima ↔ léto","Podle předpovědi na příští dny","","", "sw"],
+  ]],
   ["Brána na chatě (telefon)", [
     ["brana_hlidat","Upozornit, když brána mlčí","Telefon u měniče přestal posílat data","","", "sw"],
     ["brana_ticho_min","Mlčí déle než","","min",10,"num"],
@@ -702,6 +769,8 @@ const SETTINGS = [
     ["zasuvka_menic","Zásuvka za měničem","Odběr ze solární baterie","",0,"txt"],
     ["zasuvky_river","Zásuvky na River","Zimní provoz, oddělit čárkou","",0,"txt"],
     ["zasuvka_generator","Zásuvka generátoru","Kolik generátor dodává","",0,"txt"],
+    ["zasuvka_lednice","Zásuvka lednice","Pro výpočet ostatního odběru (světla, kamery, wifi)","",0,"txt"],
+    ["ostatni_hlidat","Hlídat ostatní odběr","Upozornit, když se v noci výrazně změní","","", "sw"],
   ]],
   ["Pro pokročilé", [
     ["baterie_slabne_reset_V","Varování „slábne“ znovu až nad","","V",0.05,"num"],
@@ -738,7 +807,10 @@ function renderSettings(){
     html += `<h2>${title}</h2><div class="card" style="padding:4px 16px">`;
     for(const [k,label,help,unit,step,type] of items){
       const val = v[k] ?? "";
-      if(type==="txt"){
+      if(type==="sel"){
+        const opts = unit.map((o,i)=>`<option value="${o}" ${String(val||unit[0])===o?"selected":""}>${step[i]}</option>`).join("");
+        html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><select data-k="${k}" data-t="sel" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)">${opts}</select></div></div>`;
+      } else if(type==="txt"){
         html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="text" data-k="${k}" data-t="txt" value="${String(val)}" style="width:110px"></div></div>`;
       } else if(type==="sw"){
         html += `<label class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><span class="sw"><input type="checkbox" data-k="${k}" data-t="sw" ${isOn(val)?"checked":""}><i></i></span></label>`;
@@ -761,6 +833,7 @@ function collectSettings(){
     const k = el.dataset.k;
     if(el.dataset.t==="sw"){ out[k] = el.checked ? "zapnuto" : "vypnuto"; continue; }
     if(el.dataset.t==="txt"){ out[k] = el.value.replace(/[^0-9.,; ]/g,"").trim(); continue; }
+    if(el.dataset.t==="sel"){ out[k] = el.value; continue; }
     const opt = $("setbody").querySelector(`[data-opt="${k}"]`);
     if(opt && !opt.checked){ out[k]="vypnuto"; continue; }
     const n = parseFloat(String(el.value).replace(",","."));
