@@ -56,6 +56,7 @@ public final class Collector {
             }
             if (s.last != null && s.ageSec >= 0 && s.ageSec < 1800) {
                 if (s.last.batteryV != null) o.put("v", s.last.batteryV);
+                if (s.last.acVa != null) o.put("lw", s.last.acVa);   // odběr ve stejném okamžiku jako napětí v
                 o.put("st", s.last.stateName());
                 o.put("al", s.last.alarmName());
             }

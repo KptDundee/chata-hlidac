@@ -44,6 +44,8 @@ POINTS = {  # klíč: (dataPointId, itemId)
     "day_kwh": (101415577, "4"),
     "min_v": (101415632, "59"),
     "max_v": (101415625, "52"),
+    "month_kwh": (101415599, "26"),
+    "total_kwh": (101415619, "46"),
 }
 STATUS = {0: "nenabíjí", 1: "Float (nabito)", 2: "Boost (nabíjí)", 3: "Equalize"}
 
@@ -340,8 +342,25 @@ def main():
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
     if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
         record(data, v, now)
-        if inv and now.timestamp() - inv["t"] < 1200 and inv.get("w") is not None:
-            data["points"][-1]["ac_w"] = inv["w"]
+        if inv and now.timestamp() - inv["t"] < 1200:
+            pt = data["points"][-1]
+            if inv.get("w") is not None:
+                pt["ac_w"] = inv["w"]
+            if inv.get("v") is not None:            # napětí měřené měničem
+                pt["iv"] = inv["v"]
+            if inv.get("lw") is not None:           # odběr ve stejném okamžiku jako to napětí
+                pt["lw"] = inv["lw"]
+            plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
+            if plugs:
+                pt["tp"] = plugs
+            day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
+            names = data.setdefault("plug_names", {})
+            for p in inv.get("tp", []):
+                if p.get("ip") and p.get("n"):
+                    names[p["ip"]] = p["n"]
+                if p.get("ip") and p.get("wh") is not None:
+                    dt = day.setdefault("tp", {})
+                    dt[p["ip"]] = max(dt.get(p["ip"], 0), p["wh"])
         if rivers:
             data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w")} for r in rivers]
     data["forecast"] = forecast(data, now, cfg)
@@ -379,6 +398,11 @@ def read_inverter(data, topic, now):
     except ValueError:
         return None
     inv = {"t": int(last.get("time") or now.timestamp())}
+    try:
+        if float(body.get("lw", -1)) >= 0:
+            inv["lw"] = round(float(body["lw"]), 1)
+    except (TypeError, ValueError):
+        pass
     if isinstance(body.get("age"), (int, float)):
         inv["age"] = int(body["age"])
     for k in ("w", "max", "v"):
