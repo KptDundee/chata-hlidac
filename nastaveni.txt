@@ -52,7 +52,7 @@ river_nabita = zapnuto
 
 # --- Brána na chatě (telefon u měniče) ---
 # upozornit, když brána přestane posílat data
-brana_hlidat = zapnuto
+brana_hlidat = vypnuto
 brana_ticho_min = 60
 # upozornit, když baterie telefonu klesne pod (%)
 telefon_baterie_pod = 15
@@ -67,7 +67,7 @@ zasuvka_generator = 115
 
 # --- Automatické nabíjení River přebytkem ze slunce ---
 # zapne zásuvku, když je solární baterie plná (Float) a panely dávají dost; vypne při poklesu
-river_auto = vypnuto
+river_auto = zapnuto
 river_auto_ip = 157
 river_auto_pv_on = 150
 river_auto_pv_off = 100
