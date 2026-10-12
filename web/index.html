@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "1.9", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "2.0", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -126,7 +126,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.9</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.0</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -331,7 +331,7 @@ function render(){
     else if(f.t_crit){c="--serious";ic="↓";txt=`Do rána těsně – pod ${nf(CRIT_V,1)} V kolem ${hm(f.t_crit)}`;}
     else {c="--good";ic="✓";txt=`Do rána vydrží – teď ~${f.soc_now} %, v ${hm(f.until)} ~${Math.max(f.soc_until,0)} %`;}
     const trend = f.slope!=null ? ` · skutečný pokles ${nf(-f.slope*1000)} mV/h` : "";
-    fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} ${f.ah_night!=null?`<span class="sub">(noc ~${f.ah_night} Ah při ~${f.draw_w} W${trend})</span>`:""}</span>`;
+    fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} ${f.ah_night!=null?`<span class="sub">(noc ~${f.ah_night} Ah při ~${f.draw_w} W${f.cap&&f.cap<(d.cfg?.kapacita_Ah||200)?`, baterie ~${f.cap} Ah`:""}${trend})</span>`:""}</span>`;
     fc.classList.remove("hide");
   } else fc.classList.add("hide");
   $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,(d.soc_est ?? soc)||0))+"%";
@@ -631,8 +631,9 @@ function renderCap(d, days){
   const nom = d.cfg?.kapacita_Ah || 200;
   const med = a => { a=a.filter(x=>x!=null).sort((x,y)=>x-y); return a.length ? a[Math.floor(a.length/2)] : null; };
   // jeden odhad za den (průměr obou metod, když jsou)
-  const rows = days.map(k=>{ const x=d.days[k], n=x.h?.cap||null, c=(x.c&&x.c.cap)||null;
-    const v = n&&c ? (n+c)/2 : (n||c); return v ? {k, t:new Date(k).getTime(), v, n, c, h:x.h, ch:x.c} : null; }).filter(Boolean);
+  // verdikt jen z nočních měření (spolehlivá oblast napětí); nabíjení je orientační – Float ≠ úplně plná
+  const rows = days.map(k=>{ const x=d.days[k], ok=x.h && x.h.ve>=12.10, n=ok?x.h.cap||null:null, c=(x.c&&x.c.cap)||null;
+    return n ? {k, t:new Date(k).getTime(), v:n, n, c, h:x.h, ch:x.c} : null; }).filter(Boolean);
   const pct = v => Math.round(v/nom*100);
   if(!rows.length){
     $("hverdict").innerHTML=`<p class="sub">Zatím žádné měření. Odhad se počítá z nocí (pokles napětí při známém odběru) a ze dnů, kdy se baterie nabije do plna. První hodnoty přibudou z historie a z dalších nocí.</p>`;
@@ -679,15 +680,15 @@ function renderCap(d, days){
     dots += `<circle cx="${cx}" cy="${cy}" r="${p.n>=3?6:4.5}" fill="var(${zc})" stroke="var(--surface)" stroke-width="2"${p.n<3?' opacity=".55"':""}/><rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
     if(i%Math.ceil(pts.length/6)===0||i===pts.length-1) dots += `<text x="${cx}" y="${H-6}" text-anchor="middle">${monthly?new Date(p.k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"}):dayLabel(p.k)}</text>`; });
   svg.insertAdjacentHTML("beforeend", `<path d="${line}" fill="none" stroke="var(--text2)" stroke-width="2" opacity=".5"/>`+dots);
-  hover(svg, pts, p=>`${monthly?new Date(p.k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"}):"týden od "+new Date(p.k).toLocaleDateString("cs-CZ")}<br><b>~${Math.round(p.v)} Ah · ${pct(p.v)} % · ${zoneOf(pct(p.v))[1]}</b><br>${p.n} měření (${p.nn}× noc, ${p.nc}× nabíjení)${p.n<3?"<br>málo měření – jen orientační":""}`);
+  hover(svg, pts, p=>`${monthly?new Date(p.k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"}):"týden od "+new Date(p.k).toLocaleDateString("cs-CZ")}<br><b>~${Math.round(p.v)} Ah · ${pct(p.v)} % · ${zoneOf(pct(p.v))[1]}</b><br>${p.n} nocí${p.n<3?"<br>málo měření – jen orientační":""}`);
   $("hzones").innerHTML = `Jeden bod = medián za ${monthly?"měsíc":"týden"} (slabší bod = méně než 3 měření). Pásma podle zbývající kapacity: <b style="color:var(--good)">dobrá</b> ≥ 80 % · <b style="color:var(--warn)">opotřebovaná</b> 60–80 % · <b style="color:var(--serious)">slabá</b> 45–60 % · <b style="color:var(--crit)">vyměnit</b> &lt; 45 %.`;
   // poslední měření slovy
   const dl = t => new Date(t).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"});
   const items = rows.slice(-10).reverse().map(q=>{ const parts=[];
     if(q.n) parts.push(`noc: napětí kleslo z ${nf(q.h.vs,2)} na ${nf(q.h.ve,2)} V při odběru ${nf(q.h.ah)} Ah → <b>~${q.n} Ah</b>`);
-    if(q.c) parts.push(`nabíjení: ráno ~${q.ch.soc} %, do plna se vešlo ${nf(q.ch.ah)} Ah → <b>~${q.c} Ah</b>`);
+    if(q.c) parts.push(`<span class="sub">nabíjení (jen orientačně): ráno ~${q.ch.soc} %, do Float se vešlo ${nf(q.ch.ah)} Ah → ~${q.c} Ah</span>`);
     return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b style="color:var(${zoneOf(pct(q.v))[2]})">●</b> <b>${dl(q.t)}</b> · ${parts.join("<br>&nbsp;&nbsp;&nbsp;")}</div>`; }).join("");
-  $("hlist").innerHTML = items + `<p class="sub" style="margin-top:8px">Jednotlivá měření kolísají klidně o ±15 % (teplota, různý odběr, nepřesné ranní napětí) – proto rozhoduje medián, ne jedna noc. Zimní hodnoty bývají nižší kvůli chladu; skutečný úbytek kapacity poznáš srovnáním stejné roční doby. Upozornění přijde samo, když se baterie znatelně zhorší.</p>`;
+  $("hlist").innerHTML = items + `<p class="sub" style="margin-top:8px">Verdikt se počítá jen z nocí, kdy baterie zůstala nad 12,1 V – při hlubším vybití už napětí pod zátěží neodpovídá stavu nabití. Odhad z nabíjení je jen orientační: regulátor přejde do Float po době Boostu, ne když je baterie opravdu plná, takže kapacitu podhodnocuje (u starší baterie víc). Jednotlivá měření kolísají klidně o ±15 % (teplota, různý odběr, nepřesné ranní napětí) – proto rozhoduje medián, ne jedna noc. Zimní hodnoty bývají nižší kvůli chladu; skutečný úbytek kapacity poznáš srovnáním stejné roční doby. Upozornění přijde samo, když se baterie znatelně zhorší.</p>`;
 }
 function dotChart(el, dd, key, color, o){
   const p=dd.filter(q=>q[key]!=null); if(!p.length) return empty(el,"Zatím žádné celé dny.");

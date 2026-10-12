@@ -449,6 +449,11 @@ def battery_health(data, now, cfg):
     idle = cfg["menic_vlastni_W"] or 0
     hourly = data.get("plug_hourly", {})
     pts = data.get("points", [])
+    st = data.setdefault("state", {})
+    if not st.get("h_v2"):                     # nová pravidla (noci pod 12,1 V se nepočítají) → přepočítat
+        for d in data["days"].values():
+            d.pop("h", None)
+        st["h_v2"] = True
     for dk, day in data["days"].items():
         if "h" in day:
             continue
@@ -483,10 +488,12 @@ def battery_health(data, now, cfg):
             src = "tapo"
         if covered < 0.8 * (b - a) or ah < 5:
             continue
+        if nv["ve"] < 12.10:                   # hluboko vybitá: napětí pod zátěží už neodpovídá stavu nabití
+            continue
         drop = (nv["vs"] - nv["ve"]) * 1000
         mv10 = drop / ah * 10
         day["h"] = {"mv10": round(mv10, 1), "ah": round(ah, 1), "vs": nv["vs"], "ve": nv["ve"], "src": src,
-                    "cap": round(min(260, cfg["kapacita_Ah"] * 52 / mv10)) if mv10 > 5 else None}
+                    "cap": round(min(260, 10400 / mv10)) if mv10 > 5 else None}   # ~52 mV/10 Ah = 200 Ah (nezávisle na nastavení)
 
 
 def charge_metric(ser, date, cfg, load_w):
@@ -564,6 +571,17 @@ def charge_capacity(data, now, cfg):
         day["c"] = r or False             # False = spočítáno, den nevyhovuje
 
 
+def eff_cap(data, cfg):
+    """Skutečná kapacita pro výpočty (předpověď do rána, výhled, odhad nabití): medián posledních 14 spolehlivých nocí."""
+    nom = cfg["kapacita_Ah"] or 200
+    v = sorted(d["h"]["cap"] for k, d in sorted(data.get("days", {}).items())[-30:]
+               if d.get("h") and d["h"].get("cap") and d["h"].get("ve", 0) >= 12.10)[-14:]
+    if len(v) < 5:
+        return nom
+    v.sort()
+    return max(40, min(nom, v[len(v) // 2]))
+
+
 def health_baseline(data):
     vals = [d["h"]["mv10"] for k, d in sorted(data["days"].items()) if "h" in d]
     if len(vals) < 7:
@@ -590,7 +608,7 @@ def forecast(data, now, cfg):
     if not pts:
         return None
     v = sum(p["bat_v"] for p in pts) / len(pts) + 0.05   # +0,05 V za pokles pod malou zátěží
-    cap = cfg["kapacita_Ah"] or 200
+    cap = eff_cap(data, cfg)
     ac = cfg["noc_spotreba_W"] or 0
     measured = [p.get("mw", p.get("ac_w")) for p in data.get("points", [])
                 if p.get("mw", p.get("ac_w")) is not None and p["t"] >= t_now - 3 * 3600 and (p.get("pv_w") or 0) < 5]
@@ -603,7 +621,7 @@ def forecast(data, now, cfg):
     soc_now = soc_from_v(v)
     soc_until = soc_now - a * hours / cap * 100
     f = {"until": int(until.timestamp()), "soc_now": round(soc_now), "soc_until": round(soc_until),
-         "draw_w": round(draw), "ah_night": round(a * hours), "n": len(pts),
+         "draw_w": round(draw), "ah_night": round(a * hours), "n": len(pts), "cap": round(cap),
          "measured": len(measured) >= 6}
     for key, lim in (("t_crit", cfg["baterie_kriticka_V"]), ("t_off", cfg["odpojeni_V"])):
         if lim is None:
@@ -976,7 +994,7 @@ def fuse_check(v, st, now, topic, cfg):
 
 def track_soc(data, st, v, now, cfg, inv, mode):
     """Vlastní odhad stavu nabití: počítání Ah (nabíjení − odběr), v noci zpřesnění podle napětí, Float = 100 %."""
-    cap = cfg["kapacita_Ah"] or 200
+    cap = eff_cap(data, cfg)
     bv, ba, status = v.get("bat_v"), v.get("bat_a"), v.get("status")
     if not bv:
         return
@@ -1064,7 +1082,7 @@ def outlook(data, st, cfg, now, mode, preds):
     Zima: solární baterie se jen nabíjí; den „k připojení“ = ráno ≥ zima_pripojit_od a po dni
     s chatou na solární baterii zůstane ≥ zima_pripojit_do.
     """
-    cap = cfg["kapacita_Ah"] or 200
+    cap = eff_cap(data, cfg)
     idle = cfg["menic_vlastni_W"] or 0
     ac_day = cabin_consumption(data, cfg, mode, now)               # Wh AC za 24 h
     dc_day = ac_day / 0.88 + idle * 24                             # Wh z baterie za 24 h (při zapojení)
