@@ -80,6 +80,103 @@ def login(account, password):
     raise SystemExit(f"Přihlášení selhalo: status={d.get('status')} info={d.get('info')}")
 
 
+def dev_server(token):
+    d = post(DISPATCH + "device/getDevServerAddr", {"type": 3, "deviceNos": [DEVICE_NO]}, {"token": token})
+    srv = (d.get("data", d) or {}).get("devServer") or []
+    if not srv:
+        raise SystemExit(f"Dispatch selhal: {str(d)[:200]}")
+    url = srv[0]["url"]
+    return (url if url.startswith("http") else "https://" + url).rstrip("/")
+
+
+HIST_URLS = ("https://hncloudapi.epsolarpv.com:7002",)   # odtud čte historii web Solar Guardian
+
+
+def history(token, dp_id, start, end, base=None):
+    """Historie jednoho údaje (po ~10 min) za období [start, end) jako [(ms, float), ...]."""
+    out, offset, page = [], 0, 1000
+    urls = ([base] if base else []) + list(HIST_URLS)
+    fmt_dt = lambda t: t.strftime("%Y-%m-%d %H:%M:%S")
+    while True:
+        body = {"devDatapoints": [{"deviceNo": DEVICE_NO, "dataPointId": dp_id}],
+                "start": int(start.timestamp() * 1000), "end": int(end.timestamp() * 1000) - 1,
+                "startDt": fmt_dt(start), "endDt": fmt_dt(end - timedelta(seconds=1)),
+                "limit": page, "row": page, "offset": offset, "timeSort": "asc"}
+        d, err = None, None
+        for u in urls:
+            try:
+                d = post(u + "/history/getDatapointHistory0", body, {"token": token})
+                if d.get("status") == 0:
+                    break
+            except Exception as e:
+                err = e
+                d = None
+        if not d or d.get("status") != 0:
+            raise RuntimeError(f"historie {dp_id}: {err or str(d)[:150]}")
+        items = d.get("data") or []
+        if isinstance(items, dict):
+            items = items.get("list") or items.get("rows") or []
+        for it in items:
+            try:
+                out.append((int(it["time"]), float(it["value"])))
+            except (KeyError, TypeError, ValueError):
+                pass
+        if len(items) < page or offset > 20000:
+            return out
+        offset += page
+
+
+def import_history(token, data, st, now, budget_s=90):
+    """Postupně (po měsících, odzadu) doplní denní výrobu a min/max napětí ze Solar Guardianu."""
+    if st.get("hist_done"):
+        return
+    t0 = time.time()
+    first = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    back = st.get("hist_back", 0)          # kolik měsíců zpět už je hotovo
+    empty = st.get("hist_empty", 0)
+    while time.time() - t0 < budget_s:
+        y, m = first.year, first.month - back
+        while m <= 0:
+            y, m = y - 1, m + 12
+        start = first.replace(year=y, month=m)
+        end = (start + timedelta(days=32)).replace(day=1)
+        got = 0
+        try:
+            daily = {}
+            for key in ("day_kwh", "bat_v"):
+                for ms, val in history(token, POINTS[key][0], start, end):
+                    dk = datetime.fromtimestamp(ms / 1000, TZ).strftime("%Y-%m-%d")
+                    dd = daily.setdefault(dk, {})
+                    if key == "day_kwh":
+                        dd["solar_kwh"] = max(dd.get("solar_kwh", 0), val)
+                    elif key == "bat_v" and val > 5:
+                        dd["min_v"] = min(dd.get("min_v", 99), val)
+                        dd["max_v"] = max(dd.get("max_v", 0), val)
+                    got += 1
+            for dk, dd in daily.items():
+                day = data["days"].setdefault(dk, {})
+                if "solar_kwh" in dd:
+                    day["solar_kwh"] = round(max(day.get("solar_kwh", 0), dd["solar_kwh"]), 2)
+                if "min_v" in dd:
+                    day["min_v"] = round(min(day.get("min_v", 99), dd["min_v"]), 2)
+                if "max_v" in dd:
+                    day["max_v"] = round(max(day.get("max_v", 0), dd["max_v"]), 2)
+        except Exception as e:
+            print("Import historie:", e)
+            st["hist_err"] = st.get("hist_err", 0) + 1
+            if st["hist_err"] >= 5:
+                st["hist_done"] = True
+            return
+        print(f"Import historie {start:%Y-%m}: {got} hodnot")
+        back += 1
+        empty = empty + 1 if got == 0 else 0
+        st["hist_back"], st["hist_empty"] = back, empty
+        if empty >= 3 or back >= 60:       # 3 prázdné měsíce za sebou = dál už nic není
+            st["hist_done"] = True
+            print("Import historie hotový.")
+            return
+
+
 def read_values(token):
     hdr = {"token": token}
     d = post(DISPATCH + "device/getDevServerAddr", {"type": 3, "deviceNos": [DEVICE_NO]}, hdr)
@@ -330,7 +427,8 @@ def main():
             ntfy(topic, "⚠️ Měnič hlásí alarm", f"Victron: {al} (stav {inv.get('st', '?')}), baterie {fmt(inv.get('v'), 2)} V.", 4, "warning")
         st["inv_al"] = al
     try:
-        v = read_values(login(acc, pw))
+        token = login(acc, pw)
+        v = read_values(token)
     except (Exception, SystemExit) as e:  # výpadek cloudu: nespadnout, po ~2 h upozornit
         print("Chyba čtení cloudu:", e)
         st["err_n"] = st.get("err_n", 0) + 1
@@ -363,6 +461,10 @@ def main():
                     dt[p["ip"]] = max(dt.get(p["ip"], 0), p["wh"])
         if rivers:
             data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w")} for r in rivers]
+    try:
+        import_history(token, data, st, now)
+    except Exception as e:
+        print("Import historie selhal:", e)
     data["forecast"] = forecast(data, now, cfg)
     st["_forecast"] = data["forecast"]
     st["_rivers"] = [{"name": r["name"], "soc": r.get("soc")} for r in (rivers or [])]
