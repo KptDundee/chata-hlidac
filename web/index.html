@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "1.1", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "1.2", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -118,7 +118,7 @@ header button{white-space:nowrap}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.1</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.2</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -175,6 +175,8 @@ header button{white-space:nowrap}
       <div class="seg" id="prodseg" style="font-size:13px"><button data-m="d" aria-pressed="true">Dny</button><button data-m="m" aria-pressed="false">Měsíce</button><button data-m="y" aria-pressed="false">Roky</button></div></div>
       <div class="cs" id="prodcs">kWh · posledních 30 dní</div><div id="c_day"></div></div>
     <div class="card chart" id="healthcard"><h2>Zdraví baterie</h2><div class="cs" id="healthcs">pokles napětí za noc v mV na 10 Ah odebraných z baterie · nižší = lepší</div><div id="c_health"></div></div>
+    <div class="card chart"><h2>Kapacita baterie – odhad</h2><div class="cs" id="capcs">Ah · dvě nezávislé metody</div><div id="c_cap"></div>
+      <div class="cs" style="margin-top:6px"><b style="color:var(--s1)">●</b> z nočního poklesu napětí &nbsp; <b style="color:var(--s2)">■</b> z nabíjení do plna</div></div>
     <div class="card chart"><h2>Nejnižší napětí dne</h2><div class="cs">V · posledních 30 dní</div><div id="c_min"></div></div>
   </section>
 
@@ -391,6 +393,7 @@ function render(){
     barChart($("c_health"), hd, "v", css("--s3"), {unit:"mV",dec:0,color:q=>css(band(q.v)[1]),tip:q=>`noc na ${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br><b>${nf(q.v)} mV / 10 Ah · ${band(q.v)[0]}</b><br>${nf(q.h.vs,2)} → ${nf(q.h.ve,2)} V, odebráno ${nf(q.h.ah)} Ah${q.h.cap?`<br>odhad kapacity ~${q.h.cap} Ah`:""}<br><span style="opacity:.7">${q.h.src==="live"?"z měření po 10 min":"z hodinové historie zásuvky"}</span>`});
   }
   else empty($("c_health"), "První noci se spočítají, až bude spotřeba za měničem a napětí za celou noc (nebo historie ze zásuvky).");
+  renderCap(d, days);
   dotChart($("c_min"), dd, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   $("tbl").innerHTML = days.slice().reverse().slice(0,60).map(k=>{const x=d.days[k];return `<tr><td>${new Date(k).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}</td><td>${nf(x.solar_kwh,2)}</td><td>${nf(x.min_v,2)}</td><td>${nf(x.max_v,2)}</td><td>${x.soc_min!=null&&x.soc_min<999?nf(x.soc_min):"–"}</td></tr>`}).join("") || `<tr><td colspan="5">Zatím žádné dny</td></tr>`;
 }
@@ -522,6 +525,33 @@ function barChart(el, dd, key, color, o){
     if(i%Math.ceil(p.length/6)===0||i===p.length-1)s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${(o.label||dayLabel)(q.k)}</text>`;});
   svg.insertAdjacentHTML("beforeend",s);
   hover(svg,p,o.tip||(q=>`${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br><b>${nf(q[key],o.dec)} ${o.unit}</b>`));
+}
+function renderCap(d, days){
+  const nom = d.cfg?.kapacita_Ah || 200;
+  const rows = days.map(k=>({k, n:d.days[k].h?.cap, c:d.days[k].c && d.days[k].c.cap, h:d.days[k].h, ch:d.days[k].c})).filter(q=>q.n||q.c).slice(-365);
+  const med = a => { a=a.filter(Boolean).sort((x,y)=>x-y); return a.length ? a[Math.floor(a.length/2)] : null; };
+  const mn = med(rows.slice(-30).map(q=>q.n)), mc = med(rows.filter(q=>q.c).slice(-10).map(q=>q.c));
+  const nc = rows.filter(q=>q.c).length;
+  $("capcs").innerHTML = `Ah · jmenovitě ${nom} Ah` + (mn?` · noci (medián) <b>~${mn} Ah</b>`:"") + (mc?` · nabíjení (medián ${Math.min(10,nc)}) <b>~${mc} Ah</b>`:"")
+    + (nc<3?`<br>Nabíjení se počítá jen za dny, kdy byla baterie ráno pod ~85 % a přes den se nabila do Float.`:"");
+  if(!rows.length) return empty($("c_cap"), "Zatím žádný den – naplní se z historie a z dalších dní.");
+  const vals = rows.flatMap(q=>[q.n,q.c]).filter(Boolean);
+  const lo = Math.max(0, Math.min(...vals, nom)*0.8), hi = Math.max(...vals, nom)*1.1;
+  const {svg,y} = frame($("c_cap"), lo, hi, 0); refLines(svg, y, [[nom,"--muted"]]);
+  const t0 = new Date(rows[0].k).getTime(), t1 = Math.max(new Date(rows[rows.length-1].k).getTime(), t0 + 7*864e5);
+  const x = k => M.l + 6 + (W-M.l-M.r-12) * (new Date(k).getTime()-t0) / (t1-t0);
+  const bw = Math.max(6, (W-M.l-M.r)/Math.max(rows.length,7));
+  let s = "";
+  rows.forEach((q,i)=>{ const cx = x(q.k);
+    if(q.n) s += `<circle cx="${cx}" cy="${y(q.n)}" r="4" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>`;
+    if(q.c) s += `<rect x="${cx-5}" y="${y(q.c)-5}" width="10" height="10" rx="2" fill="var(--s2)" stroke="var(--surface)" stroke-width="2"/>`;
+    s += `<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`; });
+  const step = Math.ceil(rows.length/6);
+  rows.forEach((q,i)=>{ if(i%step===0||i===rows.length-1) s += `<text x="${x(q.k)}" y="${H-6}" text-anchor="middle">${dayLabel(q.k)}</text>`; });
+  svg.insertAdjacentHTML("beforeend", s);
+  hover(svg, rows, q => `${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric",year:"numeric"})}`
+    + (q.n?`<br>● noc: <b>~${q.n} Ah</b> (${nf(q.h.mv10)} mV/10 Ah)`:"")
+    + (q.c?`<br>■ nabíjení: <b>~${q.c} Ah</b><br>ráno ~${q.ch.soc} %, do Float v ${new Date(q.ch.tf*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}, vešlo se ${nf(q.ch.ah)} Ah${q.ch.src==="odhad"?" (odběr odhadnut)":""}`:""));
 }
 function dotChart(el, dd, key, color, o){
   const p=dd.filter(q=>q[key]!=null); if(!p.length) return empty(el,"Zatím žádné celé dny.");

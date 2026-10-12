@@ -154,11 +154,13 @@ def night_voltages(series, date, cfg):
 
 def import_history(token, data, st, now, cfg, budget_s=90):
     """Postupně (po měsících, odzadu) doplní denní výrobu, min/max napětí a noční napětí ze Solar Guardianu."""
-    if not st.get("hist_v3"):              # nová verze importu (noc od západu + 2 h) → projít znovu
-        st.update({"hist_v3": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
+    if not st.get("hist_v4"):              # nová verze importu (+ proud a stav pro kapacitu z nabíjení) → projít znovu
+        st.update({"hist_v3": True, "hist_v4": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
         for d in data["days"].values():
             d.pop("nv", None)
             d.pop("h", None)
+            if d.get("c") is False:
+                d.pop("c")
     if st.get("hist_done"):
         return
     t0 = time.time()
@@ -173,9 +175,13 @@ def import_history(token, data, st, now, cfg, budget_s=90):
         end = (start + timedelta(days=32)).replace(day=1)
         got = 0
         try:
-            daily, vser = {}, []
-            for key in ("day_kwh", "bat_v"):
+            daily, vser, full = {}, [], {}
+            for key in ("day_kwh", "bat_v", "bat_a", "status"):
                 for ms, val in history(token, POINTS[key][0], start, end):
+                    if key != "day_kwh":
+                        full.setdefault(int(ms / 1000) // 60 * 60, {})[{"bat_v": "v", "bat_a": "a", "status": "s"}[key]] = val
+                    if key in ("bat_a", "status"):
+                        continue
                     if key == "bat_v":
                         vser.append((ms / 1000, val))
                     dk = datetime.fromtimestamp(ms / 1000, TZ).strftime("%Y-%m-%d")
@@ -194,10 +200,18 @@ def import_history(token, data, st, now, cfg, budget_s=90):
                     day["min_v"] = round(min(day.get("min_v", 99), dd["min_v"]), 2)
                 if "max_v" in dd:
                     day["max_v"] = round(max(day.get("max_v", 0), dd["max_v"]), 2)
+            cser = [dict(t=t, **x) for t, x in sorted(full.items())]
+            for x in cser:
+                if x.get("s") is not None:
+                    x["s"] = int(x["s"])
+            lf = load_lookup(data, cfg)
             for dk in daily:
-                nv = night_voltages(vser, datetime.strptime(dk, "%Y-%m-%d").date(), cfg)
+                date = datetime.strptime(dk, "%Y-%m-%d").date()
+                nv = night_voltages(vser, date, cfg)
                 if nv:
                     data["days"][dk]["nv"] = nv
+                if "c" not in data["days"][dk] and date < now.date():
+                    data["days"][dk]["c"] = charge_metric(cser, date, cfg, lf) or False
         except Exception as e:
             print("Import historie:", e)
             st["hist_err"] = st.get("hist_err", 0) + 1
@@ -452,6 +466,81 @@ def battery_health(data, now, cfg):
                     "cap": round(min(260, cfg["kapacita_Ah"] * 52 / mv10)) if mv10 > 5 else None}
 
 
+def charge_metric(ser, date, cfg, load_w):
+    """Kapacita z nabíjení: kolik Ah se vešlo od rána (stav z napětí) do přechodu do Float.
+
+    ser = [{"t", "v", "a", "s"}] seřazené (napětí, proud z regulátoru, stav), load_w(t) = W za měničem nebo None.
+    Vrací dict nebo None, když den nevyhovuje (málo vybitá, nedošlo do Float, chybí data).
+    """
+    rise, set_ = sun_times(cfg["sirka"], cfg["delka"], date)
+    if not rise:
+        return None
+    r, z = rise.timestamp(), set_.timestamp()
+    idle = cfg["menic_vlastni_W"] or 0
+    pre = sorted(p["v"] for p in ser if r - 2400 <= p["t"] <= r and p.get("v") and p["v"] > 5)
+    if not pre:
+        return None
+    lw = load_w(r - 1200)
+    lw = lw if lw is not None else (cfg["noc_spotreba_W"] or 0)
+    v0 = pre[len(pre) // 2] + (lw / 0.88 + idle) / 12.2 * 0.015     # pokles napětí odběrem (~15 mΩ)
+    soc0 = soc_from_v(v0)
+    if soc0 > 85:
+        return None
+    day_pts = [p for p in ser if r <= p["t"] <= z and p.get("s") is not None]
+    tf = None
+    for p, q in zip(day_pts, day_pts[1:]):
+        if p.get("s") == 1 and q.get("s") == 1:
+            tf = p["t"]
+            break
+    if not tf or tf - r < 3600:
+        return None
+    ah, cov, src = 0.0, 0.0, "live"
+    win = [p for p in ser if r - 600 <= p["t"] <= tf and p.get("a") is not None]
+    for p, q in zip(win, win[1:]):
+        dt = min(q["t"] - p["t"], 1200)
+        w = load_w(p["t"])
+        if w is None:
+            w, src = (cfg["noc_spotreba_W"] or 0), "odhad"
+        ah += (p["a"] - (w / 0.88 + idle) / max(p.get("v") or 12.8, 11)) * dt / 3600
+        cov += dt
+    if cov < 0.8 * (tf - r) or ah < 8:
+        return None
+    cap = ah / 1.08 / ((100 - soc0) / 100)
+    if not 40 <= cap <= 320:
+        return None
+    return {"ah": round(ah, 1), "soc": round(soc0), "cap": round(cap), "tf": int(tf), "src": src}
+
+
+def load_lookup(data, cfg):
+    """Funkce t → W za měničem: živé body (po 10 min), jinak hodinová historie zásuvky."""
+    pts = {p["t"] // 600: p.get("mw", p.get("ac_w")) for p in data.get("points", []) if p.get("mw", p.get("ac_w")) is not None}
+    hourly = data.get("plug_hourly", {})
+
+    def f(t):
+        for k in (t // 600, t // 600 - 1, t // 600 + 1):
+            if k in pts:
+                return pts[k]
+        d = datetime.fromtimestamp(t, TZ)
+        arr = hourly.get(d.strftime("%Y-%m-%d"))
+        return arr[d.hour] if arr and arr[d.hour] is not None else None
+    return f
+
+
+def charge_capacity(data, now, cfg):
+    """Doplní day["c"] z živých bodů (posledních 14 dní)."""
+    lf = load_lookup(data, cfg)
+    ser = [{"t": p["t"], "v": p.get("bat_v"), "a": p.get("bat_a"), "s": p.get("status")} for p in data.get("points", [])]
+    today = now.strftime("%Y-%m-%d")
+    for dk, day in data["days"].items():
+        if "c" in day or dk == today and now.hour < 21:
+            continue
+        date = datetime.strptime(dk, "%Y-%m-%d").date()
+        if (now.date() - date).days > 13:
+            continue
+        r = charge_metric(ser, date, cfg, lf)
+        day["c"] = r or False             # False = spočítáno, den nevyhovuje
+
+
 def health_baseline(data):
     vals = [d["h"]["mv10"] for k, d in sorted(data["days"].items()) if "h" in d]
     if len(vals) < 7:
@@ -605,6 +694,11 @@ def main():
     except Exception as e:
         print("Import historie selhal:", e)
         log("err", f"Import historie Solar Guardian: {str(e)[:100]}")
+    try:
+        charge_capacity(data, now, cfg)
+    except Exception as e:
+        print("Kapacita z nabíjení:", e)
+        log("err", f"Kapacita z nabíjení: {str(e)[:100]}")
     try:
         battery_health(data, now, cfg)
         base, vals = health_baseline(data)
