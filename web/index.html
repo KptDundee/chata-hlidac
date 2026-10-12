@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "1.7", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "1.8", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -99,6 +99,14 @@ header button{white-space:nowrap}
 .primary{background:var(--text)!important;color:var(--surface)!important;font-weight:600}
 .err{color:var(--crit);font-size:13px;min-height:18px}
 .hide{display:none!important}
+details.sec{margin-top:12px}
+details.sec>summary{list-style:none;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 16px;color:var(--text);cursor:pointer}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::after{content:"›";margin-left:auto;color:var(--muted);font-size:20px;line-height:1;transition:transform .15s;flex:none}
+details.sec[open]>summary::after{transform:rotate(90deg)}
+details.sec>summary .st{font-weight:600;white-space:nowrap}
+details.sec>summary .ss{color:var(--text2);font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details.sec>.in{margin-top:8px}
 .foot{margin-top:24px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .foot a{color:var(--muted)}
 </style>
@@ -118,7 +126,7 @@ header button{white-space:nowrap}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.7</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v1.8</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -156,10 +164,19 @@ header button{white-space:nowrap}
   </section>
 
   <section class="card hide" id="wxcard" style="margin-bottom:12px"></section>
-  <section class="card hide" id="plugs" style="margin-bottom:12px"></section>
+  <details class="sec" id="s_plugs"><summary><span class="st">🔌 Zásuvky</span><span class="ss" id="sum_plugs"></span></summary><div class="in"><section class="card" id="plugs"></section></div></details>
+  <details class="sec" id="s_pan"><summary><span class="st">🔆 Panely</span><span class="ss" id="sum_pan"></span></summary><div class="in"><section class="card" id="panbox"><p class="sub">Načítám…</p></section></div></details>
+  <details class="sec" id="s_health"><summary><span class="st">🔋 Zdraví baterie</span><span class="ss" id="sum_health"></span></summary><div class="in">
+    <div class="card" id="healthcard">
+      <div id="hverdict"></div>
+      <div class="chart"><div id="c_cap" style="margin-top:6px"></div></div>
+      <div class="sub" id="hzones" style="margin-top:4px;font-size:12px"></div>
+      <details style="margin-top:4px"><summary>Poslední měření a jak to číst</summary><div id="hlist" style="font-size:13.5px;line-height:1.5"></div></details>
+    </div></div></details>
+  <details class="sec" id="s_charts"><summary><span class="st">📈 Grafy</span><span class="ss" id="sum_charts"></span></summary><div class="in">
   <section class="tiles hide" id="rivers" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></section>
 
-  <div class="ctrl">
+  <div class="ctrl" style="margin-top:0">
     <div class="seg" id="range" role="group" aria-label="Období">
       <button data-h="24" aria-pressed="true">24 h</button>
       <button data-h="48" aria-pressed="false">48 h</button>
@@ -175,24 +192,14 @@ header button{white-space:nowrap}
     <div class="card chart"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 id="prodh">Výroba po dnech</h2>
       <div class="seg" id="prodseg" style="font-size:13px"><button data-m="d" aria-pressed="true">Dny</button><button data-m="m" aria-pressed="false">Měsíce</button><button data-m="y" aria-pressed="false">Roky</button></div></div>
       <div class="cs" id="prodcs">kWh · posledních 30 dní</div><div id="c_day"></div></div>
-    <div class="card" id="healthcard" style="grid-column:1/-1"><h2 style="font-size:15px;margin:0;font-weight:600">Zdraví baterie</h2>
-      <div id="hverdict" style="margin-top:8px"></div>
-      <div class="chart"><div id="c_cap" style="margin-top:6px"></div></div>
-      <div class="sub" id="hzones" style="margin-top:4px;font-size:12px"></div>
-      <details style="margin-top:4px"><summary>Poslední měření a jak to číst</summary><div id="hlist" style="font-size:13.5px;line-height:1.5"></div></details>
-    </div>
     <div class="card chart"><h2>Nejnižší napětí dne</h2><div class="cs">V · posledních 30 dní</div><div id="c_min"></div></div>
-  </section>
+  </section></div></details>
 
-  <details class="card" style="margin-top:12px" id="logcard">
-    <summary>Deník událostí <span class="sub" id="logsum"></span></summary>
-    <div id="logbody" style="margin-top:8px;font-size:14px;line-height:1.5"></div>
-  </details>
+  <details class="sec" id="s_log"><summary><span class="st">📋 Deník</span><span class="ss" id="logsum"></span></summary><div class="in"><div class="card" id="logbody" style="font-size:14px;line-height:1.5"></div></div></details>
 
-  <details class="card" style="margin-top:12px">
-    <summary>Tabulka po dnech</summary>
+  <details class="sec" id="s_tbl"><summary><span class="st">📅 Tabulka po dnech</span><span class="ss" id="sum_tbl"></span></summary><div class="in"><div class="card">
     <table><thead><tr><th>Den</th><th>Výroba kWh</th><th>Min V</th><th>Max V</th><th>Min SOC %</th></tr></thead><tbody id="tbl"></tbody></table>
-  </details>
+  </div></div></details>
 
   <div class="foot"><span><span id="cloud"></span><br><span id="vers"></span></span><span><a href="#" id="openset">⚙ Nastavení</a> · <a href="#" id="logout">Odhlásit</a></span></div>
 </main>
@@ -310,9 +317,11 @@ function render(){
     const onv = Object.keys(d.days||{}).sort().slice(-7).map(k=>d.days[k].on).filter(x=>x!=null).sort((a,b)=>a-b);
     const onMed = onv.length ? onv[Math.floor(onv.length/2)] : null;
     const owRow = (owNow!=null || onMed!=null) ? `<div class="row" style="padding:8px 0"><div class="t"><b style="font-weight:500">💡 Ostatní za měničem</b><span>světla, kamery, wifi (měnič − lednice)${onMed!=null?` · v noci obvykle ~${nf(onMed)} W`:""}</span></div><div style="font-variant-numeric:tabular-nums;font-weight:600">${owNow!=null?nf(owNow)+" W":"–"}</div></div>` : "";
-    pl.innerHTML = `<b>Zásuvky</b>${rows}${owRow}${phTxt}`;
-    pl.classList.remove("hide");
-  } else pl.classList.add("hide");
+    pl.innerHTML = `${rows}${owRow}${phTxt}`.replace(/^<div class="sub" style="margin:10px 0 0;/,'<div class="sub" style="margin:0;');
+    const fr = tp.find(p=>p.ip===String(c.zasuvka_lednice||"185"));
+    $("sum_plugs").textContent = [fr&&fr.w!=null?`lednice ${nf(fr.w)} W`:"", owNow!=null?`ostatní ${nf(owNow)} W`:"", ph&&ph.b!=null?`telefon ${nf(ph.b)} %`:""].filter(Boolean).join(" · ") || "";
+    $("s_plugs").classList.remove("hide");
+  } else { $("s_plugs").classList.toggle("hide", !gw); $("sum_plugs").textContent = gw ? `brána mlčí ${ago(gw.t)}` : ""; pl.innerHTML = `<p class="sub">Brána na chatě teď neposílá data.</p>`; }
   if(PLUG) renderPlug();
   const f = d.forecast, fc = $("fc");
   if(f && f.until && Date.now()/1000 < f.until){
@@ -406,6 +415,8 @@ function render(){
   const dd = days.slice(-30).map(k=>({k,...d.days[k]}));
   renderProd(days);
   renderLog(d.log || []);
+  const lv = pts.filter(p=>p.bat_v!=null && p.t >= Date.now()/1000-86400).map(p=>p.bat_v);
+  $("sum_charts").textContent = lv.length ? `24 h: ${nf(Math.min(...lv),2)}–${nf(Math.max(...lv),2)} V` : "";
   renderVers(d);
   renderCap(d, days);
   dotChart($("c_min"), dd, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
@@ -467,8 +478,30 @@ function renderVers(d){
   $("ver").textContent = "v" + WEB_VER;
 }
 
+function renderPan(d, pn){
+  if(!pn){ $("s_pan").classList.add("hide"); return; }
+  $("s_pan").classList.remove("hide");
+  {
+    const curA = (d.last && d.last.bat_a) ?? null;
+    const recCol = pn.rec==="remove" ? "--crit" : pn.rec==="add" ? "--good" : pn.rec==="wait" ? "--warn" : null;
+    const months = {};
+    for(const c of (pn.curve||[])){ const m=c.d.slice(0,7); if(!(m in months) || c.p2>months[m]) months[m]=c.p2; }
+    const mrow = Object.entries(months).slice(0,6).map(([m,p2])=>`<span style="white-space:nowrap">${new Date(m+"-15").toLocaleDateString("cs-CZ",{month:"short"})} <b style="color:var(${p2>pn.lim?"--crit":"--good"})">${nf(p2)} A</b></span>`).join(" · ");
+    $("panbox").innerHTML = `<div>
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>🔆 Zapojené panely: ${pn.n}</b><span class="sub">pojistka ${nf(pn.fuse)} A${curA!=null?` · teď ${nf(curA,1)} A`:""}</span></div>
+      <div class="sub" style="margin-top:4px">Za jasného dne teď až ~<b>${nf(pn.peak_now)} A</b> (1 panel ~${nf(pn.peak1)} A, 2 panely ~${nf(pn.peak2)} A)${pn.src==="odhad"?" – zatím odhad, zpřesní se z měření":""}.</div>
+      ${pn.msg?`<div style="margin-top:6px;color:var(${recCol})"><b>${pn.rec==="remove"?"⚠️":pn.rec==="add"?"✓":"⏳"}</b> ${pn.msg}</div>`:`<div style="margin-top:6px">✓ ${pn.n===2?(pn.unsafe_at?`Dva panely jsou bezpečné zhruba do ${new Date(pn.unsafe_at).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"})} – pak včas upozorním.`:"Dva panely jsou bezpečné."):"Jeden panel zatím stačí."}</div>`}
+      <div class="sub" style="margin-top:6px;font-size:12px">Nejvyšší proud se 2 panely za jasného dne: ${mrow}<br>Červeně = přes ${nf(pn.lim,1)} A (85 % pojistky). Počítá se nejhorší naměřený případ pro danou roční dobu${pn.src==="2 panely"?" ze dnů, kdy jely 2 panely":pn.src==="1 panel × 2"?" (z dnů s 1 panelem × 2)":""}.
+      <br>${pn.top && pn.top.length ? `Teď vychází z: ${pn.top.map(t=>`${new Date(t.d).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric",year:"numeric"})} <b>${nf(t.a,1)} A</b>`).join(" · ")}` : "Naměřené proudy pro tuhle roční dobu se ještě načítají z historie – zatím jen odhad, nic neradím."}</div></div>`;
+  
+  }
+  const short = {remove:"⚠️ odpojit druhý panel", add:"🔆 zapoj druhý panel", wait:"⏳ jeden nestačí, druhý ještě ne"}[pn.rec];
+  $("sum_pan").innerHTML = `${pn.n} ${pn.n===2?"panely":"panel"} · ` + (short ? `<b style="color:var(${pn.rec==="remove"?"--crit":pn.rec==="add"?"--good":"--warn"})">${short}</b>`
+    : pn.n===2 && pn.unsafe_at ? `bezpečné do ${new Date(pn.unsafe_at).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"})}` : `max ~${nf(pn.peak_now)} A z ${nf(pn.fuse)}`);
+}
 function renderWx(d){
   const el = $("wxcard"), w = d.wxo;
+  renderPan(d, w && w.pan);
   if(!w || !w.preds || !w.preds.length){ el.classList.add("hide"); return; }
   const ol = w.ol || {}, days = ol.days || [], zima = ol.mode === "zima";
   const dn = k => { const x=new Date(k+"T12:00"); const t=new Date(); t.setHours(12,0,0,0);
@@ -501,27 +534,11 @@ function renderWx(d){
   const acc = w.acc_med!=null ? `Předpověď se učí z tvých panelů: posledních ${w.acc.length} dní odchylka obvykle ±${w.acc_med} %${w.bias && Math.abs(w.bias-1)>0.04?` · oprava ×${nf(w.bias,2)}`:""}.`
     : `Předpověď se učí z historie tvých panelů; přesnost se ukáže po pár dnech porovnávání.`;
   const accRows = (w.acc||[]).slice(-7).reverse().map(a=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--line)"><span>${dn(a.d)}</span><span style="font-variant-numeric:tabular-nums">předpověď ${nf(a.p,2)} → skutečnost <b>${nf(a.a,2)}</b> kWh</span></div>`).join("");
-  const pn = w.pan;
-  let panHtml = "";
-  if(pn){
-    const curA = (d.last && d.last.bat_a) ?? null;
-    const recCol = pn.rec==="remove" ? "--crit" : pn.rec==="add" ? "--good" : pn.rec==="wait" ? "--warn" : null;
-    const months = {};
-    for(const c of (pn.curve||[])){ const m=c.d.slice(0,7); if(!(m in months) || c.p2>months[m]) months[m]=c.p2; }
-    const mrow = Object.entries(months).slice(0,6).map(([m,p2])=>`<span style="white-space:nowrap">${new Date(m+"-15").toLocaleDateString("cs-CZ",{month:"short"})} <b style="color:var(${p2>pn.lim?"--crit":"--good"})">${nf(p2)} A</b></span>`).join(" · ");
-    panHtml = `<div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--bg)">
-      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>🔆 Zapojené panely: ${pn.n}</b><span class="sub">pojistka ${nf(pn.fuse)} A${curA!=null?` · teď ${nf(curA,1)} A`:""}</span></div>
-      <div class="sub" style="margin-top:4px">Za jasného dne teď až ~<b>${nf(pn.peak_now)} A</b> (1 panel ~${nf(pn.peak1)} A, 2 panely ~${nf(pn.peak2)} A)${pn.src==="odhad"?" – zatím odhad, zpřesní se z měření":""}.</div>
-      ${pn.msg?`<div style="margin-top:6px;color:var(${recCol})"><b>${pn.rec==="remove"?"⚠️":pn.rec==="add"?"✓":"⏳"}</b> ${pn.msg}</div>`:`<div style="margin-top:6px">✓ ${pn.n===2?(pn.unsafe_at?`Dva panely jsou bezpečné zhruba do ${new Date(pn.unsafe_at).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"})} – pak včas upozorním.`:"Dva panely jsou bezpečné."):"Jeden panel zatím stačí."}</div>`}
-      <div class="sub" style="margin-top:6px;font-size:12px">Nejvyšší proud se 2 panely za jasného dne: ${mrow}<br>Červeně = přes ${nf(pn.lim,1)} A (85 % pojistky). Počítá se nejhorší naměřený případ pro danou roční dobu${pn.src==="2 panely"?" ze dnů, kdy jely 2 panely":pn.src==="1 panel × 2"?" (z dnů s 1 panelem × 2)":""}.
-      ${pn.top && pn.top.length ? `<br>Teď vychází z: ${pn.top.map(t=>`${new Date(t.d).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric",year:"numeric"})} <b>${nf(t.a,1)} A</b>`).join(" · ")}` : ""}</div></div>`;
-  }
   el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>Počasí a výroba</b>
       <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · chata na River":"☀️ letní provoz · chata na solární baterii"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
     <div style="margin-top:8px">${rec}</div>
     <div style="display:flex;gap:4px;margin-top:12px">${bars}</div>
     <div class="sub" style="margin-top:6px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně spotřeba chaty ~${nf(need,2)} kWh/den`:""}${zima?" · pod sloupcem stav solární baterie večer, zeleně den vhodný k připojení":" · pod sloupcem stav baterie příští ráno, zeleně den, kdy výroba pokryje spotřebu"}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
-    ${panHtml}
     <details style="margin-top:2px"><summary style="font-size:13px">Jak přesně předpovídá</summary><div class="sub" style="font-size:12.5px;line-height:1.5">${acc}<br>Model zná zvlášť přímé a rozptýlené světlo a pro každou roční dobu se učí z minulých let – v zimě sám zjistí, že přímé slunce na panely nedopadá. Dny, kdy byla baterie brzy plná (výroba přiškrcená), do učení nepočítá.</div>${accRows?`<div style="font-size:12.5px;margin-top:6px">${accRows}</div>`:""}</details>`;
   el.classList.remove("hide");
 }
@@ -532,7 +549,7 @@ function renderLog(lg){
   const dk = t => new Date(t*1000).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"});
   const day = Date.now()/1000 - 86400;
   const ne = lg.filter(e => e.k==="err" && (e.t2||e.t) >= day).length;
-  $("logsum").textContent = ne ? `· ⚠️ za 24 h chyb: ${ne}` : "· za 24 h bez chyb";
+  $("logsum").textContent = ne ? `⚠️ za 24 h chyb: ${ne}` : "za 24 h bez chyb";
   if(!lg.length){ $("logbody").innerHTML = `<p class="sub">Zatím prázdný – plní se od teď.</p>`; return; }
   let html = "", cur = "";
   for(const e of lg.slice().reverse().slice(0,200)){
@@ -618,7 +635,7 @@ function renderCap(d, days){
   const pct = v => Math.round(v/nom*100);
   if(!rows.length){
     $("hverdict").innerHTML=`<p class="sub">Zatím žádné měření. Odhad se počítá z nocí (pokles napětí při známém odběru) a ze dnů, kdy se baterie nabije do plna. První hodnoty přibudou z historie a z dalších nocí.</p>`;
-    $("c_cap").innerHTML=""; $("hzones").textContent=""; $("hlist").innerHTML=""; return;
+    $("c_cap").innerHTML=""; $("hzones").textContent=""; $("hlist").innerHTML=""; $("sum_health").textContent="zatím bez měření"; return;
   }
   const now = Date.now(), D = 864e5;
   const recent = rows.filter(q=>q.t>=now-14*D), recentV = med(recent.map(q=>q.v));
@@ -634,6 +651,7 @@ function renderCap(d, days){
   if(ly.length>=3) cmp = fmtChange(med(ly.map(q=>q.v)), "Loni ve stejnou dobu");
   else if(rows.length>=20 && rows[0].t < now-60*D){ const first=rows.filter(q=>q.t<rows[0].t+30*D);
     cmp = fmtChange(med(first.map(q=>q.v)), `Na začátku sledování (${new Date(rows[0].t).toLocaleDateString("cs-CZ",{month:"long",year:"numeric"})})`) + `<br><span class="sub">Pozor: v zimě vychází AGM vždy o 10–20 % hůř (chlad), skutečné srovnání ukáže až stejná roční doba.</span>`; }
+  $("sum_health").innerHTML = `<b style="color:var(${z[2]})">● ${z[1]}</b> ~${Math.round(cur)} Ah`;
   const advice = {dobrá:"Baterie je v pořádku, nic není potřeba.", opotřebovaná:"Baterie stárne, ale slouží. Hlídej, jestli vydrží noc; vybíjení pod 12,0 V jí zkracuje život.", slabá:"Kapacita je znatelně menší – v zimě nemusí vydržet do rána. Je čas plánovat náhradu.", vyměnit:"Baterie má méně než polovinu kapacity – doporučuju výměnu."}[z[1]];
   $("hverdict").innerHTML = `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;color:var(${z[2]})">● ${z[1][0].toUpperCase()+z[1].slice(1)}</span>
     <span style="font-size:18px;font-weight:600">~${Math.round(cur)} Ah <span class="sub" style="font-size:14px">= ${pct(cur)} % z ${nom} Ah</span></span></div>
@@ -901,6 +919,10 @@ setInterval(()=>{if(PW&&!document.hidden)refresh();},5*60*1000);
 setInterval(()=>{if(DATA)render();},60*1000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>DATA&&render());
 (async()=>{const s=store.get("pw");if(!(s&&await unlock(s,true)))$("login").classList.remove("hide");})();
+for(const el of document.querySelectorAll("details.sec")){
+  if(store.get("open_"+el.id)==="1") el.open = true;
+  el.addEventListener("toggle",()=>store.set("open_"+el.id, el.open?"1":"0"));
+}
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
