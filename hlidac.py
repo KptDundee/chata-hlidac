@@ -524,12 +524,14 @@ def read_inverter(data, topic, now):
     for k in ("st", "al"):
         if body.get(k) not in (None, ""):
             inv[k] = str(body[k])[:40]
-    if "w" not in inv:   # bez Bluetooth dat z měniče použít zásuvku Tapo za měničem
-        import re
-        for p in inv.get("tp", []):
-            if p.get("w") is not None and re.search(r"m[eě]ni[cč]|inverter|220|230", str(p.get("n", "")), re.I):
-                inv["w"], inv["src"] = p["w"], "tapo"
-                break
+    # Spotřeba: přednost má skutečný výkon (W) ze zásuvky Tapo za měničem; Victron měří VA (u malých zátěží víc).
+    import re
+    for p in inv.get("tp", []):
+        if p.get("w") is not None and re.search(r"m[eě]ni[cč]|inverter|220|230", str(p.get("n", "")), re.I):
+            if "w" in inv:
+                inv["va"] = inv["w"]          # Victron VA si necháme pro informaci
+            inv["w"], inv["src"] = p["w"], "tapo"
+            break
     if "w" not in inv and not inv.get("tp") and "ph" not in inv:
         return None
     data["inverter"] = inv

@@ -297,9 +297,9 @@ function render(){
   const sum30 = days.slice(-30).reduce((a,k)=>a+(d.days[k].solar_kwh||0),0);
   $("t_day_n").textContent = last.month_kwh!=null ? `měsíc ${nf(last.month_kwh,1)} · celkem ${nf(last.total_kwh,0)} kWh` : `30 dní: ${nf(sum30,1)} kWh`;
   const gi = d.inverter, giFresh = gi && Date.now()/1000 - gi.t < 1800;
-  if(giFresh && gi.v!=null && gi.src!=="tapo"){
-    const lw = gi.lw!=null ? gi.lw : gi.w;
-    $("invsync").innerHTML = `⚡ Měnič měří <b>${nf(gi.v,2)} V</b> při odběru <b>${nf(lw)} W</b> <span style="opacity:.75">(ve stejném okamžiku${gi.age>120?`, před ${Math.round(gi.age/60)} min`:""})</span>`;
+  if(giFresh && gi.v!=null){
+    const lw = gi.lw!=null ? gi.lw : (gi.va ?? gi.w);
+    $("invsync").innerHTML = `⚡ Měnič měří <b>${nf(gi.v,2)} V</b> při odběru <b>${nf(lw)} VA</b> <span style="opacity:.75">(ve stejném okamžiku${gi.age>120?`, před ${Math.round(gi.age/60)} min`:""})</span>`;
     $("invsync").classList.remove("hide");
   } else $("invsync").classList.add("hide");
   const a = last.bat_a ?? lp.bat_a;
@@ -324,10 +324,10 @@ function render(){
   if(inv){
     $("loadv").innerHTML = `${fresh?nf(inv.w):"–"}<small style="font-size:15px;color:var(--text2);margin-left:3px">W</small>`;
     const fromTapo = inv.src === "tapo";
-    $("loadh").textContent = fromTapo ? "Odběr teď · zásuvka Tapo" : "Odběr teď · měnič Victron";
+    $("loadh").textContent = fromTapo ? "Odběr teď · zásuvka za měničem" : "Odběr teď · měnič Victron";
     const stCz = {INVERTING:"běží", OFF:"vypnutý", LOW_POWER:"úsporný režim", FAULT:"PORUCHA"}[inv.st] || inv.st || "";
     $("loadn").textContent = !fresh ? `brána mlčí ${ago(inv.t)}`
-      : fromTapo ? "Victron zatím neposílá"
+      : fromTapo ? (inv.va!=null ? [`Victron ${nf(inv.va)} VA`, stCz, inv.v!=null?`${nf(inv.v,2)} V`:""].filter(Boolean).join(" · ") : "Victron zatím neposílá")
       : [inv.age>120?`před ${Math.round(inv.age/60)} min`:"", inv.max!=null?`špička ${nf(inv.max)} W`:"", stCz, inv.v!=null?`${nf(inv.v,2)} V`:"", inv.al && !/^(0|NONE|No alarm)$/.test(inv.al) ? `⚠ ${inv.al}` : ""].filter(Boolean).join(" · ");
   }
   const dd = days.slice(-30).map(k=>({k,...d.days[k]}));
