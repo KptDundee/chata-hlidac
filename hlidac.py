@@ -1581,7 +1581,7 @@ def check(v, st, now, topic, cfg, rise, set_):
     # Baterie na 100 % (fáze Float, 2 kontroly po sobě)
     st["float_n"] = min(st.get("float_n", 0) + 1, 2) if status == 1 else 0
     if cfg["nabito"] and st["float_n"] >= 2 and not st.get("full_sent"):
-        ntfy(topic, "🔋 Baterie nabitá na 100 %", f"Regulátor přešel do Float. Můžeš zapojit náročnější spotřebič (nabíjení apod.).\n{line}", 4, "battery,sunny")
+        ntfy(topic, "🔋 Baterie nabitá (Float)", f"Regulátor přešel do Float – baterie je plná. Můžeš zapojit náročnější spotřebič.\n{line}", 4, "battery,sunny")
         st["full_sent"] = True
     if status != 1 and bv < 13.2:  # další „nabito“ až po vybití pod Boost Recovery 13,2 V
         st["full_sent"] = False
