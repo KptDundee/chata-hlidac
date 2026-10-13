@@ -167,7 +167,7 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 - **Komplikace** „Chata – východ / západ slunce“: časy u chaty (počítá se v hodinkách, bez internetu).
 
 ### Ciferník Chata
-Analogový ciferník v leteckém stylu (tmavě modrý sunburst, diagonální odlesk sklíčka, masivní ručky s luminiscencí, oranžová vteřinovka). Hodiny ukazují tučné čárky na vnějším věnci.
+Analogový ciferník v leteckém stylu (tmavě modrý sunburst do černa, zapuštěné subdialy, odlesk sklíčka pod 45°, masivní ručky s luminiscencí, oranžová vteřinovka). Hodiny: tučné čárky na vnějším věnci a kovové číslice (kromě míst se subdialy).
 - **Nahoře** nejbližší východ nebo západ slunce u chaty: přes den **↓ západ**, v noci **↑ východ**.
 - **Tři stejné subdialy** – po obvodu jezdí trojúhelník (ukazatel), uprostřed velké číslo:
   - **vlevo nahoře 🏠 chata** – napětí solární baterie (1 desetinné místo), stupnice 11,6–13 V: červená = kritické, oranžová = slabne, zelená = nabitá. Ťuknutím se otevře aplikace Chata.

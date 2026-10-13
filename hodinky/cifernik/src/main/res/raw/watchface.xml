@@ -4,7 +4,7 @@
   Plátno 480 × 480, střed 240/240. Grafiku kreslí cifernik/grafika/generuj.py (polohy musí sedět s tímto souborem).
   Tři subdialy (152 × 152): vlevo nahoře napětí chaty (komplikace z aplikace Chata), vpravo nahoře baterie hodinek,
   dole teplota (počasí systému). Ukazatel = trojúhelník po obvodu (−135° … +135°), uprostřed velké číslo.
-  Nahoře nejbližší východ / západ slunce, vlevo dole den (PO), vpravo dole datum (21/12).
+  Nahoře nejbližší východ / západ slunce, vlevo dole den (PO), vpravo dole datum (21/12). Písmo Saira Expanded (res/font/saira.ttf).
   Úsporný režim (AMBIENT): černé pozadí, obrysy ruček, hodinové čárky a napětí chaty.
 -->
 <WatchFace width="480" height="480" clipShape="CIRCLE">
@@ -24,18 +24,18 @@
     </PartImage>
 
     <!-- ===== den (vlevo dole) a datum (vpravo dole) ===== -->
-    <PartText name="day" x="64" y="282" width="120" height="40">
+    <PartText name="day" x="58" y="280" width="120" height="40">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Text align="CENTER">
-        <Font family="inter_semibold" size="30" color="#ffebedf2">
+        <Font family="saira" size="26" color="#ffebedf2">
           <Upper><Template>%s<Parameter expression="[DAY_OF_WEEK_S]"/></Template></Upper>
         </Font>
       </Text>
     </PartText>
-    <PartText name="date" x="298" y="282" width="120" height="40">
+    <PartText name="date" x="302" y="280" width="120" height="40">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Text align="CENTER">
-        <Font family="inter_semibold" size="30" color="#ffebedf2"><Template>%s/%s<Parameter expression="[DAY]"/><Parameter expression="[MONTH]"/></Template></Font>
+        <Font family="saira" size="26" color="#ffebedf2"><Template>%s/%s<Parameter expression="[DAY]"/><Parameter expression="[MONTH]"/></Template></Font>
       </Text>
     </PartText>
 
@@ -46,9 +46,9 @@
         <Transform target="angle" value="-135 + 2.7 * clamp([BATTERY_PERCENT], 0, 100)"/>
         <Image resource="marker"/>
       </PartImage>
-      <PartText name="batText" x="0" y="52" width="152" height="56">
+      <PartText name="batText" x="0" y="60" width="152" height="44">
         <Text align="CENTER">
-          <Font family="inter_semibold" size="44" color="#ffffffff"><Template>%s%%<Parameter expression="[BATTERY_PERCENT]"/></Template></Font>
+          <Font family="saira" size="32" color="#ffffffff"><Template>%s%%<Parameter expression="[BATTERY_PERCENT]"/></Template></Font>
         </Text>
       </PartText>
     </Group>
@@ -66,18 +66,18 @@
               <Transform target="angle" value="-135 + 4.5 * (clamp([WEATHER.TEMPERATURE], -20, 40) + 20)"/>
               <Image resource="marker"/>
             </PartImage>
-            <PartText name="tempText" x="0" y="52" width="152" height="56">
+            <PartText name="tempText" x="0" y="60" width="152" height="44">
               <Text align="CENTER">
-                <Font family="inter_semibold" size="44" color="#ffffffff"><Template>%s°<Parameter expression="[WEATHER.TEMPERATURE]"/></Template></Font>
+                <Font family="saira" size="32" color="#ffffffff"><Template>%s°<Parameter expression="[WEATHER.TEMPERATURE]"/></Template></Font>
               </Text>
             </PartText>
           </Group>
         </Compare>
         <Default>
           <Group name="tempNo" x="0" y="0" width="152" height="152">
-            <PartText name="tempNoText" x="0" y="52" width="152" height="56">
+            <PartText name="tempNoText" x="0" y="60" width="152" height="44">
               <Text align="CENTER">
-                <Font family="inter_semibold" size="44" color="#99ffffff">--°</Font>
+                <Font family="saira" size="32" color="#99ffffff">--°</Font>
               </Text>
             </PartText>
           </Group>
@@ -97,23 +97,23 @@
           <Transform target="angle" value="-135 + 270 * (clamp([COMPLICATION.RANGED_VALUE_VALUE], [COMPLICATION.RANGED_VALUE_MIN], [COMPLICATION.RANGED_VALUE_MAX]) - [COMPLICATION.RANGED_VALUE_MIN]) / ([COMPLICATION.RANGED_VALUE_MAX] - [COMPLICATION.RANGED_VALUE_MIN])"/>
           <Image resource="marker_chata"/>
         </PartImage>
-        <PartText name="chataText" x="0" y="52" width="152" height="56">
+        <PartText name="chataText" x="0" y="60" width="152" height="44">
           <Text align="CENTER">
-            <Font family="inter_semibold" size="44" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+            <Font family="saira" size="32" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
       <Complication type="SHORT_TEXT">
-        <PartText name="chataShort" x="0" y="52" width="152" height="56">
+        <PartText name="chataShort" x="0" y="60" width="152" height="44">
           <Text align="CENTER">
-            <Font family="inter_semibold" size="44" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+            <Font family="saira" size="32" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
     </ComplicationSlot>
 
     <!-- ===== nejbližší východ / západ slunce (nahoře) ===== -->
-    <ComplicationSlot name="sun" slotId="1" displayName="Slunce" x="110" y="72" width="260" height="40"
+    <ComplicationSlot name="sun" slotId="1" displayName="Slunce" x="110" y="80" width="260" height="40"
         supportedTypes="SHORT_TEXT LONG_TEXT" isCustomizable="TRUE">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
       <DefaultProviderPolicy defaultSystemProvider="SUNRISE_SUNSET" defaultSystemProviderType="SHORT_TEXT"
@@ -122,14 +122,14 @@
       <Complication type="SHORT_TEXT">
         <PartText name="sunShort" x="0" y="0" width="260" height="40">
           <Text align="CENTER">
-            <Font family="inter_semibold" size="30" color="#ffe0e8f2"><Template>%s %s<Parameter expression="[COMPLICATION.TITLE]"/><Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+            <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s %s<Parameter expression="[COMPLICATION.TITLE]"/><Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
       <Complication type="LONG_TEXT">
         <PartText name="sunLong" x="0" y="0" width="260" height="40">
           <Text align="CENTER">
-            <Font family="inter_semibold" size="30" color="#ffe0e8f2"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+            <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
@@ -150,7 +150,7 @@
         <Variant mode="AMBIENT" target="alpha" value="255"/>
       </MinuteHand>
       <!-- vteřinovka skáče po vteřině (bez plynulého pohybu = méně překreslování) a v úsporném režimu zmizí -->
-      <SecondHand resource="hand_second" x="226" y="24" width="28" height="432" pivotX="0.5" pivotY="0.5">
+      <SecondHand resource="hand_second" x="223" y="22" width="34" height="436" pivotX="0.5" pivotY="0.5">
         <Variant mode="AMBIENT" target="alpha" value="0"/>
       </SecondHand>
     </AnalogClock>

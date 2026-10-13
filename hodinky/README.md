@@ -28,4 +28,4 @@ Analogový ciferník ve formátu **Watch Face Format** – kreslí ho systém, n
 4. Když se v subdialu CHATA nic neukazuje: podrž ciferník → **Upravit** → levý subdial → **Chata – napětí baterie**; nahoře → **Chata – východ / západ slunce**. Hodinky se můžou zeptat na povolení dat – potvrď.
 
 Grafika: `cifernik/grafika/generuj.py` (Python + pycairo) vykreslí PNG do `cifernik/src/main/res/drawable-nodpi`.
-Písmo Inter (SIL Open Font License).
+Písmo Saira Expanded (statická instance Saira, wdth 125 / wght 600; SIL Open Font License, viz grafika/Saira-OFL.txt).
