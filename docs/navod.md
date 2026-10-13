@@ -19,8 +19,22 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 
 ## 2. Hlavní obrazovka
 
+**Hlavní stránka = verdikt + dlaždice** (od verze 3.11). Podrobnosti, grafy a vysvětlení jsou až po ťuknutí na dlaždici.
+- **Verdikt nahoře**: zeleně *Všechno v pořádku*, oranžově/červeně *1 věc k řešení* a co udělat. Pod ním drobně, co je potřeba řešit **dlouhodobě**. Ťuknutím se otevře detail té věci.
+- **Teď** – věci, na které se reaguje hned (problémové jsou vždy první):
+  - 🔋 **Baterie teď**: napětí a skutečný proud do/z baterie (i s odběrem měniče). Vybíjí se kvůli odběru navíc → *vypni nabíjení zařízení*. Detail: velká karta baterie, bilance, grafy.
+  - 🌙 **Noc**: vydrží do rána? napětí ráno. Detail: předpověď a graf napětí.
+  - ☀️ **Zítra**: výroba podle počasí a jestli dobije. Detail: předpověď na 7 dní.
+  - 🔌 **River**: automatika nabíjení přebytkem. Detail: River a zásuvky Tapo.
+  - ⚡ **Dnes**: vyrobeno, spotřeba a bilance i se ztrátami. Detail: dlaždice s grafy a tabulka po dnech.
+- **Dlouhodobě** – menší dlaždice dole: 🔧 kabely a spoje (otevře návod na měření), ❤️ zdraví baterie, 🔆 panely, 📡 systém (co posílá data + deník).
+- Barevný proužek vlevo: **zelená** v pořádku, **oranžová** pozor, **červená** řešit hned, šedá = zatím bez dat.
+- Dole: Návod · Deník · Nastavení.
+
+Následující popis platí pro obsah **detailů** (původní části stránky):
+
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.10**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.11**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.10", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.11", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -155,6 +155,38 @@ details.sec>.in{margin-top:8px}
 .schem{background:var(--bg);border-radius:12px;padding:8px;margin-top:10px}
 .schem svg{display:block;width:100%;height:auto}
 .schem text{font-size:11px;fill:var(--text)}
+
+/* ===== hlavní stránka s dlaždicemi ===== */
+.verdict{border-radius:20px;padding:16px;display:flex;gap:14px;align-items:center;margin-bottom:4px;border:1px solid var(--line);background:var(--surface);cursor:pointer}
+.verdict .vi{width:46px;height:46px;border-radius:50%;color:#fff;display:grid;place-items:center;font-size:22px;font-weight:800;flex:none;background:var(--vc)}
+.verdict b{font-size:19px;display:block;line-height:1.25}
+.verdict .vs{color:var(--text2);font-size:14px;margin-top:2px}
+.verdict .vl{color:var(--text2);font-size:12.5px;margin-top:4px}
+.verdict{background:color-mix(in srgb,var(--vc) 11%,var(--surface));border-color:color-mix(in srgb,var(--vc) 35%,var(--line))}
+.hh{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 4px 8px;font-weight:700}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(min-width:720px){.hgrid{grid-template-columns:repeat(3,1fr)}.hgrid.small{grid-template-columns:repeat(4,1fr)}}
+.ht{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:13px 13px 12px 15px;position:relative;overflow:hidden;cursor:pointer;min-height:112px;--c:var(--good)}
+.ht:active{transform:scale(.985)}
+.ht.wide{grid-column:1/-1;min-height:0}
+.ht::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c)}
+.ht.warn{--c:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+.ht.bad{--c:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,var(--line))}
+.ht.na{--c:var(--muted)}
+.ht .l{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);font-weight:600;padding-right:14px}
+.ht .go{position:absolute;right:11px;top:10px;color:var(--muted);font-size:17px}
+.ht .v{font-size:27px;font-weight:750;letter-spacing:-.02em;margin:6px 0 2px;font-variant-numeric:tabular-nums;line-height:1.15}
+.ht .v small{font-size:15px;color:var(--text2);font-weight:600;margin-left:2px;letter-spacing:0}
+.ht .v .ar{font-size:20px;margin-left:10px;color:var(--c);white-space:nowrap}
+.ht .st{font-size:13px;font-weight:700;color:var(--c)}
+.ht.ok .st{color:var(--good)}
+.ht .a{font-size:12.5px;color:var(--text2);margin-top:3px}
+.hgrid.small .ht{min-height:0;padding:11px 12px 11px 14px}
+.hgrid.small .ht .v{font-size:21px;margin:4px 0 1px}
+.ht .bar{height:6px;border-radius:3px;background:var(--grid);margin-top:8px;overflow:hidden}.ht .bar div{height:100%;background:var(--c);border-radius:3px}
+#detbody > *{margin-bottom:12px}
+#detbody details.sec>summary{display:none}
+#detbody details.sec>.in{margin-top:0}
 </style>
 </head>
 <body>
@@ -183,7 +215,18 @@ details.sec>.in{margin-top:8px}
     <div style="display:flex;gap:8px;margin-top:8px"><button id="toksave" style="background:var(--text);color:var(--surface);font-weight:600">Uložit a načíst</button><button id="tokcancel">Zrušit</button></div>
   </div>
 
-  <section class="hero">
+  <!-- ===== nová hlavní stránka: verdikt + dlaždice (detail po ťuknutí) ===== -->
+  <section id="home">
+    <div class="verdict" id="verdict"></div>
+    <h2 class="hh">Teď</h2>
+    <div class="hgrid" id="h_now"></div>
+    <h2 class="hh">Dlouhodobě</h2>
+    <div class="hgrid small" id="h_long"></div>
+  </section>
+
+  <!-- původní obsah – zobrazuje se v detailu dlaždic -->
+  <div id="classic" class="hide">
+  <section class="hero" id="heroSec">
     <div class="card">
       <div class="htop">
         <div class="hleft">
@@ -204,7 +247,7 @@ details.sec>.in{margin-top:8px}
 
   <section class="card wcard hide" id="wirecard" role="button" aria-label="Ztráta na kabelech – návod"><div class="ic">🔧</div><div><b id="wc_t"></b><div class="sub" id="wc_s" style="margin-top:3px"></div></div><div class="go">›</div></section>
 
-  <section class="tiles">
+  <section class="tiles" id="tilesSec">
     <div class="card tile" data-tile="bal" role="button" style="grid-column:1/-1" id="t_bal_card"><div class="l">Bilance teď – do baterie / z baterie ›</div>
       <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><div class="v" id="t_bal">–</div><div id="t_bal_s" style="font-weight:600"></div></div><div class="n" id="t_bal_n"></div></div>
     <div class="card tile" data-tile="soc" role="button"><div class="l">Nabití ›</div><div class="v" id="t_soc">–</div><div class="n" id="t_soc_n"></div></div>
@@ -252,7 +295,8 @@ details.sec>.in{margin-top:8px}
     <table><thead><tr><th>Den</th><th>Výroba kWh</th><th>Min V</th><th>Max V</th><th>Min SOC %</th></tr></thead><tbody id="tbl"></tbody></table>
   </div></div></details>
 
-  <div class="foot"><span><span id="cloud"></span><br><span id="vers"></span></span><span><a href="doc.html">📖 Návod</a> · <a href="#" id="openset">⚙ Nastavení</a> · <a href="#" id="logout">Odhlásit</a></span></div>
+  </div>
+  <div class="foot"><span><span id="cloud"></span><br><span id="vers"></span></span><span><a href="doc.html">📖 Návod</a> · <a href="#" id="openlog">📋 Deník</a> · <a href="#" id="openset">⚙ Nastavení</a> · <a href="#" id="logout">Odhlásit</a></span></div>
 </main>
 </div>
 <section class="set hide" id="set" aria-label="Nastavení">
@@ -306,6 +350,12 @@ details.sec>.in{margin-top:8px}
   </div>
   <div class="card" style="margin-top:12px"><ol class="steps" id="wm_steps"></ol>
     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:4px"><span class="sub" id="wm_prog"></span><button id="wm_reset" style="font-size:13px">Vymazat zápis</button></div></div>
+ </div>
+</section>
+<section class="set hide" id="detm" aria-label="Detail">
+ <div class="wrap">
+  <header><div><h1 id="dett" style="font-size:19px">Detail</h1><div class="sub" id="dets"></div></div><button id="detclose" title="Zavřít">✕</button></header>
+  <div id="detbody"></div>
  </div>
 </section>
 <div class="tip" id="tip"></div>
@@ -545,6 +595,7 @@ function render(){
   renderVers(d);
   renderCap(d, days);
   try{ renderWire(d); }catch(e){ console.error(e); }
+  try{ renderHome(d); }catch(e){ console.error("home", e); }
   dotChart($("c_min"), dd, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   $("tbl").innerHTML = days.slice().reverse().slice(0,60).map(k=>{const x=d.days[k];return `<tr><td>${new Date(k).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}</td><td>${nf(x.solar_kwh,2)}</td><td>${nf(x.min_v,2)}</td><td>${nf(x.max_v,2)}</td><td>${x.soc_min!=null&&x.soc_min<999?nf(x.soc_min):"–"}</td></tr>`}).join("") || `<tr><td colspan="5">Zatím žádné dny</td></tr>`;
 }
@@ -898,6 +949,210 @@ $("wirecard").addEventListener("click", openWire);
 $("wirerow").addEventListener("click", openWire);
 $("wireclose").addEventListener("click", ()=>{ $("wirem").classList.add("hide"); document.body.style.overflow=""; });
 
+/* ===================== hlavní stránka: verdikt + dlaždice ===================== */
+let HEALTH = null;
+const hmT = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
+function homeData(d){
+  const last = d.last || {}, pts = d.points || [], lp = pts[pts.length-1] || {};
+  const now = Date.now()/1000, cfg = d.cfg || {}, idle = cfg.menic_vlastni_W ?? 6;
+  const bv = last.bat_v ?? lp.bat_v, status = last.status ?? lp.status, a = last.bat_a ?? lp.bat_a, pv = last.pv_w ?? lp.pv_w;
+  const inv = d.inverter, invF = inv && now - inv.t < 1800;
+  const loadW = invF && inv.mw!=null ? inv.mw/0.88 + idle : null;
+  const net = loadW!=null && bv && a!=null ? a - loadW/bv : null;
+  const day = (d.sun ? now >= d.sun[0] && now < d.sun[1] : (new Date().getHours()>=7 && new Date().getHours()<19)) || ((last.pv_w ?? lp.pv_w) || 0) > 20;
+  const tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
+  const td = (d.days && d.days[tday]) || {}, tpd = td.tp || {};
+  const prod = Math.max(last.day_kwh||0, td.solar_kwh||0);
+  const mip = String(cfg.zasuvka_menic ?? "").trim() || (inv && inv.mip);
+  const mWh = mip!=null && tpd[mip]!=null ? tpd[mip] : null;
+  const hrs = new Date().getHours() + new Date().getMinutes()/60;
+  const dcWh = mWh!=null ? mWh/0.88 + idle*hrs : null;
+  // běžný odběr navíc (lednice + medián „ostatní“) → kolik W je navíc
+  const fr = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.zasuvka_lednice||"")) : null;
+  const onv = Object.keys(d.days||{}).sort().slice(-8).map(k=>d.days[k].on).filter(x=>x!=null).sort((x,y)=>x-y);
+  const onMed = onv.length ? onv[Math.floor(onv.length/2)] : null;
+  const extraW = invF && inv.mw!=null && fr && fr.w!=null && onMed!=null ? Math.max(0, inv.mw - fr.w - onMed) : null;
+  return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW};
+}
+function tileBat(d, h){
+  const t = {k:"bat", wide:true, icon:"🔋", label:"Baterie teď"};
+  if(h.bv==null){ return {...t, cls:"na", v:"–", st:"Bez dat z regulátoru", a:"Zkontroluj Systém"}; }
+  const arrow = h.net==null ? "" : h.net >= 0.3 ? `<span class="ar" style="color:var(--good)">↑ +${nf(h.net,1)} A</span>`
+    : h.net <= -0.3 ? `<span class="ar" style="color:var(${h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.day ? "--crit" : "--text2"})">↓ −${nf(-h.net,1)} A</span>` : `<span class="ar" style="color:var(--text2)">≈ 0 A</span>`;
+  const v = `${nf(h.bv,2)}<small>V</small>${arrow}`;
+  const mode = {1:"Float",2:"Boost",3:"vyrovnávací"}[h.status];
+  const load = h.loadW!=null ? `chata bere ${nf(h.loadW)} W` : "";
+  const panels = h.pv!=null && h.pv>=1 ? `panely ${nf(h.pv)} W` : "";
+  if(h.bv < CRIT_V) return {...t, cls:"bad", v, st:`Pod ${nf(CRIT_V,1)} V – baterie trpí`, a:"Odpoj spotřebiče, přepni chatu na River"};
+  if(h.bv < WARN_V) return {...t, cls:"warn", v, st:"Baterie slábne", a:"Omez spotřebu"};
+  if(h.net!=null && h.net <= -0.3){
+    const ex = h.extraW!=null && h.extraW >= (h.cfg.odber_navic_W ?? 40);
+    if(ex) return {...t, cls: h.net <= -(h.cfg.odber_z_baterie_A ?? 2) ? "bad" : "warn", v, st:`Vybíjí se – odběr ${nf(h.extraW)} W navíc`, a:"Vypni nabíjení zařízení nebo River"};
+    if(h.day && (h.status===1||h.status===2)) return {...t, cls:"warn", v, st:`Vybíjí se – slunce nestačí (${mode})`, a:[panels, load].filter(Boolean).join(" · ")};
+    return {...t, cls:"ok", v, st: h.day ? "Vybíjí se – málo slunce" : "Vybíjí se – běžný noční odběr", a:[panels, load].filter(Boolean).join(" · ") || "Nic nedělej"};
+  }
+  if(h.net!=null && h.net >= 0.3) return {...t, cls:"ok", v, st:`Nabíjí se${mode?` (${mode})`:""}`, a:[panels, load].filter(Boolean).join(" · ")};
+  return {...t, cls:"ok", v, st: h.status===1 ? "Nabito (Float)" : "V klidu", a:[panels, load].filter(Boolean).join(" · ") || "Nic nedělej"};
+}
+function tileNight(d, h){
+  const t = {k:"night", icon:"🌙", label:"Noc"};
+  const f = d.forecast;
+  if(f && f.until && h.now < f.until){
+    if(f.t_off) return {...t, cls:"bad", v:`${hmT(f.t_off)}`, st:"Do rána nevydrží", a:`Měnič se vypne ~${hmT(f.t_off)} – přepni na River`};
+    if(f.t_crit) return {...t, cls:"warn", v:`${nf(f.v_until,2)}<small>V ráno</small>`, st:"Vydrží těsně", a:`Pod ${nf(CRIT_V,1)} V ~${hmT(f.t_crit)} – omez odběr`};
+    return {...t, cls:"ok", v: f.v_until!=null ? `${nf(f.v_until,2)}<small>V ráno</small>` : "OK", st:"Do rána vydrží", a:"Nic nedělej"};
+  }
+  const ol = d.wxo && d.wxo.ol, n = ol && ol.mode !== "zima" ? (ol.days||[])[1] : null;
+  if(n && n.mv!=null){
+    const cls = n.mv < CRIT_V ? "bad" : n.mv < WARN_V ? "warn" : "ok";
+    return {...t, cls, v:`${nf(n.mv,2)}<small>V ráno</small>`, st: cls==="ok" ? "Do rána vydrží" : cls==="warn" ? "Ráno bude baterie slabá" : "Do rána nevydrží", a: cls==="ok" ? "Odhad – přesně po západu" : "Večer omez odběr"};
+  }
+  if(ol && ol.mode === "zima") return {...t, cls:"ok", v:"River", st:"Zimní provoz", a:"Chata v noci jede z River"};
+  return {...t, cls:"na", v:"–", st:"Předpověď po západu", a:""};
+}
+function tileTomorrow(d, h){
+  const t = {k:"wx", icon:"☀️", label:"Zítra"};
+  const w = d.wxo; if(!w || !w.preds) return {...t, cls:"na", v:"–", st:"Bez předpovědi", a:""};
+  const tom = new Date(); tom.setDate(tom.getDate()+1); const tk = tom.toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
+  const p = w.preds.find(x=>x.d===tk) || w.preds[1]; if(!p) return {...t, cls:"na", v:"–", st:"Bez předpovědi", a:""};
+  const ol = w.ol || {}, need = ol.dc_day ? ol.dc_day/1000/0.9 : null;
+  const v = `${nf(p.kwh, p.kwh<1?2:1)}<small>kWh</small>`, txt = (p.txt||"").replace(/^./, c=>c.toUpperCase());
+  if(ol.mode === "zima"){
+    const o = (ol.days||[]).find(x=>x.d===p.d) || {};
+    return {...t, cls:"ok", v, st: o.ok ? `${txt} – jde připojit` : `${txt}`, a: o.ok ? "Přes den chata na solární baterii" : "Chata zůstává na River"};
+  }
+  if(need && p.kwh >= need) return {...t, cls:"ok", v, st:`${txt} – dobije`, a:"Nic nedělej"};
+  if(need && p.kwh >= need*0.6) return {...t, cls:"ok", v, st:`${txt} – skoro stačí`, a:"Nic zvláštního"};
+  return {...t, cls:"warn", v, st:`${txt} – nedobije`, a:"Šetři, případně přepni na River"};
+}
+function tileRiver(d, h){
+  const t = {k:"river", icon:"🔌", label:"River"};
+  const ra = d.river_auto, rv = d.rivers || [];
+  const low = rv.find(r=>r.soc!=null && r.soc <= (h.cfg.river_vymenit_pod ?? 15));
+  const zima = d.wxo && d.wxo.ol && d.wxo.ol.mode === "zima";
+  if(low && zima) return {...t, cls:"warn", v:`${nf(low.soc)}<small>%</small>`, st:`${low.name||"River"} je skoro vybitá`, a:"Vyměň / nabij River"};
+  if(!ra) return {...t, cls:"na", v: rv.length ? `${nf(rv[0].soc)}<small>%</small>` : "–", st:"Automatika vypnutá", a:""};
+  if(ra.on) return {...t, cls:"ok", v:"Nabíjí", st:"Z přebytku slunce", a:"Vypne se, když se baterie začne vybíjet"};
+  const wait = ra.wait && ra.wait > h.now ? `Zkusí znovu po ${hmT(ra.wait)}` : h.day ? "Zapne se, až bude přebytek" : "Zapne se zítra při slunci";
+  return {...t, cls:"ok", v:"Vypnuto", st: h.day ? "Čeká na přebytek slunce" : "Noc – nenabíjí", a: wait};
+}
+function tileToday(d, h){
+  const t = {k:"today", icon:"⚡", label:"Dnes"};
+  const used = h.dcWh!=null ? h.dcWh/1000 : null;
+  const bal = used!=null ? h.prod - used : null;
+  return {...t, cls:"ok", v:`${nf(h.prod,2)}<small>kWh</small>`, st:`Vyrobeno${h.mWh!=null?` · spotřeba ${nf(h.mWh/1000,2)}`:""}`,
+    a: bal!=null ? `Bilance ${bal>=0?"+":"−"}${nf(Math.abs(bal),2)} kWh (i se ztrátami)` : ""};
+}
+function tileWire(d, h){
+  const t = {k:"wire", icon:"🔧", label:"Kabely a spoje"};
+  const w = WIRE;
+  if(!w || w.mo==null) return {...t, cls:"na", v:"–", st: w ? "Málo měření pod zátěží" : "Čeká na data z Victronu", a:""};
+  const v = `${nf(w.R*25,1)}<small>V ztráta</small>`;
+  return {...t, cls: w.lvl===2 ? "bad" : w.lvl===1 ? "warn" : "ok", v, st: w.lvl ? "Proměř spoje (návod)" : "V normě", a:`při 25 A · ${nf(w.mo)} mΩ`};
+}
+function tileHealth(d, h){
+  const t = {k:"health", icon:"❤️", label:"Zdraví baterie"};
+  if(!HEALTH) return {...t, cls:"na", v:"–", st:"Zatím bez měření", a:""};
+  const cls = HEALTH.zone==="dobrá" || HEALTH.zone==="opotřebovaná" ? "ok" : HEALTH.zone==="slabá" ? "warn" : "bad";
+  const st = {dobrá:"Dobrá", opotřebovaná:"Opotřebovaná – slouží", slabá:"Slabá – plánuj náhradu", vyměnit:"Doporučuju výměnu"}[HEALTH.zone];
+  return {...t, cls, v:`${Math.round(HEALTH.cur)}<small>Ah</small>`, st, a:"", bar:HEALTH.pct};
+}
+function tilePanels(d, h){
+  const t = {k:"pan", icon:"🔆", label:"Panely"};
+  const pn = d.wxo && d.wxo.pan; if(!pn) return {...t, cls:"na", v:"–", st:"Bez dat", a:""};
+  const v = `${pn.n}<small>${pn.n===1?"panel":"panely"}</small>`;
+  if(pn.rec==="remove") return {...t, cls:"bad", v, st:"Odpoj druhý panel", a:"Hrozí spálení pojistky"};
+  if(pn.rec==="add") return {...t, cls:"warn", v, st:"Zapoj druhý panel", a:"Jeden už nestačí"};
+  if(pn.rec==="wait") return {...t, cls:"ok", v, st:"Jeden nestačí, druhý ještě ne", a:""};
+  return {...t, cls:"ok", v, st:"Pojistka v pořádku", a:""};
+}
+function tileSystem(d, h){
+  const t = {k:"sys", icon:"📡", label:"Systém"};
+  const probs = [], warns = [];
+  const regAge = d.updated ? (h.now - d.updated)/60 : 9999;
+  if(regAge > 60) probs.push(`regulátor mlčí ${ago(d.updated)}`);
+  if(d.state && d.state.err_n >= 3) probs.push("cloud nejde číst");
+  if(!h.inv || h.now - h.inv.t > 3600) probs.push("Flip (brána) mlčí");
+  else if(h.inv.v==null) warns.push("Victron neposílá");
+  const cmp = (a,b) => { const x=String(a).split(".").map(Number), y=String(b).split(".").map(Number); return (x[0]-y[0]) || ((x[1]||0)-(y[1]||0)); };
+  if(h.inv && (!h.inv.av || cmp(h.inv.av, FLIP_VER) < 0)) warns.push(`nahraj Flip ${FLIP_VER}`);
+  if(d.ver && d.ver !== WEB_VER) warns.push("obnov stránku");
+  if(probs.length) return {...t, cls:"bad", v:`<span style="font-size:18px">Problém</span>`, st: probs[0], a: probs.slice(1).concat(warns).join(" · ")};
+  if(warns.length) return {...t, cls:"warn", v:`<span style="font-size:18px">Skoro vše</span>`, st: warns[0], a: warns.slice(1).join(" · ")};
+  return {...t, cls:"ok", v:`<span style="font-size:18px">Vše běží</span>`, st:"Flip · Victron · cloud", a:""};
+}
+const SEV = {bad:0, warn:1, ok:2, na:3};
+function tileHtml(x){
+  return `<div class="ht ${x.cls}${x.wide?" wide":""}" data-det="${x.k}" role="button"><span class="go">›</span>
+    <div class="l"><span>${x.icon}</span>${x.label}</div><div class="v">${x.v}</div>
+    <div class="st">${x.st||""}</div>${x.a?`<div class="a">${x.a}</div>`:""}${x.bar!=null?`<div class="bar"><div style="width:${Math.max(0,Math.min(100,x.bar))}%"></div></div>`:""}</div>`;
+}
+function renderHome(d){
+  const h = homeData(d);
+  const bat = tileBat(d, h);
+  const now = [tileNight(d,h), tileTomorrow(d,h), tileRiver(d,h), tileToday(d,h)];
+  const lng = [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)];
+  const sortS = a => a.map((x,i)=>[x,i]).sort((p,q)=>(SEV[p[0].cls]-SEV[q[0].cls])||(p[1]-q[1])).map(p=>p[0]);
+  $("h_now").innerHTML = [bat, ...sortS(now)].map(tileHtml).join("");
+  $("h_long").innerHTML = sortS(lng).map(tileHtml).join("");
+  const issues = [bat, ...now].filter(x=>x.cls==="bad"||x.cls==="warn").sort((p,q)=>SEV[p.cls]-SEV[q.cls]);
+  const longIss = lng.filter(x=>x.cls==="bad"||x.cls==="warn");
+  const vEl = $("verdict");
+  let col, ic, title, sub;
+  if(issues.length){
+    const top = issues[0];
+    col = top.cls==="bad" ? "--crit" : "--warn"; ic = "!";
+    title = issues.length===1 ? "1 věc k řešení" : `${issues.length} ${issues.length<5?"věci":"věcí"} k řešení`;
+    sub = `${top.label}: ${top.st}${top.a?` – ${top.a.charAt(0).toLowerCase()+top.a.slice(1)}`:""}.`;
+  } else {
+    col = "--good"; ic = "✓"; title = "Všechno v pořádku";
+    sub = [bat.st, now[0].cls!=="na" ? now[0].st.toLowerCase() : ""].filter(Boolean).join(", ") + ".";
+  }
+  vEl.style.setProperty("--vc", `var(${col})`);
+  vEl.dataset.det = issues.length ? issues[0].k : "bat";
+  vEl.innerHTML = `<div class="vi">${ic}</div><div><b>${title}</b><div class="vs">${sub}</div>${longIss.length?`<div class="vl">Dlouhodobě: ${longIss.map(x=>`${x.label.toLowerCase()} – ${x.st.toLowerCase()}`).join(" · ")}</div>`:""}</div>`;
+}
+
+/* ---------- detail dlaždice: přesune sem původní části stránky a po zavření je vrátí ---------- */
+const DET = {
+  bat:   {t:"🔋 Baterie teď", s:"Napětí, nabíjení, odběr chaty", ids:["heroSec","tilesSec","s_charts"]},
+  night: {t:"🌙 Noc", s:"Předpověď do rána a průběh napětí", ids:["heroSec","s_charts"]},
+  wx:    {t:"☀️ Počasí a výroba", s:"Předpověď na 7 dní", ids:["wxcard"]},
+  river: {t:"🔌 River a zásuvky", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
+  today: {t:"⚡ Dnes", s:"Výroba a spotřeba", ids:["tilesSec","s_tbl"]},
+  health:{t:"❤️ Zdraví baterie", s:"Kapacita AGM baterie a hluboká vybití", ids:["s_health"]},
+  pan:   {t:"🔆 Panely", s:"Kolik panelů zapojit a pojistka", ids:["s_pan"]},
+  sys:   {t:"📡 Systém", s:"Co posílá data a deník událostí", ids:["sysInfo","s_log"]},
+  log:   {t:"📋 Deník", s:"Automatika, upozornění a chyby", ids:["s_log"]},
+};
+let DET_MOVED = [];
+function openDet(k){
+  if(k === "wire"){ openWire(); return; }
+  const c = DET[k]; if(!c) return;
+  closeDetMove();
+  $("dett").textContent = c.t; $("dets").textContent = c.s;
+  const body = $("detbody"); body.innerHTML = "";
+  for(const id of c.ids){
+    let el = $(id);
+    if(id === "riverInfo"){ el = document.createElement("div"); el.className="card"; el.id="riverInfo"; el.innerHTML = $("rauto").innerHTML || "Automatika nabíjení River je vypnutá v nastavení."; body.appendChild(el); continue; }
+    if(id === "sysInfo"){ el = document.createElement("div"); el.className="card"; el.id="sysInfo"; el.innerHTML = `<div>${$("upd").textContent}</div><div class="sub" style="margin-top:4px">${$("cloud").textContent}</div><div class="sub" style="margin-top:4px">${$("vers").innerHTML}</div>`; body.appendChild(el); continue; }
+    if(!el) continue;
+    DET_MOVED.push([el, el.parentNode, el.nextSibling, el.classList.contains("hide")]);
+    if(el.tagName === "DETAILS") el.open = true;
+    if(id === "rivers" && !(DATA.rivers||[]).length) continue;
+    el.classList.remove("hide");
+    body.appendChild(el);
+  }
+  $("detm").classList.remove("hide"); $("detm").scrollTop = 0; document.body.style.overflow = "hidden";
+}
+function closeDetMove(){
+  for(const [el, par, nx, wasHidden] of DET_MOVED.reverse()){ par.insertBefore(el, nx); if(wasHidden) el.classList.add("hide"); }
+  DET_MOVED = [];
+}
+$("home").addEventListener("click", e => { const t = e.target.closest("[data-det]"); if(t) openDet(t.dataset.det); });
+$("detclose").addEventListener("click", () => { closeDetMove(); $("detm").classList.add("hide"); document.body.style.overflow = ""; });
+$("openlog").addEventListener("click", e => { e.preventDefault(); openDet("log"); });
+
 function dayLabel(k){return new Date(k).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"});}
 function barChart(el, dd, key, color, o){
   const p=dd.filter(q=>q[key]!=null); if(!p.length) return empty(el,"Zatím žádné celé dny.");
@@ -930,13 +1185,14 @@ function renderCap(d, days){
   const pct = v => Math.round(v/nom*100);
   if(!rows.length){
     $("hverdict").innerHTML=`<p class="sub">Zatím žádné měření. Odhad se počítá z nocí (pokles napětí při známém odběru) a ze dnů, kdy se baterie nabije do plna. První hodnoty přibudou z historie a z dalších nocí.</p>`;
-    $("c_cap").innerHTML=""; $("hzones").textContent=""; $("hlist").innerHTML=""; $("sum_health").textContent="zatím bez měření"; return;
+    $("c_cap").innerHTML=""; $("hzones").textContent=""; $("hlist").innerHTML=""; $("sum_health").textContent="zatím bez měření"; HEALTH=null; return;
   }
   const now = Date.now(), D = 864e5;
   const recent = rows.filter(q=>q.t>=now-14*D), recentV = med(recent.map(q=>q.v));
   const cur = recentV ?? med(rows.slice(-10).map(q=>q.v));
   const curN = recentV!=null ? recent.length : Math.min(10, rows.length);
   const z = zoneOf(pct(cur));
+  HEALTH = {cur, pct:pct(cur), zone:z[1], c:z[2], nom};
   // srovnání: stejné období loni, jinak začátek sledování
   const ly = rows.filter(q=>q.t>=now-379*D && q.t<=now-351*D);
   let cmp = "";
