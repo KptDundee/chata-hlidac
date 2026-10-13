@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.11", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.12", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -186,6 +186,7 @@ details.sec>.in{margin-top:8px}
 .ht .bar{height:6px;border-radius:3px;background:var(--grid);margin-top:8px;overflow:hidden}.ht .bar div{height:100%;background:var(--c);border-radius:3px}
 #detbody > *{margin-bottom:12px}
 #detbody details.sec>summary{display:none}
+#detbody .chart{margin-bottom:12px}
 #detbody details.sec>.in{margin-top:0}
 </style>
 </head>
@@ -296,7 +297,7 @@ details.sec>.in{margin-top:8px}
   </div></div></details>
 
   </div>
-  <div class="foot"><span><span id="cloud"></span><br><span id="vers"></span></span><span><a href="doc.html">📖 Návod</a> · <a href="#" id="openlog">📋 Deník</a> · <a href="#" id="openset">⚙ Nastavení</a> · <a href="#" id="logout">Odhlásit</a></span></div>
+  <div class="foot"><span><span id="cloud"></span><br><span id="vers"></span></span><span><a href="doc.html">📖 Návod</a> · <a href="#" id="openlog">📋 Deník</a> · <a href="#" id="openall">🗂 Všechny údaje</a> · <a href="#" id="openset">⚙ Nastavení</a> · <a href="#" id="logout">Odhlásit</a></span></div>
 </main>
 </div>
 <section class="set hide" id="set" aria-label="Nastavení">
@@ -1113,45 +1114,126 @@ function renderHome(d){
   vEl.innerHTML = `<div class="vi">${ic}</div><div><b>${title}</b><div class="vs">${sub}</div>${longIss.length?`<div class="vl">Dlouhodobě: ${longIss.map(x=>`${x.label.toLowerCase()} – ${x.st.toLowerCase()}`).join(" · ")}</div>`:""}</div>`;
 }
 
-/* ---------- detail dlaždice: přesune sem původní části stránky a po zavření je vrátí ---------- */
+/* ---------- detail dlaždice: vlastní obsah pro každou dlaždici; delší části se přesunou sem z původní stránky ---------- */
 const DET = {
-  bat:   {t:"🔋 Baterie teď", s:"Napětí, nabíjení, odběr chaty", ids:["heroSec","tilesSec","s_charts"]},
-  night: {t:"🌙 Noc", s:"Předpověď do rána a průběh napětí", ids:["heroSec","s_charts"]},
+  bat:   {t:"🔋 Baterie teď", s:"Stav, tok energie do/z baterie a grafy", build:detBat},
+  night: {t:"🌙 Noc", s:"Vydrží baterie do rána?", build:detNight},
   wx:    {t:"☀️ Počasí a výroba", s:"Předpověď na 7 dní", ids:["wxcard"]},
   river: {t:"🔌 River a zásuvky", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
-  today: {t:"⚡ Dnes", s:"Výroba a spotřeba", ids:["tilesSec","s_tbl"]},
+  today: {t:"⚡ Dnes", s:"Výroba a spotřeba", build:detToday},
   health:{t:"❤️ Zdraví baterie", s:"Kapacita AGM baterie a hluboká vybití", ids:["s_health"]},
   pan:   {t:"🔆 Panely", s:"Kolik panelů zapojit a pojistka", ids:["s_pan"]},
   sys:   {t:"📡 Systém", s:"Co posílá data a deník událostí", ids:["sysInfo","s_log"]},
   log:   {t:"📋 Deník", s:"Automatika, upozornění a chyby", ids:["s_log"]},
+  all:   {t:"🗂 Všechny údaje", s:"Kompletní původní přehled", ids:["heroSec","tilesSec","wxcard","s_plugs","s_pan","s_health","s_charts","s_log","s_tbl"]},
 };
-let DET_MOVED = [];
+let DET_MOVED = [], DET_K = null, DETR = "d";
+const chartCard = (id, h, c) => `<div class="card chart"><h2>${h}</h2><div class="cs">${c||""}</div><div id="${id}"></div></div>`;
+const segHtml = () => `<div class="seg" id="detseg" style="margin-bottom:12px"><button data-r="d" aria-pressed="${DETR==="d"}">Dnes</button><button data-r="48" aria-pressed="${DETR==="48"}">48 h</button><button data-r="168" aria-pressed="${DETR==="168"}">Týden</button></div>`;
+const detHours = () => { if(DETR!=="d") return +DETR; const m=new Date(); m.setHours(0,0,0,0); return Math.max(3,(Date.now()-m.getTime())/3600e3); };
+const rowI = (k, v) => `<div class="row" style="padding:8px 0"><div class="t"><span style="font-size:14px;color:var(--text2)">${k}</span></div><div style="font-weight:600;text-align:right;font-variant-numeric:tabular-nums">${v}</div></div>`;
+function detBat(body){
+  const d = DATA, h = homeData(d), last = d.last || {};
+  const s = batState(h.bv, d.state, h.status, h.net), bt = tileBat(d, h);
+  const balW = h.net!=null && h.bv ? h.net*h.bv : null;
+  const mode = {0:"nenabíjí",1:"Float (udržovací)",2:"Boost (nabíjí)",3:"vyrovnávací"}[h.status] || "–";
+  body.insertAdjacentHTML("beforeend", `<div class="card">
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><div class="bigv" style="font-size:46px">${nf(h.bv,2)}<small>V</small></div>
+      <span class="pill"><i style="background:var(${s.c})">${s.i}</i>${bt.st}</span></div>
+    <div class="advice">${s.a}</div>
+    <div style="margin-top:10px">
+      ${rowI("Do baterie / z baterie teď", balW!=null ? `<span style="color:var(${balW<=-15?"--crit":balW>=15?"--good":"--text"})">${balW>0?"+":""}${nf(balW)} W (${h.net>0?"+":""}${nf(h.net,1)} A)</span>` : "–")}
+      ${rowI("Panely", h.pv!=null ? `${nf(h.pv)} W` : "–")}
+      ${rowI("Regulátor", `${mode}${h.a!=null?` · ${nf(h.a,1)} A do baterie`:""}`)}
+      ${rowI("Chata bere (i se ztrátami měniče)", h.loadW!=null ? `${nf(h.loadW)} W` : "–")}
+      ${rowI("Nabití podle regulátoru", last.bat_soc!=null ? `${nf(last.bat_soc)} %` : "–")}
+    </div>
+    ${$("invsync").classList.contains("hide") ? "" : `<div class="sub" style="margin-top:6px">${$("invsync").innerHTML}</div>`}
+    ${$("gen").classList.contains("hide") ? "" : `<div class="sub" style="margin-top:6px">${$("gen").innerHTML}</div>`}
+  </div>` + segHtml()
+  + chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · regulátor − odběr měniče · pozadí: oranžová Boost, zelená Float")
+  + chartCard("dc_v", "Napětí baterie", `V · čárkovaně ${nf(WARN_V,1)} V (slábne) a ${nf(CRIT_V,1)} V (alarm)`)
+  + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
+  + chartCard("dc_load", "Odběr chaty za měničem", "W · zásuvka „220V měnič“"));
+  const hrs = detHours(), pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), idle = d.cfg?.menic_vlastni_W ?? 6;
+  const bp = pts.map(p=>({t:p.t, status:p.status, b:(p.bat_a!=null && p.mw!=null && p.bat_v) ? Math.round((p.bat_a - (p.mw/0.88+idle)/p.bat_v)*p.bat_v) : null}));
+  lineChart($("dc_bal"), bp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]]});
+  lineChart($("dc_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
+  lineChart($("dc_pv"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
+  lineChart($("dc_load"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
+}
+function detNight(body){
+  const d = DATA, h = homeData(d), nt = tileNight(d, h), f = d.forecast;
+  const fcVis = !$("fc").classList.contains("hide");
+  const ol = d.wxo && d.wxo.ol, nx = ol && ol.mode!=="zima" ? (ol.days||[])[1] : null;
+  body.insertAdjacentHTML("beforeend", `<div class="card">
+    <div style="font-size:22px;font-weight:700;color:var(${nt.cls==="bad"?"--crit":nt.cls==="warn"?"--warn":nt.cls==="ok"?"--good":"--muted"})">${nt.st}</div>
+    ${nt.a?`<div class="advice" style="margin-top:4px">${nt.a}</div>`:""}
+    ${fcVis ? `<div class="fc">${$("fc").innerHTML}</div>` : `<div class="sub" style="margin-top:8px">Přesná předpověď na noc se počítá po západu slunce z nočního odběru a kapacity baterie.${nx&&nx.mv!=null?` Podle počasí a běžné spotřeby čekám ráno ~${nf(nx.mv,2)} V.`:""}</div>`}
+    <div style="margin-top:8px">
+      ${f && f.draw_w!=null ? rowI("Noční odběr z baterie", `~${nf(f.draw_w)} W (${f.ah_night!=null?`~${f.ah_night} Ah za noc`:""})`) : ""}
+      ${f && f.cap ? rowI("Kapacita baterie (odhad)", `~${f.cap} Ah`) : (HEALTH ? rowI("Kapacita baterie (odhad)", `~${Math.round(HEALTH.cur)} Ah`) : "")}
+      ${rowI("Hranice upozornění", `${nf(WARN_V,1)} V slábne · ${nf(CRIT_V,1)} V alarm · ${nf(OFF_V,1)} V měnič se vypne`)}
+    </div></div>`
+  + chartCard("dn_v", "Napětí baterie za 48 h", "V · čárkovaně hranice upozornění")
+  + chartCard("dn_min", "Nejnižší napětí dne", "V · posledních 30 dní (ráno po noci)"));
+  const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
+  lineChart($("dn_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:48,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
+  const days = Object.keys(d.days||{}).sort().slice(-30).map(k=>({k,...d.days[k]}));
+  dotChart($("dn_min"), days, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
+}
+function detToday(body){
+  const d = DATA, h = homeData(d), last = d.last || {};
+  const used = h.dcWh!=null ? h.dcWh/1000 : null, bal = used!=null ? h.prod - used : null;
+  body.insertAdjacentHTML("beforeend", `<div class="card">
+    ${rowI("☀️ Vyrobeno dnes", `<span style="font-size:20px">${nf(h.prod,2)} kWh</span>`)}
+    ${rowI("Měsíc · celkem", last.month_kwh!=null ? `${nf(last.month_kwh,1)} · ${nf(last.total_kwh,0)} kWh` : "–")}
+    ${rowI("🏠 Spotřeba za měničem", h.mWh!=null ? `<span style="font-size:20px">${nf(h.mWh/1000,2)} kWh</span>` : "–")}
+    <div class="sub" style="margin:-2px 0 6px">${$("t_a_n").textContent}</div>
+    ${rowI("Bilance (výroba − odběr z baterie i se ztrátami)", bal!=null ? `<span style="color:var(${bal>=0?"--good":"--crit"})">${bal>=0?"+":"−"}${nf(Math.abs(bal),2)} kWh</span>` : "–")}
+  </div>` + segHtml()
+  + chartCard("dt_prod", "Výroba", "kWh za hodinu (Dnes) / po dnech")
+  + chartCard("dt_cons", "Odběr za měničem", "W · lednice, světla, kamery, wifi, nabíjení River")
+  + chartCard("dt_days", "Výroba po dnech", "kWh · posledních 30 dní"));
+  const hrs = detHours(), pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), D = d.days || {};
+  if(DETR==="d") barChart($("dt_prod"), hourly(pts,"pv_w"), "v", css("--s2"), {unit:"kWh",dec:2,label:x=>x+":00",tip:q=>`${q.k}:00–${q.k+1}:00<br><b>${nf(q.v,2)} kWh</b>`});
+  else barChart($("dt_prod"), Object.keys(D).sort().slice(-Math.round(hrs/24)-1).map(k=>({k, v:D[k].solar_kwh})), "v", css("--s2"), {unit:"kWh",dec:2});
+  lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
+  barChart($("dt_days"), Object.keys(D).sort().slice(-30).map(k=>({k,...D[k]})), "solar_kwh", css("--s2"), {unit:"kWh",dec:2});
+}
 function openDet(k){
   if(k === "wire"){ openWire(); return; }
   const c = DET[k]; if(!c) return;
-  closeDetMove();
+  closeDetMove(); DET_K = k;
   $("dett").textContent = c.t; $("dets").textContent = c.s;
   const body = $("detbody"); body.innerHTML = "";
-  for(const id of c.ids){
-    let el = $(id);
-    if(id === "riverInfo"){ el = document.createElement("div"); el.className="card"; el.id="riverInfo"; el.innerHTML = $("rauto").innerHTML || "Automatika nabíjení River je vypnutá v nastavení."; body.appendChild(el); continue; }
-    if(id === "sysInfo"){ el = document.createElement("div"); el.className="card"; el.id="sysInfo"; el.innerHTML = `<div>${$("upd").textContent}</div><div class="sub" style="margin-top:4px">${$("cloud").textContent}</div><div class="sub" style="margin-top:4px">${$("vers").innerHTML}</div>`; body.appendChild(el); continue; }
-    if(!el) continue;
-    DET_MOVED.push([el, el.parentNode, el.nextSibling, el.classList.contains("hide")]);
-    if(el.tagName === "DETAILS") el.open = true;
+  if(c.build){ c.build(body); if(k==="today") moveIn(body, "s_tbl"); }
+  for(const id of c.ids||[]){
+    if(id === "riverInfo"){ body.insertAdjacentHTML("beforeend", `<div class="card" id="riverInfo">${$("rauto").innerHTML || "Automatika nabíjení River je vypnutá v nastavení."}</div>`); continue; }
+    if(id === "sysInfo"){ body.insertAdjacentHTML("beforeend", `<div class="card" id="sysInfo"><div>${$("upd").textContent}</div><div class="sub" style="margin-top:4px">${$("cloud").textContent}</div><div class="sub" style="margin-top:4px">${$("vers").innerHTML}</div></div>`); continue; }
     if(id === "rivers" && !(DATA.rivers||[]).length) continue;
-    el.classList.remove("hide");
-    body.appendChild(el);
+    moveIn(body, id);
   }
+  if(k === "all") for(const x of body.querySelectorAll("details.sec>summary")) x.style.display = "flex";
   $("detm").classList.remove("hide"); $("detm").scrollTop = 0; document.body.style.overflow = "hidden";
 }
+function moveIn(body, id){
+  const el = $(id); if(!el) return;
+  DET_MOVED.push([el, el.parentNode, el.nextSibling, el.classList.contains("hide")]);
+  if(el.tagName === "DETAILS") el.open = true;
+  el.classList.remove("hide");
+  body.appendChild(el);
+}
 function closeDetMove(){
-  for(const [el, par, nx, wasHidden] of DET_MOVED.reverse()){ par.insertBefore(el, nx); if(wasHidden) el.classList.add("hide"); }
+  for(const [el, par, nx, wasHidden] of DET_MOVED.reverse()){ par.insertBefore(el, nx); if(wasHidden) el.classList.add("hide");
+    for(const x of el.querySelectorAll ? (el.matches("details.sec") ? [el.querySelector("summary")] : []) : []) if(x) x.style.display = ""; }
   DET_MOVED = [];
 }
+$("detbody").addEventListener("click", e => { const b = e.target.closest("#detseg button"); if(!b) return; DETR = b.dataset.r; const k = DET_K; openDet(k); });
 $("home").addEventListener("click", e => { const t = e.target.closest("[data-det]"); if(t) openDet(t.dataset.det); });
-$("detclose").addEventListener("click", () => { closeDetMove(); $("detm").classList.add("hide"); document.body.style.overflow = ""; });
+$("detclose").addEventListener("click", () => { closeDetMove(); DET_K = null; $("detm").classList.add("hide"); document.body.style.overflow = ""; });
 $("openlog").addEventListener("click", e => { e.preventDefault(); openDet("log"); });
+$("openall").addEventListener("click", e => { e.preventDefault(); openDet("all"); });
 
 function dayLabel(k){return new Date(k).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"});}
 function barChart(el, dd, key, color, o){

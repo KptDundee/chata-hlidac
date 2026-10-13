@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.12 – 13. 10. 2026
+- Každá dlaždice otevře jen to, co k ní patří (Baterie, Noc, Dnes mají vlastní přehled a grafy s přepínačem Dnes / 48 h / Týden)
+- Patička: 🗂 Všechny údaje – kompletní původní přehled, aby se nic neztratilo
+
 ## 3.11 – 13. 10. 2026
 - **Nová hlavní stránka**: nahoře verdikt (Všechno v pořádku / 1 věc k řešení + co udělat), pod tím dlaždice Teď (baterie, noc, zítra, River, dnes) a Dlouhodobě (kabely a spoje, zdraví baterie, panely, systém). Problémové dlaždice jsou vždy první, barevný proužek ukazuje stav.
 - Podrobnosti, grafy a vysvětlení se otevřou až po ťuknutí na dlaždici (detail); Deník v patičce
