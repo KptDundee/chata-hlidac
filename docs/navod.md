@@ -20,7 +20,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 ## 2. Hlavní obrazovka
 
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.7**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.8**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.
@@ -40,6 +40,12 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 - **🔌 Nabíjení River zapnuto / vypnuto**: stav automatiky (kap. 5).
 - **🌙 Do rána vydrží / těsně / nevydrží**: předpověď na noc (po západu slunce): napětí teď a odhad k ránu.
 - **Modrý pruh**: nabití podle regulátoru.
+
+### 🔧 Kabely a spoje
+Aplikace porovnává napětí, které ukazuje **regulátor**, s napětím, které měří **měnič Victron**. Každý měří na svých svorkách; když teče proud a někde je špatný spoj (povolená svorka, koroze, držák pojistky, tenký kabel), regulátor vidí víc, než baterie má, a měnič míň. Regulátor si pak myslí, že je baterie nabitá, a nedobije ji.
+- Když je ztráta vyšší než u dobré instalace (odpor kabelů a spojů nad ~10 mΩ, tj. víc než ~0,25 V při 25 A), objeví se pod hlavní kartou **oranžová karta** (nad 20 mΩ červená).
+- Ťuknutím (nebo v sekci *Zdraví baterie → Kabely a spoje*) se otevře **návod krok za krokem**: schéma s měřicími body, kam přiložit multimetr, políčka na zapsání naměřených napětí (aplikace hned spočítá ztrátu a řekne, jestli je v pořádku), co hledat a jak to opravit. Zápis i odškrtnuté kroky si telefon pamatuje.
+- Po opravě karta sama zmizí (bere se medián za poslední 3 dny).
 
 ### Dlaždice (ťuknutím se otevře graf Dnes / Týden)
 - **Bilance teď ›** (přes celou šířku, nahoře): kolik **opravdu** teď jde do baterie (zeleně ↑ nabíjí) nebo z ní (červeně ↓ vybíjí), ve wattech a ampérech. Regulátor nevidí odběr měniče (ten bere přímo z baterie), takže může ukazovat Float/Boost a „nabíjím“, i když se baterie ve skutečnosti vybíjí – tahle dlaždice to říká na rovinu. Pod tím: *regulátor dává X W → chata bere Y W i se ztrátami měniče*. Graf: bilance během dne (nad nulou nabíjí, pod nulou vybíjí, pozadí podle režimu regulátoru), součty za den do baterie / z baterie a napětí.

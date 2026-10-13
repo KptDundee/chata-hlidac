@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.8 – 13. 10. 2026
+- **Kabely a spoje**: porovnání napětí regulátoru a měniče → odhad odporu kabelů a spojů. Při zvýšené ztrátě karta na hlavní stránce (regulátor pak baterii nedobíjí).
+- Ťuknutím **návod krok za krokem**: schéma s měřicími body, políčka pro naměřená napětí s okamžitým vyhodnocením, hledání špatného spoje, oprava, ověření. Odškrtávání kroků.
+
 ## 3.7 – 13. 10. 2026
 - Nová dlaždice **Bilance teď** nahoře přes celou šířku: kolik opravdu jde do baterie / z baterie (i s odběrem měniče, který regulátor nevidí). Když regulátor hlásí Float/Boost, ale baterie se vybíjí, napíše to na rovinu. Ťuknutím graf bilance za den s režimy regulátoru a napětí.
 

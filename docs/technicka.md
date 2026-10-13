@@ -105,6 +105,8 @@ Povel se jednou za hodinu zopakuje; ověřuje se stav zásuvky z brány (do Den�
 ### Odběr z baterie přes den (`overload_check`)
 Od východu + 30 min do západu: čistý proud = `bat_a` − (odběr měniče / 0,88 + 6 W) / U. Běžný odběr = lednice (teď) + noční medián „ostatní“ (8 dní); navíc = měnič − běžný. Pod −`odber_z_baterie_A` (2 A) **a** navíc ≥ `odber_navic_W` (40 W) a River není zapnutá automatikou → notifikace, nejvýš 1× za hodinu. Uloží se `data.net_a`.
 
+**Kabely a spoje (web 3.8)**: body s `bat_v` (regulátor) i `iv` (Victron) za 3 dny; I_reg = max(`bat_a`, 0), I_měnič = (`lw` nebo `mw`)/0,88 + 6 W)/`iv`; ΔU = `bat_v` − `iv`. Offset přístrojů = medián ΔU v bodech bez proudu (I_reg < 0,5 A a I_měnič < 3 A, aspoň 3 body). R = medián (ΔU − offset)/(I_reg + I_měnič) z bodů s proudem ≥ 8 A (aspoň 4, jinak poslední bod při ≥ 5 A). ≥ 10 mΩ = karta oranžově, ≥ 20 mΩ červeně. Počítá se jen ve webu; zápis měření v návodu je v localStorage (`wire_meas`).
+
 **Dlaždice Bilance (web 3.7)**: bilance W = (`bat_a` − (`mw`/0,88 + 6 W)/`bat_v`) × `bat_v`; ±0,5 A = „vyrovnané“. Graf z historie bodů (stejný vzorec po bodech, `modes:true`, referenční čára 0), denní součty kWh kladné/záporné části zvlášť.
 
 ### Ostatní odběr
