@@ -167,10 +167,12 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 - **Komplikace** „Chata – východ / západ slunce“: časy u chaty (počítá se v hodinkách, bez internetu).
 
 ### Ciferník Chata
-Analogový ciferník v leteckém stylu (tmavě modrý sunburst, masivní ručky s luminiscencí, oranžová vteřinovka).
-- **Nahoře po obvodu** (místo číslic 11–12–1) den a datum (*PONDĚLÍ 21/12*), pod tím **↑ východ ↓ západ slunce**.
-- **Subdial vlevo – CHATA**: napětí solární baterie, oranžová ručička na stupnici 11,6–13 V (červená = kritické, oranžová = slabne, zelená = nabitá) a číslo dole. Ťuknutím se otevře aplikace Chata.
-- **Subdial vpravo – HODINKY**: baterie hodinek.
-- **Subdial dole – °C**: teplota v místě, kde jsi (počasí z hodinek). Když hodinky počasí nemají, ukáže *--°*.
-- **Úsporný režim** (zhasnutý displej): černé pozadí, jen obrysy ruček, indexy a napětí chaty – kvůli baterii.
+Analogový ciferník v leteckém stylu (tmavě modrý sunburst, diagonální odlesk sklíčka, masivní ručky s luminiscencí, oranžová vteřinovka). Hodiny ukazují tučné čárky na vnějším věnci.
+- **Nahoře** nejbližší východ nebo západ slunce u chaty: přes den **↓ západ**, v noci **↑ východ**.
+- **Tři stejné subdialy** – po obvodu jezdí trojúhelník (ukazatel), uprostřed velké číslo:
+  - **vlevo nahoře 🏠 chata** – napětí solární baterie (1 desetinné místo), stupnice 11,6–13 V: červená = kritické, oranžová = slabne, zelená = nabitá. Ťuknutím se otevře aplikace Chata.
+  - **vpravo nahoře 🔋 hodinky** – baterie hodinek.
+  - **dole 🌡 teplota** v místě, kde jsi (počasí z hodinek); když hodinky počasí nemají, ukáže *--°*.
+- **Vlevo dole den** (PO, ÚT…), **vpravo dole datum** (21/12).
+- **Úsporný režim** (zhasnutý displej): černé pozadí, jen obrysy ruček, hodinové čárky a napětí chaty – kvůli baterii.
 - Komplikace vlevo a nahoře jdou v editoru ciferníku vyměnit (dlouze podržet → Upravit).

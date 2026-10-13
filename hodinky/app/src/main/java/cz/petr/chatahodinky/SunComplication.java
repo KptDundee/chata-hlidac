@@ -26,7 +26,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * Komplikace: východ a západ slunce u chaty. Počítá se přímo v hodinkách (bez internetu)
  * z polohy chaty, kterou posílá hlídač; než první data dorazí, bere se Praha.
- * Dlouhý text „↑ 6:58   ↓ 18:12“, krátký text = nejbližší událost („↓ 18:12“).
+ * Ukazuje jen nejbližší událost: přes den západ („↓ 18:12“), v noci východ („↑ 6:58“).
  */
 public class SunComplication extends ComplicationDataSourceService {
 
@@ -57,21 +57,19 @@ public class SunComplication extends ComplicationDataSourceService {
         ComplicationText desc = txt("Východ slunce " + r + ", západ " + s);
         PendingIntent tap = PendingIntent.getActivity(this, 1, new Intent(this, MainActivity.class),
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        // jen nejbližší událost: přes den západ, v noci východ
+        String title, t;
+        if (rise != null && now.isBefore(rise)) { title = "↑"; t = r; }
+        else if (set != null && now.isBefore(set)) { title = "↓"; t = s; }
+        else {
+            ZonedDateTime r2 = sun(today.plusDays(1), lat, lon, true, zone);
+            title = "↑"; t = r2 == null ? "–" : r2.format(HM);
+        }
         switch (type) {
             case LONG_TEXT:
-                return new LongTextComplicationData.Builder(txt("↑ " + r + "   ↓ " + s), desc).setTapAction(tap).build();
-            case SHORT_TEXT: {
-                boolean beforeSet = set != null && now.isBefore(set);
-                boolean beforeRise = rise != null && now.isBefore(rise);
-                String title, t;
-                if (beforeRise) { title = "↑"; t = r; }
-                else if (beforeSet) { title = "↓"; t = s; }
-                else {                                          // po západu: zítřejší východ
-                    ZonedDateTime r2 = sun(today.plusDays(1), lat, lon, true, zone);
-                    title = "↑"; t = r2 == null ? "–" : r2.format(HM);
-                }
+                return new LongTextComplicationData.Builder(txt(title + " " + t), desc).setTapAction(tap).build();
+            case SHORT_TEXT:
                 return new ShortTextComplicationData.Builder(txt(t), desc).setTitle(txt(title)).setTapAction(tap).build();
-            }
             default:
                 return null;
         }

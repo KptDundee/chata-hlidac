@@ -2,8 +2,10 @@
 <!--
   Ciferník „Chata“ – Watch Face Format (systém ho kreslí sám, žádný vlastní kód = šetří baterii).
   Plátno 480 × 480, střed 240/240. Grafiku kreslí cifernik/grafika/generuj.py (polohy musí sedět s tímto souborem).
-  Subdialy: vlevo napětí baterie chaty (komplikace z aplikace Chata), vpravo baterie hodinek, dole teplota (počasí systému).
-  Úsporný režim (AMBIENT): černé pozadí, jen obrysy ruček, indexy a napětí chaty; vteřinovka a barvy zhasnou.
+  Tři subdialy (152 × 152): vlevo nahoře napětí chaty (komplikace z aplikace Chata), vpravo nahoře baterie hodinek,
+  dole teplota (počasí systému). Ukazatel = trojúhelník po obvodu (−135° … +135°), uprostřed velké číslo.
+  Nahoře nejbližší východ / západ slunce, vlevo dole den (PO), vpravo dole datum (21/12).
+  Úsporný režim (AMBIENT): černé pozadí, obrysy ruček, hodinové čárky a napětí chaty.
 -->
 <WatchFace width="480" height="480" clipShape="CIRCLE">
   <Metadata key="CLOCK_TYPE" value="ANALOG"/>
@@ -21,55 +23,61 @@
       <Image resource="amb_dial"/>
     </PartImage>
 
-    <!-- ===== datum po obvodu: PONDĚLÍ 21/12 ===== -->
-    <PartText name="date" x="0" y="0" width="480" height="480">
+    <!-- ===== den (vlevo dole) a datum (vpravo dole) ===== -->
+    <PartText name="day" x="64" y="282" width="120" height="40">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
-      <TextCircular centerX="240" centerY="240" width="326" height="326" startAngle="-62" endAngle="62" direction="CLOCKWISE" align="CENTER">
-        <Font family="inter_semibold" size="28" color="#ffebedf2" letterSpacing="0.04">
-          <Upper><Template>%s %s/%s<Parameter expression="[DAY_OF_WEEK_F]"/><Parameter expression="[DAY_Z]"/><Parameter expression="[MONTH_Z]"/></Template></Upper>
+      <Text align="CENTER">
+        <Font family="inter_semibold" size="30" color="#ffebedf2">
+          <Upper><Template>%s<Parameter expression="[DAY_OF_WEEK_S]"/></Template></Upper>
         </Font>
-      </TextCircular>
+      </Text>
+    </PartText>
+    <PartText name="date" x="298" y="282" width="120" height="40">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <Text align="CENTER">
+        <Font family="inter_semibold" size="30" color="#ffebedf2"><Template>%s/%s<Parameter expression="[DAY]"/><Parameter expression="[MONTH]"/></Template></Font>
+      </Text>
     </PartText>
 
-    <!-- ===== baterie hodinek (subdial vpravo) ===== -->
-    <Group name="batSub" x="277" y="183" width="114" height="114">
+    <!-- ===== baterie hodinek (vpravo nahoře) ===== -->
+    <Group name="batSub" x="251" y="114" width="152" height="152">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
-      <PartImage name="batNeedle" x="49" y="11" width="16" height="92" pivotX="0.5" pivotY="0.5">
+      <PartImage name="batMarker" x="0" y="0" width="152" height="152" pivotX="0.5" pivotY="0.5">
         <Transform target="angle" value="-135 + 2.7 * clamp([BATTERY_PERCENT], 0, 100)"/>
-        <Image resource="needle"/>
+        <Image resource="marker"/>
       </PartImage>
-      <PartText name="batText" x="0" y="69" width="114" height="32">
+      <PartText name="batText" x="0" y="52" width="152" height="56">
         <Text align="CENTER">
-          <Font family="inter_semibold" size="26" color="#ffffffff"><Template>%s%%<Parameter expression="[BATTERY_PERCENT]"/></Template></Font>
+          <Font family="inter_semibold" size="44" color="#ffffffff"><Template>%s%%<Parameter expression="[BATTERY_PERCENT]"/></Template></Font>
         </Text>
       </PartText>
     </Group>
 
-    <!-- ===== teplota (subdial dole) – počasí systému ===== -->
-    <Group name="tempSub" x="183" y="283" width="114" height="114">
+    <!-- ===== teplota (dole) – počasí systému ===== -->
+    <Group name="tempSub" x="164" y="264" width="152" height="152">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Condition>
         <Expressions>
           <Expression name="wx"><![CDATA[[WEATHER.IS_AVAILABLE] == 1 && [WEATHER.IS_ERROR] == 0]]></Expression>
         </Expressions>
         <Compare expression="wx">
-          <Group name="tempOk" x="0" y="0" width="114" height="114">
-            <PartImage name="tempNeedle" x="49" y="11" width="16" height="92" pivotX="0.5" pivotY="0.5">
+          <Group name="tempOk" x="0" y="0" width="152" height="152">
+            <PartImage name="tempMarker" x="0" y="0" width="152" height="152" pivotX="0.5" pivotY="0.5">
               <Transform target="angle" value="-135 + 4.5 * (clamp([WEATHER.TEMPERATURE], -20, 40) + 20)"/>
-              <Image resource="needle"/>
+              <Image resource="marker"/>
             </PartImage>
-            <PartText name="tempText" x="0" y="69" width="114" height="32">
+            <PartText name="tempText" x="0" y="52" width="152" height="56">
               <Text align="CENTER">
-                <Font family="inter_semibold" size="26" color="#ffffffff"><Template>%s°<Parameter expression="[WEATHER.TEMPERATURE]"/></Template></Font>
+                <Font family="inter_semibold" size="44" color="#ffffffff"><Template>%s°<Parameter expression="[WEATHER.TEMPERATURE]"/></Template></Font>
               </Text>
             </PartText>
           </Group>
         </Compare>
         <Default>
-          <Group name="tempNo" x="0" y="0" width="114" height="114">
-            <PartText name="tempNoText" x="0" y="69" width="114" height="32">
+          <Group name="tempNo" x="0" y="0" width="152" height="152">
+            <PartText name="tempNoText" x="0" y="52" width="152" height="56">
               <Text align="CENTER">
-                <Font family="inter_semibold" size="26" color="#99ffffff">--°</Font>
+                <Font family="inter_semibold" size="44" color="#99ffffff">--°</Font>
               </Text>
             </PartText>
           </Group>
@@ -77,53 +85,51 @@
       </Condition>
     </Group>
 
-    <!-- ===== CHATA: napětí solární baterie (subdial vlevo, komplikace z aplikace Chata) ===== -->
-    <ComplicationSlot name="chata" slotId="0" displayName="Chata – baterie" x="89" y="183" width="114" height="114"
+    <!-- ===== CHATA: napětí solární baterie (vlevo nahoře, komplikace z aplikace Chata) ===== -->
+    <ComplicationSlot name="chata" slotId="0" displayName="Chata – baterie" x="77" y="114" width="152" height="152"
         supportedTypes="RANGED_VALUE SHORT_TEXT" isCustomizable="TRUE">
       <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="SHORT_TEXT"
           primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.VoltComplication" primaryProviderType="RANGED_VALUE"/>
-      <BoundingOval x="0" y="0" width="114" height="114"/>
+      <BoundingOval x="0" y="0" width="152" height="152"/>
       <Complication type="RANGED_VALUE">
-        <PartImage name="chataNeedle" x="49" y="11" width="16" height="92" pivotX="0.5" pivotY="0.5">
+        <PartImage name="chataMarker" x="0" y="0" width="152" height="152" pivotX="0.5" pivotY="0.5">
           <Variant mode="AMBIENT" target="alpha" value="0"/>
           <Transform target="angle" value="-135 + 270 * (clamp([COMPLICATION.RANGED_VALUE_VALUE], [COMPLICATION.RANGED_VALUE_MIN], [COMPLICATION.RANGED_VALUE_MAX]) - [COMPLICATION.RANGED_VALUE_MIN]) / ([COMPLICATION.RANGED_VALUE_MAX] - [COMPLICATION.RANGED_VALUE_MIN])"/>
-          <Image resource="needle_chata"/>
+          <Image resource="marker_chata"/>
         </PartImage>
-        <PartText name="chataText" x="0" y="69" width="114" height="32">
-          <Variant mode="AMBIENT" target="y" value="47"/>
+        <PartText name="chataText" x="0" y="52" width="152" height="56">
           <Text align="CENTER">
-            <Font family="inter_semibold" size="26" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+            <Font family="inter_semibold" size="44" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
       <Complication type="SHORT_TEXT">
-        <PartText name="chataShort" x="0" y="69" width="114" height="32">
-          <Variant mode="AMBIENT" target="y" value="47"/>
+        <PartText name="chataShort" x="0" y="52" width="152" height="56">
           <Text align="CENTER">
-            <Font family="inter_semibold" size="26" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+            <Font family="inter_semibold" size="44" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
     </ComplicationSlot>
 
-    <!-- ===== východ / západ slunce (komplikace z aplikace Chata; náhradně systémová) ===== -->
-    <ComplicationSlot name="sun" slotId="1" displayName="Slunce" x="100" y="111" width="280" height="34"
-        supportedTypes="LONG_TEXT SHORT_TEXT" isCustomizable="TRUE">
+    <!-- ===== nejbližší východ / západ slunce (nahoře) ===== -->
+    <ComplicationSlot name="sun" slotId="1" displayName="Slunce" x="110" y="72" width="260" height="40"
+        supportedTypes="SHORT_TEXT LONG_TEXT" isCustomizable="TRUE">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
       <DefaultProviderPolicy defaultSystemProvider="SUNRISE_SUNSET" defaultSystemProviderType="SHORT_TEXT"
-          primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.SunComplication" primaryProviderType="LONG_TEXT"/>
-      <BoundingBox x="0" y="0" width="280" height="34"/>
-      <Complication type="LONG_TEXT">
-        <PartText name="sunLong" x="0" y="0" width="280" height="34">
+          primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.SunComplication" primaryProviderType="SHORT_TEXT"/>
+      <BoundingBox x="0" y="0" width="260" height="40"/>
+      <Complication type="SHORT_TEXT">
+        <PartText name="sunShort" x="0" y="0" width="260" height="40">
           <Text align="CENTER">
-            <Font family="inter_semibold" size="26" color="#ffd9e0ec"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+            <Font family="inter_semibold" size="30" color="#ffe0e8f2"><Template>%s %s<Parameter expression="[COMPLICATION.TITLE]"/><Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
-      <Complication type="SHORT_TEXT">
-        <PartText name="sunShort" x="0" y="0" width="280" height="34">
+      <Complication type="LONG_TEXT">
+        <PartText name="sunLong" x="0" y="0" width="260" height="40">
           <Text align="CENTER">
-            <Font family="inter_semibold" size="26" color="#ffd9e0ec"><Template>%s %s<Parameter expression="[COMPLICATION.TITLE]"/><Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+            <Font family="inter_semibold" size="30" color="#ffe0e8f2"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
@@ -153,6 +159,12 @@
     <PartImage name="ambCap" x="228" y="228" width="24" height="24" alpha="0">
       <Variant mode="AMBIENT" target="alpha" value="255"/>
       <Image resource="cap"/>
+    </PartImage>
+
+    <!-- diagonální odlesk sklíčka (nad vším) -->
+    <PartImage name="glare" x="0" y="0" width="480" height="480">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <Image resource="glare"/>
     </PartImage>
   </Scene>
 </WatchFace>

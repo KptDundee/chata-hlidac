@@ -12,10 +12,18 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "mai
 S, C = 480, 240
 FONT = "Inter Display"
 
-# polohy subdialů (střed x, y) a poloměr
-SUB_R = 57
-SUBS = {"chata": (146, 240), "bat": (334, 240), "temp": (240, 340)}
-SWEEP = 135          # ručička subdialu: −135° … +135° (270°)
+# tři stejné subdialy do trojúhelníku (vlevo nahoře, vpravo nahoře, dole)
+SUB_D, SUB_R = 100, 76
+SUBS = {"chata": (C - SUB_D * math.sin(math.radians(60)), C - SUB_D / 2),
+        "bat": (C + SUB_D * math.sin(math.radians(60)), C - SUB_D / 2),
+        "temp": (C, C + SUB_D)}
+SWEEP = 135          # ukazatel subdialu: −135° … +135° (270°), dole mezera
+MARK_R = SUB_R - 14  # poloměr špičky trojúhelníku
+
+# texty – stejné polohy používá watchface.xml
+SUN_Y, SUN_SIZE = 92, 30                 # nejbližší východ / západ, nahoře
+DAY_POS, DATE_POS, DD_SIZE = (124, 302), (358, 302), 30   # den vlevo dole, datum vpravo dole
+NUM_SIZE = 44                            # číslo uprostřed subdialu
 
 # barvy
 LUME = (0.93, 0.91, 0.82)
@@ -73,11 +81,45 @@ def blur_shadow(src, radius=4, alpha=0.6, dx=0, dy=0):
 
 
 # ---------------------------------------------------------------- ciferník
+
+
+# ---------------------------------------------------------------- ikonky
+def icon_house(cr, x, y, s, col):
+    cr.save(); cr.translate(x, y); cr.scale(s / 24, s / 24)
+    cr.move_to(-12, -1); cr.line_to(0, -12); cr.line_to(12, -1)
+    cr.set_line_width(2.6); cr.set_line_join(cairo.LINE_JOIN_ROUND); cr.set_line_cap(cairo.LINE_CAP_ROUND)
+    cr.set_source_rgb(*col); cr.stroke()
+    cr.rectangle(-8, -3, 16, 13); cr.fill()
+    cr.set_source_rgba(0, 0, 0, 0.55); cr.rectangle(-2.5, 3, 5, 7); cr.fill()
+    cr.restore()
+
+
+def icon_battery(cr, x, y, s, col):
+    cr.save(); cr.translate(x, y); cr.scale(s / 24, s / 24)
+    rr(cr, -12, -7, 21, 14, 2.5); cr.set_line_width(2.2); cr.set_source_rgb(*col); cr.stroke()
+    cr.rectangle(9.5, -3, 3, 6); cr.fill()
+    cr.move_to(1, -6); cr.line_to(-5, 1); cr.line_to(-0.5, 1); cr.line_to(-2, 6); cr.line_to(4, -1); cr.line_to(-0.5, -1); cr.close_path()
+    cr.fill()
+    cr.restore()
+
+
+def icon_thermo(cr, x, y, s, col):
+    cr.save(); cr.translate(x, y); cr.scale(s / 24, s / 24)
+    cr.set_source_rgb(*col); cr.set_line_width(2.2)
+    rr(cr, -3.5, -12, 7, 16, 3.5); cr.stroke()
+    cr.arc(0, 7, 5.5, 0, 2 * math.pi); cr.fill()
+    cr.rectangle(-1.3, -6, 2.6, 10); cr.fill()
+    cr.restore()
+
+
+ICONS = {"chata": icon_house, "bat": icon_battery, "temp": icon_thermo}
+
+
+# ---------------------------------------------------------------- ciferník
 def dial():
     s, cr = new()
     cr.arc(C, C, C, 0, 2 * math.pi)
     cr.clip()
-    # základ: hluboká modrá, světlejší střed
     g = cairo.RadialGradient(C - 30, C - 40, 10, C, C, C)
     g.add_color_stop_rgb(0, *rgb("#1d4f8c"))
     g.add_color_stop_rgb(0.45, *rgb("#103463"))
@@ -85,102 +127,157 @@ def dial():
     g.add_color_stop_rgb(1, *rgb("#040d1c"))
     cr.set_source(g)
     cr.paint()
-    # sunburst – jemné paprsky
-    for i in range(720):
+    for i in range(720):                       # sunburst
         a0 = math.radians(i * 0.5)
         a1 = math.radians(i * 0.5 + 0.25)
         cr.move_to(C, C)
         cr.arc(C, C, C, a0, a1)
         cr.close_path()
-        light = (math.sin(a0 * 2 + 0.6) + 1) / 2          # dvě světlé „odlesky“ jako u kovu
+        light = (math.sin(a0 * 2 + 0.6) + 1) / 2
         cr.set_source_rgba(1, 1, 1, 0.018 + 0.05 * light ** 3)
         cr.fill()
-    # odlesk přes ciferník
-    g = cairo.LinearGradient(0, 0, S, S)
-    g.add_color_stop_rgba(0, 1, 1, 1, 0.07)
-    g.add_color_stop_rgba(0.5, 1, 1, 1, 0.0)
-    g.add_color_stop_rgba(1, 0, 0, 0, 0.18)
-    cr.set_source(g)
-    cr.paint()
 
-    # rehaut (šikmý vnější kroužek) s minutovou stupnicí
-    cr.set_line_width(26)
+    # vnější věnec: minuty, hodiny tučně se svítící hmotou
+    cr.set_line_width(30)
     g = cairo.LinearGradient(0, 0, 0, S)
     g.add_color_stop_rgb(0, *rgb("#0a1e3a"))
     g.add_color_stop_rgb(1, *rgb("#030a15"))
     cr.set_source(g)
-    cr.arc(C, C, 227, 0, 2 * math.pi)
+    cr.arc(C, C, 225, 0, 2 * math.pi)
     cr.stroke()
     cr.set_line_width(1.2)
-    cr.set_source_rgba(1, 1, 1, 0.25)
-    cr.arc(C, C, 213.5, 0, 2 * math.pi)
+    cr.set_source_rgba(1, 1, 1, 0.22)
+    cr.arc(C, C, 209.5, 0, 2 * math.pi)
     cr.stroke()
-    for i in range(240):                       # čtvrtsekundy
+    for i in range(240):
         if i % 4 == 0:
             continue
-        x0, y0 = polar(C, C, 228, i * 1.5)
-        x1, y1 = polar(C, C, 233, i * 1.5)
-        cr.set_source_rgba(1, 1, 1, 0.35)
+        x0, y0 = polar(C, C, 229, i * 1.5)
+        x1, y1 = polar(C, C, 234, i * 1.5)
+        cr.set_source_rgba(1, 1, 1, 0.3)
         cr.set_line_width(0.8)
-        cr.move_to(x0, y0)
-        cr.line_to(x1, y1)
-        cr.stroke()
+        cr.move_to(x0, y0); cr.line_to(x1, y1); cr.stroke()
     for i in range(60):
-        big = i % 5 == 0
-        x0, y0 = polar(C, C, 216 if big else 221, i * 6)
-        x1, y1 = polar(C, C, 235, i * 6)
-        cr.set_source_rgba(1, 1, 1, 0.95 if big else 0.75)
-        cr.set_line_width(3 if big else 1.6)
-        cr.move_to(x0, y0)
-        cr.line_to(x1, y1)
-        cr.stroke()
-
-    # aplikované indexy (ocel + luminiscence) se stínem
-    idx, ci = new()
-    for h in range(12):
-        deg = h * 30
-        offs = [-6.5, 6.5] if h == 0 else [0]
-        for o in offs:
-            ci.save()
-            ci.translate(C, C)
-            ci.rotate(math.radians(deg))
-            ci.translate(o, 0)
-            w, r0, r1 = (9, -211, -186) if h != 0 else (8, -211, -184)
-            rr(ci, -w / 2, r0, w, r1 - r0, 2)
-            g = cairo.LinearGradient(-w / 2, 0, w / 2, 0)
-            g.add_color_stop_rgb(0, 0.95, 0.96, 0.98)
-            g.add_color_stop_rgb(0.5, 0.62, 0.65, 0.70)
-            g.add_color_stop_rgb(1, 0.35, 0.37, 0.42)
-            ci.set_source(g)
-            ci.fill()
-            rr(ci, -w / 2 + 2, r0 + 2, w - 4, r1 - r0 - 4, 1)
-            ci.set_source_rgb(*LUME)
-            ci.fill()
-            ci.restore()
-    cr.set_source_surface(blur_shadow(idx, 3, 0.7, 1, 2), 0, 0)
-    cr.paint()
-    cr.set_source_surface(idx, 0, 0)
-    cr.paint()
-
-    # číslice
-    for h in range(1, 13):
-        if h in (3, 6, 9, 11, 12, 1):          # místo nich subdialy a nahoře datum
+        if i % 5 == 0:
             continue
-        x, y = polar(C, C, 160, h * 30)
-        text(cr, str(h), x + 1, y + 2, 36, (0, 0, 0), alpha=0.45)
-        text(cr, str(h), x, y, 36, (0.96, 0.96, 0.94))
+        x0, y0 = polar(C, C, 220, i * 6)
+        x1, y1 = polar(C, C, 236, i * 6)
+        cr.set_source_rgba(1, 1, 1, 0.8)
+        cr.set_line_width(1.8)
+        cr.move_to(x0, y0); cr.line_to(x1, y1); cr.stroke()
+    idx, ci = new()
+    for h in range(12):                         # hodinové čárky – tučné, ocel + luminiscence
+        ci.save()
+        ci.translate(C, C)
+        ci.rotate(math.radians(h * 30))
+        w = 10 if h else 13
+        rr(ci, -w / 2, -237, w, 27, 2)
+        g = cairo.LinearGradient(-w / 2, 0, w / 2, 0)
+        g.add_color_stop_rgb(0, 0.95, 0.96, 0.98)
+        g.add_color_stop_rgb(0.5, 0.62, 0.65, 0.70)
+        g.add_color_stop_rgb(1, 0.35, 0.37, 0.42)
+        ci.set_source(g); ci.fill()
+        rr(ci, -w / 2 + 2.2, -235, w - 4.4, 23, 1)
+        ci.set_source_rgb(*LUME); ci.fill()
+        ci.restore()
+    cr.set_source_surface(blur_shadow(idx, 3, 0.7, 1, 2), 0, 0); cr.paint()
+    cr.set_source_surface(idx, 0, 0); cr.paint()
 
-    # subdialy
-    subdial(cr, *SUBS["chata"], kind="chata")
-    subdial(cr, *SUBS["bat"], kind="bat")
-    subdial(cr, *SUBS["temp"], kind="temp")
+    for k in SUBS:
+        subdial(cr, *SUBS[k], kind=k)
 
-    # vnitřní stín u okraje (hloubka pod sklíčkem)
-    g = cairo.RadialGradient(C, C, 200, C, C, C)
+    g = cairo.RadialGradient(C, C, 200, C, C, C)    # stín u okraje
     g.add_color_stop_rgba(0, 0, 0, 0, 0)
     g.add_color_stop_rgba(1, 0, 0, 0, 0.55)
     cr.set_source(g)
     cr.paint()
+    return s
+
+
+ZONES = {"chata": (11.6, 13.0, [(11.6, 12.0, "#ff4b3e"), (12.0, 12.2, "#ffb020"), (12.6, 13.0, "#3ddc84")], 0.1, 0.5),
+         "bat": (0, 100, [(0, 15, "#ff4b3e")], 5, 25),
+         "temp": (-20, 40, [(-20, 0, "#4aa8ff")], 5, 10)}
+
+
+def subdial(cr, cx, cy, kind):
+    R = SUB_R
+    g = cairo.RadialGradient(cx, cy - 12, 5, cx, cy, R)
+    g.add_color_stop_rgb(0, *rgb("#0e2c56"))
+    g.add_color_stop_rgb(1, *rgb("#05122a"))
+    cr.arc(cx, cy, R, 0, 2 * math.pi); cr.set_source(g); cr.fill()
+    for r in range(3, R, 2):                    # azuráž
+        cr.arc(cx, cy, r, 0, 2 * math.pi)
+        cr.set_source_rgba(1, 1, 1, 0.045 if r % 4 == 1 else 0.0)
+        cr.set_line_width(1); cr.stroke()
+    g = cairo.LinearGradient(cx, cy - R, cx, cy + R)  # zapuštění
+    g.add_color_stop_rgba(0, 0, 0, 0, 0.5)
+    g.add_color_stop_rgba(0.3, 0, 0, 0, 0)
+    cr.arc(cx, cy, R, 0, 2 * math.pi); cr.set_source(g); cr.fill()
+    g = cairo.LinearGradient(cx - R, cy - R, cx + R, cy + R)   # ocelový okraj
+    g.add_color_stop_rgb(0, 0.92, 0.93, 0.95)
+    g.add_color_stop_rgb(0.5, 0.55, 0.58, 0.64)
+    g.add_color_stop_rgb(1, 0.25, 0.27, 0.31)
+    cr.set_source(g); cr.set_line_width(3.5)
+    cr.arc(cx, cy, R + 0.5, 0, 2 * math.pi); cr.stroke()
+    lo, hi, zones, step, major = ZONES[kind]
+    for a, b, col in zones:
+        cr.set_line_width(4)
+        cr.set_source_rgba(*rgb(col), 0.95)
+        arc_deg(cr, cx, cy, R - 6, val_deg(a, lo, hi), val_deg(b, lo, hi)); cr.stroke()
+    n = int(round((hi - lo) / step))
+    for i in range(n + 1):
+        v = lo + i * step
+        d = val_deg(v, lo, hi)
+        mj = abs((v - lo) / major - round((v - lo) / major)) < 1e-6
+        x0, y0 = polar(cx, cy, R - (14 if mj else 11), d)
+        x1, y1 = polar(cx, cy, R - 4, d)
+        cr.set_source_rgba(1, 1, 1, 0.95 if mj else 0.55)
+        cr.set_line_width(2 if mj else 1)
+        cr.move_to(x0, y0); cr.line_to(x1, y1); cr.stroke()
+    ICONS[kind](cr, cx, cy - 33, 24, (0.82, 0.86, 0.92))
+
+
+def marker(color):
+    """Trojúhelník, který jezdí po obvodu subdialu (místo ručičky). Obrázek 2R × 2R, otáčí se kolem středu."""
+    W = 2 * SUB_R
+    body, cr = new(W, W)
+    c = SUB_R
+    tip = c - MARK_R
+    cr.move_to(c, tip)
+    cr.line_to(c + 10, tip + 18)
+    cr.line_to(c - 10, tip + 18)
+    cr.close_path()
+    g = cairo.LinearGradient(c - 7, 0, c + 7, 0)
+    g.add_color_stop_rgb(0, *[min(1, x * 1.15) for x in color])
+    g.add_color_stop_rgb(0.5, *color)
+    g.add_color_stop_rgb(1, *[x * 0.65 for x in color])
+    cr.set_source(g)
+    cr.fill()
+    out, co = new(W, W)
+    co.set_source_surface(blur_shadow(body, 2, 0.9), 0, 0); co.paint()
+    co.set_source_surface(body, 0, 0); co.paint()
+    return out
+
+
+def glare():
+    """Diagonální odlesk sklíčka (kreslí se nad ručkami, v úsporném režimu zmizí)."""
+    s, cr = new()
+    cr.arc(C, C, C, 0, 2 * math.pi)
+    cr.clip()
+    cr.save()
+    cr.translate(C, C)
+    cr.rotate(math.radians(-38))
+    g = cairo.LinearGradient(0, -C, 0, C)
+    g.add_color_stop_rgba(0.00, 1, 1, 1, 0.0)
+    g.add_color_stop_rgba(0.18, 1, 1, 1, 0.0)
+    g.add_color_stop_rgba(0.30, 1, 1, 1, 0.16)
+    g.add_color_stop_rgba(0.44, 1, 1, 1, 0.05)
+    g.add_color_stop_rgba(0.47, 1, 1, 1, 0.0)
+    g.add_color_stop_rgba(1.00, 1, 1, 1, 0.0)
+    cr.set_source(g)
+    cr.rectangle(-S, -S, 2 * S, 2 * S)
+    cr.fill()
+    cr.restore()
     return s
 
 
@@ -203,81 +300,8 @@ def arc_deg(cr, cx, cy, r, d0, d1):
     cr.arc(cx, cy, r, math.radians(d0 - 90), math.radians(d1 - 90))
 
 
-def subdial(cr, cx, cy, kind):
-    R = SUB_R
-    # zapuštění: tmavší kruh se stínem
-    g = cairo.RadialGradient(cx, cy - 10, 5, cx, cy, R)
-    g.add_color_stop_rgb(0, *rgb("#0d2a52"))
-    g.add_color_stop_rgb(1, *rgb("#06152b"))
-    cr.arc(cx, cy, R, 0, 2 * math.pi)
-    cr.set_source(g)
-    cr.fill()
-    # azuráž (soustředné kroužky)
-    for r in range(3, R, 2):
-        cr.arc(cx, cy, r, 0, 2 * math.pi)
-        cr.set_source_rgba(1, 1, 1, 0.045 if r % 4 == 1 else 0.0)
-        cr.set_line_width(1)
-        cr.stroke()
-    # vnitřní stín nahoře (zapuštěno)
-    g = cairo.LinearGradient(cx, cy - R, cx, cy + R)
-    g.add_color_stop_rgba(0, 0, 0, 0, 0.45)
-    g.add_color_stop_rgba(0.35, 0, 0, 0, 0)
-    cr.arc(cx, cy, R, 0, 2 * math.pi)
-    cr.set_source(g)
-    cr.fill()
-    # ocelový okraj
-    g = cairo.LinearGradient(cx - R, cy - R, cx + R, cy + R)
-    g.add_color_stop_rgb(0, 0.92, 0.93, 0.95)
-    g.add_color_stop_rgb(0.5, 0.55, 0.58, 0.64)
-    g.add_color_stop_rgb(1, 0.25, 0.27, 0.31)
-    cr.set_source(g)
-    cr.set_line_width(3)
-    cr.arc(cx, cy, R + 0.5, 0, 2 * math.pi)
-    cr.stroke()
-
-    if kind == "chata":
-        lo, hi = 11.6, 13.0
-        zones = [(11.6, 12.0, rgb("#ff4b3e")), (12.0, 12.2, rgb("#ffb020")), (12.6, 13.0, rgb("#3ddc84"))]
-        minor = [lo + i * 0.1 for i in range(15)]
-        major = [11.6, 12.0, 12.5, 13.0]
-        labels = {}
-        title = "CHATA"
-    elif kind == "bat":
-        lo, hi = 0, 100
-        zones = [(0, 15, rgb("#ff4b3e"))]
-        minor = list(range(0, 101, 5))
-        major = [0, 25, 50, 75, 100]
-        labels = {}
-        title = "HODINKY"
-    else:
-        lo, hi = -20, 40
-        zones = [(-20, 0, rgb("#4aa8ff"))]
-        minor = list(range(-20, 41, 5))
-        major = [-20, 0, 20, 40]
-        labels = {}
-        title = "°C"
-    for a, b, col in zones:
-        cr.set_line_width(3.2)
-        cr.set_source_rgba(*col, 0.95)
-        arc_deg(cr, cx, cy, R - 6, val_deg(a, lo, hi), val_deg(b, lo, hi))
-        cr.stroke()
-    for v in minor:
-        d = val_deg(v, lo, hi)
-        mj = any(abs(v - m) < 1e-6 for m in major)
-        x0, y0 = polar(cx, cy, R - (13 if mj else 10), d)
-        x1, y1 = polar(cx, cy, R - 4, d)
-        cr.set_source_rgba(1, 1, 1, 0.95 if mj else 0.6)
-        cr.set_line_width(1.8 if mj else 0.9)
-        cr.move_to(x0, y0)
-        cr.line_to(x1, y1)
-        cr.stroke()
-    for v, t in labels.items():
-        x, y = polar(cx, cy, R - 26, val_deg(v, lo, hi))
-        text(cr, t, x, y, 10, (0.9, 0.92, 0.95), weight=cairo.FONT_WEIGHT_BOLD)
-    text(cr, title, cx, cy - 25, 13, (0.82, 0.86, 0.92), spacing=1.0)
 
 
-# ---------------------------------------------------------------- ručky
 def hand(length, width, tail, lume=True, color=None, name=""):
     """Masivní mečová ručka: fazetovaná ocel (světlá / tmavá polovina) + luminiscenční vložka.
     Obrázek má výšku 2*length, osa otáčení je přesně uprostřed."""
@@ -398,30 +422,6 @@ def cap():
     return s
 
 
-def sub_needle(length=44, color=(0.95, 0.96, 0.98), name=""):
-    W, H = 16, int(2 * length + 4)
-    cx, cy = W / 2, H / 2
-    body, cr = new(W, H)
-    cr.move_to(cx, cy - length)
-    cr.line_to(cx + 2.4, cy - 4)
-    cr.line_to(cx + 2.4, cy + 10)
-    cr.line_to(cx - 2.4, cy + 10)
-    cr.line_to(cx - 2.4, cy - 4)
-    cr.close_path()
-    cr.set_source_rgb(*color)
-    cr.fill()
-    cr.set_source_rgb(*color)
-    cr.arc(cx, cy, 4.5, 0, 2 * math.pi)
-    cr.fill()
-    cr.set_source_rgb(0.2, 0.22, 0.26)
-    cr.arc(cx, cy, 1.6, 0, 2 * math.pi)
-    cr.fill()
-    out, co = new(W, H)
-    co.set_source_surface(blur_shadow(body, 2, 0.8), 0, 0)
-    co.paint()
-    co.set_source_surface(body, 0, 0)
-    co.paint()
-    return out, W, H
 
 
 # ---------------------------------------------------------------- ambient (úsporný režim: skoro vše černé)
@@ -430,20 +430,16 @@ def amb_dial():
     cr.set_source_rgb(0, 0, 0)
     cr.paint()
     for h in range(12):
-        x0, y0 = polar(C, C, 212, h * 30)
-        x1, y1 = polar(C, C, 196 if h % 3 else 188, h * 30)
-        cr.set_source_rgba(0.75, 0.75, 0.75, 1)
-        cr.set_line_width(2 if h % 3 else 3)
-        cr.move_to(x0, y0)
-        cr.line_to(x1, y1)
-        cr.stroke()
-    for k in ("chata",):
-        cx, cy = SUBS[k]
-        cr.set_source_rgba(0.45, 0.45, 0.45, 1)
-        cr.set_line_width(1)
-        cr.arc(cx, cy, SUB_R, 0, 2 * math.pi)
-        cr.stroke()
-        text(cr, "CHATA", cx, cy - 25, 13, (0.55, 0.55, 0.55), spacing=1.0)
+        x0, y0 = polar(C, C, 234, h * 30)
+        x1, y1 = polar(C, C, 214, h * 30)
+        cr.set_source_rgb(0.7, 0.7, 0.7)
+        cr.set_line_width(4 if h == 0 else 2.5)
+        cr.move_to(x0, y0); cr.line_to(x1, y1); cr.stroke()
+    cx, cy = SUBS["chata"]
+    cr.set_source_rgb(0.35, 0.35, 0.35)
+    cr.set_line_width(1.2)
+    cr.arc(cx, cy, SUB_R, 0, 2 * math.pi); cr.stroke()
+    icon_house(cr, cx, cy - 33, 24, (0.5, 0.5, 0.5))
     return s
 
 
@@ -464,32 +460,9 @@ def amb_hand(length, width, tail):
     return s, W, H
 
 
+
+
 HANDS = {}
-
-# texty na ciferníku – stejné polohy používá watchface.xml
-DATE_R, DATE_SIZE = 163, 28          # datum po obvodu nahoře
-SUN_Y, SUN_SIZE = 128, 26            # východ / západ slunce
-SUBTXT_DY, SUBTXT_SIZE = 28, 26      # číslo dole v subdialu
-
-
-def curved(cr, s, r, size, color, spacing=1.0):
-    cr.select_font_face(FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    cr.set_font_size(size)
-    widths = [cr.text_extents(ch).x_advance + spacing for ch in s]
-    total = sum(widths) - spacing
-    a = -total / 2 / r
-    for ch, w in zip(s, widths):
-        mid = a + (w - spacing) / 2 / r
-        cr.save()
-        x, y = C + r * math.sin(mid), C - r * math.cos(mid)
-        cr.translate(x, y)
-        cr.rotate(mid)
-        e = cr.text_extents(ch)
-        cr.move_to(-e.x_advance / 2, size * 0.36)
-        cr.set_source_rgb(*color)
-        cr.show_text(ch)
-        cr.restore()
-        a += w / r
 
 
 def place(cr, img, cx, cy, deg):
@@ -502,7 +475,9 @@ def place(cr, img, cx, cy, deg):
     cr.restore()
 
 
-def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, date="PONDĚLÍ 21/12", sun="↑ 7:20  ↓ 18:16", ambient=False, name="preview"):
+
+
+def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, day="PO", date="21/12", sun="↓ 18:16", ambient=False, name="preview"):
     ld = lambda n: cairo.ImageSurface.create_from_png(os.path.join(OUT, n + ".png"))
     s, cr = new()
     cr.arc(C, C, C, 0, 2 * math.pi)
@@ -510,28 +485,33 @@ def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, date="PONDĚLÍ 21/
     if ambient:
         cr.set_source_surface(ld("amb_dial"), 0, 0); cr.paint()
         cx, cy = SUBS["chata"]
-        text(cr, f"{volt:.2f}".replace(".", ","), cx, cy + 6, 30, (0.6, 0.6, 0.6))
+        text(cr, f"{volt:.1f}".replace(".", ","), cx, cy + 4, NUM_SIZE, (0.6, 0.6, 0.6))
         place(cr, ld("amb_hour"), C, C, (hh % 12 + mm / 60) * 30)
         place(cr, ld("amb_minute"), C, C, mm * 6 + ss / 10)
         place(cr, ld("cap"), C, C, 0)
     else:
         cr.set_source_surface(ld("dial"), 0, 0); cr.paint()
-        curved(cr, date, DATE_R, DATE_SIZE, (0.92, 0.93, 0.95))
-        text(cr, sun, C, SUN_Y, SUN_SIZE, (0.85, 0.88, 0.93), weight=cairo.FONT_WEIGHT_BOLD)
-        for k, v, lo, hi, txt, nd in (("chata", volt, 11.6, 13.0, f"{volt:.2f}".replace(".", ","), "needle_chata"),
-                                        ("bat", bat, 0, 100, f"{bat}%", "needle"),
-                                        ("temp", temp, -20, 40, f"{temp}°", "needle")):
+        text(cr, sun, C, SUN_Y, SUN_SIZE, (0.88, 0.91, 0.95))
+        text(cr, day, *DAY_POS, DD_SIZE, (0.92, 0.93, 0.95))
+        text(cr, date, *DATE_POS, DD_SIZE, (0.92, 0.93, 0.95))
+        for k, v, lo, hi, txt, mk in (("chata", volt, 11.6, 13.0, f"{volt:.1f}".replace(".", ","), "marker_chata"),
+                                        ("bat", bat, 0, 100, f"{bat}%", "marker"),
+                                        ("temp", temp, -20, 40, f"{temp}°", "marker")):
             cx, cy = SUBS[k]
-            text(cr, txt, cx, cy + SUBTXT_DY, SUBTXT_SIZE, (1, 1, 1))
-            place(cr, ld(nd), cx, cy, val_deg(max(lo, min(hi, v)), lo, hi))
+            text(cr, txt, cx, cy + 4, NUM_SIZE, (1, 1, 1))
+            place(cr, ld(mk), cx, cy, val_deg(max(lo, min(hi, v)), lo, hi))
         place(cr, ld("hand_hour"), C, C, (hh % 12 + mm / 60) * 30)
         place(cr, ld("hand_minute"), C, C, mm * 6 + ss / 10)
         place(cr, ld("hand_second"), C, C, ss * 6)
+        cr.set_source_surface(ld("glare"), 0, 0); cr.paint()
     save(s, name)
 
 
 def main():
     save(dial(), "dial")
+    save(glare(), "glare")
+    save(marker((0.96, 0.97, 0.99)), "marker")
+    save(marker(ORANGE), "marker_chata")
     h, W, H = hand(125, 30, 24)
     save(h, "hand_hour"); HANDS["hour"] = (W, H)
     m, W, H = hand(200, 24, 28)
@@ -539,10 +519,6 @@ def main():
     sc, W, H = second_hand()
     save(sc, "hand_second"); HANDS["second"] = (W, H)
     save(cap(), "cap")
-    n, W, H = sub_needle(44)
-    save(n, "needle"); HANDS["needle"] = (W, H)
-    n2, W, H = sub_needle(44, ORANGE)
-    save(n2, "needle_chata"); HANDS["needle_chata"] = (W, H)
     save(amb_dial(), "amb_dial")
     a, W, H = amb_hand(125, 30, 24)
     save(a, "amb_hour"); HANDS["amb_hour"] = (W, H)
@@ -550,6 +526,8 @@ def main():
     save(a, "amb_minute"); HANDS["amb_minute"] = (W, H)
     for k, v in HANDS.items():
         print(k, v)
+    for k, v in SUBS.items():
+        print(k, [round(x, 1) for x in v])
     preview()
 
 

@@ -4,6 +4,8 @@
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
 ## 3.9 – 13. 10. 2026
+- **Ciferník Chata 1.3:** tři větší symetrické subdialy s trojúhelníkem po obvodu a velkým číslem, ikonky místo nápisů, den (PO) a datum rovně pod horními subdialy, nahoře jen nejbližší východ/západ, hodinové čárky na vnějším věnci, diagonální odlesk sklíčka; napětí na 1 desetinné místo
+- **Hodinky 1.2:** komplikace slunce ukazuje jen nejbližší událost, obnova každých 10 min
 - **Ciferník Chata 1.2:** všechno písmo zhruba 2× větší, datum po obvodu nahoře místo číslic 11–12–1, subdialy bez drobných čísel stupnice
 - **Ciferník Chata 1.1:** oprava – hodinky ho odmítaly (náhradní typ komplikace musí být mezi podporovanými)
 - **Ciferník Chata** pro hodinky (Watch Face Format): analogový letecký styl, subdialy napětí chaty / baterie hodinek / teplota, datum po obvodu, východ a západ slunce, úsporný režim
