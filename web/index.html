@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.1", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.2", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -131,7 +131,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v3.1</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v3.2</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -275,7 +275,7 @@ function batState(v, st, status){
   if(v < OFF_V) return {c:"--crit",i:"!",t:"Zátěž odpojena",a:`Pod ${nf(OFF_V,1)} V – regulátor odpojuje zátěž, aby chránil baterii.`};
   if(v < CRIT_V) return {c:"--crit",i:"!",t:"Odpojit spotřebiče",a:`Napětí je pod ${nf(CRIT_V,1)} V – odpoj spotřebiče, ať se AGM baterie nepoškodí.`};
   if(v < WARN_V) return {c:"--serious",i:"↓",t:"Baterie slábne",a:`Pod ${nf(WARN_V,1)} V – omez spotřebu, večer to může dojít.`};
-  if(status===1) return {c:"--good",i:"✓",t:"Nabito · Float",a:"Baterie je nabitá (Float – udržovací nabíjení), regulátor škrtí panely na to, co je potřeba. Můžeš zapojit náročnější spotřebič."};
+  if(status===1) return {c:"--good",i:"✓",t:"Nabito · Float",a:"Baterie je nabitá (Float – udržovací nabíjení), regulátor škrtí panely na to, co je potřeba. Přebytek ze slunce můžeš využít – nabíjení zařízení, River."};
   if(status===2) return {c:"--good",i:"↑",t:"Nabíjí · Boost",a:"Panely nabíjí baterii (Boost): nejdřív plným proudem na ~14,4 V (v chladu o něco víc – teplotní kompenzace), pak napětí drží po nastavenou dobu Boostu a teprve potom přejde do Float (13,7 V)."};
   if(status===3) return {c:"--good",i:"↑",t:"Nabíjí · vyrovnávací",a:"Vyrovnávací nabíjení (Equalize) – regulátor občas krátce přebije baterii, aby vyrovnal články."};
   return {c:"--good",i:"✓",t:"V pořádku",a:"Napětí je v bezpečném pásmu."};
@@ -366,7 +366,10 @@ function render(){
   $("rauto").classList.toggle("hide", !ra);
   if(ra){
     const since = ra.since ? new Date(ra.since*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}) : "";
-    $("rauto").innerHTML = ra.on ? `🔌 <b>Nabíjení River zapnuto</b>${since?` od ${since}`:""}${ra.why?` · ${ra.why}`:""}` : `🔌 Nabíjení River vypnuto${ra.why?` · ${ra.why}`:""} <span style="opacity:.7">(automatika čeká na plnou baterii a slunce)</span>`;
+    const hmS = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
+    const waitTxt = ra.wait && ra.wait*1000 > Date.now() ? `znovu zkusí po ${hmS(ra.wait)}` : "zapne se, až bude solární baterie plná nebo regulátor bude držet nabíjecí napětí";
+    $("rauto").innerHTML = ra.on ? `🔌 <b>Nabíjení River zapnuto</b>${since?` od ${since}`:""}${ra.why?` · ${ra.why}`:""}`
+      : `🔌 Nabíjení River vypnuto · ${waitTxt}${ra.why && ra.off_ts?`<br><span style="opacity:.7">naposledy vypnuto ${hmS(ra.off_ts)}: ${ra.why}</span>`:""}`;
   }
   const gi = d.inverter, giFresh = gi && Date.now()/1000 - gi.t < 1800;
   if(giFresh && gi.v!=null){
@@ -396,8 +399,11 @@ function render(){
     const owAvg = owv.length ? owv[Math.floor(owv.length/2)] : null;
     const cabin = (td.ra_min && tpd[fip]!=null && owAvg!=null) ? tpd[fip] + owAvg*hrs : null;
     const rch = cabin!=null ? Math.max(0, mWh - cabin) : 0;
-    $("t_a").innerHTML = `${nf((cabin ?? mWh)/1000,2)}<small>kWh</small>`;
-    $("t_a_n").textContent = (rch>30 ? `+ nabíjení River ~${nf(rch/1000,2)} kWh · ` : "") + `z baterie i se ztrátami měniče ~${nf(dcWh/1000,2)} kWh (${nf(dcWh/12.5)} Ah)` + (rWh>20 ? ` · z River ${nf(rWh/1000,2)} kWh` : "");
+    // celé za měničem (jako zásuvka 220V) + rozpad: lednice · běžný odběr (světla, kamery, wifi) · navíc (nabíjení zařízení, River)
+    const frWh = tpd[fip], base = (frWh!=null && owAvg!=null) ? frWh + owAvg*hrs : null, extra = base!=null ? Math.max(0, mWh - base) : null;
+    $("t_a").innerHTML = `${nf(mWh/1000,2)}<small>kWh</small>`;
+    $("t_a_n").textContent = (base!=null ? `lednice ${nf(frWh/1000,2)} · běžný odběr ${nf(owAvg*hrs/1000,2)}` + (extra>30 ? ` · navíc (nabíjení, River) ${nf(extra/1000,2)}` : "") + " kWh · " : "")
+      + `z baterie i se ztrátami ~${nf(dcWh/1000,2)} kWh` + (rWh>20 ? ` · z River ${nf(rWh/1000,2)} kWh` : "");
   } else if(rWh>0){
     $("t_a").innerHTML = `${nf(rWh/1000,2)}<small>kWh</small>`; $("t_a_n").textContent = "z River";
   } else { $("t_a").innerHTML = "–"; $("t_a_n").textContent = "čeká na data ze zásuvky"; }
@@ -874,6 +880,11 @@ const SETTINGS = [
     ["river_auto_boost","Nabíjet River už v Boostu","Jen když regulátor drží nabíjecí napětí – baterie dostává plnou dávku","","", "sw"],
     ["boost_V","Nabíjecí napětí Boostu","Podle nastavení regulátoru (teplotní kompenzaci dopočítá hlídač)","V",0.1,"num"],
     ["river_auto_notifikace","Notifikace při každém zapnutí / vypnutí","Jinak jen Deník a večerní souhrn","","", "sw"],
+    ["float_V","Napětí Float","Podle nastavení regulátoru","V",0.1,"num"],
+  ]],
+  ["Odběr z baterie přes den", [
+    ["odber_hlidat","Upozornit, když chata bere víc, než panely dají","Baterie se přes den vybíjí (nabíjení zařízení, zašlo slunce)","","", "sw"],
+    ["odber_z_baterie_A","Od proudu z baterie","","A",0.5,"num"],
     ["river_auto_v_off","Vypnout, když napětí klesne pod","","V",0.05,"num"],
   ]],
   ["Počasí a zimní provoz", [

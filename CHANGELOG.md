@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.2 – 13. 10. 2026
+- Oprava: přechod Boost → Float (pokles na ~13,7 V) už River nevypíná jako „regulátor neudrží napětí“
+- Nové upozornění „⚡ Odběr X W – bere se z baterie“: přes den chata bere víc, než panely dají (čistý proud do baterie pod −2 A)
+- Spotřebováno dnes: velké číslo = vše za měničem (jako zásuvka), rozpad lednice · běžný odběr · navíc (nabíjení, River)
+- Stav River na hlavní stránce: kdy znovu zkusí a proč se naposledy vypnula; Float text bez rozporu
+
 ## 3.1 – 13. 10. 2026
 - Dokumentace: Návod (docs/navod.md), Technická dokumentace (docs/technicka.md) a Historie změn – v aplikaci přes „📖 Návod“ dole na stránce (vlastní převod Markdownu, bez cizích knihoven)
 - Notifikace „🔋 Baterie nabitá (Float)“ místo „na 100 %“

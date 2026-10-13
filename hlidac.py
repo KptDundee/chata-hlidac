@@ -32,7 +32,7 @@ DEFAULTS = {
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
     "zasuvka_menic": "", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
     "river_auto": True, "river_auto_ip": "157", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
-    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "river_auto_notifikace": False,
+    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "river_auto_notifikace": False,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
@@ -812,6 +812,7 @@ def main():
         mode = detect_mode(data, st, cfg, now, inv)
         track_soc(data, st, v, now, cfg, inv, mode)
         fuse_check(v, st, now, topic, cfg)
+        overload_check(v, st, now, topic, cfg, data, rise, set_)
     except Exception as e:
         print("Režim / SOC:", e)
         log("err", f"Odhad nabití: {type(e).__name__} {str(e)[:90]}")
@@ -891,7 +892,9 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         reading_ts = now.timestamp() - (v.get("age_min") or 0) * 60
         fresh_after = reading_ts > st.get("ra_since", 0) + 600
         hold = cfg.get("river_auto_v_drzet") or 13.0
-        if status == 2 and bv < boost_v - 0.2:
+        float_v = cfg.get("float_V") or 13.7
+        if status == 2 and bv < boost_v - 0.2 and bv < float_v - 0.15:
+            # (pokles jen na úroveň Float je normální konec Boostu, ne nedostatek slunce)
             on, reason = False, f"regulátor už neudrží nabíjecí napětí ({fmt(bv, 2)} V) – River by brala z baterie"
         elif bv < hold:
             on, reason = False, f"baterie se vybíjí ({fmt(bv, 2)} V)"
@@ -932,7 +935,8 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         elif p and p.get("off") and on and not st.get("ra_chk"):
             log("err", f"Zásuvka .{ip} je nedostupná (bez napájení?) – River se nenabíjí")
             st["ra_chk"] = True
-    data["river_auto"] = {"on": on, "since": st.get("ra_since"), "ip": ip, "why": reason or st.get("ra_why")}
+    data["river_auto"] = {"on": on, "since": st.get("ra_since"), "ip": ip, "why": reason or st.get("ra_why"),
+                          "off_ts": st.get("ra_off_ts"), "wait": int(st.get("ra_off_ts", 0) + 20 * 60) if not on else None}
     if reason:
         st["ra_why"] = reason
         data["river_auto"]["why"] = reason
@@ -1090,6 +1094,25 @@ def watch_publish(data, v, st, now, topic, cfg):
         urllib.request.urlopen(req, timeout=15).read()
     except Exception as e:
         print("Hodinky (ntfy):", e)
+
+
+def overload_check(v, st, now, topic, cfg, data, rise, set_):
+    """Přes den: odběr za měničem je větší, než panely dají → čistý proud do baterie je záporný."""
+    if not cfg.get("odber_hlidat") or not rise or not (rise + timedelta(minutes=30) <= now <= set_):
+        return
+    inv = data.get("inverter") or {}
+    bv, ba = v.get("bat_v"), v.get("bat_a")
+    if not inv or now.timestamp() - inv.get("t", 0) > 1200 or inv.get("mw") is None or not bv or ba is None:
+        return
+    load_a = (inv["mw"] / 0.88 + (cfg["menic_vlastni_W"] or 0)) / bv
+    net = ba - load_a
+    data["net_a"] = round(net, 1)
+    lim = cfg.get("odber_z_baterie_A") or 2.0
+    if net < -lim and not st.get("ra_on") and now.timestamp() - st.get("ovl_ts", 0) > 3600:
+        ntfy(topic, f"⚡ Odběr {fmt(inv['mw'])} W – bere se z baterie",
+             f"Panely teď dají {fmt(v.get('pv_w'))} W, chata za měničem bere {fmt(inv['mw'])} W → baterie se vybíjí ~{fmt(-net, 1)} A "
+             f"({fmt(bv, 2)} V). Omez nabíjení zařízení, ať baterie do večera dobije.", 4, "zap,warning")
+        st["ovl_ts"] = int(now.timestamp())
 
 
 def fuse_check(v, st, now, topic, cfg):

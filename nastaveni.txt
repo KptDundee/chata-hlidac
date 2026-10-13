@@ -79,6 +79,8 @@ river_auto_v_drzet = 13.0
 river_auto_boost = zapnuto
 # nabíjecí napětí Boostu podle nastavení regulátoru (bez teplotní kompenzace)
 boost_V = 14.4
+# napětí Float podle regulátoru
+float_V = 13.7
 # posílat notifikaci při každém zapnutí / vypnutí River (jinak jen Deník a večerní souhrn)
 river_auto_notifikace = vypnuto
 river_auto_off_min = 20
@@ -107,3 +109,9 @@ pojistka_A = 30
 # přidat druhý panel, jen když nejhorší případ nepřesáhne tolik × pojistka (1 = 30 A)
 pojistka_rezerva = 1
 panely_doporucit = zapnuto
+
+# --- Odběr z baterie přes den ---
+# upozornit, když chata za měničem bere víc, než panely dají (baterie se přes den vybíjí)
+odber_hlidat = zapnuto
+# od jakého proudu z baterie (A)
+odber_z_baterie_A = 2

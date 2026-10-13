@@ -20,7 +20,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 ## 2. Hlavní obrazovka
 
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.1**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.2**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.
@@ -44,7 +44,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 - **Nabití ›**: **procenta podle regulátoru**. Jsou jen orientační: regulátor počítá z napětí i při nabíjení. Při nabíjení ukáže 100 %, po západu spadne napětí na ~12,8 V a ukáže ~60 %. Jinde v aplikaci se proto používá **napětí**.
 - **Panely teď ›**: výkon panelů, *z regulátoru X A* (proud do baterie) a **do baterie čistě ~X A** (po odečtení odběru měniče; záporně a červeně = baterie se vybíjí). V grafu je **barevné pozadí podle režimu**: oranžová = Boost, zelená = Float.
 - **Vyrobeno dnes ›**: výroba za den, měsíc, celkem. Graf: výroba po hodinách a jak přibývala.
-- **Spotřebováno dnes ›**: spotřeba chaty (lednice + světla, kamery, wifi). Zvlášť *+ nabíjení River* a *z baterie i se ztrátami měniče*.
+- **Spotřebováno dnes ›**: všechno za měničem (stejně jako zásuvka „220V měnič“). Pod tím rozpad: *lednice · běžný odběr* (světla, kamery, wifi) *· navíc* (nabíjení zařízení, River) a *z baterie i se ztrátami*.
 
 ### Počasí a výroba
 - **Štítek provozu**: ☀️ *letní* (chata na solární baterii) nebo ❄️ *zimní* (chata na River). Pozná se automaticky, jde nastavit i ručně.
@@ -81,6 +81,7 @@ Otevřené sekce si telefon pamatuje.
 | 🍂 Blíží se zimní provoz / 🌱 Můžeš přejít na letní | Výroba na příští dny nestačí / už stačí | Zvaž přepojení chaty na River / zpět |
 | ☀️ Zítra můžeš chatu připojit na solární baterii | Zima: solární baterie bude ráno dost nabitá | Přes den připoj chatu na solár, večer zpět na River |
 | 💡 V noci šlo víc/míň proudu na světla/kamery/wifi | Ostatní odběr se výrazně změnil | Nezůstalo něco zapnuté? Nevypadla kamera / wifi? |
+| ⚡ Odběr X W – bere se z baterie | Přes den chata za měničem bere víc, než panely dají (čistý proud do baterie pod −2 A) | Omez nabíjení zařízení; nejvýš 1× za hodinu |
 | 🔋 Baterie možná ztrácí kapacitu | Zdraví baterie se zhoršilo o víc než 20 % | Sleduj sekci Zdraví baterie |
 | 📡 Regulátor neposílá data | Cloud nemá čerstvá data přes 2 h | Wi-Fi modul regulátoru, internet na chatě |
 | 📡 Hlídač nemůže číst Solar Guardian / EcoFlow | Cloud ~2 h neodpovídá | Většinou se spraví samo |
@@ -114,13 +115,14 @@ Zásuvka **.157** (za měničem, neměří) nabíjí River. Priorita je vždy **
 - od posledního vypnutí uběhlo aspoň 20 minut (aby se při polojasnu netočilo).
 
 **Vypne se hned**, když:
-- v Boostu napětí spadne o víc než 0,2 V pod nabíjecí hodnotu (regulátor už neudrží → River by brala z baterie),
+- v Boostu napětí spadne o víc než 0,2 V pod nabíjecí hodnotu **a zároveň pod úroveň Float** (regulátor už neudrží → River by brala z baterie). Pokles jen na ~13,7 V je normální konec Boostu, ne problém,
 - napětí klesne pod **13,0 V** (baterie se vybíjí), nebo pod 12,5 V,
 - první měření po přepnutí ukáže panely pod 100 W,
 - blíží se západ slunce, nebo regulátor neposílá data.
 
 Hlídač i Flip běží po 10 minutách, takže v nejhorším případě se River ~10–20 min nabíjí z baterie, než se to zachytí.
 **Ruční zapnutí** v aplikaci Tapo automatika nevypne (není to její povel).
+Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu zkusí a proč se naposledy vypnula.
 
 ---
 
