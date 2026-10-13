@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "2.8", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "2.9", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -47,6 +47,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--s1);outline-off
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px}
 @media(min-width:640px){.tiles{grid-template-columns:repeat(4,1fr)}}
 .tile .l{color:var(--text2);font-size:13px}
+.tile[data-tile]{cursor:pointer}
+.tile[data-tile]:active{transform:scale(.98)}
 .tile .v{font-size:26px;font-weight:650;font-variant-numeric:tabular-nums;margin-top:2px}
 .tile .v small{font-size:14px;color:var(--text2);font-weight:500;margin-left:3px}
 .tile .n{color:var(--muted);font-size:12px;margin-top:2px}
@@ -77,6 +79,9 @@ header button{white-space:nowrap}
 #live[disabled]{opacity:.7}
 .set{position:fixed;inset:0;background:var(--bg);z-index:20;overflow:auto;-webkit-overflow-scrolling:touch}
 .set .wrap{padding-bottom:110px}
+.set header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.set h1{text-transform:none;white-space:normal;letter-spacing:-.01em}
+.set header button{flex:none}
 .set h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin:22px 4px 8px;font-weight:600}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
@@ -126,7 +131,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.8</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.9</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -157,10 +162,10 @@ details.sec>.in{margin-top:8px}
   </section>
 
   <section class="tiles">
-    <div class="card tile"><div class="l">Nabití</div><div class="v" id="t_soc">–</div><div class="n" id="t_soc_n"></div></div>
-    <div class="card tile"><div class="l">Panely teď</div><div class="v" id="t_pv">–</div><div class="n" id="t_pv_n"></div></div>
-    <div class="card tile"><div class="l">Vyrobeno dnes</div><div class="v" id="t_day">–</div><div class="n" id="t_day_n"></div></div>
-    <div class="card tile"><div class="l">Spotřebováno dnes</div><div class="v" id="t_a">–</div><div class="n" id="t_a_n"></div></div>
+    <div class="card tile" data-tile="soc" role="button"><div class="l">Nabití ›</div><div class="v" id="t_soc">–</div><div class="n" id="t_soc_n"></div></div>
+    <div class="card tile" data-tile="pv" role="button"><div class="l">Panely teď ›</div><div class="v" id="t_pv">–</div><div class="n" id="t_pv_n"></div></div>
+    <div class="card tile" data-tile="prod" role="button"><div class="l">Vyrobeno dnes ›</div><div class="v" id="t_day">–</div><div class="n" id="t_day_n"></div></div>
+    <div class="card tile" data-tile="cons" role="button"><div class="l">Spotřebováno dnes ›</div><div class="v" id="t_a">–</div><div class="n" id="t_a_n"></div></div>
   </section>
 
   <section class="card hide" id="wxcard" style="margin-bottom:12px"></section>
@@ -216,6 +221,14 @@ details.sec>.in{margin-top:8px}
   <header><div><h1 id="plugt">Zásuvka</h1><div class="sub" id="plugs2"></div></div><button id="plugclose" title="Zavřít">✕</button></header>
   <div class="ctrl" style="margin-top:0"><div class="seg" id="plugseg"><button data-r="24" aria-pressed="true">Den</button><button data-r="168" aria-pressed="false">Týden</button><button data-r="m" aria-pressed="false">Měsíc</button></div></div>
   <div class="card chart"><h2 id="plugch" style="font-size:15px;text-transform:none;letter-spacing:0;color:var(--text);margin:0">Odběr</h2><div class="cs" id="plugcs">W</div><div id="c_plug"></div></div>
+ </div>
+</section>
+<section class="set hide" id="tilem" aria-label="Graf">
+ <div class="wrap">
+  <header><div><h1 id="tilet" style="font-size:18px">Graf</h1><div class="sub" id="tiles2"></div></div><button id="tileclose" title="Zavřít">✕</button></header>
+  <div class="ctrl" style="margin-top:0"><div class="seg" id="tileseg"><button data-r="d" aria-pressed="true">Dnes</button><button data-r="168" aria-pressed="false">Týden</button></div></div>
+  <div class="card chart"><h2 id="tile1h" style="font-size:15px;text-transform:none;letter-spacing:0;color:var(--text);margin:0"></h2><div class="cs" id="tile1c"></div><div id="c_tile1"></div></div>
+  <div class="card chart" style="margin-top:12px"><h2 id="tile2h" style="font-size:15px;text-transform:none;letter-spacing:0;color:var(--text);margin:0"></h2><div class="cs" id="tile2c"></div><div id="c_tile2"></div></div>
  </div>
 </section>
 <div class="tip" id="tip"></div>
@@ -324,6 +337,7 @@ function render(){
     $("s_plugs").classList.remove("hide");
   } else { $("s_plugs").classList.toggle("hide", !gw); $("sum_plugs").textContent = gw ? `brána mlčí ${ago(gw.t)}` : ""; pl.innerHTML = `<p class="sub">Brána na chatě teď neposílá data.</p>`; }
   if(PLUG) renderPlug();
+  if(TILE) renderTile();
   const f = d.forecast, fc = $("fc");
   if(f && f.until && Date.now()/1000 < f.until){
     const hm = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
@@ -460,7 +474,7 @@ function lineChart(el, pts, key, color, o){
   let lo=Math.min(...p.map(q=>q[key])), hi=Math.max(...p.map(q=>q[key]));
   for(const[v]of o.refs||[]){lo=Math.min(lo,v);hi=Math.max(hi,v);}
   if(o.zero) lo=0; const pad=(hi-lo)*(o.pad||.1)||1; hi+=pad; if(!o.zero) lo-=pad*.5;
-  const {svg,y}=frame(el,lo,hi,o.dec>0?1:0);
+  const {svg,y}=frame(el,lo,hi,(hi-lo)<1&&o.dec>1?2:o.dec>0?1:0);
   const t0=Date.now()/1000-(o.hours||HOURS)*3600, t1=Date.now()/1000;
   const x=t=>M.l+(W-M.l-M.r)*(t-t0)/(t1-t0);
   xLabels(svg,t0,t1,x); refLines(svg,y,o.refs);
@@ -617,6 +631,54 @@ function renderPlug(){
 $("plugseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;PLUGR=b.dataset.r;for(const x of $("plugseg").children)x.setAttribute("aria-pressed",x===b);renderPlug();});
 $("plugclose").addEventListener("click",()=>{PLUG=null;$("plugm").classList.add("hide");document.body.style.overflow="";});
 $("plugs").addEventListener("click",e=>{const r=e.target.closest("[data-ip]");if(r)openPlug(r.dataset.ip);});
+
+let TILE = null, TILER = "d";
+function tileHours(){ if(TILER!=="d") return +TILER; const m=new Date(); m.setHours(0,0,0,0); return Math.max(3,(Date.now()-m.getTime())/3600e3); }
+function cumulate(pts, key, scale){ let c=0, prev=null; return pts.map(p=>{ if(prev && p[key]!=null && p.t-prev.t<2400){ c += (p[key]+(prev[key]??p[key]))/2*(p.t-prev.t)/3600*scale; }
+  const md=new Date(p.t*1000); if(TILER==="168" && prev && new Date(prev.t*1000).getDate()!==md.getDate()) c=0; prev=p; return {t:p.t, c:+c.toFixed(3)}; }); }
+function hourly(pts, key){ const by={}; for(const p of pts){ if(p[key]==null) continue; const h=new Date(p.t*1000).getHours(); (by[h] ||= []).push(p[key]); }
+  return Object.keys(by).map(Number).sort((a,b)=>a-b).map(h=>({k:h, v:+(by[h].reduce((a,b)=>a+b,0)/by[h].length/1000).toFixed(3)})); }
+function renderTile(){
+  if(!TILE || !DATA) return;
+  const hrs = tileHours(), from = Date.now()/1000 - hrs*3600;
+  const pts = (DATA.points||[]).filter(p=>p.t>=from);
+  const last = DATA.last || {}, per = TILER==="d" ? "dnes" : "posledních 7 dní";
+  const hide2 = v => $("c_tile2").parentElement.classList.toggle("hide", v);
+  hide2(false);
+  if(TILE==="soc"){
+    $("tilet").textContent = "Nabití a napětí"; $("tiles2").textContent = `teď ${nf(last.bat_soc)} % podle regulátoru · ${nf(last.bat_v,2)} V`;
+    $("tile1h").textContent = "Nabití podle regulátoru"; $("tile1c").textContent = "% · orientačně (počítá z napětí, i při nabíjení)";
+    lineChart($("c_tile1"), pts, "bat_soc", css("--s1"), {unit:"%",dec:0,zero:true,area:true,hours:hrs});
+    $("tile2h").textContent = "Napětí baterie"; $("tile2c").textContent = "V · čárkovaně hranice upozornění";
+    lineChart($("c_tile2"), pts, "bat_v", css("--s3"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
+  } else if(TILE==="pv"){
+    $("tilet").textContent = "Panely"; $("tiles2").textContent = `teď ${nf(last.pv_w)} W` + (last.bat_a!=null ? ` · z regulátoru ${nf(last.bat_a,1)} A` : "");
+    $("tile1h").textContent = "Výkon panelů"; $("tile1c").textContent = "W · ve Float regulátor panely škrtí na aktuální potřebu";
+    lineChart($("c_tile1"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
+    $("tile2h").textContent = "Proud z regulátoru do baterie"; $("tile2c").textContent = `A · čárkovaně pojistka ${nf(DATA.cfg?.pojistka_A ?? 30)} A`;
+    lineChart($("c_tile2"), pts, "bat_a", css("--s1"), {unit:"A",dec:1,zero:true,area:true,hours:hrs,refs:[[DATA.cfg?.pojistka_A ?? 30,"--crit"]]});
+  } else if(TILE==="prod"){
+    const cum = cumulate(pts, "pv_w", 1/1000);
+    $("tilet").textContent = "Výroba"; $("tiles2").textContent = `${per} ~${nf(cum.length?cum[cum.length-1].c:0,2)} kWh (z výkonu panelů)`;
+    $("tile1h").textContent = TILER==="d" ? "Výroba po hodinách" : "Výroba po dnech";
+    if(TILER==="d"){ $("tile1c").textContent = "kWh za hodinu";
+      barChart($("c_tile1"), hourly(pts,"pv_w"), "v", css("--s2"), {unit:"kWh",dec:2,label:h=>h+":00",tip:q=>`${q.k}:00–${q.k+1}:00<br><b>${nf(q.v,2)} kWh</b>`}); }
+    else { $("tile1c").textContent = "kWh · podle regulátoru";
+      const D=DATA.days||{}; barChart($("c_tile1"), Object.keys(D).sort().slice(-7).map(k=>({k, v:D[k].solar_kwh})), "v", css("--s2"), {unit:"kWh",dec:2}); }
+    $("tile2h").textContent = "Jak výroba přibývala"; $("tile2c").textContent = "kWh od půlnoci";
+    lineChart($("c_tile2"), cum, "c", css("--s2"), {unit:"kWh",dec:2,zero:true,area:true,hours:hrs});
+  } else if(TILE==="cons"){
+    const cum = cumulate(pts, "mw", 1/1000);
+    $("tilet").textContent = "Spotřeba chaty"; $("tiles2").textContent = `${per} ~${nf(cum.length?cum[cum.length-1].c:0,2)} kWh za měničem (vč. případného nabíjení River)`;
+    $("tile1h").textContent = "Odběr za měničem"; $("tile1c").textContent = "W · zásuvka „220V měnič“ (lednice, světla, kamery, wifi, nabíjení River)";
+    lineChart($("c_tile1"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
+    $("tile2h").textContent = "Jak spotřeba přibývala"; $("tile2c").textContent = "kWh od půlnoci";
+    lineChart($("c_tile2"), cum, "c", css("--s1"), {unit:"kWh",dec:2,zero:true,area:true,hours:hrs});
+  }
+}
+document.querySelector(".tiles").addEventListener("click",e=>{const t=e.target.closest("[data-tile]");if(!t)return;TILE=t.dataset.tile;$("tilem").classList.remove("hide");document.body.style.overflow="hidden";renderTile();});
+$("tileseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;TILER=b.dataset.r;for(const x of $("tileseg").children)x.setAttribute("aria-pressed",x===b);renderTile();});
+$("tileclose").addEventListener("click",()=>{TILE=null;$("tilem").classList.add("hide");document.body.style.overflow="";});
 
 function dayLabel(k){return new Date(k).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"});}
 function barChart(el, dd, key, color, o){
