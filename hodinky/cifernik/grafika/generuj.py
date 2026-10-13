@@ -164,11 +164,11 @@ def dial():
 
     # číslice
     for h in range(1, 13):
-        if h in (3, 6, 9):                     # místo nich subdialy
+        if h in (3, 6, 9, 11, 12, 1):          # místo nich subdialy a nahoře datum
             continue
-        x, y = polar(C, C, 163, h * 30)
-        text(cr, str(h), x + 1, y + 2, 29, (0, 0, 0), alpha=0.45)
-        text(cr, str(h), x, y, 29, (0.96, 0.96, 0.94))
+        x, y = polar(C, C, 160, h * 30)
+        text(cr, str(h), x + 1, y + 2, 36, (0, 0, 0), alpha=0.45)
+        text(cr, str(h), x, y, 36, (0.96, 0.96, 0.94))
 
     # subdialy
     subdial(cr, *SUBS["chata"], kind="chata")
@@ -240,21 +240,21 @@ def subdial(cr, cx, cy, kind):
         zones = [(11.6, 12.0, rgb("#ff4b3e")), (12.0, 12.2, rgb("#ffb020")), (12.6, 13.0, rgb("#3ddc84"))]
         minor = [lo + i * 0.1 for i in range(15)]
         major = [11.6, 12.0, 12.5, 13.0]
-        labels = {12.0: "12", 12.5: "12,5"}
+        labels = {}
         title = "CHATA"
     elif kind == "bat":
         lo, hi = 0, 100
         zones = [(0, 15, rgb("#ff4b3e"))]
         minor = list(range(0, 101, 5))
         major = [0, 25, 50, 75, 100]
-        labels = {25: "25", 50: "50", 75: "75"}
+        labels = {}
         title = "HODINKY"
     else:
         lo, hi = -20, 40
         zones = [(-20, 0, rgb("#4aa8ff"))]
         minor = list(range(-20, 41, 5))
         major = [-20, 0, 20, 40]
-        labels = {0: "0", 20: "20"}
+        labels = {}
         title = "°C"
     for a, b, col in zones:
         cr.set_line_width(3.2)
@@ -274,7 +274,7 @@ def subdial(cr, cx, cy, kind):
     for v, t in labels.items():
         x, y = polar(cx, cy, R - 26, val_deg(v, lo, hi))
         text(cr, t, x, y, 10, (0.9, 0.92, 0.95), weight=cairo.FONT_WEIGHT_BOLD)
-    text(cr, title, cx, cy + 19, 8.5, (0.78, 0.82, 0.88), spacing=1.1)
+    text(cr, title, cx, cy - 25, 13, (0.82, 0.86, 0.92), spacing=1.0)
 
 
 # ---------------------------------------------------------------- ručky
@@ -443,7 +443,7 @@ def amb_dial():
         cr.set_line_width(1)
         cr.arc(cx, cy, SUB_R, 0, 2 * math.pi)
         cr.stroke()
-        text(cr, "CHATA", cx, cy + 19, 8.5, (0.55, 0.55, 0.55), spacing=1.1)
+        text(cr, "CHATA", cx, cy - 25, 13, (0.55, 0.55, 0.55), spacing=1.0)
     return s
 
 
@@ -467,9 +467,9 @@ def amb_hand(length, width, tail):
 HANDS = {}
 
 # texty na ciferníku – stejné polohy používá watchface.xml
-DATE_R, DATE_SIZE = 128, 17          # datum po obvodu nahoře
-SUN_Y, SUN_SIZE = 150, 15            # východ / západ slunce
-SUBTXT_DY, SUBTXT_SIZE = 37, 14      # číslo dole v subdialu
+DATE_R, DATE_SIZE = 163, 28          # datum po obvodu nahoře
+SUN_Y, SUN_SIZE = 128, 26            # východ / západ slunce
+SUBTXT_DY, SUBTXT_SIZE = 28, 26      # číslo dole v subdialu
 
 
 def curved(cr, s, r, size, color, spacing=1.0):
@@ -502,7 +502,7 @@ def place(cr, img, cx, cy, deg):
     cr.restore()
 
 
-def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, date="PONDĚLÍ 21/12", sun="↑ 6:58   ↓ 18:12", ambient=False, name="preview"):
+def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, date="PONDĚLÍ 21/12", sun="↑ 7:20  ↓ 18:16", ambient=False, name="preview"):
     ld = lambda n: cairo.ImageSurface.create_from_png(os.path.join(OUT, n + ".png"))
     s, cr = new()
     cr.arc(C, C, C, 0, 2 * math.pi)
@@ -510,7 +510,7 @@ def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, date="PONDĚLÍ 21/
     if ambient:
         cr.set_source_surface(ld("amb_dial"), 0, 0); cr.paint()
         cx, cy = SUBS["chata"]
-        text(cr, f"{volt:.2f}".replace(".", ","), cx, cy + 4, 15, (0.6, 0.6, 0.6))
+        text(cr, f"{volt:.2f}".replace(".", ","), cx, cy + 6, 30, (0.6, 0.6, 0.6))
         place(cr, ld("amb_hour"), C, C, (hh % 12 + mm / 60) * 30)
         place(cr, ld("amb_minute"), C, C, mm * 6 + ss / 10)
         place(cr, ld("cap"), C, C, 0)
@@ -518,7 +518,7 @@ def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, date="PONDĚLÍ 21/
         cr.set_source_surface(ld("dial"), 0, 0); cr.paint()
         curved(cr, date, DATE_R, DATE_SIZE, (0.92, 0.93, 0.95))
         text(cr, sun, C, SUN_Y, SUN_SIZE, (0.85, 0.88, 0.93), weight=cairo.FONT_WEIGHT_BOLD)
-        for k, v, lo, hi, txt, nd in (("chata", volt, 11.6, 13.0, f"{volt:.2f} V".replace(".", ","), "needle_chata"),
+        for k, v, lo, hi, txt, nd in (("chata", volt, 11.6, 13.0, f"{volt:.2f}".replace(".", ","), "needle_chata"),
                                         ("bat", bat, 0, 100, f"{bat}%", "needle"),
                                         ("temp", temp, -20, 40, f"{temp}°", "needle")):
             cx, cy = SUBS[k]

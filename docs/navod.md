@@ -168,7 +168,7 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 
 ### Ciferník Chata
 Analogový ciferník v leteckém stylu (tmavě modrý sunburst, masivní ručky s luminiscencí, oranžová vteřinovka).
-- **Nahoře po obvodu** den a datum (*PONDĚLÍ 21/12*), pod tím **↑ východ ↓ západ slunce**.
+- **Nahoře po obvodu** (místo číslic 11–12–1) den a datum (*PONDĚLÍ 21/12*), pod tím **↑ východ ↓ západ slunce**.
 - **Subdial vlevo – CHATA**: napětí solární baterie, oranžová ručička na stupnici 11,6–13 V (červená = kritické, oranžová = slabne, zelená = nabitá) a číslo dole. Ťuknutím se otevře aplikace Chata.
 - **Subdial vpravo – HODINKY**: baterie hodinek.
 - **Subdial dole – °C**: teplota v místě, kde jsi (počasí z hodinek). Když hodinky počasí nemají, ukáže *--°*.
