@@ -32,7 +32,7 @@ DEFAULTS = {
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
     "zasuvka_menic": "", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
     "river_auto": True, "river_auto_ip": "157", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
-    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4,
+    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "river_auto_notifikace": False,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
@@ -866,7 +866,7 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
     day = rise and set_ and rise <= now <= set_ - timedelta(minutes=30)
     # zapínat jen do 2 h před západem (ať to nevypne hned kvůli slábnoucímu slunci) a ne hned po vypnutí
     early = rise and set_ and rise + timedelta(minutes=60) <= now <= set_ - timedelta(minutes=120)
-    cooldown = now.timestamp() - st.get("ra_off_ts", 0) < 3600
+    cooldown = now.timestamp() - st.get("ra_off_ts", 0) < 20 * 60 - 30      # krátká pauza po vypnutí (proti točení při polojasnu)
     # nabíjecí napětí Boostu s teplotní kompenzací (−18 mV/°C pro 12V baterii, vztaženo k 25 °C)
     bt = v.get("bat_t")
     boost_v = (cfg.get("boost_V") or 14.4) + (max(-0.3, min(0.3, (25 - bt) * 0.018)) if bt is not None else 0)
@@ -880,9 +880,9 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         # Boost – fáze stálého napětí: dokud regulátor drží nabíjecí napětí, baterie dostává plnou dávku
         # a River jede jen z toho, co by jinak propadlo.
         st["ra_bh"] = st.get("ra_bh", 0) + 1 if (cfg.get("river_auto_boost") and status == 2 and bv >= boost_v - 0.08) else 0
-        if early and not cooldown and st["ra_fl"] >= 2 and bv >= (cfg["river_auto_v_off"] or 0) + 0.3:
+        if early and not cooldown and st["ra_fl"] >= 1 and bv >= (cfg["river_auto_v_off"] or 0) + 0.3:
             on, reason = True, f"baterie plná (Float), panely {fmt(pv)} W (přiškrcené)"
-        elif early and not cooldown and st["ra_bh"] >= 2:
+        elif early and not cooldown and st["ra_bh"] >= 1:
             on, reason = True, f"regulátor drží nabíjecí napětí {fmt(bv, 2)} V (Boost), panely {fmt(pv)} W"
     else:
         # Priorita je solární baterie: jakmile napětí spadne z Float (~13,6 V) pod hranici, baterie
@@ -907,9 +907,12 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
     if reason:
         send_cmd(topic, ip, on, reason)
         ran = f" (běželo {dur(now.timestamp() - st['ra_since'])})" if not on and st.get("ra_since") else ""
-        ntfy(topic, "🔌 Nabíjení River zapnuto" if on else "🔌 Nabíjení River vypnuto",
-             f"Zásuvka .{ip}: {reason}{ran}. Baterie {fmt(bv, 2)} V, panely {fmt(pv)} W.", 3, "electric_plug",
-             note=f"🔌 River {'ZAP' if on else 'VYP'} – {reason}{ran} · {fmt(bv, 2)} V, {fmt(pv)} W")
+        note = f"🔌 River {'ZAP' if on else 'VYP'} – {reason}{ran} · {fmt(bv, 2)} V, {fmt(pv)} W"
+        if cfg.get("river_auto_notifikace"):
+            ntfy(topic, "🔌 Nabíjení River zapnuto" if on else "🔌 Nabíjení River vypnuto",
+                 f"Zásuvka .{ip}: {reason}{ran}. Baterie {fmt(bv, 2)} V, panely {fmt(pv)} W.", 2, "electric_plug", note=note)
+        else:
+            log("auto", note)                   # potichu – jen do Deníku a večerního souhrnu
         st["ra_chk"] = False
         st["ra_on"], st["ra_since"], st["ra_low"] = on, int(now.timestamp()), 0
         if not on:

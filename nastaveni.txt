@@ -79,6 +79,8 @@ river_auto_v_drzet = 13.0
 river_auto_boost = zapnuto
 # nabíjecí napětí Boostu podle nastavení regulátoru (bez teplotní kompenzace)
 boost_V = 14.4
+# posílat notifikaci při každém zapnutí / vypnutí River (jinak jen Deník a večerní souhrn)
+river_auto_notifikace = vypnuto
 river_auto_off_min = 20
 
 # --- Ostatní odběr za měničem (světla, kamery, wifi) = zásuvka měniče − lednice ---
