@@ -5,7 +5,7 @@
   Tři subdialy (152 × 152): vlevo nahoře napětí chaty (komplikace z aplikace Chata), vpravo nahoře baterie hodinek,
   dole teplota (počasí systému). Ukazatel = trojúhelník po obvodu (−135° … +135°), uprostřed velké číslo.
   Nahoře nejbližší východ / západ slunce, vlevo dole den (PO), vpravo dole datum (21/12). Písmo Saira Expanded (res/font/saira.ttf).
-  Úsporný režim (AMBIENT): černé pozadí, obrysy ruček, hodinové čárky a napětí chaty.
+  Úsporný režim (AMBIENT): ciferník vypadá stejně, jen zmizí vteřinovka (a střed ukáže ocelovou krytku).
 -->
 <WatchFace width="480" height="480" clipShape="CIRCLE">
   <Metadata key="CLOCK_TYPE" value="ANALOG"/>
@@ -15,17 +15,11 @@
 
     <!-- ===== podklad ===== -->
     <PartImage name="dial" x="0" y="0" width="480" height="480">
-      <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Image resource="dial"/>
-    </PartImage>
-    <PartImage name="ambDial" x="0" y="0" width="480" height="480" alpha="0">
-      <Variant mode="AMBIENT" target="alpha" value="255"/>
-      <Image resource="amb_dial"/>
     </PartImage>
 
     <!-- ===== den (vlevo dole) a datum (vpravo dole) ===== -->
     <PartText name="day" x="58" y="280" width="120" height="40">
-      <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Text align="CENTER">
         <Font family="saira" size="26" color="#ffebedf2">
           <Upper><Template>%s<Parameter expression="[DAY_OF_WEEK_S]"/></Template></Upper>
@@ -33,7 +27,6 @@
       </Text>
     </PartText>
     <PartText name="date" x="302" y="280" width="120" height="40">
-      <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Text align="CENTER">
         <Font family="saira" size="26" color="#ffebedf2"><Template>%s/%s<Parameter expression="[DAY]"/><Parameter expression="[MONTH]"/></Template></Font>
       </Text>
@@ -41,7 +34,6 @@
 
     <!-- ===== baterie hodinek (vpravo nahoře) ===== -->
     <Group name="batSub" x="251" y="114" width="152" height="152">
-      <Variant mode="AMBIENT" target="alpha" value="0"/>
       <PartImage name="batMarker" x="0" y="0" width="152" height="152" pivotX="0.5" pivotY="0.5">
         <Transform target="angle" value="-135 + 2.7 * clamp([BATTERY_PERCENT], 0, 100)"/>
         <Image resource="marker"/>
@@ -55,7 +47,6 @@
 
     <!-- ===== teplota (dole) – počasí systému ===== -->
     <Group name="tempSub" x="164" y="264" width="152" height="152">
-      <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Condition>
         <Expressions>
           <Expression name="wx"><![CDATA[[WEATHER.IS_AVAILABLE] == 1 && [WEATHER.IS_ERROR] == 0]]></Expression>
@@ -93,7 +84,6 @@
       <BoundingOval x="0" y="0" width="152" height="152"/>
       <Complication type="RANGED_VALUE">
         <PartImage name="chataMarker" x="0" y="0" width="152" height="152" pivotX="0.5" pivotY="0.5">
-          <Variant mode="AMBIENT" target="alpha" value="0"/>
           <Transform target="angle" value="-135 + 270 * (clamp([COMPLICATION.RANGED_VALUE_VALUE], [COMPLICATION.RANGED_VALUE_MIN], [COMPLICATION.RANGED_VALUE_MAX]) - [COMPLICATION.RANGED_VALUE_MIN]) / ([COMPLICATION.RANGED_VALUE_MAX] - [COMPLICATION.RANGED_VALUE_MIN])"/>
           <Image resource="marker_chata"/>
         </PartImage>
@@ -115,7 +105,6 @@
     <!-- ===== nejbližší východ / západ slunce (nahoře) ===== -->
     <ComplicationSlot name="sun" slotId="1" displayName="Slunce" x="110" y="80" width="260" height="40"
         supportedTypes="SHORT_TEXT LONG_TEXT" isCustomizable="TRUE">
-      <Variant mode="AMBIENT" target="alpha" value="0"/>
       <DefaultProviderPolicy defaultSystemProvider="SUNRISE_SUNSET" defaultSystemProviderType="SHORT_TEXT"
           primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.SunComplication" primaryProviderType="SHORT_TEXT"/>
       <BoundingBox x="0" y="0" width="260" height="40"/>
@@ -138,16 +127,8 @@
     <!-- ===== ručky ===== -->
     <AnalogClock x="0" y="0" width="480" height="480">
       <HourHand resource="hand_hour" x="217" y="111" width="46" height="258" pivotX="0.5" pivotY="0.5">
-        <Variant mode="AMBIENT" target="alpha" value="0"/>
-      </HourHand>
-      <HourHand resource="amb_hour" x="221" y="111" width="38" height="258" pivotX="0.5" pivotY="0.5" alpha="0">
-        <Variant mode="AMBIENT" target="alpha" value="255"/>
       </HourHand>
       <MinuteHand resource="hand_minute" x="220" y="36" width="40" height="408" pivotX="0.5" pivotY="0.5">
-        <Variant mode="AMBIENT" target="alpha" value="0"/>
-      </MinuteHand>
-      <MinuteHand resource="amb_minute" x="224" y="36" width="32" height="408" pivotX="0.5" pivotY="0.5" alpha="0">
-        <Variant mode="AMBIENT" target="alpha" value="255"/>
       </MinuteHand>
       <!-- vteřinovka skáče po vteřině (bez plynulého pohybu = méně překreslování) a v úsporném režimu zmizí -->
       <SecondHand resource="hand_second" x="223" y="22" width="34" height="436" pivotX="0.5" pivotY="0.5">
@@ -163,7 +144,6 @@
 
     <!-- diagonální odlesk sklíčka (nad vším) -->
     <PartImage name="glare" x="0" y="0" width="480" height="480">
-      <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Image resource="glare"/>
     </PartImage>
   </Scene>

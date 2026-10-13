@@ -174,5 +174,5 @@ Analogový ciferník v leteckém stylu (tmavě modrý sunburst do černa, zapuš
   - **vpravo nahoře 🔋 hodinky** – baterie hodinek.
   - **dole 🌡 teplota** v místě, kde jsi (počasí z hodinek); když hodinky počasí nemají, ukáže *--°*.
 - **Vlevo dole den** (PO, ÚT…), **vpravo dole datum** (21/12).
-- **Úsporný režim** (zhasnutý displej): černé pozadí, jen obrysy ruček, hodinové čárky a napětí chaty – kvůli baterii.
+- **Úsporný režim** (sklopená ruka, je-li zapnutý „vždy zapnutý displej“): ciferník vypadá stejně, jen zmizí vteřinovka.
 - Komplikace vlevo a nahoře jdou v editoru ciferníku vyměnit (dlouze podržet → Upravit).

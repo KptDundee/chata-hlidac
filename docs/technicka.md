@@ -131,7 +131,7 @@ AES-GCM, klíč PBKDF2-SHA256 (200 000 iterací) z `DATA_KEY`. Hlavní klíče:
 
 Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor), pv, w, st, fc, lvl (0/1/2), day, ra, vmin, lat, lon`.
 
-**Ciferník (WFF v2)**: `res/raw/watchface.xml`, plátno 480×480. Grafiku kreslí `cifernik/grafika/generuj.py` (pycairo) – polohy subdialů a ruček musí odpovídat XML. Slot 0 = `VoltComplication` (RANGED_VALUE, ručička −135…+135° podle min/max), slot 1 = `SunComplication` (LONG_TEXT; náhradní systémový SUNRISE_SUNSET). Baterie hodinek `[BATTERY_PERCENT]`, teplota `[WEATHER.TEMPERATURE]` (Condition na `[WEATHER.IS_AVAILABLE]`). AMBIENT: Variant alpha → černý `amb_dial` + obrysové ručky, vteřinovka skrytá, vteřiny bez Sweep (skok 1×/s). Validace: XSD z github.com/google/watchface (`xmlschema.XMLSchema11`).
+**Ciferník (WFF v2)**: `res/raw/watchface.xml`, plátno 480×480. Grafiku kreslí `cifernik/grafika/generuj.py` (pycairo) – polohy subdialů a ruček musí odpovídat XML. Slot 0 = `VoltComplication` (RANGED_VALUE, ručička −135…+135° podle min/max), slot 1 = `SunComplication` (LONG_TEXT; náhradní systémový SUNRISE_SUNSET). Baterie hodinek `[BATTERY_PERCENT]`, teplota `[WEATHER.TEMPERATURE]` (Condition na `[WEATHER.IS_AVAILABLE]`). AMBIENT: stejný ciferník, jen vteřinovka skrytá (Variant alpha 0) a místo ní ocelová krytka; vteřiny bez Sweep (skok 1×/s). Validace: XSD z github.com/google/watchface (`xmlschema.XMLSchema11`).
 
 ---
 

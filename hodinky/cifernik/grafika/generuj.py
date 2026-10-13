@@ -543,14 +543,7 @@ def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, day="PO", date="21/
     s, cr = new()
     cr.arc(C, C, C, 0, 2 * math.pi)
     cr.clip()
-    if ambient:
-        cr.set_source_surface(ld("amb_dial"), 0, 0); cr.paint()
-        cx, cy = SUBS["chata"]
-        text(cr, f"{volt:.1f}".replace(".", ","), cx, cy + 6, NUM_SIZE, (0.6, 0.6, 0.6), family=DIALFONT, weight=cairo.FONT_WEIGHT_NORMAL)
-        place(cr, ld("amb_hour"), C, C, (hh % 12 + mm / 60) * 30)
-        place(cr, ld("amb_minute"), C, C, mm * 6 + ss / 10)
-        place(cr, ld("cap"), C, C, 0)
-    else:
+    if True:
         cr.set_source_surface(ld("dial"), 0, 0); cr.paint()
         text(cr, sun, C, SUN_Y, SUN_SIZE, (0.88, 0.91, 0.95), family=DIALFONT, weight=cairo.FONT_WEIGHT_NORMAL)
         text(cr, day, *DAY_POS, DD_SIZE, (0.92, 0.93, 0.95), family=DIALFONT, weight=cairo.FONT_WEIGHT_NORMAL)
@@ -563,7 +556,10 @@ def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, day="PO", date="21/
             place(cr, ld(mk), cx, cy, val_deg(max(lo, min(hi, v)), lo, hi))
         place(cr, ld("hand_hour"), C, C, (hh % 12 + mm / 60) * 30)
         place(cr, ld("hand_minute"), C, C, mm * 6 + ss / 10)
-        place(cr, ld("hand_second"), C, C, ss * 6)
+        if ambient:                            # úsporný režim: stejný ciferník, jen bez vteřinovky
+            place(cr, ld("cap"), C, C, 0)
+        else:
+            place(cr, ld("hand_second"), C, C, ss * 6)
         cr.set_source_surface(ld("glare"), 0, 0); cr.paint()
     save(s, name)
 
@@ -580,11 +576,6 @@ def main():
     sc, W, H = second_hand()
     save(sc, "hand_second"); HANDS["second"] = (W, H)
     save(cap(), "cap")
-    save(amb_dial(), "amb_dial")
-    a, W, H = amb_hand(125, 30, 24)
-    save(a, "amb_hour"); HANDS["amb_hour"] = (W, H)
-    a, W, H = amb_hand(200, 24, 28)
-    save(a, "amb_minute"); HANDS["amb_minute"] = (W, H)
     for k, v in HANDS.items():
         print(k, v)
     for k, v in SUBS.items():
