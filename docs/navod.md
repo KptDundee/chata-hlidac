@@ -32,14 +32,14 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 - **Každá dlaždice má svůj detail** jen s tím, co k ní patří:
   - 🔋 Baterie teď: stav a doporučení, tok do/z baterie, panely, regulátor, odběr chaty, nabití podle regulátoru; grafy bilance, napětí, výkonu panelů a odběru (Dnes / 48 h / Týden).
   - 🌙 Noc: předpověď do rána, noční odběr, kapacita, hranice upozornění; graf napětí za 48 h a nejnižší napětí dne za 30 dní.
-  - ⚡ Dnes: vyrobeno, spotřeba s rozpadem, bilance; výroba po hodinách / dnech, odběr za měničem, výroba za 30 dní, tabulka po dnech.
+  - ⚡ Dnes: účetnictví energie – výroba; spotřeba za měničem (lednice + běžný odběr + navíc); ztráty (převod v měniči ~12 %, vlastní spotřeba měniče, ~10 % při nabíjení AGM); bilance = výroba − nabíjení − odběr z baterie; výroba po hodinách / dnech, odběr za měničem, výroba za 30 dní, tabulka po dnech.
   - ☀️ Zítra = počasí a výroba na 7 dní · 🔌 River = automatika, baterie River a zásuvky · ❤️ / 🔆 / 📡 = zdraví baterie / panely / systém a deník · 🔧 = návod na proměření spojů.
 - Dole: Návod · Deník · **🗂 Všechny údaje** (kompletní původní přehled – nic se neztratilo) · Nastavení.
 
 Následující popis platí pro obsah **detailů** (původní části stránky):
 
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.12**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.13**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.

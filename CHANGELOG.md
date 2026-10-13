@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.13 – 13. 10. 2026
+- Detail **Dnes**: přehledné účetnictví energie – výroba, spotřeba chaty (lednice, běžný odběr, navíc), ztráty (účinnost a vlastní spotřeba měniče, nabíjení AGM) a výsledná bilance baterie; dlaždice Dnes říká, kolik baterii po všech ztrátách přibylo / ubylo
+
 ## 3.12 – 13. 10. 2026
 - Každá dlaždice otevře jen to, co k ní patří (Baterie, Noc, Dnes mají vlastní přehled a grafy s přepínačem Dnes / 48 h / Týden)
 - Patička: 🗂 Všechny údaje – kompletní původní přehled, aby se nic neztratilo

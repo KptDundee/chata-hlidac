@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.12", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.13", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1037,12 +1037,32 @@ function tileRiver(d, h){
   const wait = ra.wait && ra.wait > h.now ? `Zkusí znovu po ${hmT(ra.wait)}` : h.day ? "Zapne se, až bude přebytek" : "Zapne se zítra při slunci";
   return {...t, cls:"ok", v:"Vypnuto", st: h.day ? "Čeká na přebytek slunce" : "Noc – nenabíjí", a: wait};
 }
+function ledger(d, h){
+  const cfg = d.cfg || {}, idle = cfg.menic_vlastni_W ?? 6, pts = d.points || [];
+  const tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
+  const tpd = ((d.days && d.days[tday]) || {}).tp || {};
+  const hrs = new Date().getHours() + new Date().getMinutes()/60;
+  const fip = String(cfg.zasuvka_lednice ?? "185");
+  const owv = pts.filter(p=>p.ow!=null && p.t >= Date.now()/1000-86400).map(p=>p.ow).sort((a,b)=>a-b);
+  const owAvg = owv.length ? owv[Math.floor(owv.length/2)] : null;
+  const ips = x => String(x||"").split(/[,;\s]+/).filter(Boolean);
+  const k = Wh => Wh==null ? null : Wh/1000;
+  const L = {hrs, idle, prod:h.prod, ac:k(h.mWh)};
+  L.fridge = k(tpd[fip]); L.base = owAvg!=null ? owAvg*hrs/1000 : null;
+  L.extra = L.ac!=null && L.fridge!=null && L.base!=null ? Math.max(0, L.ac - L.fridge - L.base) : null;
+  L.invEff = L.ac!=null ? L.ac/0.88 - L.ac : null;          // účinnost měniče ~88 %
+  L.invIdle = idle*hrs/1000;                               // vlastní spotřeba měniče
+  L.dc = L.ac!=null ? L.ac + L.invEff + L.invIdle : null;  // odešlo z baterie
+  L.chg = L.prod*0.10;                                     // ztráta při ukládání do AGM (~10 % výroby)
+  L.bal = L.dc!=null ? L.prod - L.chg - L.dc : null;
+  L.river = k(ips(cfg.zasuvky_river).reduce((s,ip)=>s+(tpd[ip]||0),0));
+  return L;
+}
 function tileToday(d, h){
   const t = {k:"today", icon:"⚡", label:"Dnes"};
-  const used = h.dcWh!=null ? h.dcWh/1000 : null;
-  const bal = used!=null ? h.prod - used : null;
-  return {...t, cls:"ok", v:`${nf(h.prod,2)}<small>kWh</small>`, st:`Vyrobeno${h.mWh!=null?` · spotřeba ${nf(h.mWh/1000,2)}`:""}`,
-    a: bal!=null ? `Bilance ${bal>=0?"+":"−"}${nf(Math.abs(bal),2)} kWh (i se ztrátami)` : ""};
+  const L = ledger(d, h);
+  return {...t, cls:"ok", v:`${nf(h.prod,2)}<small>kWh vyrobeno</small>`, st: L.ac!=null ? `Chata spotřebovala ${nf(L.ac,2)} kWh` : "Vyrobeno",
+    a: L.bal!=null ? `Po všech ztrátách baterii ${L.bal>=0?"přibylo":"ubylo"} ${nf(Math.abs(L.bal),2)} kWh` : ""};
 }
 function tileWire(d, h){
   const t = {k:"wire", icon:"🔧", label:"Kabely a spoje"};
@@ -1183,14 +1203,27 @@ function detNight(body){
   dotChart($("dn_min"), days, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
 }
 function detToday(body){
-  const d = DATA, h = homeData(d), last = d.last || {};
-  const used = h.dcWh!=null ? h.dcWh/1000 : null, bal = used!=null ? h.prod - used : null;
+  const d = DATA, h = homeData(d), last = d.last || {}, L = ledger(d, h);
+  const n2 = x => x==null ? "–" : nf(x,2);
+  const line = (k, v, o={}) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:${o.sum?"7px 0 9px":"4px 0"};${o.sum?"border-top:1px solid var(--line);font-weight:700;":""}${o.sub?"color:var(--text2);font-size:13.5px;padding-left:12px;":""}"><span>${k}</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap;${o.col?`color:var(${o.col})`:""}">${v}</span></div>`;
+  const hd = t => `<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:12px 0 2px">${t}</div>`;
   body.insertAdjacentHTML("beforeend", `<div class="card">
-    ${rowI("☀️ Vyrobeno dnes", `<span style="font-size:20px">${nf(h.prod,2)} kWh</span>`)}
-    ${rowI("Měsíc · celkem", last.month_kwh!=null ? `${nf(last.month_kwh,1)} · ${nf(last.total_kwh,0)} kWh` : "–")}
-    ${rowI("🏠 Spotřeba za měničem", h.mWh!=null ? `<span style="font-size:20px">${nf(h.mWh/1000,2)} kWh</span>` : "–")}
-    <div class="sub" style="margin:-2px 0 6px">${$("t_a_n").textContent}</div>
-    ${rowI("Bilance (výroba − odběr z baterie i se ztrátami)", bal!=null ? `<span style="color:var(${bal>=0?"--good":"--crit"})">${bal>=0?"+":"−"}${nf(Math.abs(bal),2)} kWh</span>` : "–")}
+    ${hd("Výroba")}
+    ${line("☀️ Panely vyrobily (podle regulátoru)", `<b>${n2(L.prod)} kWh</b>`)}
+    ${line("měsíc · celkem", last.month_kwh!=null ? `${nf(last.month_kwh,1)} · ${nf(last.total_kwh,0)} kWh` : "–", {sub:true})}
+    ${hd("Spotřeba chaty – zásuvka „220V měnič“")}
+    ${line("Lednice", `${n2(L.fridge)} kWh`, {sub:true})}
+    ${line("Běžný odběr (světla, kamery, wifi)", `${n2(L.base)} kWh`, {sub:true})}
+    ${line("Navíc (nabíjení zařízení, River)", `${n2(L.extra)} kWh`, {sub:true})}
+    ${line("= spotřeba za měničem", `${n2(L.ac)} kWh`, {sum:true})}
+    ${hd("Ztráty")}
+    ${line("Měnič – převod na 230 V (účinnost ~88 %)", `${n2(L.invEff)} kWh`, {sub:true})}
+    ${line(`Měnič – vlastní spotřeba ${nf(L.idle)} W × ${nf(L.hrs,1)} h`, `${n2(L.invIdle)} kWh`, {sub:true})}
+    ${line("= z baterie odešlo", `${n2(L.dc)} kWh`, {sum:true})}
+    ${line("Nabíjení AGM baterie (~10 % výroby se neuloží)", `${n2(L.chg)} kWh`, {sub:true})}
+    ${hd("Bilance dne")}
+    ${line("Výroba − nabíjení − odběr z baterie", L.bal!=null ? `<b>${L.bal>=0?"+":"−"}${n2(Math.abs(L.bal))} kWh</b>` : "–", {sum:true, col: L.bal==null ? null : L.bal>=0 ? "--good" : "--crit"})}
+    <div class="sub" style="font-size:12.5px;margin-top:2px">${L.bal==null ? "Chybí data ze zásuvky za měničem." : L.bal>=0 ? "Baterii dnes energie přibylo – výroba pokryla spotřebu i ztráty." : "Baterii dnes energie ubylo – výroba nepokryla spotřebu se ztrátami."}${L.river>0.02 ? ` Z River dnes odebráno ${n2(L.river)} kWh (do bilance solární baterie se nepočítá).` : ""} Spotřeba je od půlnoci; ztráty jsou odhad (vlastní spotřebu měniče lze upravit v Nastavení).</div>
   </div>` + segHtml()
   + chartCard("dt_prod", "Výroba", "kWh za hodinu (Dnes) / po dnech")
   + chartCard("dt_cons", "Odběr za měničem", "W · lednice, světla, kamery, wifi, nabíjení River")
