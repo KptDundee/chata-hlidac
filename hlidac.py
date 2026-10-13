@@ -32,7 +32,7 @@ DEFAULTS = {
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
     "zasuvka_menic": "", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
     "river_auto": True, "river_auto_ip": "157", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
-    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "river_auto_notifikace": False,
+    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "river_auto_notifikace": False,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
@@ -1107,11 +1107,18 @@ def overload_check(v, st, now, topic, cfg, data, rise, set_):
     load_a = (inv["mw"] / 0.88 + (cfg["menic_vlastni_W"] or 0)) / bv
     net = ba - load_a
     data["net_a"] = round(net, 1)
+    # běžný odběr teď = lednice (měřená) + obvyklé světla/kamery/wifi (noční medián) → „navíc“ je to ostatní
+    fr = next((p for p in inv.get("tp", []) if p.get("ip") == str(cfg.get("zasuvka_lednice") or "").strip()), None)
+    ons = sorted(d["on"] for k, d in sorted(data.get("days", {}).items())[-8:] if d.get("on") is not None)
+    normal = ((fr or {}).get("w") or 0) + (ons[len(ons) // 2] if ons else 10)
+    extra = inv["mw"] - normal
+    data["extra_w"] = round(extra)
     lim = cfg.get("odber_z_baterie_A") or 2.0
-    if net < -lim and not st.get("ra_on") and now.timestamp() - st.get("ovl_ts", 0) > 3600:
-        ntfy(topic, f"⚡ Odběr {fmt(inv['mw'])} W – bere se z baterie",
-             f"Panely teď dají {fmt(v.get('pv_w'))} W, chata za měničem bere {fmt(inv['mw'])} W → baterie se vybíjí ~{fmt(-net, 1)} A "
-             f"({fmt(bv, 2)} V). Omez nabíjení zařízení, ať baterie do večera dobije.", 4, "zap,warning")
+    navic_min = cfg.get("odber_navic_W") or 40
+    if net < -lim and extra >= navic_min and not st.get("ra_on") and now.timestamp() - st.get("ovl_ts", 0) > 3600:
+        ntfy(topic, f"⚡ Odběr navíc ~{fmt(extra)} W – bere se z baterie",
+             f"Za měničem teď {fmt(inv['mw'])} W, běžně ~{fmt(normal)} W (lednice, světla, kamery, wifi) → navíc ~{fmt(extra)} W "
+             f"(nabíjení zařízení?). Panely dají {fmt(v.get('pv_w'))} W, baterie se vybíjí ~{fmt(-net, 1)} A ({fmt(bv, 2)} V).", 4, "zap,warning")
         st["ovl_ts"] = int(now.timestamp())
 
 

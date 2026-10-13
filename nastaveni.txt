@@ -115,3 +115,5 @@ panely_doporucit = zapnuto
 odber_hlidat = zapnuto
 # od jakého proudu z baterie (A)
 odber_z_baterie_A = 2
+# a jen když odběr za měničem je aspoň o tolik nad běžný (lednice + světla, kamery, wifi)
+odber_navic_W = 40
