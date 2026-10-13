@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.7 – 13. 10. 2026
+- Nová dlaždice **Bilance teď** nahoře přes celou šířku: kolik opravdu jde do baterie / z baterie (i s odběrem měniče, který regulátor nevidí). Když regulátor hlásí Float/Boost, ale baterie se vybíjí, napíše to na rovinu. Ťuknutím graf bilance za den s režimy regulátoru a napětí.
+
 ## 3.6 – 13. 10. 2026
 - Automatika River: vypnout hned, když se baterie vybíjí (čistý proud pod −2 A) nebo ve Float napětí klesne pod ~13,3 V; po neúspěšném pokusu delší pauza (20 → 40 → 80 → 120 min)
 - Štítek stavu: „Vybíjí se · Float/Boost“, když regulátor hlásí Float/Boost, ale baterie se vybíjí (už ne „Nabito“)

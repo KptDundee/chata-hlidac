@@ -105,6 +105,8 @@ Povel se jednou za hodinu zopakuje; ověřuje se stav zásuvky z brány (do Den�
 ### Odběr z baterie přes den (`overload_check`)
 Od východu + 30 min do západu: čistý proud = `bat_a` − (odběr měniče / 0,88 + 6 W) / U. Běžný odběr = lednice (teď) + noční medián „ostatní“ (8 dní); navíc = měnič − běžný. Pod −`odber_z_baterie_A` (2 A) **a** navíc ≥ `odber_navic_W` (40 W) a River není zapnutá automatikou → notifikace, nejvýš 1× za hodinu. Uloží se `data.net_a`.
 
+**Dlaždice Bilance (web 3.7)**: bilance W = (`bat_a` − (`mw`/0,88 + 6 W)/`bat_v`) × `bat_v`; ±0,5 A = „vyrovnané“. Graf z historie bodů (stejný vzorec po bodech, `modes:true`, referenční čára 0), denní součty kWh kladné/záporné části zvlášť.
+
 ### Ostatní odběr
 `ow = měnič − lednice` (bez doby nabíjení River); noční medián 0–5 h → `day.on`; upozornění při změně > max(5 W, 50 %) proti mediánu 14 nocí.
 

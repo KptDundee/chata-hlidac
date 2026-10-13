@@ -20,7 +20,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 ## 2. Hlavní obrazovka
 
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.6**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.7**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.
@@ -41,7 +41,8 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 - **🌙 Do rána vydrží / těsně / nevydrží**: předpověď na noc (po západu slunce): napětí teď a odhad k ránu.
 - **Modrý pruh**: nabití podle regulátoru.
 
-### Čtyři dlaždice (ťuknutím se otevře graf Dnes / Týden)
+### Dlaždice (ťuknutím se otevře graf Dnes / Týden)
+- **Bilance teď ›** (přes celou šířku, nahoře): kolik **opravdu** teď jde do baterie (zeleně ↑ nabíjí) nebo z ní (červeně ↓ vybíjí), ve wattech a ampérech. Regulátor nevidí odběr měniče (ten bere přímo z baterie), takže může ukazovat Float/Boost a „nabíjím“, i když se baterie ve skutečnosti vybíjí – tahle dlaždice to říká na rovinu. Pod tím: *regulátor dává X W → chata bere Y W i se ztrátami měniče*. Graf: bilance během dne (nad nulou nabíjí, pod nulou vybíjí, pozadí podle režimu regulátoru), součty za den do baterie / z baterie a napětí.
 - **Nabití ›**: **procenta podle regulátoru** (při odběru ukazuje méně, protože klesne napětí). Jsou jen orientační: regulátor počítá z napětí i při nabíjení. Při nabíjení ukáže 100 %, po západu spadne napětí na ~12,8 V a ukáže ~60 %. Jinde v aplikaci se proto používá **napětí**.
 - **Panely teď ›**: výkon panelů, *z regulátoru X A* (proud do baterie) a **do baterie čistě ~X A** (po odečtení odběru měniče; záporně a červeně = baterie se vybíjí). V grafu je **barevné pozadí podle režimu**: oranžová = Boost, zelená = Float.
 - **Vyrobeno dnes ›**: výroba za den, měsíc, celkem. Graf: výroba po hodinách a jak přibývala.

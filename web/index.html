@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.6", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.7", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -162,6 +162,8 @@ details.sec>.in{margin-top:8px}
   </section>
 
   <section class="tiles">
+    <div class="card tile" data-tile="bal" role="button" style="grid-column:1/-1" id="t_bal_card"><div class="l">Bilance teď – do baterie / z baterie ›</div>
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><div class="v" id="t_bal">–</div><div id="t_bal_s" style="font-weight:600"></div></div><div class="n" id="t_bal_n"></div></div>
     <div class="card tile" data-tile="soc" role="button"><div class="l">Nabití ›</div><div class="v" id="t_soc">–</div><div class="n" id="t_soc_n"></div></div>
     <div class="card tile" data-tile="pv" role="button"><div class="l">Panely teď ›</div><div class="v" id="t_pv">–</div><div class="n" id="t_pv_n"></div></div>
     <div class="card tile" data-tile="prod" role="button"><div class="l">Vyrobeno dnes ›</div><div class="v" id="t_day">–</div><div class="n" id="t_day_n"></div></div>
@@ -290,6 +292,21 @@ function render(){
   const gq = d.inverter, gqF = gq && Date.now()/1000 - gq.t < 1800 && gq.mw!=null, aq = last.bat_a ?? lp.bat_a;
   const netNow = gqF && bv && aq!=null ? aq - (gq.mw/0.88 + (d.cfg?.menic_vlastni_W ?? 6))/bv : null;
   const s = batState(bv, d.state, status, netNow);
+  {
+    const pvW = last.pv_w ?? lp.pv_w, loadDc = gqF ? gq.mw/0.88 + (d.cfg?.menic_vlastni_W ?? 6) : null;
+    const balW = netNow!=null && bv ? netNow*bv : null;
+    if(balW!=null){
+      const chg = balW >= 15, dis = balW <= -15;
+      $("t_bal").innerHTML = `${balW>0?"+":""}${nf(balW)}<small>W</small>`;
+      $("t_bal").style.color = `var(${dis?"--crit":chg?"--good":"--text"})`;
+      $("t_bal_s").innerHTML = `<span style="color:var(${dis?"--crit":chg?"--good":"--text2"})">${dis?"↓ baterie se vybíjí":chg?"↑ baterie se nabíjí":"≈ vyrovnané"} (${netNow>0?"+":""}${nf(netNow,1)} A)</span>`;
+      $("t_bal_n").textContent = `regulátor dává ${nf((last.bat_a ?? lp.bat_a)*bv)} W (panely ${nf(pvW)} W) → chata bere ${nf(loadDc)} W i se ztrátami měniče`
+        + (dis && (status===1||status===2) ? ` · regulátor hlásí ${status===1?"Float":"Boost"}, ale slunce na tenhle odběr nestačí` : "");
+    } else {
+      $("t_bal").textContent = "–"; $("t_bal").style.color = ""; $("t_bal_s").textContent = "";
+      $("t_bal_n").textContent = "chybí čerstvá data ze zásuvky za měničem (brána na Flipu)";
+    }
+  }
   $("bv").innerHTML = `${nf(bv,2)}<small>V</small>`;
   const pvNow = last.pv_w ?? lp.pv_w;
   $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}${pvNow!=null && pvNow>=1 ? `<span style="white-space:nowrap">· ☀ ${nf(pvNow)}&nbsp;W</span>` : ""}`;
@@ -663,7 +680,17 @@ function renderTile(){
   const last = DATA.last || {}, per = TILER==="d" ? "dnes" : "posledních 7 dní";
   const hide2 = v => $("c_tile2").parentElement.classList.toggle("hide", v);
   hide2(false);
-  if(TILE==="soc"){
+  if(TILE==="bal"){
+    const idle = DATA.cfg?.menic_vlastni_W ?? 6;
+    const bp = pts.map(p=>({t:p.t, status:p.status, b: (p.bat_a!=null && p.mw!=null && p.bat_v) ? +((p.bat_a - (p.mw/0.88+idle)/p.bat_v)*p.bat_v).toFixed(0) : null}));
+    const ok = bp.filter(p=>p.b!=null);
+    const sumWh = f=>{let s=0;for(let i=1;i<ok.length;i++){const dt=ok[i].t-ok[i-1].t;if(dt<2400)s+=(f(ok[i].b)+f(ok[i-1].b))/2*dt/3600;}return s;};
+    $("tilet").textContent = "Bilance baterie"; $("tiles2").textContent = `${per}: do baterie ~${nf(sumWh(x=>Math.max(0,x))/1000,2)} kWh, z baterie ~${nf(-sumWh(x=>Math.min(0,x))/1000,2)} kWh`;
+    $("tile1h").textContent = "Do baterie (+) / z baterie (−)"; $("tile1c").textContent = "W · regulátor − odběr měniče · pozadí = režim regulátoru (oranžová Boost, zelená Float)";
+    lineChart($("c_tile1"), bp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]]});
+    $("tile2h").textContent = "Napětí baterie"; $("tile2c").textContent = "V";
+    lineChart($("c_tile2"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
+  } else if(TILE==="soc"){
     $("tilet").textContent = "Nabití a napětí"; $("tiles2").textContent = `teď ${nf(last.bat_soc)} % podle regulátoru · ${nf(last.bat_v,2)} V`;
     $("tile1h").textContent = "Nabití podle regulátoru"; $("tile1c").textContent = "% · orientačně (počítá z napětí, i při nabíjení)";
     lineChart($("c_tile1"), pts, "bat_soc", css("--s1"), {unit:"%",dec:0,zero:true,area:true,hours:hrs});
