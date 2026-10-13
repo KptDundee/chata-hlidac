@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.9", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.10", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -677,7 +677,7 @@ function renderWx(d){
       <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · chata na River":"☀️ letní provoz · chata na solární baterii"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
     <div style="margin-top:8px">${rec}</div>
     <div style="display:flex;gap:4px;margin-top:12px">${bars}</div>
-    <div class="sub" style="margin-top:6px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně kolik musí panely vyrobit: ~${nf(need,2)} kWh/den (chata spotřebuje ~${nf((ol.ac_day||0)/1000,2)} kWh – lednice, světla, kamery, wifi – plus ztráty měniče a nabíjení; nabíjení River se nepočítá)`:""}${zima?" · pod sloupcem napětí solární baterie večer (v klidu), zeleně den vhodný k připojení":" · pod sloupcem očekávané napětí baterie příští ráno, zeleně den, kdy výroba pokryje spotřebu"}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
+    <div class="sub" style="margin-top:6px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně kolik musí panely vyrobit: ~${nf(need,2)} kWh/den = chata ${nf((ol.ac_day||0)/1000,2)} (lednice, světla, kamery, wifi) + měnič ${nf(((ol.dc_day||0)-(ol.ac_day||0))/1000,2)} (účinnost a vlastní spotřeba) + nabíjení baterie ${nf(need-(ol.dc_day||0)/1000,2)}; nabíjení River se nepočítá)`:""}${zima?" · pod sloupcem napětí solární baterie večer (v klidu), zeleně den vhodný k připojení":" · pod sloupcem očekávané napětí baterie příští ráno, zeleně den, kdy výroba pokryje spotřebu"}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
     <details style="margin-top:2px"><summary style="font-size:13px">Jak přesně předpovídá</summary><div class="sub" style="font-size:12.5px;line-height:1.5">${acc}<br>Model zná zvlášť přímé a rozptýlené světlo a pro každou roční dobu se učí z minulých let – v zimě sám zjistí, že přímé slunce na panely nedopadá. Dny, kdy byla baterie brzy plná (výroba přiškrcená), do učení nepočítá.</div>${accRows?`<div style="font-size:12.5px;margin-top:6px">${accRows}</div>`:""}</details>`;
   el.classList.remove("hide");
 }

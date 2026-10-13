@@ -149,7 +149,7 @@ def plan(data, st, cfg, now, preds_kwh_1panel, need_kwh, mode):
         if short and winterish:
             if safe_from and safe_from <= today.isoformat():
                 res["rec"] = "add"
-                res["msg"] = (f"Jeden panel už nestačí (příští dny ~{avg:.2f} kWh/den, chata potřebuje ~{need_kwh:.2f}). "
+                res["msg"] = (f"Jeden panel už nestačí (příští dny ~{avg:.2f} kWh/den, chata se ztrátami potřebuje ~{need_kwh:.2f}). "
                               f"Druhý panel je už bezpečný: za jasného dne max ~{p2_now:.0f} A (pojistka {fuse:.0f} A).")
             else:
                 res["rec"] = "wait"

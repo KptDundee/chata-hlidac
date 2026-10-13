@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+
+## 3.10 – 13. 10. 2026
+- Upozornění „blíží se zimní provoz“ a karta počasí: místo matoucího „chata potřebuje 1,07 kWh“ rozpad – kolik spotřebuje chata sama, kolik vezme měnič (účinnost + vlastní spotřeba) a kolik ztráty při nabíjení baterie
 ## 3.9 – 13. 10. 2026
 - **Ciferník Chata 1.9 + hodinky 1.6:** horní řádek bere jen komplikaci slunce z aplikace Chata (ikonka podle toho, co přijde); aplikace na hodinkách ukazuje svou verzi
 - **Ciferník Chata 1.8:** horní řádek (slunce) se už nepřekrývá s levým subdialem – v editoru se dají spolehlivě vybrat

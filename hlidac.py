@@ -1356,13 +1356,21 @@ def weather_and_outlook(data, st, cfg, now, topic, mode):
         mon = now.month
         if mode == "leto" and mon in (9, 10, 11, 12, 1) and avg < need * 0.9 and min(d["nm"] for d in days[1:6]) < 40:
             ntfy(topic, "🍂 Blíží se zimní provoz",
-                 f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den, chata potřebuje ~{fmt(need, 2)} kWh/den.\n"
+                 f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den. {need_txt(ol, need)}\n"
                  f"Baterie by ráno klesla až na ~{fmt(min(d['mv'] for d in days[1:6]), 2)} V. Zvaž přechod na River.", 3, "fallen_leaf")
             st["season_sent"] = int(now.timestamp())
         elif mode == "zima" and mon in (2, 3, 4, 5) and avg > need * 1.3:
             ntfy(topic, "🌱 Můžeš přejít na letní provoz",
-                 f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den, chata potřebuje ~{fmt(need, 2)} kWh/den.", 3, "seedling")
+                 f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den. {need_txt(ol, need)}", 3, "seedling")
             st["season_sent"] = int(now.timestamp())
+
+
+def need_txt(ol, need):
+    """Srozumitelně: kolik chata opravdu spotřebuje a kolik k tomu musí panely vyrobit navíc kvůli ztrátám."""
+    ac = (ol.get("ac_day") or 0) / 1000
+    dc = (ol.get("dc_day") or 0) / 1000
+    return (f"Panely musí vyrobit ~{fmt(need, 2)} kWh/den = chata {fmt(ac, 2)} (lednice, světla, kamery, wifi)"
+            f" + měnič {fmt(dc - ac, 2)} (účinnost a jeho vlastní spotřeba) + nabíjení baterie {fmt(need - dc, 2)}.")
 
 
 def other_load(data, st, cfg, now, topic, inv, ra_on):
