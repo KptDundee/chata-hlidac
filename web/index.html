@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "2.4", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "2.5", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -126,7 +126,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.4</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.5</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -262,8 +262,9 @@ function batState(v, st, status){
   if(v < OFF_V) return {c:"--crit",i:"!",t:"Zátěž odpojena",a:`Pod ${nf(OFF_V,1)} V – regulátor odpojuje zátěž, aby chránil baterii.`};
   if(v < CRIT_V) return {c:"--crit",i:"!",t:"Odpojit spotřebiče",a:`Napětí je pod ${nf(CRIT_V,1)} V – odpoj spotřebiče, ať se AGM baterie nepoškodí.`};
   if(v < WARN_V) return {c:"--serious",i:"↓",t:"Baterie slábne",a:`Pod ${nf(WARN_V,1)} V – omez spotřebu, večer to může dojít.`};
-  if(status===1) return {c:"--good",i:"✓",t:"Nabito",a:"Baterie je na 100 % (Float) – můžeš zapojit náročnější spotřebič."};
-  if(status===2||status===3) return {c:"--good",i:"↑",t:"Nabíjí se",a:"Panely nabíjí baterii."};
+  if(status===1) return {c:"--good",i:"✓",t:"Nabito · Float",a:"Baterie je nabitá (Float – udržovací nabíjení), regulátor škrtí panely na to, co je potřeba. Můžeš zapojit náročnější spotřebič."};
+  if(status===2) return {c:"--good",i:"↑",t:"Nabíjí · Boost",a:"Panely nabíjí baterii (Boost – plné nabíjení až na 14,4 V, pak přejde do Float)."};
+  if(status===3) return {c:"--good",i:"↑",t:"Nabíjí · vyrovnávací",a:"Vyrovnávací nabíjení (Equalize) – regulátor občas krátce přebije baterii, aby vyrovnal články."};
   return {c:"--good",i:"✓",t:"V pořádku",a:"Napětí je v bezpečném pásmu."};
 }
 

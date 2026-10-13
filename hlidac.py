@@ -864,14 +864,21 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
     on = bool(st.get("ra_on"))
     reason = None
     day = rise and set_ and rise <= now <= set_ - timedelta(minutes=30)
+    # zapínat jen do 2 h před západem (ať to nevypne hned kvůli slábnoucímu slunci) a ne hned po vypnutí
+    early = rise and set_ and rise + timedelta(minutes=60) <= now <= set_ - timedelta(minutes=120)
+    cooldown = now.timestamp() - st.get("ra_off_ts", 0) < 3600
     if stale or bv is None or pv is None:
         if on:
             on, reason = False, "regulátor neposílá data"
     elif not on:
-        if day and status == 1 and pv >= (cfg["river_auto_pv_on"] or 0) and bv >= (cfg["river_auto_v_off"] or 0) + 0.3:
-            on, reason = True, f"baterie plná, panely {fmt(pv)} W"
+        # Ve Float regulátor škrtí panely na aktuální potřebu → výkon panelů tu nic neříká;
+        # skutečný přebytek se ukáže až po zapnutí (a když nestačí, vypne se níž kvůli „panely jen … W“).
+        st["ra_fl"] = st.get("ra_fl", 0) + 1 if status == 1 else 0
+        if early and not cooldown and st["ra_fl"] >= 2 and bv >= (cfg["river_auto_v_off"] or 0) + 0.3:
+            on, reason = True, f"baterie plná (Float), panely {fmt(pv)} W (přiškrcené)"
     else:
-        lowpv = pv < (cfg["river_auto_pv_off"] or 0)
+        # po zapnutí 30 min tolerance: povel dorazí s Flipem až do 10 min a regulátor hlásí se zpožděním
+        lowpv = pv < (cfg["river_auto_pv_off"] or 0) and now.timestamp() - st.get("ra_since", 0) > 1800
         st["ra_low"] = (st.get("ra_low", 0) + 10) if lowpv else 0
         if bv < (cfg["river_auto_v_off"] or 0):
             on, reason = False, f"napětí klesla na {fmt(bv, 2)} V"
@@ -890,6 +897,8 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
              note=f"🔌 River {'ZAP' if on else 'VYP'} – {reason}{ran} · {fmt(bv, 2)} V, {fmt(pv)} W")
         st["ra_chk"] = False
         st["ra_on"], st["ra_since"], st["ra_low"] = on, int(now.timestamp()), 0
+        if not on:
+            st["ra_off_ts"] = int(now.timestamp())
     elif on and now.timestamp() - st.get("ra_sent", 0) > 3600:
         send_cmd(topic, ip, True, "trvá")       # jednou za hodinu připomenout (kdyby se povel ztratil)
         st["ra_sent"] = int(now.timestamp())
