@@ -84,9 +84,9 @@ ostatni_hlidat = zapnuto
 pocasi = zapnuto
 # provoz: auto (pozná podle měniče a River) / leto / zima
 rezim = auto
-# zima: den vhodný k připojení chaty na solární baterii
-zima_pripojit_od = 85
-zima_pripojit_do = 60
+# zima: den vhodný k připojení chaty na solární baterii (napětí v klidu)
+zima_pripojit_od_V = 12.7
+zima_pripojit_do_V = 12.4
 # upozornit na přechod zima ↔ léto
 sezona_upozornit = zapnuto
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "2.3", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "2.4", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -126,7 +126,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.3</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.4</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -157,7 +157,7 @@ details.sec>.in{margin-top:8px}
   </section>
 
   <section class="tiles">
-    <div class="card tile"><div class="l">Nabití (SOC)</div><div class="v" id="t_soc">–</div><div class="n" id="t_soc_n"></div></div>
+    <div class="card tile"><div class="l">Nabití</div><div class="v" id="t_soc">–</div><div class="n" id="t_soc_n"></div></div>
     <div class="card tile"><div class="l">Panely teď</div><div class="v" id="t_pv">–</div><div class="n" id="t_pv_n"></div></div>
     <div class="card tile"><div class="l">Vyrobeno dnes</div><div class="v" id="t_day">–</div><div class="n" id="t_day_n"></div></div>
     <div class="card tile"><div class="l">Spotřebováno dnes</div><div class="v" id="t_a">–</div><div class="n" id="t_a_n"></div></div>
@@ -329,17 +329,16 @@ function render(){
     let c, ic, txt;
     if(f.t_off){c="--crit";ic="!";txt=`Do rána nevydrží – pod alarm ~${hm(f.t_crit||f.t_off)}, měnič se vypne ~${hm(f.t_off)}`;}
     else if(f.t_crit){c="--serious";ic="↓";txt=`Do rána těsně – pod ${nf(CRIT_V,1)} V kolem ${hm(f.t_crit)}`;}
-    else {c="--good";ic="✓";txt=`Do rána vydrží – teď ~${f.soc_now} %, v ${hm(f.until)} ~${Math.max(f.soc_until,0)} %`;}
+    else {c="--good";ic="✓";txt=f.v_until!=null?`Do rána vydrží – teď ~${nf(f.v_now,2)} V, v ${hm(f.until)} ~${nf(f.v_until,2)} V`:`Do rána vydrží`;}
     const trend = f.slope!=null ? ` · skutečný pokles ${nf(-f.slope*1000)} mV/h` : "";
     fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} ${f.ah_night!=null?`<span class="sub">(noc ~${f.ah_night} Ah při ~${f.draw_w} W${f.cap&&f.cap<(d.cfg?.kapacita_Ah||200)?`, baterie ~${f.cap} Ah`:""}${trend})</span>`:""}</span>`;
     fc.classList.remove("hide");
   } else fc.classList.add("hide");
-  $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,(d.soc_est ?? soc)||0))+"%";
+  $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,soc||0))+"%";
   renderWx(d);
   $("socbar").setAttribute("aria-valuenow", soc ?? 0);
-  const se = d.soc_est;
-  $("t_soc").innerHTML = `${nf(se ?? soc)}<small>%</small>`;
-  $("t_soc_n").textContent = se!=null ? `odhad hlídače${d.vcal&&d.vcal.n>=5?` (plná = ${nf(d.vcal.full,2)} V)`:""} · regulátor ${nf(soc)} %` : "odhad regulátoru";
+  $("t_soc").innerHTML = `${nf(soc)}<small>%</small>`;
+  $("t_soc_n").textContent = "podle regulátoru (orientačně)";
   $("t_pv").innerHTML = `${nf(last.pv_w ?? lp.pv_w)}<small>W</small>`;
   $("t_pv_n").textContent = last.pv_v!=null ? `${nf(last.pv_v,1)} V` : STATUS[status] || "";
   const tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
@@ -522,7 +521,7 @@ function renderWx(d){
   const t = days[1];
   if(zima){
     const okd = days.slice(1).find(x=>x.ok);
-    rec = okd ? `☀️ Chatu půjde přes den připojit na solární baterii <b>${dn(okd.d)}</b> (ráno ~${okd.m} %, po dni ~${okd.after} %).`
+    rec = okd ? `☀️ Chatu půjde přes den připojit na solární baterii <b>${dn(okd.d)}</b> (ráno ~${nf(okd.mvm,2)} V, po dni ~${nf(okd.av,2)} V).`
               : `❄️ Příštích 7 dní nebude solární baterie dost nabitá k připojení (večer ~${days[0]?.ev!=null?nf(days[0].ev,2)+" V":(days[0]?.e ?? "?")+" %"}).`;
   } else if(t){
     const mvs = days.slice(1).filter(x=>x.mv!=null);
@@ -534,7 +533,7 @@ function renderWx(d){
     const col = zima ? (o.ok?"var(--good)":"var(--s1)") : (need && p.kwh>=need ? "var(--good)" : "var(--s1)");
     const vcol = v => v==null ? "var(--muted)" : v < CRIT_V ? "var(--crit)" : v < WARN_V ? "var(--serious)" : "var(--muted)";
     const sv = zima ? o.ev : o.mv;
-    const sub = sv!=null ? `<span style="color:${vcol(sv)}">${nf(sv,1)} V</span>` : (zima ? (o.e!=null?`${o.e} %`:"") : (o.nm!=null?`${o.nm} %`:""));
+    const sub = sv!=null ? `<span style="color:${vcol(sv)}">${nf(sv,1)} V</span>` : "";
     return `<div style="flex:1;min-width:0;text-align:center" title="${p.txt}">
       <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden">${dshort(p.d)}</div>
       <div style="font-size:18px;line-height:1.3">${icon(p.code)}</div>
@@ -801,8 +800,8 @@ const SETTINGS = [
   ["Počasí a zimní provoz", [
     ["pocasi","Předpověď výroby podle počasí","Učí se z historie tvých panelů","","", "sw"],
     ["rezim","Provoz","Automaticky pozná podle měniče a River",["auto","leto","zima"],["automaticky","letní","zimní"],"sel"],
-    ["zima_pripojit_od","Zima: připojit solár, když je ráno aspoň","Stav solární baterie","%",5,"num"],
-    ["zima_pripojit_do","…a po dni s chatou zbyde aspoň","","%",5,"num"],
+    ["zima_pripojit_od_V","Zima: připojit solár, když má ráno aspoň","Napětí solární baterie v klidu","V",0.05,"num"],
+    ["zima_pripojit_do_V","…a po dni s chatou zbyde aspoň","","V",0.05,"num"],
     ["sezona_upozornit","Upozornit na přechod zima ↔ léto","Podle předpovědi na příští dny","","", "sw"],
   ]],
   ["Panely a pojistka", [

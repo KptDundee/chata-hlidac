@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 2.4 – 13. 10. 2026
+- Procenta jen z regulátoru (dlaždice Nabití, hodinky); všude jinde napětí: předpověď do rána, výhled, zimní doporučení, notifikace, souhrn
+- Zimní prahy připojení solární baterie ve voltech (zima_pripojit_od_V / do_V)
+
 ## 2.3 – 13. 10. 2026
 - Kalibrace napětí → % na Petrovu baterii (plná = klidové napětí večer po dni ve Float), používá odhad nabití, předpověď do rána, výhled
 - Výhled: pod sloupci očekávané napětí ráno (léto) / večer (zima) místo procent
