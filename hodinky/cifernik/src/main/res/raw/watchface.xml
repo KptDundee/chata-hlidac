@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ciferník „Chata“ – Watch Face Format (systém ho kreslí sám, žádný vlastní kód = šetří baterii).
+  Plátno 480 × 480, střed 240/240. Grafiku kreslí cifernik/grafika/generuj.py (polohy musí sedět s tímto souborem).
+  Subdialy: vlevo napětí baterie chaty (komplikace z aplikace Chata), vpravo baterie hodinek, dole teplota (počasí systému).
+  Úsporný režim (AMBIENT): černé pozadí, jen obrysy ruček, indexy a napětí chaty; vteřinovka a barvy zhasnou.
+-->
+<WatchFace width="480" height="480" clipShape="CIRCLE">
+  <Metadata key="CLOCK_TYPE" value="ANALOG"/>
+  <Metadata key="PREVIEW_TIME" value="10:08:34"/>
+
+  <Scene backgroundColor="#ff000000">
+
+    <!-- ===== podklad ===== -->
+    <PartImage name="dial" x="0" y="0" width="480" height="480">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <Image resource="dial"/>
+    </PartImage>
+    <PartImage name="ambDial" x="0" y="0" width="480" height="480" alpha="0">
+      <Variant mode="AMBIENT" target="alpha" value="255"/>
+      <Image resource="amb_dial"/>
+    </PartImage>
+
+    <!-- ===== datum po obvodu: PONDĚLÍ 21/12 ===== -->
+    <PartText name="date" x="0" y="0" width="480" height="480">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <TextCircular centerX="240" centerY="240" width="256" height="256" startAngle="-70" endAngle="70" direction="CLOCKWISE" align="CENTER">
+        <Font family="inter_semibold" size="17" color="#ffebedf2" letterSpacing="0.06">
+          <Upper><Template>%s %s/%s<Parameter expression="[DAY_OF_WEEK_F]"/><Parameter expression="[DAY_Z]"/><Parameter expression="[MONTH_Z]"/></Template></Upper>
+        </Font>
+      </TextCircular>
+    </PartText>
+
+    <!-- ===== baterie hodinek (subdial vpravo) ===== -->
+    <Group name="batSub" x="277" y="183" width="114" height="114">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <PartImage name="batNeedle" x="49" y="11" width="16" height="92" pivotX="0.5" pivotY="0.5">
+        <Transform target="angle" value="-135 + 2.7 * clamp([BATTERY_PERCENT], 0, 100)"/>
+        <Image resource="needle"/>
+      </PartImage>
+      <PartText name="batText" x="0" y="84" width="114" height="20">
+        <Text align="CENTER">
+          <Font family="inter_semibold" size="14" color="#ffffffff"><Template>%s%%<Parameter expression="[BATTERY_PERCENT]"/></Template></Font>
+        </Text>
+      </PartText>
+    </Group>
+
+    <!-- ===== teplota (subdial dole) – počasí systému ===== -->
+    <Group name="tempSub" x="183" y="283" width="114" height="114">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <Condition>
+        <Expressions>
+          <Expression name="wx"><![CDATA[[WEATHER.IS_AVAILABLE] == 1 && [WEATHER.IS_ERROR] == 0]]></Expression>
+        </Expressions>
+        <Compare expression="wx">
+          <Group name="tempOk" x="0" y="0" width="114" height="114">
+            <PartImage name="tempNeedle" x="49" y="11" width="16" height="92" pivotX="0.5" pivotY="0.5">
+              <Transform target="angle" value="-135 + 4.5 * (clamp([WEATHER.TEMPERATURE], -20, 40) + 20)"/>
+              <Image resource="needle"/>
+            </PartImage>
+            <PartText name="tempText" x="0" y="84" width="114" height="20">
+              <Text align="CENTER">
+                <Font family="inter_semibold" size="14" color="#ffffffff"><Template>%s°<Parameter expression="[WEATHER.TEMPERATURE]"/></Template></Font>
+              </Text>
+            </PartText>
+          </Group>
+        </Compare>
+        <Default>
+          <Group name="tempNo" x="0" y="0" width="114" height="114">
+            <PartText name="tempNoText" x="0" y="84" width="114" height="20">
+              <Text align="CENTER">
+                <Font family="inter_semibold" size="14" color="#99ffffff">--°</Font>
+              </Text>
+            </PartText>
+          </Group>
+        </Default>
+      </Condition>
+    </Group>
+
+    <!-- ===== CHATA: napětí solární baterie (subdial vlevo, komplikace z aplikace Chata) ===== -->
+    <ComplicationSlot name="chata" slotId="0" displayName="Chata – baterie" x="89" y="183" width="114" height="114"
+        supportedTypes="RANGED_VALUE SHORT_TEXT" isCustomizable="TRUE">
+      <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY"
+          primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.VoltComplication" primaryProviderType="RANGED_VALUE"/>
+      <BoundingOval x="0" y="0" width="114" height="114"/>
+      <Complication type="RANGED_VALUE">
+        <PartImage name="chataNeedle" x="49" y="11" width="16" height="92" pivotX="0.5" pivotY="0.5">
+          <Variant mode="AMBIENT" target="alpha" value="0"/>
+          <Transform target="angle" value="-135 + 270 * (clamp([COMPLICATION.RANGED_VALUE_VALUE], [COMPLICATION.RANGED_VALUE_MIN], [COMPLICATION.RANGED_VALUE_MAX]) - [COMPLICATION.RANGED_VALUE_MIN]) / ([COMPLICATION.RANGED_VALUE_MAX] - [COMPLICATION.RANGED_VALUE_MIN])"/>
+          <Image resource="needle_chata"/>
+        </PartImage>
+        <PartText name="chataText" x="0" y="84" width="114" height="20">
+          <Variant mode="AMBIENT" target="y" value="47"/>
+          <Text align="CENTER">
+            <Font family="inter_semibold" size="14" color="#ffffffff"><Template>%s V<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+          </Text>
+        </PartText>
+      </Complication>
+      <Complication type="SHORT_TEXT">
+        <PartText name="chataShort" x="0" y="84" width="114" height="20">
+          <Variant mode="AMBIENT" target="y" value="47"/>
+          <Text align="CENTER">
+            <Font family="inter_semibold" size="14" color="#ffffffff"><Template>%s V<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+          </Text>
+        </PartText>
+      </Complication>
+    </ComplicationSlot>
+
+    <!-- ===== východ / západ slunce (komplikace z aplikace Chata; náhradně systémová) ===== -->
+    <ComplicationSlot name="sun" slotId="1" displayName="Slunce" x="130" y="138" width="220" height="26"
+        supportedTypes="LONG_TEXT SHORT_TEXT" isCustomizable="TRUE">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <DefaultProviderPolicy defaultSystemProvider="SUNRISE_SUNSET" defaultSystemProviderType="SHORT_TEXT"
+          primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.SunComplication" primaryProviderType="LONG_TEXT"/>
+      <BoundingBox x="0" y="0" width="220" height="26"/>
+      <Complication type="LONG_TEXT">
+        <PartText name="sunLong" x="0" y="0" width="220" height="26">
+          <Text align="CENTER">
+            <Font family="inter_semibold" size="15" color="#ffd9e0ec"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+          </Text>
+        </PartText>
+      </Complication>
+      <Complication type="SHORT_TEXT">
+        <PartText name="sunShort" x="0" y="0" width="220" height="26">
+          <Text align="CENTER">
+            <Font family="inter_semibold" size="15" color="#ffd9e0ec"><Template>%s %s<Parameter expression="[COMPLICATION.TITLE]"/><Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+          </Text>
+        </PartText>
+      </Complication>
+    </ComplicationSlot>
+
+    <!-- ===== ručky ===== -->
+    <AnalogClock x="0" y="0" width="480" height="480">
+      <HourHand resource="hand_hour" x="217" y="111" width="46" height="258" pivotX="0.5" pivotY="0.5">
+        <Variant mode="AMBIENT" target="alpha" value="0"/>
+      </HourHand>
+      <HourHand resource="amb_hour" x="221" y="111" width="38" height="258" pivotX="0.5" pivotY="0.5" alpha="0">
+        <Variant mode="AMBIENT" target="alpha" value="255"/>
+      </HourHand>
+      <MinuteHand resource="hand_minute" x="220" y="36" width="40" height="408" pivotX="0.5" pivotY="0.5">
+        <Variant mode="AMBIENT" target="alpha" value="0"/>
+      </MinuteHand>
+      <MinuteHand resource="amb_minute" x="224" y="36" width="32" height="408" pivotX="0.5" pivotY="0.5" alpha="0">
+        <Variant mode="AMBIENT" target="alpha" value="255"/>
+      </MinuteHand>
+      <!-- vteřinovka skáče po vteřině (bez plynulého pohybu = méně překreslování) a v úsporném režimu zmizí -->
+      <SecondHand resource="hand_second" x="226" y="24" width="28" height="432" pivotX="0.5" pivotY="0.5">
+        <Variant mode="AMBIENT" target="alpha" value="0"/>
+      </SecondHand>
+    </AnalogClock>
+
+    <!-- středová krytka v úsporném režimu (jinak je součástí vteřinovky) -->
+    <PartImage name="ambCap" x="228" y="228" width="24" height="24" alpha="0">
+      <Variant mode="AMBIENT" target="alpha" value="255"/>
+      <Image resource="cap"/>
+    </PartImage>
+  </Scene>
+</WatchFace>

@@ -1,0 +1,21 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Ciferník ve formátu Watch Face Format: jen zdroje (XML + obrázky), žádný kód.
+android {
+    namespace 'cz.petr.chatacifernik'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'cz.petr.chatahodinky.cifernik'
+        minSdk 34          // Wear OS 5+ (formát v2 kvůli počasí); Xiaomi Watch 5 má Wear OS 6
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release { minifyEnabled false }
+    }
+}

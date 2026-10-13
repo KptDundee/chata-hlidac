@@ -18,3 +18,14 @@ Přejeď z ciferníku do strany → na konci *+ Přidat dlaždici* → **Chata**
 Dlouze podrž ciferník → *Upravit / Přizpůsobit* → vyber místo pro komplikaci → **Chata – napětí baterie**.
 Krátká verze ukáže „12,64 V“, kruhová ukazuje napětí mezi vypnutím měniče (11,6 V) a 13 V.
 Pozn.: některé ciferníky od Xiaomi cizí komplikace nepodporují – pak zkus jiný ciferník (např. z Google / Play).
+
+## Ciferník Chata (modul `cifernik`)
+Analogový ciferník ve formátu **Watch Face Format** – kreslí ho systém, nemá vlastní kód, takže šetří baterii.
+1. V Android Studiu nahoře v seznamu konfigurací vyber **cifernik** (vedle **app**).
+   Pokud tam není: *Run → Edit Configurations → + → Android App*, Module **ChataHodinky.cifernik**, **Launch: Nothing**.
+2. Hodinky vybrané nahoře → ▶ **Run**. (Nejdřív nainstaluj i **app** – kvůli komplikacím Chata a slunce.)
+3. Na hodinkách dlouze podrž ciferník → přejeď na konec → **+** → **Chata – ciferník**.
+4. Když se v subdialu CHATA nic neukazuje: podrž ciferník → **Upravit** → levý subdial → **Chata – napětí baterie**; nahoře → **Chata – východ / západ slunce**. Hodinky se můžou zeptat na povolení dat – potvrď.
+
+Grafika: `cifernik/grafika/generuj.py` (Python + pycairo) vykreslí PNG do `cifernik/src/main/res/drawable-nodpi`.
+Písmo Inter (SIL Open Font License).

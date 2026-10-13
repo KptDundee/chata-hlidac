@@ -114,5 +114,8 @@ final class Data {
         try {
             ComplicationDataSourceUpdateRequester.create(c, new ComponentName(c, VoltComplication.class)).requestUpdateAll();
         } catch (Exception ignored) { }
+        try {
+            ComplicationDataSourceUpdateRequester.create(c, new ComponentName(c, SunComplication.class)).requestUpdateAll();
+        } catch (Exception ignored) { }
     }
 }

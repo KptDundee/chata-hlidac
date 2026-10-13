@@ -1104,7 +1104,8 @@ def watch_publish(data, v, st, now, topic, cfg):
             "pv": round(v["pv_w"]) if v.get("pv_w") is not None else None,
             "w": round(inv["mw"]) if fresh and inv.get("mw") is not None else None,
             "st": st_txt, "fc": fc, "lvl": lvl, "day": v.get("day_kwh"),
-            "ra": bool((data.get("river_auto") or {}).get("on")), "vmin": cfg["odpojeni_V"] or 11.6}
+            "ra": bool((data.get("river_auto") or {}).get("on")), "vmin": cfg["odpojeni_V"] or 11.6,
+            "lat": cfg["sirka"], "lon": cfg["delka"]}           # poloha chaty – hodinky z ní počítají východ / západ slunce
     try:
         req = urllib.request.Request(f"https://ntfy.sh/{topic}-hodinky", data=json.dumps(body).encode(),
                                      headers={"Title": "chata", "Priority": "1"}, method="POST")

@@ -50,5 +50,21 @@
             <meta-data android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="600" />
         </service>
+
+        <!-- komplikace: východ a západ slunce u chaty (počítá se v hodinkách, nepotřebuje internet) -->
+        <service
+            android:name=".SunComplication"
+            android:label="Chata – východ / západ slunce"
+            android:icon="@drawable/ic_chata"
+            android:exported="true"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="LONG_TEXT,SHORT_TEXT" />
+            <meta-data android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="3600" />
+        </service>
     </application>
 </manifest>

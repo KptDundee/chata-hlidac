@@ -28,6 +28,7 @@ Hodinky Wear OS ◄── ntfy <téma>-hodinky ◄──────────
 | Dokumentace | `docs/*.md`, `CHANGELOG.md`, `web/doc.html` | zveřejňuje se do `gh-pages/docs/` |
 | Brána | `android/` (Chata brána, `cz.petr.chatabrana`) | Java, minSdk 31, bez závislostí |
 | Hodinky | `hodinky/` (`cz.petr.chatahodinky`) | Java, Wear OS (minSdk 30), Tiles + Complications |
+| Ciferník | `hodinky/cifernik/` (`cz.petr.chatahodinky.cifernik`) | Watch Face Format v2 (jen XML + PNG, bez kódu), minSdk 34 |
 | Workflow | `.github/workflows/hlidac.yml` | běh hlídače, zveřejnění webu, data.enc a dokumentace |
 
 **Tajné údaje (GitHub Secrets):** `SG_ACCOUNT`, `SG_PASSWORD`, `NTFY_TOPIC`, `DATA_KEY`, `ECOFLOW_ACCESS_KEY`, `ECOFLOW_SECRET_KEY`. Téma ntfy je tajné. Repozitář je veřejný, proto se nikdy nezapisuje do kódu.
@@ -128,7 +129,9 @@ AES-GCM, klíč PBKDF2-SHA256 (200 000 iterací) z `DATA_KEY`. Hlavní klíče:
 | `inverter`, `last`, `forecast`, `river_auto`, `mode`, `soc_est`, `vcal`, `cfg`, `state` | aktuální stav |
 | `plug_hourly`, `plug_names`, `np_hist`, `health_base` | historie zásuvky, názvy, změny panelů, výchozí zdraví |
 
-Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor), pv, w, st, fc, lvl (0/1/2), day, ra, vmin`.
+Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor), pv, w, st, fc, lvl (0/1/2), day, ra, vmin, lat, lon`.
+
+**Ciferník (WFF v2)**: `res/raw/watchface.xml`, plátno 480×480. Grafiku kreslí `cifernik/grafika/generuj.py` (pycairo) – polohy subdialů a ruček musí odpovídat XML. Slot 0 = `VoltComplication` (RANGED_VALUE, ručička −135…+135° podle min/max), slot 1 = `SunComplication` (LONG_TEXT; náhradní systémový SUNRISE_SUNSET). Baterie hodinek `[BATTERY_PERCENT]`, teplota `[WEATHER.TEMPERATURE]` (Condition na `[WEATHER.IS_AVAILABLE]`). AMBIENT: Variant alpha → černý `amb_dial` + obrysové ručky, vteřinovka skrytá, vteřiny bez Sweep (skok 1×/s). Validace: XSD z github.com/google/watchface (`xmlschema.XMLSchema11`).
 
 ---
 

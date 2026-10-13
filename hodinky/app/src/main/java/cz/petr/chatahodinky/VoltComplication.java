@@ -60,7 +60,7 @@ public class VoltComplication extends ComplicationDataSourceService {
                 float min = (float) d.optDouble("vmin", 11.6), max = 13.0f;
                 float val = (float) Math.max(min, Math.min(max, v));
                 return new RangedValueComplicationData.Builder(val, min, max, desc)
-                        .setText(txt(String.format(Data.CS, "%.1f", v)))
+                        .setText(txt(vs))
                         .setTitle(txt(title)).setTapAction(tap).build();
             }
             case LONG_TEXT: {

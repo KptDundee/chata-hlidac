@@ -20,7 +20,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 ## 2. Hlavní obrazovka
 
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.8**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.9**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.
@@ -164,3 +164,13 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 - **Komplikace** „Chata – napětí baterie“: dlouze podrž ciferník → Upravit → místo komplikace. *V?* = data starší než hodina, *V!* = kritické napětí.
 - **Dlaždice** „Chata“: napětí (barevně), nabití podle regulátoru, panely, odběr, předpověď. Ťuknutím se obnoví.
 - V aplikaci Chata na hodinkách musí být zadané **téma ntfy** (stejné jako v aplikaci ntfy).
+- **Komplikace** „Chata – východ / západ slunce“: časy u chaty (počítá se v hodinkách, bez internetu).
+
+### Ciferník Chata
+Analogový ciferník v leteckém stylu (tmavě modrý sunburst, masivní ručky s luminiscencí, oranžová vteřinovka).
+- **Nahoře po obvodu** den a datum (*PONDĚLÍ 21/12*), pod tím **↑ východ ↓ západ slunce**.
+- **Subdial vlevo – CHATA**: napětí solární baterie, oranžová ručička na stupnici 11,6–13 V (červená = kritické, oranžová = slabne, zelená = nabitá) a číslo dole. Ťuknutím se otevře aplikace Chata.
+- **Subdial vpravo – HODINKY**: baterie hodinek.
+- **Subdial dole – °C**: teplota v místě, kde jsi (počasí z hodinek). Když hodinky počasí nemají, ukáže *--°*.
+- **Úsporný režim** (zhasnutý displej): černé pozadí, jen obrysy ruček, indexy a napětí chaty – kvůli baterii.
+- Komplikace vlevo a nahoře jdou v editoru ciferníku vyměnit (dlouze podržet → Upravit).
