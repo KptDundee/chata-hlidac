@@ -431,13 +431,51 @@ AGM_SOC = [(11.80, 0), (11.95, 10), (12.05, 20), (12.15, 30), (12.25, 40), (12.3
            (12.45, 60), (12.55, 70), (12.65, 80), (12.75, 90), (12.85, 100)]
 
 
+# Kalibrace na Petrovu baterii: „plná“ = klidové napětí večer po dni, kdy byla ve Float (stará baterie má nižší než 12,85 V)
+VCAL = {"full": 12.85, "empty": 11.80}
+
+
+def _map_in(v):                                 # skutečné napětí → napětí v obecné tabulce
+    f, e = VCAL["full"], VCAL["empty"]
+    return 11.80 + (v - e) * (12.85 - 11.80) / max(f - e, 0.2)
+
+
 def soc_from_v(v):
+    v = _map_in(v)
     if v <= AGM_SOC[0][0]:
         return 0.0
     for (v1, s1), (v2, s2) in zip(AGM_SOC, AGM_SOC[1:]):
         if v <= v2:
             return s1 + (s2 - s1) * (v - v1) / (v2 - v1)
     return 100.0
+
+
+def v_from_soc(soc):
+    """Opačný převod: stav nabití % → klidové napětí tvé baterie."""
+    soc = max(0.0, min(100.0, soc))
+    g = AGM_SOC[-1][0]
+    for (v1, s1), (v2, s2) in zip(AGM_SOC, AGM_SOC[1:]):
+        if soc <= s2:
+            g = v1 + (v2 - v1) * (soc - s1) / (s2 - s1)
+            break
+    f, e = VCAL["full"], VCAL["empty"]
+    return e + (g - 11.80) * (f - e) / (12.85 - 11.80)
+
+
+def calibrate(data):
+    """Klidové napětí „plné“ baterie: začátek noci (západ + 2 h) po dni, kdy byla ve Float."""
+    days = data.get("days", {})
+    vals = []
+    for k in sorted(days)[-90:]:
+        nv = days[k].get("nv")
+        prev = (datetime.strptime(k, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+        if nv and (days.get(prev) or {}).get("fl"):
+            vals.append(nv["vs"] + 0.04)          # +0,04 V za pokles pod malým nočním odběrem
+    vals = vals[-30:]
+    if len(vals) >= 5:
+        vals.sort()
+        VCAL["full"] = max(12.30, min(12.95, vals[len(vals) // 2]))
+    data["vcal"] = {"full": round(VCAL["full"], 2), "empty": VCAL["empty"], "n": len(vals)}
 
 
 def battery_health(data, now, cfg):
@@ -465,6 +503,8 @@ def battery_health(data, now, cfg):
         nv = day.get("nv")
         if not nv:
             nv = night_voltages([(p["t"], p["bat_v"]) for p in pts if p.get("bat_v")], date, cfg)
+            if nv:
+                day["nv"] = nv
         if not nv:
             continue
         # odběr ve W za měničem během noci
@@ -671,6 +711,10 @@ def main():
     data["cfg"] = cfg
     data["sun"] = [int(rise.timestamp()), int(set_.timestamp())] if rise else None
     data["checked"] = int(now.timestamp())
+    try:
+        calibrate(data)
+    except Exception as e:
+        print("Kalibrace napětí:", e)
     try:
         data["ver"] = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")).read().strip()
     except OSError:
@@ -933,7 +977,7 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
             line += (f"\n☀️ Připojit chatu na solární baterii jde nejdřív: {datetime.strptime(okd['d'], '%Y-%m-%d').strftime('%-d. %-m.')}"
                      if okd else "\n❄️ Příštích 7 dní nebude solární baterie dost nabitá k připojení")
         else:
-            line += f" · baterie večer ~{t['e']} %, ráno pak ~{t['nm']} %"
+            line += f" · ráno pak ~{fmt(t.get('mv'), 2)} V"
         L.append(line)
     if wxo.get("acc_med") is not None:
         L.append(f"🎯 Předpověď výroby: odchylka obvykle ±{wxo['acc_med']} % (posledních {len(wxo.get('acc') or [])} dní)")
@@ -1166,6 +1210,7 @@ def outlook(data, st, cfg, now, mode, preds):
                            and r["after"] >= (cfg["zima_pripojit_do"] or 60))
             soc = min(100.0, soc + gain)                               # bez připojení se jen nabíjí
             r["e"] = round(soc)
+            r["ev"] = round(v_from_soc(soc), 2)                 # klidové napětí solární baterie večer
         else:
             e = morning + gain - day_use
             r["waste"] = round(max(0.0, e - 100) / 100 * cap * 12.8 / 1000, 2)
@@ -1173,6 +1218,7 @@ def outlook(data, st, cfg, now, mode, preds):
             r["e"] = round(e)
             soc = max(0.0, e - night_use)
             r["nm"] = round(soc)                                       # ráno dalšího dne
+            r["mv"] = round(v_from_soc(soc) - 0.04, 2)                 # napětí ráno (pod malým odběrem)
         rows.append(r)
     return {"mode": mode, "days": rows, "ac_day": round(ac_day), "dc_day": round(dc_day)}
 

@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 2.3 – 13. 10. 2026
+- Kalibrace napětí → % na Petrovu baterii (plná = klidové napětí večer po dni ve Float), používá odhad nabití, předpověď do rána, výhled
+- Výhled: pod sloupci očekávané napětí ráno (léto) / večer (zima) místo procent
+- Popisky: „z baterie i se ztrátami měniče“, „Victron (Bluetooth): nic nepřichází“
+
 ## 2.2 – 13. 10. 2026
 - Hodinky (Wear OS, Xiaomi Watch 5): nová aplikace `hodinky/` – komplikace s napětím baterie a dlaždice se základními údaji; hlídač posílá shrnutí do ntfy `<téma>-hodinky`
 
