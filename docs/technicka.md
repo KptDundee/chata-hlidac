@@ -98,8 +98,8 @@ Po západu: stav z napětí (průměr 30 min, bez slunce), odběr = naměřený 
 - Odebrat: nejhorší případ > 115 % pojistky do 14 dní. Okamžité varování: naměřený proud > 110 %.
 
 ### Automatika River (`river_auto`)
-Zapnutí: (Float ≥ 1 měření, napětí ≥ 12,8 V) nebo (Boost a napětí ≥ boost_V + kompenzace − 0,08 V); okno východ + 1 h … západ − 2 h; 20 min po posledním vypnutí. Kompenzace = (25 − T_baterie) × 0,018 V, max ± 0,3 V.
-Vypnutí: Boost a napětí < nabíjecí − 0,2 V a zároveň < `float_V` − 0,15 V (pokles na Float = konec Boostu, ne nedostatek slunce); napětí < `river_auto_v_drzet` (13,0) nebo < `river_auto_v_off` (12,5); panely < `river_auto_pv_off` v prvním měření pořízeném > 10 min po zapnutí; západ − 30 min; zastaralá data.
+Zapnutí: (Float ≥ 1 měření, napětí ≥ 12,8 V) nebo (Boost a napětí ≥ boost_V + kompenzace − 0,08 V); okno východ + 1 h … západ − 2 h; pauza po vypnutí 20 min × 2^neúspěchy (max 120 min; neúspěch = vypnuto kvůli vybíjení / slabým panelům do 40 min od zapnutí). Kompenzace = (25 − T_baterie) × 0,018 V, max ± 0,3 V.
+Vypnutí: čistý proud do baterie (`bat_a` − (odběr měniče / 0,88 + 6 W) / U) < −`odber_z_baterie_A`; Float a napětí < `float_V` − 0,4 V; Boost a napětí < nabíjecí − 0,2 V a zároveň < `float_V` − 0,15 V (pokles na Float = konec Boostu, ne nedostatek slunce); napětí < `river_auto_v_drzet` (13,0) nebo < `river_auto_v_off` (12,5); panely < `river_auto_pv_off` v prvním měření pořízeném > 10 min po zapnutí; západ − 30 min; zastaralá data.
 Povel se jednou za hodinu zopakuje; ověřuje se stav zásuvky z brány (do Deníku chyba, když nesedí).
 
 ### Odběr z baterie přes den (`overload_check`)

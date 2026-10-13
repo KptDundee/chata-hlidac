@@ -868,7 +868,9 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
     day = rise and set_ and rise <= now <= set_ - timedelta(minutes=30)
     # zapínat jen do 2 h před západem (ať to nevypne hned kvůli slábnoucímu slunci) a ne hned po vypnutí
     early = rise and set_ and rise + timedelta(minutes=60) <= now <= set_ - timedelta(minutes=120)
-    cooldown = now.timestamp() - st.get("ra_off_ts", 0) < 20 * 60 - 30      # krátká pauza po vypnutí (proti točení při polojasnu)
+    # pauza po vypnutí: 20 min, po každém neúspěšném pokusu (baterie se vybíjela) dvojnásobek, max 120 min
+    pause = min(120, 20 * 2 ** st.get("ra_fail", 0)) * 60
+    cooldown = now.timestamp() - st.get("ra_off_ts", 0) < pause - 30
     # nabíjecí napětí Boostu s teplotní kompenzací (−18 mV/°C pro 12V baterii, vztaženo k 25 °C)
     bt = v.get("bat_t")
     boost_v = (cfg.get("boost_V") or 14.4) + (max(-0.3, min(0.3, (25 - bt) * 0.018)) if bt is not None else 0)
@@ -894,7 +896,15 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         fresh_after = reading_ts > st.get("ra_since", 0) + 600
         hold = cfg.get("river_auto_v_drzet") or 13.0
         float_v = cfg.get("float_V") or 13.7
-        if status == 2 and bv < boost_v - 0.2 and bv < float_v - 0.15:
+        # čistý proud do baterie = proud z regulátoru − odběr měniče (River je za měničem)
+        net = None
+        if inv and now.timestamp() - inv.get("t", 0) < 1200 and inv.get("mw") is not None and v.get("bat_a") is not None:
+            net = v["bat_a"] - (inv["mw"] / 0.88 + (cfg["menic_vlastni_W"] or 0)) / bv
+        if net is not None and net < -(cfg.get("odber_z_baterie_A") or 2.0):
+            on, reason = False, f"baterie se vybíjí ({fmt(net, 1)} A) – panely na River nestačí"
+        elif status == 1 and bv < float_v - 0.4:
+            on, reason = False, f"napětí ve Float kleslo na {fmt(bv, 2)} V – baterie se vybíjí"
+        elif status == 2 and bv < boost_v - 0.2 and bv < float_v - 0.15:
             # (pokles jen na úroveň Float je normální konec Boostu, ne nedostatek slunce)
             on, reason = False, f"regulátor už neudrží nabíjecí napětí ({fmt(bv, 2)} V) – River by brala z baterie"
         elif bv < hold:
@@ -918,9 +928,15 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         else:
             log("auto", note)                   # potichu – jen do Deníku a večerního souhrnu
         st["ra_chk"] = False
+        st["ra_since_prev"] = st.get("ra_since", now.timestamp())
         st["ra_on"], st["ra_since"], st["ra_low"] = on, int(now.timestamp()), 0
         if not on:
             st["ra_off_ts"] = int(now.timestamp())
+            ran_s = now.timestamp() - st.get("ra_since_prev", now.timestamp())
+            if "vybíjí" in reason or "neudrží" in reason or "panely jen" in reason:
+                st["ra_fail"] = min(st.get("ra_fail", 0) + 1, 3) if ran_s < 40 * 60 else 0
+            else:
+                st["ra_fail"] = 0
     elif on and now.timestamp() - st.get("ra_sent", 0) > 3600:
         send_cmd(topic, ip, True, "trvá")       # jednou za hodinu připomenout (kdyby se povel ztratil)
         st["ra_sent"] = int(now.timestamp())
@@ -937,7 +953,7 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
             log("err", f"Zásuvka .{ip} je nedostupná (bez napájení?) – River se nenabíjí")
             st["ra_chk"] = True
     data["river_auto"] = {"on": on, "since": st.get("ra_since"), "ip": ip, "why": reason or st.get("ra_why"),
-                          "off_ts": st.get("ra_off_ts"), "wait": int(st.get("ra_off_ts", 0) + 20 * 60) if not on else None}
+                          "off_ts": st.get("ra_off_ts"), "wait": int(st.get("ra_off_ts", 0) + pause) if not on else None}
     if reason:
         st["ra_why"] = reason
         data["river_auto"]["why"] = reason

@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.6 – 13. 10. 2026
+- Automatika River: vypnout hned, když se baterie vybíjí (čistý proud pod −2 A) nebo ve Float napětí klesne pod ~13,3 V; po neúspěšném pokusu delší pauza (20 → 40 → 80 → 120 min)
+- Štítek stavu: „Vybíjí se · Float/Boost“, když regulátor hlásí Float/Boost, ale baterie se vybíjí (už ne „Nabito“)
+- Dlaždice Nabití: vysvětlení, že regulátor při odběru ukazuje méně
+
 ## 3.5 – 13. 10. 2026
 - **Flip 1.2:** oprava čtení Victronu na pozadí – filtr skenu „výrobce Victron + první bajt 0x10“ (prázdný filtr Samsung nepřijal, takže na pozadí nic nechodilo, i když Test Bluetooth fungoval)
 - **Flip 1.2:** přesné budíky po 10 min i v úsporném režimu (dřív Android běh natahoval na ~17 min)

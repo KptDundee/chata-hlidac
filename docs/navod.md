@@ -20,7 +20,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 ## 2. Hlavní obrazovka
 
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.5**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.6**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.
@@ -30,6 +30,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 - **Štítek pod ním**: stav a režim nabíjení:
   - *Nabíjí · Boost*: regulátor nabíjí. Nejdřív plným proudem na ~14,4 V (v chladu víc, *teplotní kompenzace*), pak napětí drží po dobu Boostu (obvykle 2 h).
   - *Nabito · Float*: baterie je plná, regulátor drží ~13,7 V a **škrtí panely** na to, co je zrovna potřeba.
+  - *Vybíjí se · Float / Boost*: regulátor sice hlásí Float/Boost, ale za měničem se bere víc, než panely dají, a baterie se vybíjí (oranžově).
   - *Baterie slábne* (pod 12,2 V), *Odpojit spotřebiče* (pod 12,0 V), *Zátěž odpojena* (pod 11,6 V).
   - **☀ X W**: výkon panelů teď.
 - **Odběr chaty teď** (vpravo): co se odebírá za měničem (zásuvka „220V měnič“). Pod tím:
@@ -41,7 +42,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 - **Modrý pruh**: nabití podle regulátoru.
 
 ### Čtyři dlaždice (ťuknutím se otevře graf Dnes / Týden)
-- **Nabití ›**: **procenta podle regulátoru**. Jsou jen orientační: regulátor počítá z napětí i při nabíjení. Při nabíjení ukáže 100 %, po západu spadne napětí na ~12,8 V a ukáže ~60 %. Jinde v aplikaci se proto používá **napětí**.
+- **Nabití ›**: **procenta podle regulátoru** (při odběru ukazuje méně, protože klesne napětí). Jsou jen orientační: regulátor počítá z napětí i při nabíjení. Při nabíjení ukáže 100 %, po západu spadne napětí na ~12,8 V a ukáže ~60 %. Jinde v aplikaci se proto používá **napětí**.
 - **Panely teď ›**: výkon panelů, *z regulátoru X A* (proud do baterie) a **do baterie čistě ~X A** (po odečtení odběru měniče; záporně a červeně = baterie se vybíjí). V grafu je **barevné pozadí podle režimu**: oranžová = Boost, zelená = Float.
 - **Vyrobeno dnes ›**: výroba za den, měsíc, celkem. Graf: výroba po hodinách a jak přibývala.
 - **Spotřebováno dnes ›**: všechno za měničem (stejně jako zásuvka „220V měnič“). Pod tím rozpad: *lednice · běžný odběr* (světla, kamery, wifi) *· navíc* (nabíjení zařízení, River) a *z baterie i se ztrátami*.
@@ -112,9 +113,11 @@ Zásuvka **.157** (za měničem, neměří) nabíjí River. Priorita je vždy **
 **Zapne se**, když:
 - regulátor je ve **Float**, **nebo** v **Boostu drží nabíjecí napětí** (~14,4 V + teplotní kompenzace), tj. baterie dostává plnou dávku a River jede z přebytku,
 - je aspoň 1 h po východu a nejpozději 2 h před západem slunce,
-- od posledního vypnutí uběhlo aspoň 20 minut (aby se při polojasnu netočilo).
+- od posledního vypnutí uběhla pauza: 20 min, po každém neúspěšném pokusu (baterie se vybíjela) dvojnásobek – 40, 80, max. 120 min.
 
 **Vypne se hned**, když:
+- se baterie **vybíjí** víc než 2 A (čistý proud = z regulátoru − odběr měniče), tj. panely na River nestačí,
+- ve Float napětí klesne o víc než 0,4 V pod Float (~13,3 V),
 - v Boostu napětí spadne o víc než 0,2 V pod nabíjecí hodnotu **a zároveň pod úroveň Float** (regulátor už neudrží → River by brala z baterie). Pokles jen na ~13,7 V je normální konec Boostu, ne problém,
 - napětí klesne pod **13,0 V** (baterie se vybíjí), nebo pod 12,5 V,
 - první měření po přepnutí ukáže panely pod 100 W,

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.5", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.6", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -131,7 +131,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v3.5</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v3.6</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -270,11 +270,12 @@ async function load(pw){
 }
 
 /* ---------- stav baterie ---------- */
-function batState(v, st, status){
+function batState(v, st, status, net){
   if(v==null) return {c:"--muted",i:"?",t:"bez dat",a:"Žádná čerstvá data z regulátoru."};
   if(v < OFF_V) return {c:"--crit",i:"!",t:"Zátěž odpojena",a:`Pod ${nf(OFF_V,1)} V – regulátor odpojuje zátěž, aby chránil baterii.`};
   if(v < CRIT_V) return {c:"--crit",i:"!",t:"Odpojit spotřebiče",a:`Napětí je pod ${nf(CRIT_V,1)} V – odpoj spotřebiče, ať se AGM baterie nepoškodí.`};
   if(v < WARN_V) return {c:"--serious",i:"↓",t:"Baterie slábne",a:`Pod ${nf(WARN_V,1)} V – omez spotřebu, večer to může dojít.`};
+  if((status===1||status===2) && net!=null && net < -1) return {c:"--serious",i:"↓",t:`Vybíjí se · ${status===1?"Float":"Boost"}`,a:`Baterie se teď vybíjí (~${nf(-net,1)} A): za měničem se bere víc, než panely dají. Regulátor je ve ${status===1?"Float":"Boostu"}, ale slunce na tenhle odběr nestačí – omez nabíjení zařízení.`};
   if(status===1) return {c:"--good",i:"✓",t:"Nabito · Float",a:"Baterie je nabitá (Float – udržovací nabíjení), regulátor škrtí panely na to, co je potřeba. Přebytek ze slunce můžeš využít – nabíjení zařízení, River."};
   if(status===2) return {c:"--good",i:"↑",t:"Nabíjí · Boost",a:"Panely nabíjí baterii (Boost): nejdřív plným proudem na ~14,4 V (v chladu o něco víc – teplotní kompenzace), pak napětí drží po nastavenou dobu Boostu a teprve potom přejde do Float (13,7 V)."};
   if(status===3) return {c:"--good",i:"↑",t:"Nabíjí · vyrovnávací",a:"Vyrovnávací nabíjení (Equalize) – regulátor občas krátce přebije baterii, aby vyrovnal články."};
@@ -286,7 +287,9 @@ function render(){
   if(d.cfg){WARN_V=d.cfg.baterie_slabne_V??WARN_V;CRIT_V=d.cfg.baterie_kriticka_V??CRIT_V;OFF_V=d.cfg.odpojeni_V??OFF_V;}
   const lp = pts[pts.length-1] || {};
   const bv = last.bat_v ?? lp.bat_v, soc = last.bat_soc ?? lp.bat_soc, status = last.status ?? lp.status;
-  const s = batState(bv, d.state, status);
+  const gq = d.inverter, gqF = gq && Date.now()/1000 - gq.t < 1800 && gq.mw!=null, aq = last.bat_a ?? lp.bat_a;
+  const netNow = gqF && bv && aq!=null ? aq - (gq.mw/0.88 + (d.cfg?.menic_vlastni_W ?? 6))/bv : null;
+  const s = batState(bv, d.state, status, netNow);
   $("bv").innerHTML = `${nf(bv,2)}<small>V</small>`;
   const pvNow = last.pv_w ?? lp.pv_w;
   $("pill").innerHTML = `<i style="background:var(${s.c})">${s.i}</i>${s.t}${pvNow!=null && pvNow>=1 ? `<span style="white-space:nowrap">· ☀ ${nf(pvNow)}&nbsp;W</span>` : ""}`;
@@ -353,7 +356,7 @@ function render(){
   renderWx(d);
   $("socbar").setAttribute("aria-valuenow", soc ?? 0);
   $("t_soc").innerHTML = `${nf(soc)}<small>%</small>`;
-  $("t_soc_n").textContent = "podle regulátoru (orientačně)";
+  $("t_soc_n").textContent = "podle regulátoru (orientačně – počítá z napětí, při odběru ukazuje méně)";
   $("t_pv").innerHTML = `${nf(last.pv_w ?? lp.pv_w)}<small>W</small>`;
   $("t_pv_n").textContent = last.pv_v!=null ? `${nf(last.pv_v,1)} V` : STATUS[status] || "";
   const tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
