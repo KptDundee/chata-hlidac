@@ -1,6 +1,8 @@
 package cz.petr.chatahodinky;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.InputType;
@@ -22,6 +24,9 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         Data.requestUpdates(this);          // otevřením aplikace se hned obnoví dlaždice i komplikace na ciferníku
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 1);   // teplota tam, kde jsem
+        }
         int pad = dp(22);
         ScrollView sv = new ScrollView(this);
         LinearLayout l = new LinearLayout(this);
@@ -110,5 +115,11 @@ public class MainActivity extends Activity {
 
     private int dp(int v) {
         return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(code, perms, res);
+        Data.requestUpdates(this);          // s povolenou polohou hned načíst teplotu
     }
 }

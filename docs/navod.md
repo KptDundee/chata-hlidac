@@ -172,7 +172,7 @@ Analogový ciferník v leteckém stylu (tmavě modrý sunburst do černa, zapuš
 - **Tři stejné subdialy** – po obvodu jezdí trojúhelník (ukazatel), uprostřed velké číslo:
   - **vlevo nahoře 🏠 chata** – napětí solární baterie (1 desetinné místo), stupnice 11,6–13 V: červená = kritické, oranžová = slabne, zelená = nabitá. Ťuknutím se otevře aplikace Chata.
   - **vpravo nahoře 🔋 hodinky** – baterie hodinek.
-  - **dole 🌡 teplota** v místě, kde jsi (počasí z hodinek); když hodinky počasí nemají, ukáže *--°*.
+  - **dole 🌡 teplota** venku v místě, kde jsi (komplikace „Chata – teplota venku“ z Open-Meteo; poloha hodinek – aplikace Chata se jednou zeptá na povolení polohy; bez něj teplota u chaty). Jde vyměnit za počasí Xiaomi v editoru ciferníku.
 - **Vlevo dole den** (PO, ÚT…), **vpravo dole datum** (21/12).
 - **Úsporný režim** (sklopená ruka, je-li zapnutý „vždy zapnutý displej“): ciferník vypadá stejně, jen zmizí vteřinovka.
 - Komplikace vlevo a nahoře jdou v editoru ciferníku vyměnit (dlouze podržet → Upravit).

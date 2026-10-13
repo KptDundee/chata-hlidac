@@ -594,6 +594,10 @@ def main():
     sc, W, H = second_hand()
     save(sc, "hand_second"); HANDS["second"] = (W, H)
     save(cap(), "cap")
+    for up, nm in ((True, "sun_up"), (False, "sun_down")):     # ikonky východ / západ (72 px, na ciferníku 36)
+        ic, ci = new(72, 72)
+        icon_sun(ci, 36, 36, 68, (0.88, 0.91, 0.95), up)
+        save(ic, nm)
     for k, v in HANDS.items():
         print(k, v)
     for k, v in SUBS.items():

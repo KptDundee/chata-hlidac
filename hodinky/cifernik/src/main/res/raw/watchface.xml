@@ -3,7 +3,7 @@
   Ciferník „Chata“ – Watch Face Format (systém ho kreslí sám, žádný vlastní kód = šetří baterii).
   Plátno 480 × 480, střed 240/240. Grafiku kreslí cifernik/grafika/generuj.py (polohy musí sedět s tímto souborem).
   Tři subdialy (152 × 152): vlevo nahoře napětí chaty (komplikace z aplikace Chata), vpravo nahoře baterie hodinek,
-  dole teplota (počasí systému). Ukazatel = trojúhelník po obvodu (−135° … +135°), uprostřed velké číslo.
+  dole teplota (komplikace Chata – teplota venku). Ukazatel = trojúhelník po obvodu (−135° … +135°), uprostřed velké číslo.
   Nahoře nejbližší východ / západ slunce, vlevo dole den (PO), vpravo dole datum (21/12). Písmo Saira Expanded (res/font/saira.ttf).
   Úsporný režim (AMBIENT): ciferník vypadá stejně, jen zmizí vteřinovka (a střed ukáže ocelovou krytku).
 -->
@@ -45,36 +45,31 @@
       </PartText>
     </Group>
 
-    <!-- ===== teplota (dole) – počasí systému ===== -->
-    <Group name="tempSub" x="164" y="264" width="152" height="152">
-      <Condition>
-        <Expressions>
-          <Expression name="wx"><![CDATA[[WEATHER.IS_AVAILABLE] == 1 && [WEATHER.IS_ERROR] == 0]]></Expression>
-        </Expressions>
-        <Compare expression="wx">
-          <Group name="tempOk" x="0" y="0" width="152" height="152">
-            <PartImage name="tempMarker" x="0" y="0" width="152" height="152" pivotX="0.5" pivotY="0.5">
-              <Transform target="angle" value="-135 + 4.5 * (clamp([WEATHER.TEMPERATURE], -20, 40) + 20)"/>
-              <Image resource="marker"/>
-            </PartImage>
-            <PartText name="tempText" x="0" y="60" width="152" height="44">
-              <Text align="CENTER">
-                <Font family="saira" size="32" color="#ffffffff"><Template>%s°<Parameter expression="[WEATHER.TEMPERATURE]"/></Template></Font>
-              </Text>
-            </PartText>
-          </Group>
-        </Compare>
-        <Default>
-          <Group name="tempNo" x="0" y="0" width="152" height="152">
-            <PartText name="tempNoText" x="0" y="60" width="152" height="44">
-              <Text align="CENTER">
-                <Font family="saira" size="32" color="#99ffffff">--°</Font>
-              </Text>
-            </PartText>
-          </Group>
-        </Default>
-      </Condition>
-    </Group>
+    <!-- ===== teplota (dole) – komplikace „Chata – teplota venku“ (Open-Meteo); jde vyměnit za počasí Xiaomi ===== -->
+    <ComplicationSlot name="temp" slotId="2" displayName="Teplota" x="164" y="264" width="152" height="152"
+        supportedTypes="RANGED_VALUE SHORT_TEXT" isCustomizable="TRUE">
+      <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="SHORT_TEXT"
+          primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.TempComplication" primaryProviderType="RANGED_VALUE"/>
+      <BoundingOval x="0" y="0" width="152" height="152"/>
+      <Complication type="RANGED_VALUE">
+        <PartImage name="tempMarker" x="0" y="0" width="152" height="152" pivotX="0.5" pivotY="0.5">
+          <Transform target="angle" value="-135 + 270 * (clamp([COMPLICATION.RANGED_VALUE_VALUE], [COMPLICATION.RANGED_VALUE_MIN], [COMPLICATION.RANGED_VALUE_MAX]) - [COMPLICATION.RANGED_VALUE_MIN]) / ([COMPLICATION.RANGED_VALUE_MAX] - [COMPLICATION.RANGED_VALUE_MIN])"/>
+          <Image resource="marker"/>
+        </PartImage>
+        <PartText name="tempText" x="0" y="60" width="152" height="44">
+          <Text align="CENTER">
+            <Font family="saira" size="32" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+          </Text>
+        </PartText>
+      </Complication>
+      <Complication type="SHORT_TEXT">
+        <PartText name="tempShort" x="0" y="60" width="152" height="44">
+          <Text align="CENTER">
+            <Font family="saira" size="32" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+          </Text>
+        </PartText>
+      </Complication>
+    </ComplicationSlot>
 
     <!-- ===== CHATA: napětí solární baterie (vlevo nahoře, komplikace z aplikace Chata) ===== -->
     <ComplicationSlot name="chata" slotId="0" displayName="Chata – baterie" x="77" y="114" width="152" height="152"
@@ -102,30 +97,42 @@
       </Complication>
     </ComplicationSlot>
 
-    <!-- ===== nejbližší východ / západ slunce (nahoře) ===== -->
+    <!-- ===== nejbližší východ / západ slunce (nahoře) =====
+         Z aplikace Chata jako RANGED_VALUE: hodnota 1 = příští je východ, 0 = západ; text = čas.
+         Ikonky jsou přímo v ciferníku (spolehlivější než obrázek z komplikace). -->
     <ComplicationSlot name="sun" slotId="1" displayName="Slunce" x="110" y="80" width="260" height="40"
-        supportedTypes="SHORT_TEXT LONG_TEXT" isCustomizable="TRUE">
+        supportedTypes="RANGED_VALUE SHORT_TEXT" isCustomizable="TRUE">
       <DefaultProviderPolicy defaultSystemProvider="SUNRISE_SUNSET" defaultSystemProviderType="SHORT_TEXT"
-          primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.SunComplication" primaryProviderType="SHORT_TEXT"/>
+          primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.SunComplication" primaryProviderType="RANGED_VALUE"/>
       <BoundingBox x="0" y="0" width="260" height="40"/>
-      <Complication type="SHORT_TEXT">
-        <!-- ikonka slunce na obzoru se šipkou (z aplikace Chata) + čas -->
-        <PartImage name="sunIconS" x="58" y="2" width="36" height="36" tintColor="#ffe0e8f2">
-          <Image resource="[COMPLICATION.MONOCHROMATIC_IMAGE]"/>
-        </PartImage>
-        <PartText name="sunShort" x="102" y="0" width="158" height="40">
+      <Complication type="RANGED_VALUE">
+        <Group name="sunIcon" x="58" y="2" width="36" height="36">
+          <Condition>
+            <Expressions>
+              <Expression name="up"><![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] > 0.5]]></Expression>
+            </Expressions>
+            <Compare expression="up">
+              <Group name="sunUpG" x="0" y="0" width="36" height="36">
+                <PartImage name="sunUp" x="0" y="0" width="36" height="36"><Image resource="sun_up"/></PartImage>
+              </Group>
+            </Compare>
+            <Default>
+              <Group name="sunDownG" x="0" y="0" width="36" height="36">
+                <PartImage name="sunDown" x="0" y="0" width="36" height="36"><Image resource="sun_down"/></PartImage>
+              </Group>
+            </Default>
+          </Condition>
+        </Group>
+        <PartText name="sunTime" x="102" y="0" width="158" height="40">
           <Text align="START">
             <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
-      <Complication type="LONG_TEXT">
-        <PartImage name="sunIconL" x="58" y="2" width="36" height="36" tintColor="#ffe0e8f2">
-          <Image resource="[COMPLICATION.MONOCHROMATIC_IMAGE]"/>
-        </PartImage>
-        <PartText name="sunLong" x="102" y="0" width="158" height="40">
-          <Text align="START">
-            <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+      <Complication type="SHORT_TEXT">
+        <PartText name="sunShort" x="0" y="0" width="260" height="40">
+          <Text align="CENTER">
+            <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s %s<Parameter expression="[COMPLICATION.TITLE]"/><Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>

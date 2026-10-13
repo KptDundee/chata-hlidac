@@ -13,6 +13,7 @@ import androidx.wear.watchface.complications.data.ComplicationType;
 import androidx.wear.watchface.complications.data.LongTextComplicationData;
 import androidx.wear.watchface.complications.data.MonochromaticImage;
 import androidx.wear.watchface.complications.data.PlainComplicationText;
+import androidx.wear.watchface.complications.data.RangedValueComplicationData;
 import androidx.wear.watchface.complications.data.ShortTextComplicationData;
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceService;
 import androidx.wear.watchface.complications.datasource.ComplicationRequest;
@@ -71,6 +72,9 @@ public class SunComplication extends ComplicationDataSourceService {
         MonochromaticImage img = new MonochromaticImage.Builder(
                 Icon.createWithResource(this, "↑".equals(title) ? R.drawable.ic_sunrise : R.drawable.ic_sunset)).build();
         switch (type) {
+            case RANGED_VALUE:      // pro ciferník Chata: hodnota 1 = příští je východ, 0 = západ; text = čas
+                return new RangedValueComplicationData.Builder("↑".equals(title) ? 1f : 0f, 0f, 1f, desc)
+                        .setText(txt(t)).setTitle(txt(title)).setTapAction(tap).build();
             case LONG_TEXT:
                 return new LongTextComplicationData.Builder(txt(t), desc)
                         .setMonochromaticImage(img).setTapAction(tap).build();
