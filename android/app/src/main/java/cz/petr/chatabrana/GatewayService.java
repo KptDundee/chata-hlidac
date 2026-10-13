@@ -114,8 +114,13 @@ public class GatewayService extends Service {
 
     static void scheduleAlarm(Context c) {
         AlarmManager am = c.getSystemService(AlarmManager.class);
-        am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + INTERVAL_MS, alarmIntent(c));
+        long at = SystemClock.elapsedRealtime() + INTERVAL_MS;
+        // přesný budík i v úsporném režimu (jinak Android běh natahuje na 15–20 min)
+        if (am.canScheduleExactAlarms()) {
+            am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent(c));
+        } else {
+            am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent(c));
+        }
     }
 
     static void cancelAlarm(Context c) {

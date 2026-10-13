@@ -46,7 +46,8 @@ Hodinky Wear OS ◄── ntfy <téma>-hodinky ◄──────────
 ### Brána Flip (ntfy `<téma>-menic`)
 JSON: `w` (VA Victron průměr), `max`, `lw` + `v` (odběr a napětí ve stejném okamžiku), `st`, `al`, `age`, `n`, `tp` (zásuvky: `ip, n, w, wh, on, off, nm, err`), `ph` (telefon: `b, c, t`), `av` (verze aplikace).
 - Tapo: protokol KLAP v2 (místní HTTP), `get_device_info`, `get_energy_usage`, `get_energy_data`, `set_device_info {device_on}`.
-- Victron: BLE Instant Readout, výrobce 0x02E1, AES-128-CTR, Phoenix 12/800 = 0x2403. MAC je náhodná statická → filtr podle výrobce + dešifrování klíčem.
+- Victron: BLE Instant Readout, výrobce 0x02E1, AES-128-CTR, Phoenix 12/800 = 0x2403. MAC je náhodná statická → sken na pozadí s filtrem výrobce 0x02E1 + první bajt 0x10 (maska 0xFF; prázdná data Samsung nepřijme) + MAC, měnič se pozná dešifrováním klíčem. Test Bluetooth hledá bez filtru (jen s rozsvíceným displejem).
+- Plánování: `setExactAndAllowWhileIdle` po 10 min (oprávnění `USE_EXACT_ALARM`), jinak `setAndAllowWhileIdle`.
 - Hodinová historie zásuvky měniče jednou denně do `<téma>-menic-hist`.
 - Povely: hlídač → `<téma>-cmd` `{ip, on, id, why}`, Flip provede a zapamatuje `cmd_done`.
 

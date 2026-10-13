@@ -20,7 +20,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 ## 2. Hlavní obrazovka
 
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.4**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.5**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.
@@ -141,7 +141,7 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 ## 7. Když něco nefunguje
 
 - **Červená verze Flipu dole na stránce**: na Flip nahraj novou aplikaci (Android Studio: složka `android`, ▶ Run). Kopíruj celou složku `app` (i `build.gradle`).
-- **„Victron (Bluetooth): nic nepřichází“**: na Flipu otevři *Chata brána* → *Test Bluetooth*. Musí být zapnutá poloha a Bluetooth a Flip musí být u měniče.
+- **„Victron (Bluetooth): nic nepřichází“**: na Flipu otevři *Chata brána* → *Test Bluetooth*. Musí být zapnutá poloha a Bluetooth a VictronConnect musí být zavřený (když je k měniči připojený, měnič přestane vysílat). Když test Victron najde, ale na pozadí nic nechodí, je potřeba aplikace Flip aspoň 1.2.
 - **Data se nemění**: ⚡ Načíst. Když nepomůže, podívej se do Deníku (chyby červeně).
 - **Stránka se neaktualizuje na novou verzi**: aplikaci úplně zavři a otevři. Nová verze bývá vidět do ~15 min po změně.
 - **Nastavení nejde uložit**: GitHub token v telefonu vypršel → v Nastavení zadej nový.

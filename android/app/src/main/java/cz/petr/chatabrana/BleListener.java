@@ -76,10 +76,15 @@ public final class BleListener {
     @SuppressLint("MissingPermission")
     public void ensureRunning() { ensureRunning(false); }
 
-    /** Filtry: výrobce Victron (zachytí i náhodnou MAC) + konkrétní MAC. */
+    /**
+     * Filtry pro sken na pozadí (se zhasnutým displejem Android pustí jen filtrovaný sken):
+     * výrobce Victron + první bajt 0x10 (každá zpráva Instant Readout jím začíná) a navíc konkrétní MAC.
+     * Prázdná data ve filtru (verze 1.1) Samsung nepřijal – nic neprošlo.
+     */
     private java.util.List<ScanFilter> filters() {
         java.util.List<ScanFilter> fl = new java.util.ArrayList<>();
-        fl.add(new ScanFilter.Builder().setManufacturerData(VictronParser.MANUFACTURER_ID, new byte[0]).build());
+        fl.add(new ScanFilter.Builder().setManufacturerData(VictronParser.MANUFACTURER_ID,
+                new byte[]{0x10}, new byte[]{(byte) 0xFF}).build());
         if (mac != null && BluetoothAdapter.checkBluetoothAddress(mac)) {
             fl.add(new ScanFilter.Builder().setDeviceAddress(mac).build());
         }
