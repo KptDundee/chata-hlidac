@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.16", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.17", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -617,6 +617,12 @@ function frame(el, lo, hi, dec){
 }
 function empty(el,msg="Zatím málo dat – graf se naplní během pár hodin."){el.innerHTML=`<div class="sub" style="padding:40px 0;text-align:center">${msg}</div>`;}
 function xLabels(svg,t0,t1,x){
+  if(t1-t0 > 40*86400){   // dlouhé období: popisky po měsících (u více let jen leden = rok)
+    const years = (t1-t0) > 2.2*365*86400; let s=""; const d=new Date(t0*1000); d.setDate(1); d.setHours(0,0,0,0); d.setMonth(d.getMonth()+1);
+    const step = years ? 12 : (t1-t0) > 200*86400 ? 2 : 1; if(years) d.setMonth(0), d.setFullYear(d.getFullYear()+1);
+    for(; d.getTime()/1000 <= t1; d.setMonth(d.getMonth()+step)){ const t=d.getTime()/1000; const lab = years ? String(d.getFullYear()) : d.toLocaleDateString("cs-CZ",{month:"short"})+(d.getMonth()===0?" "+String(d.getFullYear()).slice(2):""); s+=`<text x="${x(t)}" y="${H-6}" text-anchor="middle">${lab}</text>`; }
+    svg.insertAdjacentHTML("beforeend",s); return;
+  }
   const span=t1-t0, stepH = span<=86400*1.1?6:span<=172800*1.1?12:span<=7*86400*1.1?24:48;
   let s=""; const d=new Date(t0*1000); d.setMinutes(0,0,0); d.setHours(Math.ceil(d.getHours()/stepH)*stepH);
   for(let t=d.getTime()/1000;t<=t1;t+=stepH*3600){const dt=new Date(t*1000);const lab=stepH>=24?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):dt.getHours()===0?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):dt.getHours()+":00";s+=`<text x="${x(t)}" y="${H-6}" text-anchor="middle">${lab}</text>`;}
@@ -645,8 +651,9 @@ function lineChart(el, pts, key, color, o){
     svg.insertAdjacentHTML("beforeend", b);
   }
   // mezery v datech > 40 min přeruší čáru
-  let dPath="",prev=null; for(const q of p){dPath+=(prev&&q.t-prev.t<2400?"L":"M")+x(q.t).toFixed(1)+","+y(q[key]).toFixed(1);prev=q;}
-  if(o.area){let a="",seg=[];const flush=()=>{if(seg.length>1)a+=`M${x(seg[0].t)},${y(lo)}`+seg.map(q=>`L${x(q.t)},${y(q[key])}`).join("")+`L${x(seg[seg.length-1].t)},${y(lo)}Z`;seg=[];};prev=null;for(const q of p){if(prev&&q.t-prev.t>=2400)flush();seg.push(q);prev=q;}flush();svg.insertAdjacentHTML("beforeend",`<path d="${a}" fill="${color}" opacity=".14"/>`);}
+  const GAP=o.gap||2400;
+  let dPath="",prev=null; for(const q of p){dPath+=(prev&&q.t-prev.t<GAP?"L":"M")+x(q.t).toFixed(1)+","+y(q[key]).toFixed(1);prev=q;}
+  if(o.area){let a="",seg=[];const flush=()=>{if(seg.length>1)a+=`M${x(seg[0].t)},${y(lo)}`+seg.map(q=>`L${x(q.t)},${y(q[key])}`).join("")+`L${x(seg[seg.length-1].t)},${y(lo)}Z`;seg=[];};prev=null;for(const q of p){if(prev&&q.t-prev.t>=GAP)flush();seg.push(q);prev=q;}flush();svg.insertAdjacentHTML("beforeend",`<path d="${a}" fill="${color}" opacity=".14"/>`);}
   if(o.neg){   // část pod nulou (vybíjení) červeně: stejná čára dvakrát, oříznutá nad / pod nulou
     const id = "cl"+Math.random().toString(36).slice(2,8), y0 = Math.max(M.t, Math.min(H-M.b, y(0)));
     svg.insertAdjacentHTML("beforeend", `<defs><clipPath id="${id}a"><rect x="0" y="0" width="${W}" height="${y0}"/></clipPath><clipPath id="${id}b"><rect x="0" y="${y0}" width="${W}" height="${H-y0}"/></clipPath></defs>
@@ -1160,9 +1167,21 @@ const DET = {
 };
 let DET_MOVED = [], DET_K = null, DETR = "d";
 const chartCard = (id, h, c) => `<div class="card chart"><h2>${h}</h2><div class="cs">${c||""}</div><div id="${id}"></div></div>`;
-const segHtml = () => `<div class="seg" id="detseg" style="margin-bottom:12px"><button data-r="d" aria-pressed="${DETR==="d"}">Dnes</button><button data-r="48" aria-pressed="${DETR==="48"}">48 h</button><button data-r="168" aria-pressed="${DETR==="168"}">Týden</button></div>`;
-const detHours = () => { if(DETR!=="d") return +DETR; const m=new Date(); m.setHours(0,0,0,0); return Math.max(3,(Date.now()-m.getTime())/3600e3); };
+const segHtml = () => `<div class="seg" id="detseg" style="margin-bottom:12px"><button data-r="d" aria-pressed="${DETR==="d"}">Dnes</button><button data-r="48" aria-pressed="${DETR==="48"}">48 h</button><button data-r="168" aria-pressed="${DETR==="168"}">Týden</button><button data-r="y" aria-pressed="${DETR==="y"}">Rok</button><button data-r="all" aria-pressed="${DETR==="all"}">Vše</button></div>`;
+const detLong = () => DETR==="y" || DETR==="all";
+const detHours = () => { if(DETR==="y") return 365*24; if(DETR==="all"){ const ks=Object.keys(DATA.days||{}).sort(); return ks.length ? Math.max(24*30,(Date.now()-new Date(ks[0]).getTime())/3600e3+24) : 24*365; }
+  if(DETR!=="d") return +DETR; const m=new Date(); m.setHours(0,0,0,0); return Math.max(3,(Date.now()-m.getTime())/3600e3); };
 const rowI = (k, v) => `<div class="row" style="padding:8px 0"><div class="t"><span style="font-size:14px;color:var(--text2)">${k}</span></div><div style="font-weight:600;text-align:right;font-variant-numeric:tabular-nums">${v}</div></div>`;
+function dailyPts(hrs){
+  const D = DATA.days || {}, from = Date.now()/1000 - hrs*3600;
+  return Object.keys(D).sort().map(k=>({t:new Date(k+"T12:00").getTime()/1000, ...D[k]})).filter(p=>p.t>=from);
+}
+function monthlyBars(el, hrs){
+  const D = DATA.days || {}, from = new Date(Date.now()-hrs*3600e3).toISOString().slice(0,7), agg = {};
+  for(const k of Object.keys(D)){ const m=k.slice(0,7); if(m>=from && D[k].solar_kwh!=null) agg[m]=(agg[m]||0)+D[k].solar_kwh; }
+  const ks = Object.keys(agg).sort();
+  barChart(el, ks.map(k=>({k, v:+agg[k].toFixed(1)})), "v", css("--s2"), {unit:"kWh",dec:1,label:k=>new Date(k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"}),tip:q=>`${new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"})}<br><b>${nf(q.v,1)} kWh</b>`});
+}
 function detBat(body){
   const d = DATA, h = homeData(d), last = d.last || {};
   const s = batState(h.bv, d.state, h.status, h.net), bt = tileBat(d, h);
@@ -1182,11 +1201,24 @@ function detBat(body){
     ${$("gen").classList.contains("hide") ? "" : `<div class="sub" style="margin-top:6px">${$("gen").innerHTML}</div>`}
     <div class="advice" style="margin-top:10px">${s.a}</div>
   </div>` + segHtml()
-  + chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · regulátor − odběr měniče · pozadí: oranžová Boost, zelená Float")
-  + chartCard("dc_v", "Napětí baterie", `V · čárkovaně ${nf(WARN_V,1)} V (slábne) a ${nf(CRIT_V,1)} V (alarm)`)
-  + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
-  + chartCard("dc_load", "Odběr chaty za měničem", "W · zásuvka „220V měnič“"));
-  const hrs = detHours(), pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), idle = d.cfg?.menic_vlastni_W ?? 6;
+  + (detLong()
+    ? chartCard("dc_min", "Nejnižší napětí dne", `V · ${DETR==="y"?"poslední rok":"celá historie"} · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
+      + chartCard("dc_max", "Nejvyšší napětí dne", "V · jak vysoko se baterie den co den nabila")
+      + chartCard("dc_mon", "Výroba po měsících", "kWh")
+      + `<div class="sub" style="margin:-4px 4px 12px">Bilance do / z baterie, výkon panelů a odběr se ukládají podrobně jen za poslední dny – pro ně přepni na Dnes / 48 h / Týden.</div>`
+    : chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · regulátor − odběr měniče · pozadí: oranžová Boost, zelená Float")
+      + chartCard("dc_v", "Napětí baterie", `V · čárkovaně ${nf(WARN_V,1)} V (slábne) a ${nf(CRIT_V,1)} V (alarm)`)
+      + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
+      + chartCard("dc_load", "Odběr chaty za měničem", "W · zásuvka „220V měnič“")));
+  const hrs = detHours();
+  if(detLong()){
+    const dp = dailyPts(hrs), g = 4*86400;
+    lineChart($("dc_min"), dp, "min_v", css("--s1"), {unit:"V",dec:2,hours:hrs,gap:g,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
+    lineChart($("dc_max"), dp, "max_v", css("--s3"), {unit:"V",dec:2,hours:hrs,gap:g,pad:.15});
+    monthlyBars($("dc_mon"), hrs);
+    return;
+  }
+  const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), idle = d.cfg?.menic_vlastni_W ?? 6;
   const bp = pts.map(p=>({t:p.t, status:p.status, b:(p.bat_a!=null && p.mw!=null && p.bat_v) ? Math.round((p.bat_a - (p.mw/0.88+idle)/p.bat_v)*p.bat_v) : null}));
   lineChart($("dc_bal"), bp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]],neg:css("--crit")});
   lineChart($("dc_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
@@ -1242,6 +1274,7 @@ function detToday(body){
   + chartCard("dt_cons", "Odběr za měničem", "W · lednice, světla, kamery, wifi, nabíjení River"));
   const hrs = detHours(), pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), D = d.days || {};
   if(DETR==="d") barChart($("dt_prod"), hourly(pts,"pv_w"), "v", css("--s2"), {unit:"kWh",dec:2,label:x=>x+":00",tip:q=>`${q.k}:00–${q.k+1}:00<br><b>${nf(q.v,2)} kWh</b>`});
+  else if(detLong()) monthlyBars($("dt_prod"), hrs);
   else barChart($("dt_prod"), Object.keys(D).sort().slice(-Math.round(hrs/24)-1).map(k=>({k, v:D[k].solar_kwh})), "v", css("--s2"), {unit:"kWh",dec:2});
   lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
 }

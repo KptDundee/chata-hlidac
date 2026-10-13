@@ -30,7 +30,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 - **Dlouhodobě** – menší dlaždice dole: 🔧 kabely a spoje (otevře návod na měření), ❤️ zdraví baterie, 🔆 panely, 📡 systém (co posílá data + deník).
 - Barevný proužek vlevo: **zelená** v pořádku, **oranžová** pozor, **červená** řešit hned, šedá = zatím bez dat.
 - **Každá dlaždice má svůj detail** jen s tím, co k ní patří – vždy nejdřív čísla a grafy, vysvětlení až pod nimi:
-  - 🔋 Baterie teď: stav a doporučení, tok do/z baterie, panely, regulátor, odběr chaty, nabití podle regulátoru; grafy bilance, napětí, výkonu panelů a odběru (Dnes / 48 h / Týden).
+  - 🔋 Baterie teď: stav a doporučení, tok do/z baterie, panely, regulátor, odběr chaty, nabití podle regulátoru; grafy bilance, napětí, výkonu panelů a odběru (Dnes / 48 h / Týden); **Rok / Vše**: nejnižší a nejvyšší napětí dne a výroba po měsících za rok nebo celou historii.
   - 🌙 Noc: předpověď do rána, noční odběr, kapacita, hranice upozornění; graf napětí za 48 h a nejnižší napětí dne za 30 dní.
   - ⚡ Dnes (+ výroba po dnech / měsících / letech): účetnictví energie – výroba; spotřeba za měničem (lednice + běžný odběr + navíc); ztráty (převod v měniči ~12 %, vlastní spotřeba měniče, ~10 % při nabíjení AGM); bilance = výroba − nabíjení − odběr z baterie; výroba po hodinách / dnech, odběr za měničem, výroba za 30 dní, tabulka po dnech.
   - ☀️ Zítra = počasí a výroba na 7 dní · 🔌 River = automatika, baterie River a zásuvky · ❤️ / 🔆 / 📡 = zdraví baterie / panely / systém a deník · 🔧 = návod na proměření spojů.
@@ -39,7 +39,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 Následující popis platí pro obsah **detailů** (původní části stránky):
 
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.16**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.17**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.
