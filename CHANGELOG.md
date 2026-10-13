@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.15 – 13. 10. 2026
+- V detailech vždy nejdřív data, potom vysvětlení (Baterie, Noc, Počasí – sloupce před doporučením, Zdraví baterie – verdikt a graf před vysvětlením)
+- Detail Dnes: výroba po dnech / měsících / letech (dlouhodobý přehled)
+- Všechny údaje: co zatím není na žádné dlaždici, je označené fialovým rámečkem NEPOUŽITO (odběr teď s údaji Victronu, graf nabití v %, graf odběru z měniče)
+
 ## 3.14 – 13. 10. 2026
 - Dlaždice Dnes je oranžová, když baterii za den po ztrátách ubylo (jen informace – nepočítá se do „věcí k řešení“)
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.14", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.15", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -187,6 +187,9 @@ details.sec>.in{margin-top:8px}
 #detbody > *{margin-bottom:12px}
 #detbody details.sec>summary{display:none}
 #detbody .chart{margin-bottom:12px}
+.unusedtag{display:inline-block;background:#8a3ffc;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.08em;padding:2px 8px;border-radius:6px}
+#detbody .unused{position:relative;outline:3px solid #8a3ffc;outline-offset:2px;border-radius:14px}
+#detbody .unused::after{content:"NEPOUŽITO";position:absolute;top:-11px;left:10px;background:#8a3ffc;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.08em;padding:2px 8px;border-radius:6px;z-index:1}
 #detbody details.sec>.in{margin-top:0}
 </style>
 </head>
@@ -235,7 +238,7 @@ details.sec>.in{margin-top:8px}
           <div class="bigv" id="bv" style="margin-top:6px">–<small>V</small></div>
           <span class="pill" id="pill" style="margin-top:10px"></span>
         </div>
-        <div class="hright hide" id="load"><div class="sub" id="loadh">Odběr teď</div><div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px" id="loadv">–</div><div class="sub" id="loaddc" style="font-weight:600;color:var(--text);margin-top:4px"></div><div class="sub" id="loadn" style="margin-top:2px"></div></div>
+        <div class="hright hide unused" id="load"><div class="sub" id="loadh">Odběr teď</div><div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px" id="loadv">–</div><div class="sub" id="loaddc" style="font-weight:600;color:var(--text);margin-top:4px"></div><div class="sub" id="loadn" style="margin-top:2px"></div></div>
       </div>
       <div class="advice" id="advice"></div>
       <div class="sub hide" id="invsync" style="margin-top:8px"></div>
@@ -251,7 +254,7 @@ details.sec>.in{margin-top:8px}
   <section class="tiles" id="tilesSec">
     <div class="card tile" data-tile="bal" role="button" style="grid-column:1/-1" id="t_bal_card"><div class="l">Bilance teď – do baterie / z baterie ›</div>
       <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><div class="v" id="t_bal">–</div><div id="t_bal_s" style="font-weight:600"></div></div><div class="n" id="t_bal_n"></div></div>
-    <div class="card tile" data-tile="soc" role="button"><div class="l">Nabití ›</div><div class="v" id="t_soc">–</div><div class="n" id="t_soc_n"></div></div>
+    <div class="card tile unused" data-tile="soc" role="button"><div class="l">Nabití ›</div><div class="v" id="t_soc">–</div><div class="n" id="t_soc_n"></div></div>
     <div class="card tile" data-tile="pv" role="button"><div class="l">Panely teď ›</div><div class="v" id="t_pv">–</div><div class="n" id="t_pv_n"></div></div>
     <div class="card tile" data-tile="prod" role="button"><div class="l">Vyrobeno dnes ›</div><div class="v" id="t_day">–</div><div class="n" id="t_day_n"></div></div>
     <div class="card tile" data-tile="cons" role="button"><div class="l">Spotřebováno dnes ›</div><div class="v" id="t_a">–</div><div class="n" id="t_a_n"></div></div>
@@ -265,6 +268,7 @@ details.sec>.in{margin-top:8px}
       <div id="hverdict"></div>
       <div class="chart"><div id="c_cap" style="margin-top:6px"></div></div>
       <div class="sub" id="hzones" style="margin-top:4px;font-size:12px"></div>
+      <div id="hadv"></div>
       <details style="margin-top:4px"><summary>Poslední měření a jak to číst</summary><div id="hlist" style="font-size:13.5px;line-height:1.5"></div></details>
       <div class="wrow" id="wirerow" role="button"><span style="font-size:20px">🔧</span><div><b style="font-size:14.5px">Kabely a spoje</b><div class="sub" id="wr_s"></div></div><span class="go">›</span></div>
     </div></div></details>
@@ -283,8 +287,8 @@ details.sec>.in{margin-top:8px}
   <section class="charts">
     <div class="card chart"><h2>Napětí baterie</h2><div class="cs" id="vlim">V · čárkovaně limity upozornění</div><div id="c_v"></div></div>
     <div class="card chart"><h2>Výkon panelů</h2><div class="cs">W · pozadí: <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--warn);opacity:.5;vertical-align:-1px"></i> Boost (nabíjí)</span> <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--good);opacity:.5;vertical-align:-1px"></i> Float (nabito – panely škrtí)</span></div><div id="c_pv"></div></div>
-    <div class="card chart hide" id="c_ac_card"><h2>Odběr z měniče</h2><div class="cs">W · průměr za 10 min (lednice, nabíječky…)</div><div id="c_ac"></div></div>
-    <div class="card chart"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 id="prodh">Výroba po dnech</h2>
+    <div class="card chart hide unused" id="c_ac_card"><h2>Odběr z měniče</h2><div class="cs">W · průměr za 10 min (lednice, nabíječky…)</div><div id="c_ac"></div></div>
+    <div class="card chart" id="prodCard"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 id="prodh">Výroba po dnech</h2>
       <div class="seg" id="prodseg" style="font-size:13px"><button data-m="d" aria-pressed="true">Dny</button><button data-m="m" aria-pressed="false">Měsíce</button><button data-m="y" aria-pressed="false">Roky</button></div></div>
       <div class="cs" id="prodcs">kWh · posledních 30 dní</div><div id="c_day"></div></div>
     <div class="card chart"><h2>Nejnižší napětí dne</h2><div class="cs">V · posledních 30 dní</div><div id="c_min"></div></div>
@@ -727,8 +731,8 @@ function renderWx(d){
   const accRows = (w.acc||[]).slice(-7).reverse().map(a=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--line)"><span>${dn(a.d)}</span><span style="font-variant-numeric:tabular-nums">předpověď ${nf(a.p,2)} → skutečnost <b>${nf(a.a,2)}</b> kWh</span></div>`).join("");
   el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>Počasí a výroba</b>
       <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · chata na River":"☀️ letní provoz · chata na solární baterii"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
-    <div style="margin-top:8px">${rec}</div>
     <div style="display:flex;gap:4px;margin-top:12px">${bars}</div>
+    <div style="margin-top:10px">${rec}</div>
     <div class="sub" style="margin-top:6px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně kolik musí panely vyrobit: ~${nf(need,2)} kWh/den = chata ${nf((ol.ac_day||0)/1000,2)} (lednice, světla, kamery, wifi) + měnič ${nf(((ol.dc_day||0)-(ol.ac_day||0))/1000,2)} (účinnost a vlastní spotřeba) + nabíjení baterie ${nf(need-(ol.dc_day||0)/1000,2)}; nabíjení River se nepočítá)`:""}${zima?" · pod sloupcem napětí solární baterie večer (v klidu), zeleně den vhodný k připojení":" · pod sloupcem očekávané napětí baterie příští ráno, zeleně den, kdy výroba pokryje spotřebu"}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
     <details style="margin-top:2px"><summary style="font-size:13px">Jak přesně předpovídá</summary><div class="sub" style="font-size:12.5px;line-height:1.5">${acc}<br>Model zná zvlášť přímé a rozptýlené světlo a pro každou roční dobu se učí z minulých let – v zimě sám zjistí, že přímé slunce na panely nedopadá. Dny, kdy byla baterie brzy plná (výroba přiškrcená), do učení nepočítá.</div>${accRows?`<div style="font-size:12.5px;margin-top:6px">${accRows}</div>`:""}</details>`;
   el.classList.remove("hide");
@@ -1160,7 +1164,6 @@ function detBat(body){
   body.insertAdjacentHTML("beforeend", `<div class="card">
     <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><div class="bigv" style="font-size:46px">${nf(h.bv,2)}<small>V</small></div>
       <span class="pill"><i style="background:var(${s.c})">${s.i}</i>${bt.st}</span></div>
-    <div class="advice">${s.a}</div>
     <div style="margin-top:10px">
       ${rowI("Do baterie / z baterie teď", balW!=null ? `<span style="color:var(${balW<=-15?"--crit":balW>=15?"--good":"--text"})">${balW>0?"+":""}${nf(balW)} W (${h.net>0?"+":""}${nf(h.net,1)} A)</span>` : "–")}
       ${rowI("Panely", h.pv!=null ? `${nf(h.pv)} W` : "–")}
@@ -1170,6 +1173,7 @@ function detBat(body){
     </div>
     ${$("invsync").classList.contains("hide") ? "" : `<div class="sub" style="margin-top:6px">${$("invsync").innerHTML}</div>`}
     ${$("gen").classList.contains("hide") ? "" : `<div class="sub" style="margin-top:6px">${$("gen").innerHTML}</div>`}
+    <div class="advice" style="margin-top:10px">${s.a}</div>
   </div>` + segHtml()
   + chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · regulátor − odběr měniče · pozadí: oranžová Boost, zelená Float")
   + chartCard("dc_v", "Napětí baterie", `V · čárkovaně ${nf(WARN_V,1)} V (slábne) a ${nf(CRIT_V,1)} V (alarm)`)
@@ -1187,13 +1191,15 @@ function detNight(body){
   const fcVis = !$("fc").classList.contains("hide");
   const ol = d.wxo && d.wxo.ol, nx = ol && ol.mode!=="zima" ? (ol.days||[])[1] : null;
   body.insertAdjacentHTML("beforeend", `<div class="card">
-    <div style="font-size:22px;font-weight:700;color:var(${nt.cls==="bad"?"--crit":nt.cls==="warn"?"--warn":nt.cls==="ok"?"--good":"--muted"})">${nt.st}</div>
-    ${nt.a?`<div class="advice" style="margin-top:4px">${nt.a}</div>`:""}
-    ${fcVis ? `<div class="fc">${$("fc").innerHTML}</div>` : `<div class="sub" style="margin-top:8px">Přesná předpověď na noc se počítá po západu slunce z nočního odběru a kapacity baterie.${nx&&nx.mv!=null?` Podle počasí a běžné spotřeby čekám ráno ~${nf(nx.mv,2)} V.`:""}</div>`}
+    <div style="font-size:22px;font-weight:700;color:var(${nt.cls==="bad"?"--crit":nt.cls==="warn"?"--warn":nt.cls==="ok"?"--good":"--muted"})">${nt.st}${nt.v && nt.v!=="–" ? ` · <span style="color:var(--text)">${nt.v}</span>` : ""}</div>
+    ${fcVis ? `<div class="fc">${$("fc").innerHTML}</div>` : ""}
     <div style="margin-top:8px">
       ${f && f.draw_w!=null ? rowI("Noční odběr z baterie", `~${nf(f.draw_w)} W (${f.ah_night!=null?`~${f.ah_night} Ah za noc`:""})`) : ""}
       ${f && f.cap ? rowI("Kapacita baterie (odhad)", `~${f.cap} Ah`) : (HEALTH ? rowI("Kapacita baterie (odhad)", `~${Math.round(HEALTH.cur)} Ah`) : "")}
       ${rowI("Hranice upozornění", `${nf(WARN_V,1)} V slábne · ${nf(CRIT_V,1)} V alarm · ${nf(OFF_V,1)} V měnič se vypne`)}
+    </div>
+    ${nt.a?`<div class="advice" style="margin-top:6px">${nt.a}</div>`:""}
+    ${fcVis ? "" : `<div class="sub" style="margin-top:8px">Přesná předpověď na noc se počítá po západu slunce z nočního odběru a kapacity baterie.${nx&&nx.mv!=null?` Podle počasí a běžné spotřeby čekám ráno ~${nf(nx.mv,2)} V.`:""}</div>`}
     </div></div>`
   + chartCard("dn_v", "Napětí baterie za 48 h", "V · čárkovaně hranice upozornění")
   + chartCard("dn_min", "Nejnižší napětí dne", "V · posledních 30 dní (ráno po noci)"));
@@ -1226,13 +1232,11 @@ function detToday(body){
     <div class="sub" style="font-size:12.5px;margin-top:2px">${L.bal==null ? "Chybí data ze zásuvky za měničem." : L.bal>=0 ? "Baterii dnes energie přibylo – výroba pokryla spotřebu i ztráty." : "Baterii dnes energie ubylo – výroba nepokryla spotřebu se ztrátami."}${L.river>0.02 ? ` Z River dnes odebráno ${n2(L.river)} kWh (do bilance solární baterie se nepočítá).` : ""} Spotřeba je od půlnoci; ztráty jsou odhad (vlastní spotřebu měniče lze upravit v Nastavení).</div>
   </div>` + segHtml()
   + chartCard("dt_prod", "Výroba", "kWh za hodinu (Dnes) / po dnech")
-  + chartCard("dt_cons", "Odběr za měničem", "W · lednice, světla, kamery, wifi, nabíjení River")
-  + chartCard("dt_days", "Výroba po dnech", "kWh · posledních 30 dní"));
+  + chartCard("dt_cons", "Odběr za měničem", "W · lednice, světla, kamery, wifi, nabíjení River"));
   const hrs = detHours(), pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), D = d.days || {};
   if(DETR==="d") barChart($("dt_prod"), hourly(pts,"pv_w"), "v", css("--s2"), {unit:"kWh",dec:2,label:x=>x+":00",tip:q=>`${q.k}:00–${q.k+1}:00<br><b>${nf(q.v,2)} kWh</b>`});
   else barChart($("dt_prod"), Object.keys(D).sort().slice(-Math.round(hrs/24)-1).map(k=>({k, v:D[k].solar_kwh})), "v", css("--s2"), {unit:"kWh",dec:2});
   lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
-  barChart($("dt_days"), Object.keys(D).sort().slice(-30).map(k=>({k,...D[k]})), "solar_kwh", css("--s2"), {unit:"kWh",dec:2});
 }
 function openDet(k){
   if(k === "wire"){ openWire(); return; }
@@ -1240,7 +1244,8 @@ function openDet(k){
   closeDetMove(); DET_K = k;
   $("dett").textContent = c.t; $("dets").textContent = c.s;
   const body = $("detbody"); body.innerHTML = "";
-  if(c.build){ c.build(body); if(k==="today") moveIn(body, "s_tbl"); }
+  if(c.build){ c.build(body); if(k==="today"){ moveIn(body, "prodCard"); moveIn(body, "s_tbl"); } }
+  if(k === "all") body.insertAdjacentHTML("beforeend", `<div class="sub" style="margin-bottom:14px"><span class="unusedtag">NEPOUŽITO</span> = je jen tady, na dlaždicích zatím není.</div>`);
   for(const id of c.ids||[]){
     if(id === "riverInfo"){ body.insertAdjacentHTML("beforeend", `<div class="card" id="riverInfo">${$("rauto").innerHTML || "Automatika nabíjení River je vypnutá v nastavení."}</div>`); continue; }
     if(id === "sysInfo"){ body.insertAdjacentHTML("beforeend", `<div class="card" id="sysInfo"><div>${$("upd").textContent}</div><div class="sub" style="margin-top:4px">${$("cloud").textContent}</div><div class="sub" style="margin-top:4px">${$("vers").innerHTML}</div></div>`); continue; }
@@ -1300,7 +1305,7 @@ function renderCap(d, days){
   const pct = v => Math.round(v/nom*100);
   if(!rows.length){
     $("hverdict").innerHTML=`<p class="sub">Zatím žádné měření. Odhad se počítá z nocí (pokles napětí při známém odběru) a ze dnů, kdy se baterie nabije do plna. První hodnoty přibudou z historie a z dalších nocí.</p>`;
-    $("c_cap").innerHTML=""; $("hzones").textContent=""; $("hlist").innerHTML=""; $("sum_health").textContent="zatím bez měření"; HEALTH=null; return;
+    $("c_cap").innerHTML=""; $("hzones").textContent=""; $("hlist").innerHTML=""; $("sum_health").textContent="zatím bez měření"; $("hadv").innerHTML=""; HEALTH=null; return;
   }
   const now = Date.now(), D = 864e5;
   const recent = rows.filter(q=>q.t>=now-14*D), recentV = med(recent.map(q=>q.v));
@@ -1321,8 +1326,8 @@ function renderCap(d, days){
   const advice = {dobrá:"Baterie je v pořádku, nic není potřeba.", opotřebovaná:"Baterie stárne, ale slouží. Hlídej, jestli vydrží noc; vybíjení pod 12,0 V jí zkracuje život.", slabá:"Kapacita je znatelně menší – v zimě nemusí vydržet do rána. Je čas plánovat náhradu.", vyměnit:"Baterie má méně než polovinu kapacity – doporučuju výměnu."}[z[1]];
   $("hverdict").innerHTML = `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;color:var(${z[2]})">● ${z[1][0].toUpperCase()+z[1].slice(1)}</span>
     <span style="font-size:18px;font-weight:600">~${Math.round(cur)} Ah <span class="sub" style="font-size:14px">= ${pct(cur)} % z ${nom} Ah</span></span></div>
-    <div style="margin-top:4px">${advice}</div>
-    ${deepTxt(d, days)}
+    ${deepTxt(d, days)}`;
+  $("hadv").innerHTML = `<div style="margin-top:8px">${advice}</div>
     <div class="sub" style="margin-top:6px">${recentV!=null?`Posledních 14 dní: ${curN} ${curN===1?"měření":curN<5?"měření":"měření"}`:`Poslední měření: ${new Date(rows[rows.length-1].t).toLocaleDateString("cs-CZ")}`}${cmp?`<br>${cmp}`:""}</div>`;
   // graf: medián po týdnech (krátká historie) nebo měsících
   const span = rows[rows.length-1].t - rows[0].t, monthly = span > 120*D;
