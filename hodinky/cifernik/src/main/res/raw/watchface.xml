@@ -109,15 +109,22 @@
           primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.SunComplication" primaryProviderType="SHORT_TEXT"/>
       <BoundingBox x="0" y="0" width="260" height="40"/>
       <Complication type="SHORT_TEXT">
-        <PartText name="sunShort" x="0" y="0" width="260" height="40">
-          <Text align="CENTER">
-            <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s %s<Parameter expression="[COMPLICATION.TITLE]"/><Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+        <!-- ikonka slunce na obzoru se šipkou (z aplikace Chata) + čas -->
+        <PartImage name="sunIconS" x="58" y="2" width="36" height="36" tintColor="#ffe0e8f2">
+          <Image resource="[COMPLICATION.MONOCHROMATIC_IMAGE]"/>
+        </PartImage>
+        <PartText name="sunShort" x="102" y="0" width="158" height="40">
+          <Text align="START">
+            <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
       <Complication type="LONG_TEXT">
-        <PartText name="sunLong" x="0" y="0" width="260" height="40">
-          <Text align="CENTER">
+        <PartImage name="sunIconL" x="58" y="2" width="36" height="36" tintColor="#ffe0e8f2">
+          <Image resource="[COMPLICATION.MONOCHROMATIC_IMAGE]"/>
+        </PartImage>
+        <PartText name="sunLong" x="102" y="0" width="158" height="40">
+          <Text align="START">
             <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>

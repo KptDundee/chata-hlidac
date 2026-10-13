@@ -115,6 +115,21 @@ def icon_thermo(cr, x, y, s, col):
     cr.restore()
 
 
+def icon_sun(cr, x, y, s, col, up):
+    """Stejná ikonka jako v aplikaci (ic_sunrise / ic_sunset): slunce na obzoru + šipka."""
+    cr.save(); cr.translate(x - s / 2, y - s / 2); cr.scale(s / 24, s / 24)
+    cr.set_source_rgb(*col)
+    cr.rectangle(1, 20.2, 22, 1.8); cr.fill()
+    cr.arc(12, 20.2, 5.8, math.pi, 2 * math.pi); cr.close_path(); cr.fill()
+    pts = [(12, 0.5), (18, 7.2), (14, 7.2), (14, 12.6), (10, 12.6), (10, 7.2), (6, 7.2)] if up else \
+          [(12, 13.2), (18, 6.5), (14, 6.5), (14, 0.8), (10, 0.8), (10, 6.5), (6, 6.5)]
+    cr.move_to(*pts[0])
+    for p in pts[1:]:
+        cr.line_to(*p)
+    cr.close_path(); cr.fill()
+    cr.restore()
+
+
 ICONS = {"chata": icon_house, "bat": icon_battery, "temp": icon_thermo}
 
 
@@ -545,7 +560,10 @@ def preview(hh=10, mm=8, ss=34, volt=12.64, bat=72, temp=14, day="PO", date="21/
     cr.clip()
     if True:
         cr.set_source_surface(ld("dial"), 0, 0); cr.paint()
-        text(cr, sun, C, SUN_Y, SUN_SIZE, (0.88, 0.91, 0.95), family=DIALFONT, weight=cairo.FONT_WEIGHT_NORMAL)
+        arrow, tm = sun.split(" ", 1)
+        icon_sun(cr, 110 + 58 + 18, SUN_Y, 36, (0.88, 0.91, 0.95), arrow == "↑")
+        cr.select_font_face(DIALFONT); cr.set_font_size(SUN_SIZE)
+        text(cr, tm, 212 + cr.text_extents(tm).x_advance / 2, SUN_Y, SUN_SIZE, (0.88, 0.91, 0.95), family=DIALFONT, weight=cairo.FONT_WEIGHT_NORMAL)
         text(cr, day, *DAY_POS, DD_SIZE, (0.92, 0.93, 0.95), family=DIALFONT, weight=cairo.FONT_WEIGHT_NORMAL)
         text(cr, date, *DATE_POS, DD_SIZE, (0.92, 0.93, 0.95), family=DIALFONT, weight=cairo.FONT_WEIGHT_NORMAL)
         for k, v, lo, hi, txt, mk in (("chata", volt, 11.6, 13.0, f"{volt:.1f}".replace(".", ","), "marker_chata"),

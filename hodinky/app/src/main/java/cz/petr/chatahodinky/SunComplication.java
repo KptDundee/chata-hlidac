@@ -2,6 +2,7 @@ package cz.petr.chatahodinky;
 
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.graphics.drawable.Icon;
 import android.os.RemoteException;
 
 import androidx.annotation.NonNull;
@@ -10,6 +11,7 @@ import androidx.wear.watchface.complications.data.ComplicationData;
 import androidx.wear.watchface.complications.data.ComplicationText;
 import androidx.wear.watchface.complications.data.ComplicationType;
 import androidx.wear.watchface.complications.data.LongTextComplicationData;
+import androidx.wear.watchface.complications.data.MonochromaticImage;
 import androidx.wear.watchface.complications.data.PlainComplicationText;
 import androidx.wear.watchface.complications.data.ShortTextComplicationData;
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceService;
@@ -65,11 +67,16 @@ public class SunComplication extends ComplicationDataSourceService {
             ZonedDateTime r2 = sun(today.plusDays(1), lat, lon, true, zone);
             title = "↑"; t = r2 == null ? "–" : r2.format(HM);
         }
+        // ikonka: slunce na obzoru + výrazná šipka (nahoru = východ, dolů = západ)
+        MonochromaticImage img = new MonochromaticImage.Builder(
+                Icon.createWithResource(this, "↑".equals(title) ? R.drawable.ic_sunrise : R.drawable.ic_sunset)).build();
         switch (type) {
             case LONG_TEXT:
-                return new LongTextComplicationData.Builder(txt(title + " " + t), desc).setTapAction(tap).build();
+                return new LongTextComplicationData.Builder(txt(t), desc)
+                        .setMonochromaticImage(img).setTapAction(tap).build();
             case SHORT_TEXT:
-                return new ShortTextComplicationData.Builder(txt(t), desc).setTitle(txt(title)).setTapAction(tap).build();
+                return new ShortTextComplicationData.Builder(txt(t), desc).setTitle(txt(title))
+                        .setMonochromaticImage(img).setTapAction(tap).build();
             default:
                 return null;
         }
