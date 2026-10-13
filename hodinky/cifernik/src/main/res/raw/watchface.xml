@@ -80,7 +80,7 @@
     <!-- ===== CHATA: napětí solární baterie (subdial vlevo, komplikace z aplikace Chata) ===== -->
     <ComplicationSlot name="chata" slotId="0" displayName="Chata – baterie" x="89" y="183" width="114" height="114"
         supportedTypes="RANGED_VALUE SHORT_TEXT" isCustomizable="TRUE">
-      <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="EMPTY"
+      <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="SHORT_TEXT"
           primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.VoltComplication" primaryProviderType="RANGED_VALUE"/>
       <BoundingOval x="0" y="0" width="114" height="114"/>
       <Complication type="RANGED_VALUE">
