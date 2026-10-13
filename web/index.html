@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.13", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.14", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1061,7 +1061,7 @@ function ledger(d, h){
 function tileToday(d, h){
   const t = {k:"today", icon:"⚡", label:"Dnes"};
   const L = ledger(d, h);
-  return {...t, cls:"ok", v:`${nf(h.prod,2)}<small>kWh vyrobeno</small>`, st: L.ac!=null ? `Chata spotřebovala ${nf(L.ac,2)} kWh` : "Vyrobeno",
+  return {...t, cls: L.bal!=null && L.bal < 0 ? "warn" : "ok", info:true, v:`${nf(h.prod,2)}<small>kWh vyrobeno</small>`, st: L.ac!=null ? `Chata spotřebovala ${nf(L.ac,2)} kWh` : "Vyrobeno",
     a: L.bal!=null ? `Po všech ztrátách baterii ${L.bal>=0?"přibylo":"ubylo"} ${nf(Math.abs(L.bal),2)} kWh` : ""};
 }
 function tileWire(d, h){
@@ -1116,7 +1116,7 @@ function renderHome(d){
   const sortS = a => a.map((x,i)=>[x,i]).sort((p,q)=>(SEV[p[0].cls]-SEV[q[0].cls])||(p[1]-q[1])).map(p=>p[0]);
   $("h_now").innerHTML = [bat, ...sortS(now)].map(tileHtml).join("");
   $("h_long").innerHTML = sortS(lng).map(tileHtml).join("");
-  const issues = [bat, ...now].filter(x=>x.cls==="bad"||x.cls==="warn").sort((p,q)=>SEV[p.cls]-SEV[q.cls]);
+  const issues = [bat, ...now].filter(x=>!x.info && (x.cls==="bad"||x.cls==="warn")).sort((p,q)=>SEV[p.cls]-SEV[q.cls]);
   const longIss = lng.filter(x=>x.cls==="bad"||x.cls==="warn");
   const vEl = $("verdict");
   let col, ic, title, sub;

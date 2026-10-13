@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.14 – 13. 10. 2026
+- Dlaždice Dnes je oranžová, když baterii za den po ztrátách ubylo (jen informace – nepočítá se do „věcí k řešení“)
+
 ## 3.13 – 13. 10. 2026
 - Detail **Dnes**: přehledné účetnictví energie – výroba, spotřeba chaty (lednice, běžný odběr, navíc), ztráty (účinnost a vlastní spotřeba měniče, nabíjení AGM) a výsledná bilance baterie; dlaždice Dnes říká, kolik baterii po všech ztrátách přibylo / ubylo
 
