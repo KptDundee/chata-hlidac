@@ -101,8 +101,8 @@
          Z aplikace Chata jako RANGED_VALUE: hodnota 1 = příští je východ, 0 = západ; text = čas.
          Ikonky jsou přímo v ciferníku (spolehlivější než obrázek z komplikace). -->
     <ComplicationSlot name="sun" slotId="1" displayName="Slunce" x="110" y="74" width="260" height="36"
-        supportedTypes="RANGED_VALUE SHORT_TEXT" isCustomizable="TRUE">
-      <DefaultProviderPolicy defaultSystemProvider="SUNRISE_SUNSET" defaultSystemProviderType="SHORT_TEXT"
+        supportedTypes="RANGED_VALUE" isCustomizable="TRUE">
+      <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="RANGED_VALUE"
           primaryProvider="cz.petr.chatahodinky/cz.petr.chatahodinky.SunComplication" primaryProviderType="RANGED_VALUE"/>
       <BoundingBox x="0" y="0" width="260" height="36"/>
       <Complication type="RANGED_VALUE">
@@ -126,13 +126,6 @@
         <PartText name="sunTime" x="102" y="0" width="158" height="36">
           <Text align="START">
             <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
-          </Text>
-        </PartText>
-      </Complication>
-      <Complication type="SHORT_TEXT">
-        <PartText name="sunShort" x="0" y="0" width="260" height="36">
-          <Text align="CENTER">
-            <Font family="saira" size="26" color="#ffe0e8f2"><Template>%s %s<Parameter expression="[COMPLICATION.TITLE]"/><Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>

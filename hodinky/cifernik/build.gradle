@@ -11,8 +11,8 @@ android {
         applicationId 'cz.petr.chatahodinky.cifernik'
         minSdk 34          // Wear OS 5+ (formát v2 kvůli počasí); Xiaomi Watch 5 má Wear OS 6
         targetSdk 34
-        versionCode 9
-        versionName '1.8'
+        versionCode 10
+        versionName '1.9'
     }
 
     buildTypes {

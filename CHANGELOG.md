@@ -4,6 +4,7 @@
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
 ## 3.9 – 13. 10. 2026
+- **Ciferník Chata 1.9 + hodinky 1.6:** horní řádek bere jen komplikaci slunce z aplikace Chata (ikonka podle toho, co přijde); aplikace na hodinkách ukazuje svou verzi
 - **Ciferník Chata 1.8:** horní řádek (slunce) se už nepřekrývá s levým subdialem – v editoru se dají spolehlivě vybrat
 - **Ciferník Chata 1.7 + hodinky 1.5:** teplota z vlastní komplikace „Chata – teplota venku“ (Open-Meteo, poloha hodinek, jinak chata) – počasí systému na Xiaomi nefungovalo; ikonky východu/západu jsou přímo v ciferníku (obrázek z komplikace se nezobrazoval)
 - **Ciferník Chata 1.6 + hodinky 1.4:** u východu/západu ikonka slunce na obzoru s výraznou šipkou (nahoru/dolů) místo šipky v textu (pletla se s jedničkou)

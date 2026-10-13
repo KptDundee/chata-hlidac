@@ -36,7 +36,9 @@ public class MainActivity extends Activity {
         sv.addView(l);
 
         TextView t = new TextView(this);
-        t.setText("⚡ Chata");
+        String ver = "";
+        try { ver = " " + getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception ignored) { }
+        t.setText("⚡ Chata" + ver);       // verze, ať je vidět, co je v hodinkách nahrané
         t.setTextSize(18);
         t.setTypeface(Typeface.DEFAULT_BOLD);
         t.setGravity(Gravity.CENTER);
