@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.15", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.16", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -647,7 +647,14 @@ function lineChart(el, pts, key, color, o){
   // mezery v datech > 40 min přeruší čáru
   let dPath="",prev=null; for(const q of p){dPath+=(prev&&q.t-prev.t<2400?"L":"M")+x(q.t).toFixed(1)+","+y(q[key]).toFixed(1);prev=q;}
   if(o.area){let a="",seg=[];const flush=()=>{if(seg.length>1)a+=`M${x(seg[0].t)},${y(lo)}`+seg.map(q=>`L${x(q.t)},${y(q[key])}`).join("")+`L${x(seg[seg.length-1].t)},${y(lo)}Z`;seg=[];};prev=null;for(const q of p){if(prev&&q.t-prev.t>=2400)flush();seg.push(q);prev=q;}flush();svg.insertAdjacentHTML("beforeend",`<path d="${a}" fill="${color}" opacity=".14"/>`);}
-  svg.insertAdjacentHTML("beforeend",`<path d="${dPath}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" stroke-width="1" opacity="0"/><circle class="cd" r="4.5" fill="${color}" stroke="var(--surface)" stroke-width="2" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
+  if(o.neg){   // část pod nulou (vybíjení) červeně: stejná čára dvakrát, oříznutá nad / pod nulou
+    const id = "cl"+Math.random().toString(36).slice(2,8), y0 = Math.max(M.t, Math.min(H-M.b, y(0)));
+    svg.insertAdjacentHTML("beforeend", `<defs><clipPath id="${id}a"><rect x="0" y="0" width="${W}" height="${y0}"/></clipPath><clipPath id="${id}b"><rect x="0" y="${y0}" width="${W}" height="${H-y0}"/></clipPath></defs>
+      <path d="${dPath}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#${id}a)"/>
+      <path d="${dPath}" fill="none" stroke="${o.neg}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#${id}b)"/>`);
+    color = "transparent";
+  }
+  svg.insertAdjacentHTML("beforeend",`<path d="${dPath}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" stroke-width="1" opacity="0"/><circle class="cd" r="4.5" fill="${o.neg?"var(--text2)":color}" stroke="var(--surface)" stroke-width="2" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
   const ch=svg.querySelector(".ch"), cd=svg.querySelector(".cd");
   const move=ev=>{const r=svg.getBoundingClientRect();const tx=t0+(t1-t0)*((ev.clientX-r.left)*W/r.width-M.l)/(W-M.l-M.r);let best=p[0];for(const q of p)if(Math.abs(q.t-tx)<Math.abs(best.t-tx))best=q;const X=x(best.t),Y=y(best[key]);ch.setAttribute("x1",X);ch.setAttribute("x2",X);ch.setAttribute("opacity",.5);cd.setAttribute("cx",X);cd.setAttribute("cy",Y);cd.setAttribute("opacity",1);
     let extra=key==="bat_v"&&best.bat_soc!=null?`<br>SOC ${nf(best.bat_soc)} %`:"";
@@ -819,7 +826,7 @@ function renderTile(){
     const sumWh = f=>{let s=0;for(let i=1;i<ok.length;i++){const dt=ok[i].t-ok[i-1].t;if(dt<2400)s+=(f(ok[i].b)+f(ok[i-1].b))/2*dt/3600;}return s;};
     $("tilet").textContent = "Bilance baterie"; $("tiles2").textContent = `${per}: do baterie ~${nf(sumWh(x=>Math.max(0,x))/1000,2)} kWh, z baterie ~${nf(-sumWh(x=>Math.min(0,x))/1000,2)} kWh`;
     $("tile1h").textContent = "Do baterie (+) / z baterie (−)"; $("tile1c").textContent = "W · regulátor − odběr měniče · pozadí = režim regulátoru (oranžová Boost, zelená Float)";
-    lineChart($("c_tile1"), bp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]]});
+    lineChart($("c_tile1"), bp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]],neg:css("--crit")});
     $("tile2h").textContent = "Napětí baterie"; $("tile2c").textContent = "V";
     lineChart($("c_tile2"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   } else if(TILE==="soc"){
@@ -1181,7 +1188,7 @@ function detBat(body){
   + chartCard("dc_load", "Odběr chaty za měničem", "W · zásuvka „220V měnič“"));
   const hrs = detHours(), pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), idle = d.cfg?.menic_vlastni_W ?? 6;
   const bp = pts.map(p=>({t:p.t, status:p.status, b:(p.bat_a!=null && p.mw!=null && p.bat_v) ? Math.round((p.bat_a - (p.mw/0.88+idle)/p.bat_v)*p.bat_v) : null}));
-  lineChart($("dc_bal"), bp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]]});
+  lineChart($("dc_bal"), bp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]],neg:css("--crit")});
   lineChart($("dc_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
   lineChart($("dc_pv"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
   lineChart($("dc_load"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
