@@ -7,6 +7,7 @@ Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mě
 - **Ciferník Chata 1.5:** v úsporném režimu stejný ciferník (bez černého podkladu), jen bez vteřinovky
 - **Ciferník Chata 1.4:** realističtější vzhled – tmavší modrý sunburst se světlými a tmavými výsečemi, zapuštěné subdialy s leštěnou obrubou a vrženým stínem, kovové hodinové číslice (kromě míst se subdialy), odlesk sklíčka pod 45° středem, výraznější vteřinovka, široké „zploštělé“ písmo Saira Expanded
 - **Ciferník Chata 1.3:** tři větší symetrické subdialy s trojúhelníkem po obvodu a velkým číslem, ikonky místo nápisů, den (PO) a datum rovně pod horními subdialy, nahoře jen nejbližší východ/západ, hodinové čárky na vnějším věnci, diagonální odlesk sklíčka; napětí na 1 desetinné místo
+- **Hodinky 1.3:** otevřením aplikace Chata na hodinkách se hned obnoví komplikace (napětí, slunce) i dlaždice
 - **Hodinky 1.2:** komplikace slunce ukazuje jen nejbližší událost, obnova každých 10 min
 - **Ciferník Chata 1.2:** všechno písmo zhruba 2× větší, datum po obvodu nahoře místo číslic 11–12–1, subdialy bez drobných čísel stupnice
 - **Ciferník Chata 1.1:** oprava – hodinky ho odmítaly (náhradní typ komplikace musí být mezi podporovanými)

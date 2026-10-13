@@ -21,6 +21,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        Data.requestUpdates(this);          // otevřením aplikace se hned obnoví dlaždice i komplikace na ciferníku
         int pad = dp(22);
         ScrollView sv = new ScrollView(this);
         LinearLayout l = new LinearLayout(this);
