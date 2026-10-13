@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.4 – 13. 10. 2026
+- Notifikace: ťuknutí otevře zprávu v ntfy, přehled je tlačítko „Přehled“ pod notifikací
+
 ## 3.3 – 13. 10. 2026
 - Upozornění na odběr z baterie jen při odběru NAVÍC nad běžný (lednice + světla, kamery, wifi) ≥ 40 W; kvůli běžnému odběru (zašlé slunce) nepřijde
 

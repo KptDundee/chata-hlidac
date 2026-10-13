@@ -10,7 +10,7 @@ Technické podrobnosti (jak to funguje uvnitř) jsou v **Technické dokumentaci*
 - **Regulátor EPEVER** posílá data do cloudu **Solar Guardian** (napětí, proud, výkon panelů, režim nabíjení).
 - **Telefon Flip na chatě** (aplikace *Chata brána*) čte zásuvky **Tapo**, měnič **Victron** přes Bluetooth a stav své baterie. Každých 10 minut to pošle dál a provádí povely pro zásuvky (nabíjení River).
 - **Hlídač** běží každých 10 minut na GitHubu. Stáhne data, uloží historii, vyhodnotí upozornění, řídí automatiku River, počítá předpovědi a zveřejní tuhle stránku.
-- **Upozornění** chodí přes aplikaci **ntfy** do telefonu (a na hodinky).
+- **Upozornění** chodí přes aplikaci **ntfy** do telefonu (a na hodinky). Ťuknutím na notifikaci se otevře zpráva v ntfy, tlačítkem **Přehled** pod ní tahle stránka.
 - **Hodinky** (Wear OS) ukazují napětí na ciferníku a základní údaje na dlaždici.
 
 Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
@@ -20,7 +20,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 ## 2. Hlavní obrazovka
 
 ### Nahoře
-- **CHATA – ELEKTŘINA v3.3**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
+- **CHATA – ELEKTŘINA v3.4**: číslo verze webu. Úplně dole je řádek *Verze: web · hlídač · Flip*. Když je něco červeně, je potřeba aktualizovat (typicky aplikaci na Flipu).
 - **Data z regulátoru před X min**: jak čerstvá jsou data. Nad 2 hodiny se zobrazí varování.
 - **⚡ Načíst**: spustí hlídače hned (jinak běží každých 10 min). Za ~2 minuty jsou nová data.
 - **↻** obnoví stránku, **⚙** otevře Nastavení.

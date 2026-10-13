@@ -296,7 +296,8 @@ def ntfy(topic, title, msg, prio=3, tags="", note=None):
     body = {"topic": topic, "title": title, "message": msg, "priority": prio}
     if tags:
         body["tags"] = tags.split(",")
-    body["click"] = DASHBOARD  # ťuknutím se otevře přehled
+    # ťuknutí otevře zprávu v aplikaci ntfy; přehled je tlačítko pod notifikací
+    body["actions"] = [{"action": "view", "label": "Přehled", "url": DASHBOARD, "clear": False}]
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json"}, method="POST")
     for attempt in range(3):
