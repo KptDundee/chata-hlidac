@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "2.0", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "2.1", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -126,7 +126,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.0</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.1</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -372,8 +372,14 @@ function render(){
   if(mWh!=null){
     const now = new Date(), hrs = now.getHours() + now.getMinutes()/60;
     const idle = d.cfg?.menic_vlastni_W ?? 6, dcWh = mWh/0.88 + idle*hrs;
-    $("t_a").innerHTML = `${nf(mWh/1000,2)}<small>kWh</small>`;
-    $("t_a_n").textContent = `ze solární ~${nf(dcWh/1000,2)} kWh (${nf(dcWh/12.5)} Ah)` + (rWh>20 ? ` · River ${nf(rWh/1000,2)} kWh` : "");
+    // nabíjení River přes .157 je za měničem, ale není to spotřeba chaty → oddělit (lednice + ostatní)
+    const td = (d.days && d.days[tday]) || {}, fip = String(d.cfg?.zasuvka_lednice ?? "185");
+    const owv = pts.filter(p=>p.ow!=null && p.t >= Date.now()/1000-86400).map(p=>p.ow).sort((a,b)=>a-b);
+    const owAvg = owv.length ? owv[Math.floor(owv.length/2)] : null;
+    const cabin = (td.ra_min && tpd[fip]!=null && owAvg!=null) ? tpd[fip] + owAvg*hrs : null;
+    const rch = cabin!=null ? Math.max(0, mWh - cabin) : 0;
+    $("t_a").innerHTML = `${nf((cabin ?? mWh)/1000,2)}<small>kWh</small>`;
+    $("t_a_n").textContent = (rch>30 ? `+ nabíjení River ~${nf(rch/1000,2)} kWh · ` : "") + `ze solární ~${nf(dcWh/1000,2)} kWh (${nf(dcWh/12.5)} Ah)` + (rWh>20 ? ` · z River ${nf(rWh/1000,2)} kWh` : "");
   } else if(rWh>0){
     $("t_a").innerHTML = `${nf(rWh/1000,2)}<small>kWh</small>`; $("t_a_n").textContent = "z River";
   } else { $("t_a").innerHTML = "–"; $("t_a_n").textContent = "čeká na data ze zásuvky"; }
@@ -539,7 +545,7 @@ function renderWx(d){
       <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · chata na River":"☀️ letní provoz · chata na solární baterii"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
     <div style="margin-top:8px">${rec}</div>
     <div style="display:flex;gap:4px;margin-top:12px">${bars}</div>
-    <div class="sub" style="margin-top:6px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně spotřeba chaty ~${nf(need,2)} kWh/den`:""}${zima?" · pod sloupcem stav solární baterie večer, zeleně den vhodný k připojení":" · pod sloupcem stav baterie příští ráno, zeleně den, kdy výroba pokryje spotřebu"}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
+    <div class="sub" style="margin-top:6px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně kolik musí panely vyrobit: ~${nf(need,2)} kWh/den (chata spotřebuje ~${nf((ol.ac_day||0)/1000,2)} kWh – lednice, světla, kamery, wifi – plus ztráty měniče a nabíjení; nabíjení River se nepočítá)`:""}${zima?" · pod sloupcem stav solární baterie večer, zeleně den vhodný k připojení":" · pod sloupcem stav baterie příští ráno, zeleně den, kdy výroba pokryje spotřebu"}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
     <details style="margin-top:2px"><summary style="font-size:13px">Jak přesně předpovídá</summary><div class="sub" style="font-size:12.5px;line-height:1.5">${acc}<br>Model zná zvlášť přímé a rozptýlené světlo a pro každou roční dobu se učí z minulých let – v zimě sám zjistí, že přímé slunce na panely nedopadá. Dny, kdy byla baterie brzy plná (výroba přiškrcená), do učení nepočítá.</div>${accRows?`<div style="font-size:12.5px;margin-top:6px">${accRows}</div>`:""}</details>`;
   el.classList.remove("hide");
 }

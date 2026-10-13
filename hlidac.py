@@ -1056,17 +1056,27 @@ def detect_mode(data, st, cfg, now, inv):
 
 
 def cabin_consumption(data, cfg, mode, now):
-    """Spotřeba chaty za den (Wh na výstupu, AC) – medián posledních 7 celých dní."""
+    """Spotřeba chaty za den (Wh na výstupu, AC) – medián posledních 7 celých dní.
+
+    Léto: lednice + ostatní (světla, kamery, wifi) – BEZ nabíjení River přebytkem (to není spotřeba chaty).
+    Když chybí, zásuvka měniče za dny, kdy se River nenabíjela. Zima: zásuvky na River.
+    """
     inv = data.get("inverter") or {}
     mip = inv.get("mip") or str(cfg.get("zasuvka_menic") or "").strip()
+    fip = str(cfg.get("zasuvka_lednice") or "").strip()
     rivers = ips(cfg.get("zasuvky_river"))
     vals = []
     for k in sorted(data["days"])[-9:-1]:
-        tp = data["days"][k].get("tp") or {}
+        day = data["days"][k]
+        tp = day.get("tp") or {}
         if mode == "zima":
             x = sum(tp.get(i, 0) for i in rivers)
+        elif fip and tp.get(fip) and day.get("on") is not None:
+            x = tp[fip] + day["on"] * 24
+        elif mip and not day.get("ra_min"):
+            x = tp.get(mip)
         else:
-            x = tp.get(mip) if mip else None
+            x = None
         if x and x > 50:
             vals.append(x)
     if len(vals) >= 2:
