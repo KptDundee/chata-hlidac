@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- náhled dlaždice v seznamu dlaždic -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape android:shape="oval"><solid android:color="#FF111111" /><size android:width="192dp" android:height="192dp" /></shape></item>
+    <item android:drawable="@drawable/ic_chata" android:gravity="center" android:width="64dp" android:height="64dp" />
+</layer-list>

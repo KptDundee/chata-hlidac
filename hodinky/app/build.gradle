@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'cz.petr.chatahodinky'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'cz.petr.chatahodinky'
+        minSdk 30          // Wear OS 3+
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release { minifyEnabled false }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // dlaždice (Tile)
+    implementation 'androidx.wear.tiles:tiles:1.4.1'
+    implementation 'androidx.wear.protolayout:protolayout:1.2.1'
+    // komplikace na ciferník
+    implementation 'androidx.wear.watchface:watchface-complications-data-source:1.2.1'
+    // ListenableFuture pro Javu
+    implementation 'androidx.concurrent:concurrent-futures:1.2.0'
+    implementation 'com.google.guava:guava:33.3.1-android'
+}

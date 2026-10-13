@@ -772,9 +772,11 @@ def main():
         log("err", f"Odhad nabití: {type(e).__name__} {str(e)[:90]}")
     try:
         for name, fn in (("Počasí a výhled", lambda: weather_and_outlook(data, st, cfg, now, topic, mode)),
-                         ("Ostatní odběr", lambda: other_load_check(data, st, cfg, now, topic)),("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_)),
+                         ("Ostatní odběr", lambda: other_load_check(data, st, cfg, now, topic)),
+                         ("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_)),
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
-                         ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_))):
+                         ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
+                         ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
             try:
                 fn()
             except Exception as e:          # chyba jedné části nesmí shodit ostatní
@@ -976,6 +978,46 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
     ntfy(topic, title, msg, 3 if errs else 2, "bar_chart")
     st["summary_day"] = today
     st["summary_ts"] = int(now.timestamp())
+
+
+def watch_publish(data, v, st, now, topic, cfg):
+    """Krátké shrnutí pro hodinky (Wear OS dlaždice + komplikace) do ntfy <topic>-hodinky."""
+    bv = v.get("bat_v")
+    if bv is None:
+        return
+    lvl = 0
+    if cfg["baterie_kriticka_V"] and bv < cfg["baterie_kriticka_V"]:
+        lvl = 2
+    elif cfg["baterie_slabne_V"] and bv < cfg["baterie_slabne_V"]:
+        lvl = 1
+    inv = data.get("inverter") or {}
+    fresh = inv and now.timestamp() - inv.get("t", 0) < 1800
+    st_txt = {1: "nabito", 2: "nabíjí", 3: "vyrovnává", 0: "nenabíjí"}.get(int(v["status"]) if v.get("status") is not None else -1, "")
+    f = data.get("forecast")
+    fc = ""
+    if f and f.get("until"):
+        if f.get("t_off"):
+            fc, lvl = "🌙 do rána NEVYDRŽÍ", max(lvl, 2)
+        elif f.get("t_crit"):
+            fc, lvl = "🌙 do rána těsně", max(lvl, 1)
+        else:
+            fc = f"🌙 do rána ✓ ~{max(f.get('soc_until', 0), 0)} %"
+    else:
+        preds = ((data.get("wxo") or {}).get("preds") or [])
+        t = next((p for p in preds if p["d"] == (now.date() + timedelta(days=1)).isoformat()), None)
+        if t:
+            fc = f"zítra {t.get('txt') or ''} ~{fmt(t['kwh'], 1)} kWh".replace("  ", " ")
+    body = {"t": int(now.timestamp()), "v": round(bv, 2), "soc": data.get("soc_est", v.get("bat_soc")),
+            "pv": round(v["pv_w"]) if v.get("pv_w") is not None else None,
+            "w": round(inv["mw"]) if fresh and inv.get("mw") is not None else None,
+            "st": st_txt, "fc": fc, "lvl": lvl, "day": v.get("day_kwh"),
+            "ra": bool((data.get("river_auto") or {}).get("on")), "vmin": cfg["odpojeni_V"] or 11.6}
+    try:
+        req = urllib.request.Request(f"https://ntfy.sh/{topic}-hodinky", data=json.dumps(body).encode(),
+                                     headers={"Title": "chata", "Priority": "1"}, method="POST")
+        urllib.request.urlopen(req, timeout=15).read()
+    except Exception as e:
+        print("Hodinky (ntfy):", e)
 
 
 def fuse_check(v, st, now, topic, cfg):
