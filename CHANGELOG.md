@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.0 – 13. 10. 2026
+- Graf výkonu panelů (detail dlaždice i sekce Grafy): barevné pozadí podle režimu nabíjení (Boost / Float / vyrovnávací), režim i v bublině
+
 ## 2.9 – 13. 10. 2026
 - Dlaždice na hlavní stránce otevřou graf (Dnes / Týden): nabití + napětí, panely + proud z regulátoru, výroba po hodinách + přírůstek, spotřeba + přírůstek
 - Oprava hlavičky oken (Nastavení, zásuvka, graf) – křížek vedle nadpisu

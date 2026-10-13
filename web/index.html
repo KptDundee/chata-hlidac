@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "2.9", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.0", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -131,7 +131,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.9</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v3.0</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -192,7 +192,7 @@ details.sec>.in{margin-top:8px}
 
   <section class="charts">
     <div class="card chart"><h2>Napětí baterie</h2><div class="cs" id="vlim">V · čárkovaně limity upozornění</div><div id="c_v"></div></div>
-    <div class="card chart"><h2>Výkon panelů</h2><div class="cs">W</div><div id="c_pv"></div></div>
+    <div class="card chart"><h2>Výkon panelů</h2><div class="cs">W · pozadí: <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--warn);opacity:.5;vertical-align:-1px"></i> Boost (nabíjí)</span> <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--good);opacity:.5;vertical-align:-1px"></i> Float (nabito – panely škrtí)</span></div><div id="c_pv"></div></div>
     <div class="card chart hide" id="c_ac_card"><h2>Odběr z měniče</h2><div class="cs">W · průměr za 10 min (lednice, nabíječky…)</div><div id="c_ac"></div></div>
     <div class="card chart"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 id="prodh">Výroba po dnech</h2>
       <div class="seg" id="prodseg" style="font-size:13px"><button data-m="d" aria-pressed="true">Dny</button><button data-m="m" aria-pressed="false">Měsíce</button><button data-m="y" aria-pressed="false">Roky</button></div></div>
@@ -411,7 +411,7 @@ function render(){
   const from = Date.now()/1000 - HOURS*3600;
   const win = pts.filter(p=>p.t>=from);
   lineChart($("c_v"), win, "bat_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
-  lineChart($("c_pv"), win, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true});
+  lineChart($("c_pv"), win, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,modes:true});
   const hasAc = pts.some(p=>p.ac_w!=null);
   $("c_ac_card").classList.toggle("hide", !hasAc);
   if(hasAc) lineChart($("c_ac"), win, "ac_w", css("--s1"), {unit:"W",dec:0,zero:true,area:true});
@@ -478,6 +478,14 @@ function lineChart(el, pts, key, color, o){
   const t0=Date.now()/1000-(o.hours||HOURS)*3600, t1=Date.now()/1000;
   const x=t=>M.l+(W-M.l-M.r)*(t-t0)/(t1-t0);
   xLabels(svg,t0,t1,x); refLines(svg,y,o.refs);
+  if(o.modes){   // barevné pozadí podle režimu nabíjení regulátoru
+    const all=(o.modePts||pts).filter(q=>q.status!=null && q.t>=t0-600); let b="", cur=null, start=null, prevT=null;
+    const col={1:"--good",2:"--warn",3:"--s1"};
+    const flush=end=>{ if(cur!=null && col[cur]) b+=`<rect x="${Math.max(M.l,x(start))}" y="${M.t}" width="${Math.max(1,Math.min(W-M.r,x(end))-Math.max(M.l,x(start)))}" height="${H-M.t-M.b}" fill="var(${col[cur]})" opacity=".13"/>`; };
+    for(const q of all){ if(cur===null){cur=q.status;start=q.t;} else if(q.status!==cur || q.t-prevT>2400){ flush(Math.min(q.t, prevT+600)); cur=q.status; start=q.t; } prevT=q.t; }
+    if(cur!==null) flush(prevT+600);
+    svg.insertAdjacentHTML("beforeend", b);
+  }
   // mezery v datech > 40 min přeruší čáru
   let dPath="",prev=null; for(const q of p){dPath+=(prev&&q.t-prev.t<2400?"L":"M")+x(q.t).toFixed(1)+","+y(q[key]).toFixed(1);prev=q;}
   if(o.area){let a="",seg=[];const flush=()=>{if(seg.length>1)a+=`M${x(seg[0].t)},${y(lo)}`+seg.map(q=>`L${x(q.t)},${y(q[key])}`).join("")+`L${x(seg[seg.length-1].t)},${y(lo)}Z`;seg=[];};prev=null;for(const q of p){if(prev&&q.t-prev.t>=2400)flush();seg.push(q);prev=q;}flush();svg.insertAdjacentHTML("beforeend",`<path d="${a}" fill="${color}" opacity=".14"/>`);}
@@ -487,6 +495,7 @@ function lineChart(el, pts, key, color, o){
     let extra=key==="bat_v"&&best.bat_soc!=null?`<br>SOC ${nf(best.bat_soc)} %`:"";
     if(key==="bat_v"&&best.iv!=null)extra+=`<br>měnič ${nf(best.iv,2)} V při ${nf(best.lw??best.ac_w)} W`;
     else if(key==="bat_v"&&best.ac_w!=null)extra+=`<br>odběr ${nf(best.ac_w)} W`;if(key==="bat_v"&&best.bat_a!=null)extra+=` · ${nf(best.bat_a,1)} A`;
+    if(o.modes && best.status!=null) extra+=`<br>${({1:"Float – nabito, panely škrtí",2:"Boost – nabíjí",3:"vyrovnávací nabíjení",0:"nenabíjí"})[best.status]||""}`;
     showTip(ev,`${fmtT(best.t)}<br><b>${nf(best[key],o.dec)} ${o.unit}</b>${extra}`);};
   const leave=()=>{ch.setAttribute("opacity",0);cd.setAttribute("opacity",0);hideTip();};
   svg.addEventListener("pointermove",move);svg.addEventListener("pointerdown",move);svg.addEventListener("pointerleave",leave);
@@ -653,8 +662,8 @@ function renderTile(){
     lineChart($("c_tile2"), pts, "bat_v", css("--s3"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   } else if(TILE==="pv"){
     $("tilet").textContent = "Panely"; $("tiles2").textContent = `teď ${nf(last.pv_w)} W` + (last.bat_a!=null ? ` · z regulátoru ${nf(last.bat_a,1)} A` : "");
-    $("tile1h").textContent = "Výkon panelů"; $("tile1c").textContent = "W · ve Float regulátor panely škrtí na aktuální potřebu";
-    lineChart($("c_tile1"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
+    $("tile1h").textContent = "Výkon panelů a režim nabíjení"; $("tile1c").innerHTML = `W · pozadí: <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--warn);opacity:.5;vertical-align:-1px"></i> Boost (nabíjí)</span> <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--good);opacity:.5;vertical-align:-1px"></i> Float (nabito – panely škrtí)</span>`;
+    lineChart($("c_tile1"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
     $("tile2h").textContent = "Proud z regulátoru do baterie"; $("tile2c").textContent = `A · čárkovaně pojistka ${nf(DATA.cfg?.pojistka_A ?? 30)} A`;
     lineChart($("c_tile2"), pts, "bat_a", css("--s1"), {unit:"A",dec:1,zero:true,area:true,hours:hrs,refs:[[DATA.cfg?.pojistka_A ?? 30,"--crit"]]});
   } else if(TILE==="prod"){
