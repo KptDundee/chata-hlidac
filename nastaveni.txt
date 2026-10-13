@@ -73,6 +73,8 @@ river_auto_ip = 157
 river_auto_pv_on = 150
 river_auto_pv_off = 100
 river_auto_v_off = 12.5
+# vypnout hned, jakmile napětí spadne pod tuto hodnotu (baterie se přestala nabíjet a začala vybíjet)
+river_auto_v_drzet = 13.0
 river_auto_off_min = 20
 
 # --- Ostatní odběr za měničem (světla, kamery, wifi) = zásuvka měniče − lednice ---

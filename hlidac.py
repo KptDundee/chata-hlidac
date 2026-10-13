@@ -32,7 +32,7 @@ DEFAULTS = {
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
     "zasuvka_menic": "", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
     "river_auto": True, "river_auto_ip": "157", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
-    "river_auto_v_off": 12.5, "river_auto_off_min": 20,
+    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
@@ -877,12 +877,17 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         if early and not cooldown and st["ra_fl"] >= 2 and bv >= (cfg["river_auto_v_off"] or 0) + 0.3:
             on, reason = True, f"baterie plná (Float), panely {fmt(pv)} W (přiškrcené)"
     else:
-        # po zapnutí 30 min tolerance: povel dorazí s Flipem až do 10 min a regulátor hlásí se zpožděním
-        lowpv = pv < (cfg["river_auto_pv_off"] or 0) and now.timestamp() - st.get("ra_since", 0) > 1800
-        st["ra_low"] = (st.get("ra_low", 0) + 10) if lowpv else 0
-        if bv < (cfg["river_auto_v_off"] or 0):
-            on, reason = False, f"napětí klesla na {fmt(bv, 2)} V"
-        elif st["ra_low"] >= (cfg["river_auto_off_min"] or 0):
+        # Priorita je solární baterie: jakmile napětí spadne z Float (~13,6 V) pod hranici, baterie
+        # se vybíjí → vypnout hned. Výkon panelů se posuzuje až z měření pořízeného po přepnutí zásuvky
+        # (Flip povel provede do 10 min) – jedno slabé měření stačí.
+        reading_ts = now.timestamp() - (v.get("age_min") or 0) * 60
+        fresh_after = reading_ts > st.get("ra_since", 0) + 600
+        hold = cfg.get("river_auto_v_drzet") or 13.0
+        if bv < hold:
+            on, reason = False, f"baterie se vybíjí ({fmt(bv, 2)} V)"
+        elif bv < (cfg["river_auto_v_off"] or 0):
+            on, reason = False, f"napětí kleslo na {fmt(bv, 2)} V"
+        elif fresh_after and pv < (cfg["river_auto_pv_off"] or 0):
             on, reason = False, f"panely jen {fmt(pv)} W"
         elif not day:
             on, reason = False, "blíží se západ slunce"

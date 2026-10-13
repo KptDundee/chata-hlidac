@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "2.5", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "2.6", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -126,7 +126,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.5</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.6</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -795,7 +795,7 @@ const SETTINGS = [
     ["river_auto_ip","Zásuvka nabíjení River","Konec IP adresy","",0,"txt"],
     ["river_auto_pv_on","Zapnout, když panely dávají aspoň","","W",10,"num"],
     ["river_auto_pv_off","Vypnout, když panely klesnou pod","","W",10,"num"],
-    ["river_auto_off_min","…po dobu","","min",10,"num"],
+    ["river_auto_v_drzet","Vypnout hned, když napětí klesne pod","Solární baterie se přestala nabíjet (Float ~13,6 V)","V",0.05,"num"],
     ["river_auto_v_off","Vypnout, když napětí klesne pod","","V",0.05,"num"],
   ]],
   ["Počasí a zimní provoz", [
