@@ -32,7 +32,7 @@ DEFAULTS = {
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
     "zasuvka_menic": "", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
     "river_auto": True, "river_auto_ip": "157", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
-    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0,
+    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
@@ -867,6 +867,9 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
     # zapínat jen do 2 h před západem (ať to nevypne hned kvůli slábnoucímu slunci) a ne hned po vypnutí
     early = rise and set_ and rise + timedelta(minutes=60) <= now <= set_ - timedelta(minutes=120)
     cooldown = now.timestamp() - st.get("ra_off_ts", 0) < 3600
+    # nabíjecí napětí Boostu s teplotní kompenzací (−18 mV/°C pro 12V baterii, vztaženo k 25 °C)
+    bt = v.get("bat_t")
+    boost_v = (cfg.get("boost_V") or 14.4) + (max(-0.3, min(0.3, (25 - bt) * 0.018)) if bt is not None else 0)
     if stale or bv is None or pv is None:
         if on:
             on, reason = False, "regulátor neposílá data"
@@ -874,8 +877,13 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         # Ve Float regulátor škrtí panely na aktuální potřebu → výkon panelů tu nic neříká;
         # skutečný přebytek se ukáže až po zapnutí (a když nestačí, vypne se níž kvůli „panely jen … W“).
         st["ra_fl"] = st.get("ra_fl", 0) + 1 if status == 1 else 0
+        # Boost – fáze stálého napětí: dokud regulátor drží nabíjecí napětí, baterie dostává plnou dávku
+        # a River jede jen z toho, co by jinak propadlo.
+        st["ra_bh"] = st.get("ra_bh", 0) + 1 if (cfg.get("river_auto_boost") and status == 2 and bv >= boost_v - 0.08) else 0
         if early and not cooldown and st["ra_fl"] >= 2 and bv >= (cfg["river_auto_v_off"] or 0) + 0.3:
             on, reason = True, f"baterie plná (Float), panely {fmt(pv)} W (přiškrcené)"
+        elif early and not cooldown and st["ra_bh"] >= 2:
+            on, reason = True, f"regulátor drží nabíjecí napětí {fmt(bv, 2)} V (Boost), panely {fmt(pv)} W"
     else:
         # Priorita je solární baterie: jakmile napětí spadne z Float (~13,6 V) pod hranici, baterie
         # se vybíjí → vypnout hned. Výkon panelů se posuzuje až z měření pořízeného po přepnutí zásuvky
@@ -883,7 +891,9 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         reading_ts = now.timestamp() - (v.get("age_min") or 0) * 60
         fresh_after = reading_ts > st.get("ra_since", 0) + 600
         hold = cfg.get("river_auto_v_drzet") or 13.0
-        if bv < hold:
+        if status == 2 and bv < boost_v - 0.2:
+            on, reason = False, f"regulátor už neudrží nabíjecí napětí ({fmt(bv, 2)} V) – River by brala z baterie"
+        elif bv < hold:
             on, reason = False, f"baterie se vybíjí ({fmt(bv, 2)} V)"
         elif bv < (cfg["river_auto_v_off"] or 0):
             on, reason = False, f"napětí kleslo na {fmt(bv, 2)} V"

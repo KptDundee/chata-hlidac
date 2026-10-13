@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 2.7 – 13. 10. 2026
+- Automatika River i v Boostu: zapnout, když regulátor drží nabíjecí napětí (s teplotní kompenzací), vypnout hned, když ho neudrží (River by brala z baterie)
+- Hlavní stránka: proud z regulátoru a čistý proud do baterie (po odečtení měniče)
+
 ## 2.6 – 13. 10. 2026
 - Automatika River: priorita solární baterie – vypnout hned, když napětí spadne pod 13,0 V (baterie se vybíjí); slabé panely stačí jedno čerstvé měření po přepnutí; bez 30min tolerance
 

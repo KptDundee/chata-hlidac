@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "2.6", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "2.7", FLIP_VER = "1.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -126,7 +126,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.6</span></h1>
+    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v2.7</span></h1>
     <div class="hrow"><div class="sub" id="upd">…</div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -361,7 +361,11 @@ function render(){
     $("invsync").classList.remove("hide");
   } else $("invsync").classList.add("hide");
   const a = last.bat_a ?? lp.bat_a;
-  $("t_pv_n").textContent = [STATUS[status]||"", a!=null && a>=0.1 ? `nabíjí ${nf(a,1)} A` : ""].filter(Boolean).join(" · ");
+  const gi2 = d.inverter, gi2f = gi2 && Date.now()/1000 - gi2.t < 1800 && gi2.mw!=null;
+  const loadA = gi2f && bv ? (gi2.mw/0.88 + (d.cfg?.menic_vlastni_W ?? 6)) / bv : null;
+  const net = a!=null && loadA!=null ? a - loadA : null;
+  $("t_pv_n").innerHTML = [STATUS[status]||"", a!=null && a>=0.1 ? `z regulátoru ${nf(a,1)} A` : "",
+    net!=null && a>=0.1 ? `<span style="color:var(${net<0?"--crit":"--text2"})">do baterie čistě ${net<0?"−":"~"}${nf(Math.abs(net),1)} A</span>` : ""].filter(Boolean).join(" · ");
   // spotřeba dnes: zásuvka za měničem (W na výstupu) + přepočet na odběr ze solární baterie
   const tpd = (d.days && d.days[tday] && d.days[tday].tp) || {}, names = d.plug_names || {};
   const cfgM = String(d.cfg?.zasuvka_menic ?? "").trim();
@@ -796,6 +800,8 @@ const SETTINGS = [
     ["river_auto_pv_on","Zapnout, když panely dávají aspoň","","W",10,"num"],
     ["river_auto_pv_off","Vypnout, když panely klesnou pod","","W",10,"num"],
     ["river_auto_v_drzet","Vypnout hned, když napětí klesne pod","Solární baterie se přestala nabíjet (Float ~13,6 V)","V",0.05,"num"],
+    ["river_auto_boost","Nabíjet River už v Boostu","Jen když regulátor drží nabíjecí napětí – baterie dostává plnou dávku","","", "sw"],
+    ["boost_V","Nabíjecí napětí Boostu","Podle nastavení regulátoru (teplotní kompenzaci dopočítá hlídač)","V",0.1,"num"],
     ["river_auto_v_off","Vypnout, když napětí klesne pod","","V",0.05,"num"],
   ]],
   ["Počasí a zimní provoz", [
