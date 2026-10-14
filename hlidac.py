@@ -156,6 +156,106 @@ def night_voltages(series, date, cfg):
             "ts": int(a), "te": int(b)}
 
 
+NH_DAYS = 90          # rozbor nocí: kolik nocí zpět z historie Solar Guardianu
+
+
+def night_history(token, data, st, now, cfg, budget_s=60):
+    """Rozbor nocí z historie Solar Guardianu (napětí, proud, režim, panely, teplota) + hodinová spotřeba
+    zásuvky za měničem z Tapo (plug_hourly). data["nh"][večer YYYY-MM-DD] = jedna noc (večer → ráno).
+    Postupně po 10 dnech odzadu, nejvýš budget_s za běh; každý den doplní uplynulou noc."""
+    nh = data.setdefault("nh", {})
+    lat, lon = cfg["sirka"], cfg["delka"]
+    idle = cfg.get("menic_vlastni_W") or 6
+    today = now.date()
+    # noc k je hotová, až je 2 h po východu dne k+1
+    want = []
+    for back in range(NH_DAYS, 0, -1):
+        k = today - timedelta(days=back)
+        r1, _ = sun_times(lat, lon, k + timedelta(days=1))
+        if r1 and now >= r1 + timedelta(hours=2) and k.isoformat() not in nh:
+            want.append(k)
+    t0 = time.time()
+    while want and time.time() - t0 < budget_s:
+        chunk = [want.pop(0)]
+        while want and want[0] == chunk[-1] + timedelta(days=1) and len(chunk) < 10:
+            chunk.append(want.pop(0))
+        start = datetime(chunk[0].year, chunk[0].month, chunk[0].day, tzinfo=TZ)
+        end = datetime(chunk[-1].year, chunk[-1].month, chunk[-1].day, tzinfo=TZ) + timedelta(days=2)
+        ser = {}
+        try:
+            for key in ("bat_v", "bat_a", "status", "pv_w", "bat_t"):
+                ser[key] = [(ms / 1000, val) for ms, val in history(token, POINTS[key][0], start, end)]
+        except Exception as e:
+            print("Rozbor nocí (historie):", e)
+            return
+        for k in chunk:
+            nh[k.isoformat()] = night_row(k, ser, data, lat, lon, idle)
+        print(f"Rozbor nocí: {chunk[0]} – {chunk[-1]}")
+    for kk in sorted(nh)[:-NH_DAYS - 10]:
+        nh.pop(kk)
+
+
+def night_row(k, ser, data, lat, lon, idle):
+    rise, set_ = sun_times(lat, lon, k)
+    r1, _ = sun_times(lat, lon, k + timedelta(days=1))
+    if not (rise and set_ and r1):
+        return {"x": 1}
+    R, S, R1 = rise.timestamp(), set_.timestamp(), r1.timestamp()
+    sel = lambda key, a, b: [(t, v) for t, v in ser.get(key, []) if a <= t < b]
+    V = [(t, v) for t, v in sel("bat_v", S, R1 + 5400) if v > 5]
+    if len(V) < 6:
+        return {"x": 1}
+    row = {"hrs": round((R1 - S) / 3600, 2)}
+    v0 = sorted(v for t, v in V if S + 2700 <= t <= S + 4500)
+    row["v0"] = round(v0[len(v0) // 2], 2) if v0 else None
+    row["vmin"] = round(min(v for t, v in V), 2)
+    ve = [v for t, v in V if R1 - 3600 <= t <= R1 + 900]
+    row["ve"] = round(min(ve), 2) if ve else None
+    # přes den: Ah z regulátoru, režimy
+    A = sel("bat_a", R, S)
+    ai = 0.0
+    for (t1, a1), (t2, _) in zip(A, A[1:]):
+        if a1 > 0:
+            ai += a1 * min(t2 - t1, 1800) / 3600
+    row["ai"] = round(ai, 1) if len(A) > 10 else None
+    St = sel("status", R - 3600, S + 3600)
+    row["fl"] = next((int(t) for t, v in St if int(v) == 1), 0) if St else None
+    bm = 0
+    for (t1, v1), (t2, _) in zip(St, St[1:]):
+        if int(v1) == 2:
+            bm += min(t2 - t1, 1800)
+    row["bm"] = round(bm / 60) if St else None
+    vmax = [v for t, v in sel("bat_v", R, S) if v > 5]
+    row["vmax"] = round(max(vmax), 2) if vmax else None
+    T = [v for t, v in sel("bat_t", S, R1) if -40 < v < 80]
+    row["tn"] = round(min(T), 1) if T else None
+    row["prod"] = (data.get("days", {}).get(k.isoformat()) or {}).get("solar_kwh")
+    # spotřeba za měničem z hodinové historie Tapo (Wh) – noc a den
+    ph = data.get("plug_hourly") or {}
+
+    def wh(a, b):
+        tot, cov, t = 0.0, 0.0, a
+        while t < b:
+            dt_ = datetime.fromtimestamp(t, TZ)
+            hs = dt_.replace(minute=0, second=0, microsecond=0)
+            he = hs + timedelta(hours=1)
+            seg = min(b, he.timestamp()) - t
+            arr = ph.get(hs.strftime("%Y-%m-%d"))
+            if arr and arr[hs.hour] is not None:
+                tot += arr[hs.hour] * seg / 3600
+                cov += seg
+            t += seg
+        return tot if cov >= (b - a) * 0.8 else None
+    nw, dw = wh(S, R1), wh(R, S)
+    row["nwh"] = round(nw) if nw is not None else None
+    row["dwh"] = round(dw) if dw is not None else None
+    if nw is not None:
+        row["nah"] = round((nw / 0.88 + idle * (R1 - S) / 3600) / 12.3, 1)        # z baterie přes noc
+    if dw is not None and row["ai"] is not None:
+        row["dnet"] = round(row["ai"] - (dw / 0.88 + idle * (S - R) / 3600) / 12.8, 1)   # čistě do baterie přes den
+    return row
+
+
 def import_history(token, data, st, now, cfg, budget_s=90):
     """Postupně (po měsících, odzadu) doplní denní výrobu, min/max napětí a noční napětí ze Solar Guardianu."""
     if not st.get("hist_v6"):              # nová verze importu (+ plná, nejnižší napětí, špička proudu) → projít znovu
@@ -874,6 +974,10 @@ def main():
     except Exception as e:
         print("Import historie selhal:", e)
         log("err", f"Import historie Solar Guardian: {str(e)[:100]}")
+    try:
+        night_history(token, data, st, now, cfg)
+    except Exception as e:
+        print("Rozbor nocí selhal:", e)
     try:
         charge_capacity(data, now, cfg)
     except Exception as e:

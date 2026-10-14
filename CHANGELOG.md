@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.24 – 14. 10. 2026
+- **Rozbor nocí z historie:** hlídač si z historie regulátoru (Solar Guardian: napětí, proud, režim, teplota baterie) a z hodinové spotřeby zásuvky za měničem (Tapo) spočítá posledních **90 nocí** (`nh`) – večerní napětí, ranní minimum, kolik Ah regulátor přes den dodal a kolik z toho čistě zůstalo v baterii, od kdy byla ve Float, kolik se přes noc odebralo, délka noci, teplota. Karta 🔎 tak porovnává posledních 5 nocí s obdobím, kdy to bylo v pořádku (ne jen s 14 dny vlastních měření). Načítá se postupně, plně za ~1 h.
+
 ## 3.23 – 14. 10. 2026
 - **🔎 Proč je ranní minimum takové** (detail noci z dneška na zítřek i noci ze včerejška na dnešek): porovná posledních 5 nocí se staršími (14 dní podrobných měření) a vypíše, co se změnilo – jak moc se baterie přes den nabila (čistý přítok Ah, výroba, Float), kolik se přes noc odebralo (Ah, W, lednice, světla/kamery/wifi, délka noci), jak rychle napětí klesá na 10 Ah a teplota baterie. Pod tím tabulka po nocích.
 

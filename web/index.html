@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.23", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.24", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1400,10 +1400,18 @@ function nightRows(d){
   }
   return rows;
 }
+function nightRowsHist(d){       // z historie Solar Guardianu + Tapo (hlídač: data.nh, až 90 nocí)
+  return Object.keys(d.nh||{}).sort().map(k=>({k, ...d.nh[k]})).filter(r=>!r.x && r.vmin!=null).map(r=>({
+    k:r.k, hrs:r.hrs, v0:r.v0, vmin:r.vmin, ah:r.nah ?? null, w: r.nwh!=null && r.hrs ? r.nwh/r.hrs : null, fr:null, ow:null,
+    tmin:r.tn ?? null, prod:r.prod ?? null, fl:r.fl || 0, ra:0, dah:r.dnet ?? null, ai:r.ai ?? null, bm:r.bm ?? null, vmax:r.vmax ?? null,
+    slope: r.nah && r.nah > 5 && r.v0!=null ? (r.v0 - r.vmin)*1000/r.nah*10 : null}));
+}
 function nightAnalysisHtml(d){
-  const R = nightRows(d);
+  const H = nightRowsHist(d), hist = H.length >= 8;
+  const R = hist ? H.slice(-40) : nightRows(d);
   if(R.length < 4) return `<div class="card"><b>🔎 Proč je ranní minimum takové</b><div class="sub">Zatím málo nocí s podrobnými měřeními (${R.length}).</div></div>`;
   const nA = Math.min(5, R.length - 2), A = R.slice(-nA), B = R.slice(0, -nA);
+  const [aiB, aiA] = [B, A].map(X => { const v = X.map(r=>r.ai).filter(x=>x!=null); return v.length ? v.reduce((s,x)=>s+x,0)/v.length : null; });
   const avg = (X, f) => { const v = X.map(f).filter(x=>x!=null && !isNaN(x)); return v.length ? v.reduce((s,x)=>s+x,0)/v.length : null; };
   const m = f => [avg(B,f), avg(A,f)];
   const [vB, vA] = m(r=>r.vmin), [v0B, v0A] = m(r=>r.v0), [ahB, ahA] = m(r=>r.ah), [wB, wA] = m(r=>r.w), [frB, frA] = m(r=>r.fr), [owB, owA] = m(r=>r.ow);
@@ -1414,6 +1422,7 @@ function nightAnalysisHtml(d){
   if(v0B!=null && v0A!=null && v0A < v0B - 0.05){
     let s = `<b>Večer je baterie méně nabitá:</b> 1 h po západu ${nf(v0B,2)} → ${nf(v0A,2)} V.`;
     if(dB!=null && dA!=null) s += ` Přes den do ní čistě přiteklo ${nf(dB,0)} → ${nf(dA,0)} Ah`;
+    else if(aiB!=null && aiA!=null) s += ` Regulátor přes den dodal ${nf(aiB,0)} → ${nf(aiA,0)} Ah`;
     if(pB!=null && pA!=null) s += `, panely vyrobily ${nf(pB,2)} → ${nf(pA,2)} kWh/den`;
     s += `, do Float (plná) se dostala ${flB}/${B.length} → ${flA}/${A.length} dní.`;
     if(raA > raB + 15) s += ` River se přes den nabíjel déle (${nf(raB,0)} → ${nf(raA,0)} min/den).`;
@@ -1439,14 +1448,14 @@ function nightAnalysisHtml(d){
     const a = new Date(k+"T12:00"), z = new Date(nextKey(k)+"T12:00"); return `${a.getDate()}. → ${z.getDate()}. ${z.getMonth()+1}.`; };
   const c = v => v==null ? "" : `color:var(${v < CRIT_V ? "--crit" : v < WARN_V ? "--warn" : "--text"})`;
   const td = (x, st="") => `<td style="padding:3px 4px;text-align:right;white-space:nowrap;${st}">${x}</td>`;
-  const rows = R.slice().reverse().map((r,i)=>`<tr style="${i<nA?"background:color-mix(in srgb,var(--warn) 8%,transparent)":""}">
-    <td style="padding:3px 4px;white-space:nowrap">${fmtK(r.k)}</td>${td(r.prod!=null?nf(r.prod,2):"–")}${td(r.fl?hmT(r.fl):"ne")}${td(nf(r.v0,2))}${td(r.ah!=null?nf(r.ah,0):"–")}${td(r.fr!=null?nf(r.fr,0):"–")}${td(r.tmin!=null?nf(r.tmin,0):"–")}${td(`<b>${nf(r.vmin,2)}</b>`, c(r.vmin))}</tr>`).join("");
+  const rows = R.slice().reverse().slice(0, 21).map((r,i)=>`<tr style="${i<nA?"background:color-mix(in srgb,var(--warn) 8%,transparent)":""}">
+    <td style="padding:3px 4px;white-space:nowrap">${fmtK(r.k)}</td>${td(r.prod!=null?nf(r.prod,2):"–")}${td(r.fl?hmT(r.fl):"ne")}${td(nf(r.v0,2))}${td(r.dah!=null?(r.dah>=0?"+":"")+nf(r.dah,0):"–")}${td(r.ah!=null?nf(r.ah,0):"–")}${td(r.tmin!=null?nf(r.tmin,0):"–")}${td(`<b>${nf(r.vmin,2)}</b>`, c(r.vmin))}</tr>`).join("");
   return `<div class="card"><b>🔎 Proč je ranní minimum takové</b>
     <div style="margin:6px 0 8px">Nejnižší napětí (ráno): <b>${nf(vB,2)} → ${nf(vA,2)} V</b> <span class="sub">(průměr ${B.length} starších nocí → posledních ${A.length})</span></div>
     ${why.length ? why.map(w=>`<div style="margin:4px 0">• ${w[1]}</div>`).join("") : `<div class="sub">Žádná výrazná změna v nabití přes den, odběru, délce noci ani teplotě.</div>`}
     <div style="overflow-x:auto;margin-top:10px"><table style="border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%">
-      <tr style="color:var(--muted);text-align:right"><th style="text-align:left;padding:3px 4px">noc</th><th>výroba kWh<br>ten den</th><th>Float<br>od</th><th>V 1 h po<br>západu</th><th>Ah<br>přes noc</th><th>lednice<br>Wh</th><th>°C<br>min</th><th>V min<br>ráno</th></tr>${rows}</table></div>
-    <div class="sub" style="font-size:12px;margin-top:6px">Zvýrazněné = posledních ${A.length} nocí. Ah přes noc = odběr měniče se ztrátami (zásuvka za měničem ÷ 0,88 + ${nf(d.cfg?.menic_vlastni_W ?? 6)} W). Podrobná měření se drží 14 dní.</div></div>`;
+      <tr style="color:var(--muted);text-align:right"><th style="text-align:left;padding:3px 4px">noc</th><th>výroba kWh<br>ten den</th><th>Float<br>od</th><th>V 1 h po<br>západu</th><th>Ah do bat.<br>přes den</th><th>Ah z bat.<br>přes noc</th><th>°C<br>min</th><th>V min<br>ráno</th></tr>${rows}</table></div>
+    <div class="sub" style="font-size:12px;margin-top:6px">Zvýrazněné = posledních ${A.length} nocí. ${hist ? `Zdroj: historie regulátoru (Solar Guardian) a hodinová spotřeba zásuvky za měničem (Tapo), ${R.length} nocí.` : "Zdroj: podrobná měření hlídače (14 dní) – historie regulátoru se ještě načítá."} Ah do baterie přes den = co regulátor dodal minus odběr chaty; Ah z baterie přes noc = zásuvka za měničem ÷ 0,88 + ${nf(d.cfg?.menic_vlastni_W ?? 6)} W.</div></div>`;
 }
 const nextKey = k => { const e = new Date(k+"T12:00"); e.setDate(e.getDate()+1); return e.toLocaleDateString("sv-SE"); };
 function detPastNight(body){
