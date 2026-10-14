@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.34 – 14. 10. 2026
+- **River podle zásuvek Tapo** (každá River má svou zásuvku na výstupu): dlaždice River má vždy záložky pro všechny River (● svítí ta, která právě napájí), ukazuje okamžitý výkon a „↑ dnes“ dodanou energii, i když EcoFlow data nechodí; % a nabíjení z EcoFlow, když jsou
+- Spotřeba chaty: „teď: solár 30 W + R1 65 W“ – vidět, když chatu napájí víc zdrojů naráz; po zdrojích ze zásuvek (● = právě napájí)
+
 ## 3.33 – 14. 10. 2026
 - **Pevná struktura hlavní stránky** – dlaždice se už nepřeskupují, mění se jen jejich obsah:
   - hlavička: vlevo čas dat z regulátoru a baterie Flipu, vpravo Načíst · ↻ · ⚙

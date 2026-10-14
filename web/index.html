@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.33", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.34", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1309,33 +1309,47 @@ function tileHtml(x){
 let RVSEL = (()=>{ try{ return localStorage.getItem("rvsel"); }catch(e){ return null; } })();
 const kWh = wh => wh==null ? "–" : `${nf(wh/1000, wh < 1000 ? 2 : 1)} kWh`;
 function riverToday(d, r){ const k = String(r.sn||"").slice(-6); return ((((d.days||{})[dkey(Date.now()/1000)]||{}).rv)||{})[k] || {}; }
+/* River = zásuvka Tapo na výstupu každé River (zasuvky_river) + případně data z EcoFlow (%, nabíjení) */
+function riverList(d, h){
+  const cfg = d.cfg||{}, ips = String(cfg.zasuvky_river ?? "").split(/[,;\s]+/).filter(Boolean);
+  const names = d.plug_names||{}, tpd = (((d.days||{})[dkey(h.now)]||{}).tp)||{};
+  const live = h.invF ? (h.inv.tp||[]) : [], ef = (d.rivers||[]), efFresh = h.now - (d.rivers_t||0) < 3600;
+  const norm = x => String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  return ips.map((ip, i) => {
+    const p = live.find(x=>x.ip===ip) || {}, nm = names[ip] || p.n || `River ${i+1}`;
+    const e = ef.find(r=>norm(r.name) && (norm(nm).includes(norm(r.name)) || norm(r.name).includes(norm(nm)))) || (ef.length===ips.length ? ef[i] : null);
+    const T = e ? riverToday(d, e) : {};
+    return {ip, name:nm, w: p.w, off: !!p.off || p.err!=null, wh: tpd[ip], ef: e && efFresh ? e : null, efOld: e, T};
+  });
+}
 function tileRivers(d, h){
-  const t = {k:"river", icon:"🔋", label:"River", wide:false};
-  const rv = d.rivers || [], fresh = h.now - (d.rivers_t||0) < 3600;
-  if(!rv.length) return {...t, cls:"na", v:"–", st:"Bez dat z EcoFlow"};
-  const act = r => fresh && r.online && ((r.out_w||0) - (r.in_w||0) > 3 || (r.in_w||0) > 20);
-  let sel = rv.find(r=>String(r.sn).slice(-6)===RVSEL) || rv.find(r=>fresh && r.online && (r.out_w||0) > 3) || rv.find(act) || rv[0];
-  const k = String(sel.sn).slice(-6), T = riverToday(d, sel), lim = h.cfg.river_vymenit_pod ?? 15;
-  const tabs = `<div class="rtabs">${rv.map(r=>{ const kk=String(r.sn).slice(-6); return `<button data-rv="${kk}" class="${act(r)?"on":""} ${kk===k?"sel":""}">${(r.name||"River").replace(/^River\s*/i,"R ").slice(0,12)}</button>`; }).join("")}</div>`;
-  const on = fresh && sel.online, iw = sel.in_w||0, ow = sel.out_w||0, rs = d.river_sup && d.river_sup.sn===k ? d.river_sup : null;
-  const st = !on ? `vypnutá · naposledy ${nf(sel.soc)} %` : iw > 20 ? `⚡ nabíjí ${nf(iw)} W` : ow > 3 ? `napájí ${nf(ow)} W${rs?` · vydrží ~${rs.h>=1.5?nf(rs.h,0)+" h":nf(rs.h*60,0)+" min"}`:""}` : "v klidu";
-  return {...t, top:tabs, cls: !on ? "na" : sel.soc!=null && sel.soc <= lim ? "bad" : "ok",
-    v:`${nf(sel.soc)}<small>%</small>`, st,
-    rows:[["dnes ↓", T.i!=null?kWh(T.i):"–"], ["dnes ↑", T.o!=null?kWh(T.o):"–"]]};
+  const t = {k:"river", icon:"🔋", label:"River"};
+  const R = riverList(d, h);
+  if(!R.length) return {...t, cls:"na", v:"–", st:"Nastav zásuvky River v Nastavení"};
+  const act = r => (r.w||0) > 2 || (r.ef && (r.ef.in_w||0) > 20);
+  const sel = R.find(r=>r.ip===RVSEL) || R.find(r=>(r.w||0) > 2) || R.find(act) || R[0];
+  const tabs = `<div class="rtabs">${R.map(r=>`<button data-rv="${r.ip}" class="${act(r)?"on":""} ${r===sel?"sel":""}">${r.name.replace(/^River\s*/i,"R ").slice(0,12)}</button>`).join("")}</div>`;
+  const e = sel.ef, iw = e ? e.in_w||0 : 0, soc = e ? e.soc : sel.efOld ? sel.efOld.soc : null;
+  const st = (sel.w||0) > 2 ? `napájí ${nf(sel.w)} W` : iw > 20 ? `⚡ nabíjí ${nf(iw)} W` : sel.off ? "zásuvka nedostupná" : "nenapájí";
+  return {...t, top:tabs, cls: act(sel) ? "ok" : "na",
+    v: soc!=null ? `${nf(soc)}<small>%${e?"":" (staré)"}</small>` : (sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–"), st,
+    rows:[["↑ dnes", sel.wh!=null ? kWh(sel.wh) : "–"], ...(sel.T.i ? [["↓ dnes", kWh(sel.T.i)]] : [])]};
 }
 function dayLedger(d, h){
   const cfg = d.cfg||{}, tpd = (((d.days||{})[dkey(h.now)]||{}).tp)||{}, ips = x => String(x||"").split(/[,;\s]+/).filter(Boolean);
   const mip = String(cfg.zasuvka_menic ?? "").trim() || (d.inverter && d.inverter.mip);
   const auto = tpd[String(cfg.river_auto_ip ?? "157")] || 0, gen = tpd[String(cfg.zasuvka_generator ?? "115")];
   const menic = mip!=null && tpd[mip]!=null ? tpd[mip] : null;
-  const rvT = (d.rivers||[]).map(r=>({name:r.name||"River", ...riverToday(d, r)}));
-  const rvOut = rvT.reduce((s,r)=>s+(r.o||0),0), rvIn = rvT.reduce((s,r)=>s+(r.i||0),0);
+  const RL = riverList(d, h);
+  const rvT = RL.map(r=>({name:r.name, o: r.wh ?? r.T.o ?? 0, w:r.w}));
+  const rvOut = rvT.reduce((s,r)=>s+(r.o||0),0), rvIn = (d.rivers||[]).reduce((s,r)=>s+(riverToday(d,r).i||0),0);
   return {menic, auto, gen, rvT, rvOut, rvIn, solar: menic!=null ? Math.max(0, menic - auto) : null};
 }
 function tileUse(d, h){
   const L = dayLedger(d, h), tot = (L.solar||0) + L.rvOut;
-  const rows = [["☀️ solár", L.solar!=null?kWh(L.solar):"–"], ...L.rvT.map(r=>[`🔋 ${r.name.replace(/^River\s*/i,"R ")}`, kWh(r.o||0)])];
-  return {k:"today", icon:"🏠", label:"Spotřeba chaty", cls:"ok", info:true, st:"od půlnoci", v: L.solar==null && !L.rvOut ? "–" : `${nf(tot/1000,2)}<small>kWh</small>`, rows};
+  const rows = [["☀️ solár" + ((h.inv&&h.inv.mw>3)?' <span style="color:var(--good)">●</span>':""), L.solar!=null?kWh(L.solar):"–"], ...L.rvT.map(r=>[`🔋 ${r.name.replace(/^River\s*/i,"R ")}${(r.w||0)>2?' <span style="color:var(--good)">●</span>':""}`, kWh(r.o||0)])];
+  const nowW = [h.invF && h.inv.mw>3 ? `solár ${nf(h.inv.mw)} W` : "", ...L.rvT.filter(r=>(r.w||0)>2).map(r=>`${r.name.replace(/^River\s*/i,"R ")} ${nf(r.w)} W`)].filter(Boolean);
+  return {k:"today", icon:"🏠", label:"Spotřeba chaty", cls:"ok", info:true, st: nowW.length ? `teď: ${nowW.join(" + ")}` : "od půlnoci", v: L.solar==null && !L.rvOut ? "–" : `${nf(tot/1000,2)}<small>kWh</small>`, rows};
 }
 function tileProd(d, h){
   const L = dayLedger(d, h), gc = d.gen_cur;
