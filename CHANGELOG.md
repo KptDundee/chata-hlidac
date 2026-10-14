@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.27 – 14. 10. 2026
+- **Regulátor neposílá data:** poplach už po **30 min** (dřív 120). Notifikace řekne, od kdy mlčí a proč nejspíš: když Flip posílá, internet na chatě jde → regulátor nemá napájení z baterie (pojistka, kabel) nebo vypadl Wi‑Fi modul; přidá napětí z Victronu. Když se zase ozve, přijde „Regulátor zase posílá data“.
+- Web při mlčícím regulátoru: červený verdikt „Regulátor neposílá data – údaje níže nejsou aktuální“, červená hlavička „Regulátor mlčí od dnes 12:06 – jeho údaje jsou STARÉ“, dlaždice baterie ukazuje aktuální napětí z Victronu a zvlášť poslední (staré) z regulátoru.
+
 ## 3.26 – 14. 10. 2026
 - **River jako zdroj chaty:** hlídač pozná, která River teď chatu napájí (výstup EcoFlow > příjem), a spočítá, na jak dlouho vydrží při průměrném odběru za poslední 3 h (kapacita 768 Wh, rezerva 5 %, ztráty měniče River ~10 % – vše v Nastavení).
   - Web: nahoře široká dlaždice **„River 2 Pro – napájí chatu“** (%, výdrž v hodinách, „Do zítřejšího rána vydrží – zítra ráno ~35 %“ / „Vybije se dnes ~23:40 – do zítřejšího rána nevydrží“); dlaždice noci počítá s River; baterie se jmenuje „Solární baterie teď“

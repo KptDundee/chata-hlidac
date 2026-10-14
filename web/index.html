@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.26", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.27", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -561,7 +561,9 @@ function render(){
     $("t_a").innerHTML = `${nf(rWh/1000,2)}<small>kWh</small>`; $("t_a_n").textContent = "z River";
   } else { $("t_a").innerHTML = "–"; $("t_a_n").textContent = "čeká na data ze zásuvky"; }
   const age = last.age_min;
-  $("upd").textContent = d.updated ? `Data z regulátoru ${ago(d.updated)}` + (age!=null&&age>120?" ⚠ regulátor neposílá data":"") : "Zatím žádná data";
+  { const R = regStale(d), u = $("upd");
+    u.textContent = !d.updated ? "Zatím žádná data" : R.stale ? `⚠ Regulátor mlčí od ${relDay(d.updated)} ${hmT(d.updated)} – jeho údaje jsou STARÉ` : `Data z regulátoru ${ago(d.updated)}`;
+    u.style.color = R.stale ? "var(--crit)" : ""; u.style.fontWeight = R.stale ? "700" : ""; }
   const err = d.state && d.state.err_n;
   const sun = d.sun ? ` · ☀ ${new Date(d.sun[0]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}–${new Date(d.sun[1]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}` : "";
   $("cloud").textContent = (d.checked?`Kontrola ${ago(d.checked)}`:"") + (err?` · cloud nedostupný (${err}× za sebou)`:" · cloud OK") + sun;
@@ -1004,9 +1006,22 @@ function homeData(d){
   const brk = invF && inv.mw!=null && onMed!=null ? `Za měničem ${nf(inv.mw)} W: ${frTxt}, světla/kamery/wifi ~${nf(onMed)} W${riverW>2?`, River ${nf(riverW)} W`:""}` : "";
   return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW, riverW, brk};
 }
+/* regulátor mlčí? (poslední čerstvé údaje starší než regulator_offline_min) */
+function regStale(d){
+  const lim = d.cfg?.regulator_offline_min ?? 30, t = d.updated, min = t ? (Date.now()/1000 - t)/60 : null;
+  return {t, min, lim, stale: !t || min > lim};
+}
+const durTxt = m => m < 90 ? `${Math.round(m)} min` : m < 48*60 ? `${nf(m/60,1)} h` : `${Math.round(m/1440)} dní`;
 function tileBat(d, h){
   const t = {k:"bat", wide:true, icon:"🔋", label: d.river_sup ? "Solární baterie teď" : "Baterie teď"};
   if(h.bv==null){ return {...t, cls:"na", v:"–", st:"Bez dat z regulátoru", a:"Zkontroluj Systém"}; }
+  const R = regStale(d);
+  if(R.stale){
+    const iv = h.invF && h.inv.v!=null ? h.inv.v : null;
+    return {...t, cls:"bad", v: iv!=null ? `${nf(iv,2)}<small>V teď (Victron)</small>` : `<span style="color:var(--muted)">${nf(h.bv,2)}<small>V – staré</small></span>`,
+      st:`Regulátor mlčí ${durTxt(R.min)} (od ${relDay(R.t)} ${hmT(R.t)})`,
+      a: (iv!=null ? `Napětí teď měří Victron (u měniče, bývá o pár desetin jinak). ` : "") + `Poslední údaj z regulátoru: ${nf(h.bv,2)} V v ${hmT(R.t)}`};
+  }
   const arrow = h.net==null ? "" : h.net >= 0.3 ? `<span class="ar" style="color:var(--good)">↑ +${nf(h.net,1)} A</span>`
     : h.net <= -0.3 ? `<span class="ar" style="color:var(${h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.day ? "--crit" : "--text2"})">↓ −${nf(-h.net,1)} A</span>` : `<span class="ar" style="color:var(--text2)">≈ 0 A</span>`;
   const v = `${nf(h.bv,2)}<small>V</small>${arrow}`;
@@ -1217,7 +1232,7 @@ function tileSystem(d, h){
   const t = {k:"sys", icon:"📡", label:"Systém"};
   const probs = [], warns = [];
   const regAge = d.updated ? (h.now - d.updated)/60 : 9999;
-  if(regAge > 60) probs.push(`regulátor mlčí ${ago(d.updated)}`);
+  if(regAge > (d.cfg?.regulator_offline_min ?? 30)) probs.push(`regulátor mlčí ${ago(d.updated)}`);
   if(d.state && d.state.err_n >= 3) probs.push("cloud nejde číst");
   if(!h.inv || h.now - h.inv.t > 3600) probs.push("Flip (brána) mlčí");
   else if(h.inv.v==null) warns.push("Victron neposílá");
@@ -1245,10 +1260,17 @@ function renderHome(d){
   $("h_now").innerHTML = (d.river_sup ? [rvT, bat, ...sortS(now.slice(1))] : [bat, ...sortS(now)]).map(tileHtml).join("");
   $("h_long").innerHTML = sortS(lng).map(tileHtml).join("");
   const issues = [bat, ...now].filter(x=>!x.info && (x.cls==="bad"||x.cls==="warn")).sort((p,q)=>SEV[p.cls]-SEV[q.cls]);
-  const longIss = lng.filter(x=>x.cls==="bad"||x.cls==="warn");
+  const longIss = lng.filter(x=>(x.cls==="bad"||x.cls==="warn") && !(x.k==="sys" && regStale(d).stale));
   const vEl = $("verdict");
   let col, ic, title, sub;
-  if(issues.length){
+  const RS = regStale(d);
+  if(RS.stale){
+    const flipOk = h.inv && h.now - h.inv.t < 1800;
+    col = "--crit"; ic = "!"; title = "Regulátor neposílá data";
+    sub = `Poslední údaje: ${relDay(RS.t)} ${hmT(RS.t)} (před ${durTxt(RS.min)}). Napětí, výroba, nabíjení a předpovědi níže jsou z té doby – <span style="font-weight:700;color:var(--crit)">nejsou aktuální</span>. `
+      + (flipOk ? `Flip na chatě data posílá, takže internet tam jde – problém je u regulátoru: nemá napájení z baterie (pojistka, kabel), nebo vypadl jeho Wi‑Fi modul.`
+                : `Nepřichází ani data z Flipu – nejspíš nejde internet nebo proud na chatě.`);
+  } else if(issues.length){
     const top = issues[0];
     col = top.cls==="bad" ? "--crit" : "--warn"; ic = "!";
     title = issues.length===1 ? "1 věc k řešení" : `${issues.length} ${issues.length<5?"věci":"věcí"} k řešení`;
@@ -1258,7 +1280,7 @@ function renderHome(d){
     sub = [bat.st, now[0].cls!=="na" ? now[0].st.toLowerCase() : ""].filter(Boolean).join(", ") + ".";
   }
   vEl.style.setProperty("--vc", `var(${col})`);
-  vEl.dataset.det = issues.length ? issues[0].k : "bat";
+  vEl.dataset.det = RS.stale ? "sys" : issues.length ? issues[0].k : "bat";
   vEl.innerHTML = `<div class="vi">${ic}</div><div><b>${title}</b><div class="vs">${sub}</div>${longIss.length?`<div class="vl">Dlouhodobě: ${longIss.map(x=>`${x.label.toLowerCase()} – ${x.st.toLowerCase()}`).join(" · ")}</div>`:""}</div>`;
 }
 

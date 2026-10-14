@@ -27,7 +27,7 @@ DEFAULTS = {
     "baterie_slabne_V": 12.2, "baterie_slabne_reset_V": 12.5,
     "baterie_kriticka_V": 12.0, "baterie_kriticka_reset_V": 12.2,
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
-    "regulator_offline_min": 120, "vecerni_souhrn_hodina": 20,
+    "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
     "zasuvka_menic": "", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
@@ -1018,7 +1018,7 @@ def main():
     try:
         for name, fn in (("Počasí a výhled", lambda: weather_and_outlook(data, st, cfg, now, topic, mode)),
                          ("Ostatní odběr", lambda: other_load_check(data, st, cfg, now, topic)),
-                         ("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_)),
+                         ("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_, data)),
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
                          ("River napájí chatu", lambda: river_supply(data, st, now, topic, cfg, rise, set_)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
@@ -1875,7 +1875,8 @@ def check_river(r, st, topic, cfg):
     st[k + "_chg"] = charging
 
 
-def check(v, st, now, topic, cfg, rise, set_):
+def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
+    data_ref = data_ref or {}
     bv, status = v["bat_v"], int(v["status"]) if v["status"] is not None else None
     pv = v["pv_w"]
     line = (f"Baterie {fmt(bv, 2)} V, {fmt(v['bat_soc'])} %, panely {fmt(pv)} W, "
@@ -1889,7 +1890,17 @@ def check(v, st, now, topic, cfg, rise, set_):
     # Regulátor offline
     stale = v["age_min"] is None or v["age_min"] > cfg["regulator_offline_min"]
     if stale and not st.get("stale"):
-        ntfy(topic, "📡 Regulátor neposílá data", f"Poslední data z cloudu před {v['age_min'] or 0:.0f} min. Zkontroluj Wi‑Fi modul / internet.", 4, "warning")
+        inv = data_ref.get("inverter") or {}
+        flip_ok = inv and now.timestamp() - inv.get("t", 0) < 1800
+        last_t = data_ref.get("updated")
+        since = f"od {rel_day(last_t, now)} {datetime.fromtimestamp(last_t, TZ).strftime('%H:%M')}" if last_t else ""
+        why = ("Flip na chatě data posílá → internet tam jde. Regulátor nejspíš nemá napájení z baterie (pojistka, kabel) "
+               "nebo vypadl jeho Wi‑Fi modul." if flip_ok else
+               "Nechodí ani data z Flipu → nejspíš nejde internet nebo proud na chatě.")
+        vv = f"\nNapětí teď podle Victronu: {fmt(inv.get('v'), 2)} V." if flip_ok and inv.get("v") is not None else ""
+        ntfy(topic, "📡 Regulátor neposílá data", f"Poslední údaje {since} (před {v['age_min'] or 0:.0f} min). {why}{vv}", 4, "warning")
+    if not stale and st.get("stale"):
+        ntfy(topic, "📡 Regulátor zase posílá data", f"Údaje z regulátoru jsou zase aktuální.\n{line}", 3, "white_check_mark")
     st["stale"] = stale
     if stale or bv is None:
         return
