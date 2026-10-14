@@ -3,6 +3,13 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.42 – 14. 10. 2026
+- **Hlavní stránka po vrstvách:**
+  - **Teď:** Solární baterie · River (stav: která napájí chatu a kolik W; % nabití až z EcoFlow)
+  - **Výroba dnes:** Solár (kWh, teď W, kolik šlo do River automatikou, předpověď) · Generátor (kWh ze zásuvky nabíjení z generátoru, běží / naposledy, do kterých River – až z EcoFlow)
+  - **Spotřeba dnes:** Ze solární baterie (měnič − nabíjení River) · Z River (celkem a po každé River, ● napájí teď)
+  - **Spotřebiče:** každá zásuvka, která není zdroj – dnes kWh a teď W (lednice, router…)
+
 ## 3.41 – 14. 10. 2026
 - **Flip 1.3.2 hlásí, jestli je na Wi‑Fi.** Po restartu routeru se Flip umí přepnout na mobilní data a pak nevidí zásuvky (14. 10. se to stalo). Hlídač pošle notifikaci „📶 Flip není na Wi‑Fi chaty“ a web to ukáže v liště k řešení.
 - Flip 1.3.1: hledání zásuvek zapisuje do záznamu výsledek (sítě, kolik adres odpovídá, kolik zásuvek Tapo, chyby)
