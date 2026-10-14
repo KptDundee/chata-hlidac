@@ -674,7 +674,7 @@ def night_log(data, now, cfg, set_):
             e["a"] = round(min(near), 2)
             e["min"] = round(min(night), 2) if night else None
             if not e.get("bf"):
-                log("ev", f"Noc {k}: předpověď {fmt(e['p'], 2)} V, ráno skutečně {fmt(e['a'], 2)} V")
+                log("ev", f"Noc z {datetime.strptime(k, '%Y-%m-%d').strftime('%-d. %-m.')}: předpověď {fmt(e['p'], 2)} V, ráno potom skutečně {fmt(e['a'], 2)} V")
         elif t > e["until"] + 6 * 3600:
             e["a"] = None
             e["skip"] = True
@@ -743,16 +743,36 @@ def forecast(data, now, cfg):
     return f
 
 
+REL_DAY = {-2: "předevčírem", -1: "včera", 0: "dnes", 1: "zítra", 2: "pozítří"}
+REL_GEN = {-2: "předvčerejšího", -1: "včerejšího", 0: "dnešního", 1: "zítřejšího", 2: "pozítřejšího"}
+
+
+def rel_day(t, now=None):
+    """Ráno / noc / večer vždy s dnes / zítra / včera (t = unix s nebo date)."""
+    d = t if hasattr(t, "isoformat") and not isinstance(t, (int, float)) else datetime.fromtimestamp(t, TZ).date()
+    n = (d - (now or datetime.now(TZ)).date()).days
+    return REL_DAY.get(n) or d.strftime("%-d. %-m.")
+
+
+def do_rana(t, now=None):
+    """„do zítřejšího rána“ / „do dnešního rána“."""
+    d = datetime.fromtimestamp(t, TZ).date()
+    n = (d - (now or datetime.now(TZ)).date()).days
+    return f"do {REL_GEN[n]} rána" if n in REL_GEN else f"do rána {d.strftime('%-d. %-m.')}"
+
+
 def forecast_text(f):
     if not f:
         return None
-    hm = lambda t: datetime.fromtimestamp(t, TZ).strftime("%H:%M")
-    tail = f" (noc ~{f['ah_night']} Ah při ~{f['draw_w']} W)"
+    hm = lambda t: f"{rel_day(t)} ~" + datetime.fromtimestamp(t, TZ).strftime("%H:%M")
+    dr = do_rana(f["until"])
+    tail = f" ({dr} ~{f['ah_night']} Ah při ~{f['draw_w']} W)"
     if f.get("t_off"):
-        return f"Do rána nevydrží: pod alarm ~{hm(f.get('t_crit', f['t_off']))}, měnič se vypne ~{hm(f['t_off'])}" + tail
+        return f"{dr[0].upper() + dr[1:]} nevydrží: pod alarm {hm(f.get('t_crit', f['t_off']))}, měnič se vypne {hm(f['t_off'])}" + tail
     if f.get("t_crit"):
-        return f"Do rána těsně: pod alarm kolem {hm(f['t_crit'])}" + tail
-    return f"Do rána vydrží: teď ~{fmt(f.get('v_now'), 2)} V, v {hm(f['until'])} ~{fmt(f.get('v_until'), 2)} V" + tail
+        return f"{dr[0].upper() + dr[1:]} těsně: pod alarm {hm(f['t_crit'])}" + tail
+    return (f"{dr[0].upper() + dr[1:]} vydrží: teď ~{fmt(f.get('v_now'), 2)} V, "
+            f"{rel_day(f['until'])} v {datetime.fromtimestamp(f['until'], TZ).strftime('%H:%M')} ~{fmt(f.get('v_until'), 2)} V") + tail
 
 
 def fmt(x, d=0):
@@ -1087,7 +1107,7 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
     if ft:
         L.append(f"🌙 {ft}")
     if day.get("on") is not None:
-        L.append(f"💡 Světla, kamery, wifi v noci ~{fmt(day['on'])} W")
+        L.append(f"💡 Světla, kamery, wifi dnes mezi 0 a 5 h ~{fmt(day['on'])} W")
     wxo = data.get("wxo") or {}
     ol = wxo.get("ol") or {}
     od = ol.get("days") or []
@@ -1096,11 +1116,14 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
         line = f"🌤 Zítra {t['txt'] or ''} ~{fmt(t['kwh'], 1)} kWh"
         if ol.get("mode") == "zima":
             okd = next((x for x in od[1:] if x.get("ok")), None)
-            line += f" · solární baterie ráno ~{fmt(t.get('mvm'), 2)} V"
+            line += f" · solární baterie zítra ráno ~{fmt(t.get('mvm'), 2)} V"
             line += (f"\n☀️ Připojit chatu na solární baterii jde nejdřív: {datetime.strptime(okd['d'], '%Y-%m-%d').strftime('%-d. %-m.')}"
                      if okd else "\n❄️ Příštích 7 dní nebude solární baterie dost nabitá k připojení")
         else:
-            line += f" · ráno pak ~{fmt(t.get('mv'), 2)} V"
+            if od[0].get("mv") is not None:
+                line += f" · zítra ráno ~{fmt(od[0]['mv'], 2)} V"
+            if t.get("mv") is not None:
+                line += f" · pozítří ráno ~{fmt(t['mv'], 2)} V"
         L.append(line)
     if wxo.get("acc_med") is not None:
         L.append(f"🎯 Předpověď výroby: odchylka obvykle ±{wxo['acc_med']} % (posledních {len(wxo.get('acc') or [])} dní)")
@@ -1164,11 +1187,11 @@ def watch_publish(data, v, st, now, topic, cfg):
     fc = ""
     if f and f.get("until"):
         if f.get("t_off"):
-            fc, lvl = "🌙 do rána NEVYDRŽÍ", max(lvl, 2)
+            fc, lvl = f"🌙 {do_rana(f['until'], now)} NEVYDRŽÍ", max(lvl, 2)
         elif f.get("t_crit"):
-            fc, lvl = "🌙 do rána těsně", max(lvl, 1)
+            fc, lvl = f"🌙 {do_rana(f['until'], now)} těsně", max(lvl, 1)
         else:
-            fc = f"🌙 do rána ✓ ~{fmt(f.get('v_until'), 1)} V"
+            fc = f"🌙 {rel_day(f['until'], now)} ráno ~{fmt(f.get('v_until'), 1)} V ✓"
     else:
         preds = ((data.get("wxo") or {}).get("preds") or [])
         t = next((p for p in preds if p["d"] == (now.date() + timedelta(days=1)).isoformat()), None)
@@ -1420,8 +1443,8 @@ def weather_and_outlook(data, st, cfg, now, topic, mode):
         tomorrow = t["d"]
         if t.get("ok") and st.get("connect_sent") != tomorrow:
             ntfy(topic, "☀️ Zítra můžeš chatu připojit na solární baterii",
-                 f"Ráno ~{fmt(t.get('mvm'), 2)} V, zítra {t['txt'] or ''} ~{fmt(t['kwh'], 1)} kWh, po dni s chatou zbyde ~{fmt(t.get('av'), 2)} V.\n"
-                 f"Večer zase přepoj na River.", 3, "sunny,battery")
+                 f"Zítra ráno ~{fmt(t.get('mvm'), 2)} V, zítra {t['txt'] or ''} ~{fmt(t['kwh'], 1)} kWh, zítra večer s chatou zbyde ~{fmt(t.get('av'), 2)} V.\n"
+                 f"Zítra večer zase přepoj na River.", 3, "sunny,battery")
             st["connect_sent"] = tomorrow
     # přechody sezón (nejvýš jednou za 14 dní)
     if cfg.get("sezona_upozornit") and len(days) >= 5 and now.hour >= 18 and now.timestamp() - st.get("season_sent", 0) > 14 * 86400:
@@ -1431,7 +1454,7 @@ def weather_and_outlook(data, st, cfg, now, topic, mode):
         if mode == "leto" and mon in (9, 10, 11, 12, 1) and avg < need * 0.9 and min(d["nm"] for d in days[1:6]) < 40:
             ntfy(topic, "🍂 Blíží se zimní provoz",
                  f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den. {need_txt(ol, need)}\n"
-                 f"Baterie by ráno klesla až na ~{fmt(min(d['mv'] for d in days[1:6]), 2)} V. Zvaž přechod na River.", 3, "fallen_leaf")
+                 f"Baterie by v některém z příštích rán klesla až na ~{fmt(min(d['mv'] for d in days[1:6]), 2)} V. Zvaž přechod na River.", 3, "fallen_leaf")
             st["season_sent"] = int(now.timestamp())
         elif mode == "zima" and mon in (2, 3, 4, 5) and avg > need * 1.3:
             ntfy(topic, "🌱 Můžeš přejít na letní provoz",
@@ -1482,8 +1505,8 @@ def other_load_check(data, st, cfg, now, topic):
     med = sorted(hist)[len(hist) // 2]
     if abs(cur - med) > max(5, med * 0.5):
         what = "víc" if cur > med else "míň"
-        ntfy(topic, f"💡 V noci šlo {what} proudu na světla/kamery/wifi",
-             f"Ostatní odběr za měničem v noci ~{fmt(cur)} W, obvykle ~{fmt(med)} W."
+        ntfy(topic, f"💡 Dnes v noci (0–5 h) šlo {what} proudu na světla/kamery/wifi",
+             f"Ostatní odběr za měničem dnes mezi 0 a 5 h ~{fmt(cur)} W, obvykle ~{fmt(med)} W."
              + (" Nezůstalo něco zapnuté?" if cur > med else " Nevypadla kamera nebo wifi?"), 3, "bulb")
         st["on_sent"] = k
 
@@ -1768,8 +1791,8 @@ def check(v, st, now, topic, cfg, rise, set_):
             st["night_warned"] = False
         f = st.get("_forecast")
         if night and f and f.get("t_crit") and not st.get("night_warned"):
-            ntfy(topic, "🌙 Baterie do rána nejspíš nevydrží",
-                 f"{forecast_text(f)}.\nZvaž odpojení něčeho teď, nebo ráno počítej s EcoFlow.\n{line}", 4, "crescent_moon,warning")
+            ntfy(topic, f"🌙 Baterie {do_rana(f['until'], now)} nejspíš nevydrží",
+                 f"{forecast_text(f)}.\nZvaž odpojení něčeho teď, nebo {rel_day(f['until'], now)} ráno počítej s EcoFlow.\n{line}", 4, "crescent_moon,warning")
             st["night_warned"] = True
 
 

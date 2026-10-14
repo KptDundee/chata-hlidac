@@ -3,6 +3,14 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.20 – 14. 10. 2026
+- **Jedno pravidlo pro čas:** ráno / noc / večer / den se všude píše vždy s *dnes / zítra / včera* (nebo *dnešní / zítřejší / včerejší*), žádné názvy dní v týdnu vedle toho. Platí pro dlaždice, verdikt, detaily, kartu Počasí, Nastavení, notifikace i hodinky.
+  - Noci se jmenují oběma dny: **Noc z dneška na zítřek** (přes den a večer), **Noc ze včerejška na dnešek (běží)** (po půlnoci do východu), v Uplynulých **Noc ze včerejška na dnešek**
+  - Napětí „12,11 V zítra ráno“, texty „Do zítřejšího rána vydrží“, „Zítra ráno bude baterie slabá“, „Včera večer 12,54 → dnes ráno 11,98 V“, „Od dnešní půlnoci chata spotřebovala…“
+  - Notifikace: „Baterie do zítřejšího rána nejspíš nevydrží“, „měnič se vypne zítra ~3:40“; hodinky „🌙 zítra ráno ~12,2 V ✓“
+- Opraveno: karta Počasí psala u varování den, *po kterém* je ráno slabé, místo dne toho rána; pod sloupcem dne je teď napětí **ten den ráno**
+- Opraveno: večerní souhrn psal u zítřka napětí „ráno pak“ z pozítřího rána – teď „zítra ráno … · pozítří ráno …“
+
 ## 3.19 – 14. 10. 2026
 - Noci se jmenují podle rána: **Noc na čtvrtek**, **Minulá noc (na středu)**; napětí „V čt ráno“, text „Zítra (čt) ráno bude baterie slabá“ – žádné „ráno“ bez určení dne
 

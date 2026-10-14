@@ -23,12 +23,13 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 - **Verdikt nahoře**: zeleně *Všechno v pořádku*, oranžově/červeně *1 věc k řešení* a co udělat. Pod ním drobně, co je potřeba řešit **dlouhodobě**. Ťuknutím se otevře detail té věci.
 - **Teď** – věci, na které se reaguje hned (problémové jsou vždy první):
   - 🔋 **Baterie teď**: napětí a skutečný proud do/z baterie (i s odběrem měniče). Vybíjí se kvůli odběru navíc → *vypni nabíjení zařízení*. Detail: velká karta baterie, bilance, grafy.
-  - 🌙 **Noc na …** (např. *Noc na čtvrtek* = noc ze středy na čtvrtek, napětí „V čt ráno“): přes den „Dnes v noci“ = odhad napětí ráno podle počasí a spotřeby; po západu přesná předpověď. Obojí s opravou z minulých nocí.
+  - 🌙 **Noc z dneška na zítřek** (po půlnoci do východu **Noc ze včerejška na dnešek (běží)**): napětí „V zítra ráno“ (resp. „V dnes ráno“). Přes den odhad podle počasí a spotřeby, po dnešním západu přesná předpověď. Obojí s opravou z minulých nocí.
+  - **Pravidlo pro čas:** slova ráno / noc / večer / den jsou v aplikaci, notifikacích i na hodinkách vždy s *dnes / zítra / včera* (dnešní / zítřejší / včerejší) – nikdy samotná.
   - ⚡ **Dnes**: ráno předpověď výroby, přes den vyrobeno zatím / předpověď, po západu výsledek dne a bilance. Spotřeba je vždy od půlnoci.
   - ☀️ **Zítra**: výroba podle počasí a jestli dobije. Detail: předpověď na 7 dní.
   - 🔌 **River**: automatika nabíjení přebytkem. Detail: River a zásuvky Tapo.
 - **Uplynulé** (jen informace, nepočítá se do „věcí k řešení“):
-  - 🌘 **Minulá noc**: večer → nejníž → ráno, kolik se odebralo, předpověď vs skutečnost a oprava pro další noci (detail: graf noci, posledních 10 nocí, jak se předpověď učí).
+  - 🌘 **Noc ze včerejška na dnešek** (minulá noc): včera večer → nejníž → dnes ráno, kolik se odebralo, předpověď vs skutečnost a oprava pro další noci (detail: graf noci, posledních 10 nocí, jak se předpověď učí).
   - 📅 **Včera**: vyrobeno vs předpověď, spotřeba, bilance, oprava předpovědi výroby (detail: posledních 14 dní).
 - **Dlouhodobě** – menší dlaždice dole: 🔧 kabely a spoje (otevře návod na měření), ❤️ zdraví baterie, 🔆 panely, 📡 systém (co posílá data + deník).
 - Barevný proužek vlevo: **zelená** v pořádku, **oranžová** pozor, **červená** řešit hned, šedá = zatím bez dat.

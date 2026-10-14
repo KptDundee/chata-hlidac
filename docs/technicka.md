@@ -153,4 +153,6 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 
 **Deník nocí a učení (3.18)**: `night_log` – hodinu po západu `nlog[YYYY-MM-DD] = {p (s opravou), raw, corr, until, t, v0, w, cap}`; po `until` + 15 min `a` = minimum napětí v [until − 1 h, until + 15 min], `min` = minimum přes noc. `night_corr` = medián (a − raw) z posledních 10 nocí (≥ 3), omezeno ±0,4 V; `forecast` přičte opravu k `v_until` (a nastaví t_crit/t_off na `until`, když opravené napětí padne pod hranici). Jednorázový zpětný výpočet ~12 nocí z bodů (`nlog_bf`). Web: `dayPhase` (predawn / day / evening podle `data.sun`), dlaždice Dnes / Příští noc podle fáze, sekce Uplynulé (Minulá noc z bodů + nlog, Včera z `days` + `wxo.acc`).
+
+**Relativní dny (3.20)**: web `relN / relDay / relGen / nightName / rano / doRana` (podle `dkey` v Europe/Prague), hlídač `rel_day / do_rana`. Každé ráno / noc / večer v textech nese dnes / zítra / včera; noc se pojmenuje podle rána, kterým končí (`f.until`, jinak zítřejší, před východem dnešní). Pozor: `wxo.ol.days[i].mv` je ráno **po** dni i – pro „zítra ráno“ se bere řádek dneška.
 **Denní energie zásuvek (3.18)**: `day.tp[ip]` = součet přírůstků počítadla `wh` (pokles = reset → přírůstek = nová hodnota); poslední hodnoty v `state.tp_raw`.
