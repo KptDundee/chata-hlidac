@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.30", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.31", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1168,6 +1168,20 @@ function tileRiver(d, h){
   const wait = ra.wait && ra.wait > h.now ? `Zkusí znovu po ${hmT(ra.wait)}` : h.day ? "Zapne se, až bude přebytek" : `Zapne se ${dayPhase(d).ph==="predawn" ? "dnes" : "zítra"} při slunci`;
   return {...t, cls:"ok", v:"Vypnuto", st: h.day ? "Čeká na přebytek slunce" : "Tma – nenabíjí", a: wait};
 }
+/* generátor a nabíjení River mimo automatiku – na hlavní stránce, jen když se něco děje */
+function tileGen(d, h){
+  const g = h.invF ? h.inv.gen : null, ef = (d.ef_gens||[]).find(x=>x.online);
+  const rvFresh = h.now - (d.rivers_t||0) < 3600;
+  const chg = rvFresh ? (d.rivers||[]).filter(r=>r.online && (r.in_w||0) > 20) : [];
+  const auto = d.river_auto && d.river_auto.on;
+  const genOn = (g && g.w > 5) || ef;
+  if(!genOn && !(chg.length && !auto)) return null;
+  const parts = chg.map(r=>`${r.name||"River"} ${nf(r.soc)} % ← ${nf(r.in_w)} W${r.chg_min && r.chg_min < 6000 ? ` · plná za ${Math.floor(r.chg_min/60)} h ${Math.round(r.chg_min%60)} min` : ""}`);
+  return {k:"river", icon:"⛽", wide:true, cls:"ok", label: genOn ? "Generátor běží" : "River se nabíjí",
+    v: g && g.w > 5 ? `${nf(g.w)}<small>W</small>` : chg.length ? `${nf(chg[0].soc)}<small>%</small>` : `<span style="font-size:20px">online</span>`,
+    st: parts.join(" · ") || (g && g.w > 5 ? "Generátor dodává (zásuvka Tapo)" : "Generátor je online (EcoFlow)"),
+    a: (g && g.wh ? `Dnes z generátoru ${nf(g.wh/1000,2)} kWh · ` : "") + "Při 100 % přijde notifikace – pak vypni generátor", info:true};
+}
 function ledger(d, h){
   const cfg = d.cfg || {}, idle = cfg.menic_vlastni_W ?? 6, pts = d.points || [];
   const tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
@@ -1271,7 +1285,8 @@ function renderHome(d){
   const lng = [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)];
   $("h_past").innerHTML = [tilePastNight(d,h), tileYesterday(d,h)].map(tileHtml).join("");
   const sortS = a => a.map((x,i)=>[x,i]).sort((p,q)=>(SEV[p[0].cls]-SEV[q[0].cls])||(p[1]-q[1])).map(p=>p[0]);
-  $("h_now").innerHTML = (d.river_sup ? [rvT, bat, ...sortS(now.slice(1))] : [bat, ...sortS(now)]).map(tileHtml).join("");
+  const genT = tileGen(d, h);
+  $("h_now").innerHTML = [genT, ...(d.river_sup ? [rvT, bat, ...sortS(now.slice(1))] : [bat, ...sortS(now)])].filter(Boolean).map(tileHtml).join("");
   $("h_long").innerHTML = sortS(lng).map(tileHtml).join("");
   const issues = [bat, ...now].filter(x=>!x.info && (x.cls==="bad"||x.cls==="warn")).sort((p,q)=>SEV[p.cls]-SEV[q.cls]);
   const longIss = lng.filter(x=>(x.cls==="bad"||x.cls==="warn") && !(x.k==="sys" && regStale(d).stale));
