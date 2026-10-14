@@ -1813,6 +1813,26 @@ def read_ecoflow(data, st, now, topic, cfg):
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens
     data["rivers"] = rivers
+    # energie každé River za den (Wh): nabito (vstup) a dodáno (výstup) – lichoběžník mezi dvěma čteními (max 1 h mezera)
+    tnow = now.timestamp()
+    day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
+    rvd = day.setdefault("rv", {})
+    prev, pt = st.get("rv_e_prev") or {}, st.get("rv_e_t")
+    nxt = {}
+    for r in rivers:
+        k = str(r.get("sn", ""))[-6:]
+        iw, ow = r.get("in_w") or 0, r.get("out_w") or 0
+        e = rvd.setdefault(k, {"n": r.get("name"), "i": 0.0, "o": 0.0})
+        if r.get("soc") is not None:
+            e.setdefault("s0", r["soc"])
+            e["s"] = r["soc"]
+        if r.get("online") and pt and 0 < tnow - pt <= 3600 and k in prev:
+            dt = (tnow - pt) / 3600
+            e["i"] = round(e["i"] + (prev[k][0] + iw) / 2 * dt, 1)
+            e["o"] = round(e["o"] + (prev[k][1] + ow) / 2 * dt, 1)
+        if r.get("online"):
+            nxt[k] = [iw, ow]
+    st["rv_e_prev"], st["rv_e_t"] = nxt, tnow
     data["rivers_t"] = int(now.timestamp())
     for r in rivers:
         print(f"EcoFlow {r['name']}: {fmt(r.get('soc'))} %, vstup {fmt(r.get('in_w'))} W, výstup {fmt(r.get('out_w'))} W"

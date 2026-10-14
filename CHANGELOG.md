@@ -3,6 +3,15 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.33 – 14. 10. 2026
+- **Pevná struktura hlavní stránky** – dlaždice se už nepřeskupují, mění se jen jejich obsah:
+  - hlavička: vlevo čas dat z regulátoru a baterie Flipu, vpravo Načíst · ↻ · ⚙
+  - tenká lišta **„Nic k řešení“ / „N věcí k řešení“** jen pro mimořádné věci (regulátor nebo Flip mlčí, Flip se vybíjí, baterie pod alarmem, odběr navíc, River skoro prázdná, vadné spoje…); ťuknutím podrobnosti. Pravidelné věci (noc, zítřek) tam nejsou
+  - **Teď:** Solární baterie · River se záložkami pro každou River (● svítí = napájí nebo se nabíjí, šedá = vypnutá; i vypnutá ukáže poslední % a dnešní ↓ nabito / ↑ dodáno)
+  - **Dnes:** Spotřeba chaty (celkem + solár + každá River) · Výroba a nabíjení (slunce → baterie, slunce → River, generátor, do River celkem)
+  - **Výhled:** noc, zítřek · Uplynulé · Dlouhodobě – pevné pořadí
+- Hlídač počítá pro každou River denní energii: nabito a dodáno (z EcoFlow), první a poslední %
+
 ## 3.32 – 14. 10. 2026
 - **Záznam běhů generátoru:** hlídač si pamatuje každý běh (od–do, kolik dodal přes zásuvku Tapo, River z → na %, nabito kWh, účinnost). Na hlavní stránce dlaždice „⛽ Generátor běží“ a po vypnutí „poslední běh …“ ještě 36 h; ťuknutím seznam všech běhů. Po skončení běhu notifikace „⛽ Generátor doběhl“ se souhrnem.
 
