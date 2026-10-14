@@ -1894,9 +1894,15 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
         flip_ok = inv and now.timestamp() - inv.get("t", 0) < 1800
         last_t = data_ref.get("updated")
         since = f"od {rel_day(last_t, now)} {datetime.fromtimestamp(last_t, TZ).strftime('%H:%M')}" if last_t else ""
-        why = ("Flip na chatě data posílá → internet tam jde. Regulátor nejspíš nemá napájení z baterie (pojistka, kabel) "
-               "nebo vypadl jeho Wi‑Fi modul." if flip_ok else
-               "Nechodí ani data z Flipu → nejspíš nejde internet nebo proud na chatě.")
+        import re
+        rt = next((p for p in inv.get("tp", []) if re.search(r"router|wi-?fi", str(p.get("n", "")), re.I)), None) if flip_ok else None
+        rtx = ""
+        if rt:
+            rtx = (f" Zásuvka „{rt.get('n')}“ je bez odběru – router nejspíš nejede." if rt.get("off") or (rt.get("w") is not None and rt["w"] < 1)
+                   else f" Router má proud ({fmt(rt.get('w'))} W).")
+        why = (("Flip data posílá." + rtx) if flip_ok else "Nechodí ani data z Flipu.") + (
+            "\nMožné příčiny: zaseknutý Wi‑Fi modul regulátoru, vypadlá Wi‑Fi / router na chatě, regulátor bez napájení, výpadek cloudu Solar Guardian."
+            "\n💡 Tip: často pomůže vypnout a zapnout Wi‑Fi modul regulátoru.")
         vv = f"\nNapětí teď podle Victronu: {fmt(inv.get('v'), 2)} V." if flip_ok and inv.get("v") is not None else ""
         ntfy(topic, "📡 Regulátor neposílá data", f"Poslední údaje {since} (před {v['age_min'] or 0:.0f} min). {why}{vv}", 4, "warning")
     if not stale and st.get("stale"):

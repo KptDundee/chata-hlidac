@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.28 – 14. 10. 2026
+- Regulátor mlčí: místo jedné „diagnózy“ seznam možných příčin (zaseknutý Wi‑Fi modul regulátoru, vypadlá Wi‑Fi / router, regulátor bez napájení, výpadek cloudu) a tip „vypni a zapni Wi‑Fi modul regulátoru“; když je router na zásuvce Tapo, řekne, jestli má proud
+
 ## 3.27 – 14. 10. 2026
 - **Regulátor neposílá data:** poplach už po **30 min** (dřív 120). Notifikace řekne, od kdy mlčí a proč nejspíš: když Flip posílá, internet na chatě jde → regulátor nemá napájení z baterie (pojistka, kabel) nebo vypadl Wi‑Fi modul; přidá napětí z Victronu. Když se zase ozve, přijde „Regulátor zase posílá data“.
 - Web při mlčícím regulátoru: červený verdikt „Regulátor neposílá data – údaje níže nejsou aktuální“, červená hlavička „Regulátor mlčí od dnes 12:06 – jeho údaje jsou STARÉ“, dlaždice baterie ukazuje aktuální napětí z Victronu a zvlášť poslední (staré) z regulátoru.

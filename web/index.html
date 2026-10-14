@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.27", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.28", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1267,9 +1267,11 @@ function renderHome(d){
   if(RS.stale){
     const flipOk = h.inv && h.now - h.inv.t < 1800;
     col = "--crit"; ic = "!"; title = "Regulátor neposílá data";
-    sub = `Poslední údaje: ${relDay(RS.t)} ${hmT(RS.t)} (před ${durTxt(RS.min)}). Napětí, výroba, nabíjení a předpovědi níže jsou z té doby – <span style="font-weight:700;color:var(--crit)">nejsou aktuální</span>. `
-      + (flipOk ? `Flip na chatě data posílá, takže internet tam jde – problém je u regulátoru: nemá napájení z baterie (pojistka, kabel), nebo vypadl jeho Wi‑Fi modul.`
-                : `Nepřichází ani data z Flipu – nejspíš nejde internet nebo proud na chatě.`);
+    const rt = flipOk ? (h.inv.tp||[]).find(p=>/router|wi-?fi/i.test(p.n||"")) : null;
+    const rtTxt = rt ? (rt.off || (rt.w!=null && rt.w < 1) ? ` Zásuvka „${rt.n}“ je bez odběru – router nejspíš nejede.` : ` Router má proud (${nf(rt.w)} W).`) : "";
+    sub = `Poslední údaje: ${relDay(RS.t)} ${hmT(RS.t)} (před ${durTxt(RS.min)}). Napětí, výroba, nabíjení a předpovědi níže jsou z té doby – <span style="font-weight:700;color:var(--crit)">nejsou aktuální</span>.`
+      + (flipOk ? ` Flip data posílá.${rtTxt}` : ` Nepřichází ani data z Flipu.`)
+      + `<div style="margin-top:6px;font-size:13px">Možné příčiny: zaseknutý Wi‑Fi modul regulátoru, vypadlá Wi‑Fi / router na chatě, regulátor bez napájení z baterie, výpadek cloudu Solar Guardian.<br>💡 Tip: často pomůže vypnout a zapnout Wi‑Fi modul regulátoru.</div>`;
   } else if(issues.length){
     const top = issues[0];
     col = top.cls==="bad" ? "--crit" : "--warn"; ic = "!";
