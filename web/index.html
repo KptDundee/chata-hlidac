@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.34", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.35", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1319,7 +1319,7 @@ function riverList(d, h){
     const p = live.find(x=>x.ip===ip) || {}, nm = names[ip] || p.n || `River ${i+1}`;
     const e = ef.find(r=>norm(r.name) && (norm(nm).includes(norm(r.name)) || norm(r.name).includes(norm(nm)))) || (ef.length===ips.length ? ef[i] : null);
     const T = e ? riverToday(d, e) : {};
-    return {ip, name:nm, w: p.w, off: !!p.off || p.err!=null, wh: tpd[ip], ef: e && efFresh ? e : null, efOld: e, T};
+    return {ip, name:nm, w: p.w, off: !!p.off || p.err!=null, miss: h.invF && !live.some(x=>x.ip===ip), wh: tpd[ip], ef: e && efFresh ? e : null, efOld: e, T};
   });
 }
 function tileRivers(d, h){
@@ -1328,12 +1328,14 @@ function tileRivers(d, h){
   if(!R.length) return {...t, cls:"na", v:"–", st:"Nastav zásuvky River v Nastavení"};
   const act = r => (r.w||0) > 2 || (r.ef && (r.ef.in_w||0) > 20);
   const sel = R.find(r=>r.ip===RVSEL) || R.find(r=>(r.w||0) > 2) || R.find(act) || R[0];
-  const tabs = `<div class="rtabs">${R.map(r=>`<button data-rv="${r.ip}" class="${act(r)?"on":""} ${r===sel?"sel":""}">${r.name.replace(/^River\s*/i,"R ").slice(0,12)}</button>`).join("")}</div>`;
+  const tabs = `<div class="rtabs">${R.map(r=>`<button data-rv="${r.ip}" class="${act(r)?"on":""} ${r===sel?"sel":""}">${r.miss?"? ":""}${r.name.replace(/^River\s*/i,"R ").slice(0,12)}</button>`).join("")}</div>`;
   const e = sel.ef, iw = e ? e.in_w||0 : 0, soc = e ? e.soc : sel.efOld ? sel.efOld.soc : null;
-  const st = (sel.w||0) > 2 ? `napájí ${nf(sel.w)} W` : iw > 20 ? `⚡ nabíjí ${nf(iw)} W` : sel.off ? "zásuvka nedostupná" : "nenapájí";
+  const st = sel.miss ? `Flip zásuvku .${sel.ip} nečte – přidej ji na Flipu` : (sel.w||0) > 2 ? `napájí ${nf(sel.w)} W` : iw > 20 ? `⚡ nabíjí ${nf(iw)} W` : sel.off ? `zásuvka .${sel.ip} nedostupná` : "nenapájí";
+  const other = h.invF ? (h.inv.tp||[]).filter(p=>!R.some(r=>r.ip===p.ip) && /river|ecoflow|eco/i.test(p.n||"")) : [];
   return {...t, top:tabs, cls: act(sel) ? "ok" : "na",
     v: soc!=null ? `${nf(soc)}<small>%${e?"":" (staré)"}</small>` : (sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–"), st,
-    rows:[["↑ dnes", sel.wh!=null ? kWh(sel.wh) : "–"], ...(sel.T.i ? [["↓ dnes", kWh(sel.T.i)]] : [])]};
+    rows:[["↑ dnes", sel.wh!=null ? kWh(sel.wh) : "–"], ...(sel.T.i ? [["↓ dnes", kWh(sel.T.i)]] : []),
+      ...other.map(p=>[`⚠ „${p.n}“ (.${p.ip}) není v Nastavení`, p.w!=null?`${nf(p.w)} W`:""])]};
 }
 function dayLedger(d, h){
   const cfg = d.cfg||{}, tpd = (((d.days||{})[dkey(h.now)]||{}).tp)||{}, ips = x => String(x||"").split(/[,;\s]+/).filter(Boolean);
