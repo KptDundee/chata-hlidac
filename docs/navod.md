@@ -112,7 +112,7 @@ Otevřené sekce si telefon pamatuje.
 | 🍂 Blíží se zimní provoz / 🌱 Můžeš přejít na letní | Výroba na příští dny nestačí / už stačí | Zvaž přepojení chaty na River / zpět |
 | ☀️ Zítra můžeš chatu připojit na solární baterii | Zima: solární baterie bude ráno dost nabitá | Přes den připoj chatu na solár, večer zpět na River |
 | 💡 V noci šlo víc/míň proudu na světla/kamery/wifi | Ostatní odběr se výrazně změnil | Nezůstalo něco zapnuté? Nevypadla kamera / wifi? |
-| ⚡ Odběr navíc ~X W – bere se z baterie | Přes den je odběr za měničem aspoň o 40 W nad běžný (lednice + světla, kamery, wifi) **a** baterie se vybíjí (pod −2 A). Kvůli běžnému odběru (zašlé slunce) nepřijde. Musí to trvat 2 kontroly po sobě a lednice musí mít platné měření (jinak by se její kompresor počítal jako „navíc“) | Omez nabíjení zařízení; nejvýš 1× za hodinu |
+| ⚡ Odběr navíc ~X W – bere se z baterie | Přes den je odběr za měničem aspoň o 40 W nad běžný (lednice + světla, kamery, wifi) **a** baterie se vybíjí (pod −2 A). Kvůli běžnému odběru (zašlé slunce) nepřijde. Když zásuvka lednice nepošle hodnotu, počítá se s lednicí naplno (80 W, Nastavení), aby kompresor nevypadal jako „navíc“ | Omez nabíjení zařízení; nejvýš 1× za hodinu |
 | 🔋 Baterie možná ztrácí kapacitu | Zdraví baterie se zhoršilo o víc než 20 % | Sleduj sekci Zdraví baterie |
 | 📡 Regulátor neposílá data | Cloud nemá čerstvá data přes 2 h | Wi-Fi modul regulátoru, internet na chatě |
 | 📡 Hlídač nemůže číst Solar Guardian / EcoFlow | Cloud ~2 h neodpovídá | Většinou se spraví samo |

@@ -32,7 +32,7 @@ DEFAULTS = {
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
     "zasuvka_menic": "", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
     "river_auto": True, "river_auto_ip": "157", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
-    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "river_auto_notifikace": False,
+    "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
     "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
@@ -1225,28 +1225,24 @@ def overload_check(v, st, now, topic, cfg, data, rise, set_):
     # běžný odběr teď = lednice (měřená) + obvyklé světla/kamery/wifi (noční medián) → „navíc“ je to ostatní
     fr = next((p for p in inv.get("tp", []) if p.get("ip") == str(cfg.get("zasuvka_lednice") or "").strip()), None)
     ons = sorted(d["on"] for k, d in sorted(data.get("days", {}).items())[-8:] if d.get("on") is not None)
-    # 3.21: bez platného měření lednice „navíc“ nepočítat – dřív se chybějící lednice brala jako 0 W
-    # a běžící kompresor (~60 W) se hlásil jako odběr navíc
-    if not fr or fr.get("w") is None or fr.get("err") or fr.get("off"):
-        data["extra_w"] = None
-        st["ovl_n"] = 0
-        return
+    # 3.22: když zásuvka lednice nepošle hodnotu, počítat s lednicí naplno (běžící kompresor) – ne s 0 W.
+    # Dřív se chybějící lednice brala jako 0 W a kompresor (~55 W) se hlásil jako odběr navíc.
+    fr_ok = fr and fr.get("w") is not None and not fr.get("err") and not fr.get("off")
+    fr_w = fr["w"] if fr_ok else (cfg.get("lednice_max_W") or 80)
     base = ons[len(ons) // 2] if ons else 10
-    normal = fr["w"] + base
+    normal = fr_w + base
     extra = inv["mw"] - normal
     data["extra_w"] = round(extra)
     lim = cfg.get("odber_z_baterie_A") or 2.0
     navic_min = cfg.get("odber_navic_W") or 40
     hit = net < -lim and extra >= navic_min and not st.get("ra_on")
-    # musí trvat aspoň 2 běhy po sobě (~10–20 min) – rozjezd kompresoru nebo zásuvky čtené v jinou vteřinu nespustí poplach
-    st["ovl_n"] = (st.get("ovl_n", 0) + 1) if hit else 0
+    fr_txt = f"lednice {fmt(fr_w)} W" if fr_ok else f"lednice neměřená – počítám ~{fmt(fr_w)} W"
     if hit:
-        log("ev", f"Odběr navíc? měnič {fmt(inv['mw'])} W = lednice {fmt(fr['w'])} W + běžně {fmt(base)} W + navíc {fmt(extra)} W "
-                  f"(baterie {fmt(net, 1)} A, {st['ovl_n']}. běh)")
-    if hit and st["ovl_n"] >= 2 and now.timestamp() - st.get("ovl_ts", 0) > 3600:
+        log("ev", f"Odběr navíc: měnič {fmt(inv['mw'])} W = {fr_txt} + běžně {fmt(base)} W + navíc {fmt(extra)} W (baterie {fmt(net, 1)} A)")
+    if hit and now.timestamp() - st.get("ovl_ts", 0) > 3600:
         ntfy(topic, f"⚡ Odběr navíc ~{fmt(extra)} W – bere se z baterie",
-             f"Za měničem teď {fmt(inv['mw'])} W = lednice {fmt(fr['w'])} W + světla/kamery/wifi běžně ~{fmt(base)} W + navíc ~{fmt(extra)} W "
-             f"(nabíjení zařízení?). Trvá to aspoň 2 kontroly po sobě. Panely dají {fmt(v.get('pv_w'))} W, baterie se vybíjí ~{fmt(-net, 1)} A ({fmt(bv, 2)} V).", 4, "zap,warning")
+             f"Za měničem teď {fmt(inv['mw'])} W = {fr_txt} + světla/kamery/wifi běžně ~{fmt(base)} W + navíc ~{fmt(extra)} W "
+             f"(nabíjení zařízení?). Panely dají {fmt(v.get('pv_w'))} W, baterie se vybíjí ~{fmt(-net, 1)} A ({fmt(bv, 2)} V).", 4, "zap,warning")
         st["ovl_ts"] = int(now.timestamp())
 
 

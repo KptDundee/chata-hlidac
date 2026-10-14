@@ -157,4 +157,4 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **Relativní dny (3.20)**: web `relN / relDay / relGen / nightName / rano / doRana` (podle `dkey` v Europe/Prague), hlídač `rel_day / do_rana`. Každé ráno / noc / večer v textech nese dnes / zítra / včera; noc se pojmenuje podle rána, kterým končí (`f.until`, jinak zítřejší, před východem dnešní). Pozor: `wxo.ol.days[i].mv` je ráno **po** dni i – pro „zítra ráno“ se bere řádek dneška.
 **Denní energie zásuvek (3.18)**: `day.tp[ip]` = součet přírůstků počítadla `wh` (pokles = reset → přírůstek = nová hodnota); poslední hodnoty v `state.tp_raw`.
 
-**Odběr navíc (3.21)**: `overload_check` počítá `extra = mw − lednice_w − medián on` jen při platném měření lednice (ne `err`/`off`/chybí); notifikace až při 2 bězích po sobě (`st.ovl_n`), každý zásah se píše do Deníku s rozpadem.
+**Odběr navíc (3.21)**: `overload_check` počítá `extra = mw − lednice_w − medián on` ; od 3.22 se neměřená lednice (`err`/`off`/chybí) počítá jako `lednice_max_W` (80 W), notifikace hned při první kontrole (nejvýš 1× za hodinu), každý zásah do Deníku s rozpadem.

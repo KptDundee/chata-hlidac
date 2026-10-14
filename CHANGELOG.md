@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.22 – 14. 10. 2026
+- „Odběr navíc“ zase hned při první kontrole (bez čekání na 2 běhy – radši falešný poplach než vybitá baterie, třeba při 600 W)
+- Když zásuvka lednice nepošle hodnotu, počítá se s lednicí naplno (**80 W**, Nastavení → „Lednice naplno“), ne s 0 W. Notifikace pak píše „lednice neměřená – počítám ~80 W“
+- Potvrzeno z notifikace 14. 10. 8:43: „běžně ~13 W“ = lednice chyběla, 66 W za měničem byl běžící kompresor
+
 ## 3.21 – 14. 10. 2026
 - **Falešný poplach „Odběr navíc“:** když zásuvka lednice zrovna neposlala hodnotu (chyba čtení), brala se lednice jako 0 W a běžící kompresor (~60 W) se hlásil jako odběr navíc. Teď se bez platného měření lednice nic nepočítá, poplach přijde až když odběr navíc trvá **2 kontroly po sobě** a notifikace i Deník ukazují celý rozpad: měnič = lednice + běžně + navíc
 

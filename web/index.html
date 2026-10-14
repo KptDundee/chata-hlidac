@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.21", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.22", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -996,7 +996,8 @@ function homeData(d){
   const fr = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.zasuvka_lednice||"")) : null;
   const onv = Object.keys(d.days||{}).sort().slice(-8).map(k=>d.days[k].on).filter(x=>x!=null).sort((x,y)=>x-y);
   const onMed = onv.length ? onv[Math.floor(onv.length/2)] : null;
-  const extraW = invF && inv.mw!=null && fr && fr.w!=null && !fr.err && !fr.off && onMed!=null ? Math.max(0, inv.mw - fr.w - onMed) : null;
+  const frW = fr && fr.w!=null && !fr.err && !fr.off ? fr.w : (cfg.lednice_max_W ?? 80);   // neměřená lednice = počítat naplno, ne 0 W
+  const extraW = invF && inv.mw!=null && onMed!=null ? Math.max(0, inv.mw - frW - onMed) : null;
   return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW};
 }
 function tileBat(d, h){
@@ -1642,6 +1643,7 @@ const SETTINGS = [
     ["odber_hlidat","Upozornit na odběr navíc, který vybíjí baterii","Přes den, jen když se nabíjí zařízení apod. – ne kvůli běžnému odběru","","", "sw"],
     ["odber_z_baterie_A","Od proudu z baterie","","A",0.5,"num"],
     ["odber_navic_W","…a jen když je odběr navíc nad běžný aspoň","Běžný = lednice + světla, kamery, wifi","W",10,"num"],
+    ["lednice_max_W","Lednice naplno (když její zásuvka nepošle hodnotu)","S tolika W se počítá místo chybějícího měření – ať kompresor nevypadá jako odběr navíc","W",5,"num"],
     ["river_auto_v_off","Vypnout, když napětí klesne pod","","V",0.05,"num"],
   ]],
   ["Počasí a zimní provoz", [
