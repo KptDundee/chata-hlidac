@@ -67,16 +67,20 @@ public final class TapoScan {
      */
     public static Map<String, JSONObject> scan(Context c, String email, String pass) {
         Map<String, JSONObject> found = Collections.synchronizedMap(new TreeMap<>());
+        java.util.concurrent.atomic.AtomicInteger open = new java.util.concurrent.atomic.AtomicInteger();
+        List<String> errs = Collections.synchronizedList(new ArrayList<>());
+        List<String> nets = subnets(c);
         ExecutorService ex = Executors.newFixedThreadPool(32);
-        for (String pre : subnets(c)) {
+        for (String pre : nets) {
             for (int i = 2; i < 255; i++) {
                 final String ip = pre + i;
                 ex.submit(() -> {
                     try (Socket s = new Socket()) {
-                        s.connect(new InetSocketAddress(ip, 80), 350);
+                        s.connect(new InetSocketAddress(ip, 80), 1200);
                     } catch (Exception e) {
                         return;
                     }
+                    open.incrementAndGet();
                     try {
                         TapoKlap t = new TapoKlap(ip, email, pass);
                         JSONObject info = new JSONObject(t.call("get_device_info")).optJSONObject("result");
@@ -90,12 +94,14 @@ public final class TapoScan {
                         o.put("nick", nick);
                         o.put("model", info.optString("model", ""));
                         found.put(id, o);
-                    } catch (Exception ignored) { /* není Tapo nebo špatné heslo */ }
+                    } catch (Exception e) { if (errs.size() < 3) errs.add(ip + ": " + e.getMessage()); }
                 });
             }
         }
         ex.shutdown();
-        try { ex.awaitTermination(60, TimeUnit.SECONDS); } catch (InterruptedException ignored) { }
+        try { ex.awaitTermination(90, TimeUnit.SECONDS); } catch (InterruptedException ignored) { }
+        Prefs.log(c, "Hledání zásuvek v " + nets + "*: odpovídá " + open.get() + " adres, zásuvek Tapo " + found.size()
+                + (errs.isEmpty() ? "" : " · chyby: " + errs));
         return found;
     }
 }

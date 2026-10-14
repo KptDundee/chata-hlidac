@@ -109,7 +109,7 @@ public final class Collector {
                         if (onSince.containsKey(ip)) { p.put("since", onSince.get(ip) / 1000); lastGood.put(ip, p); }
                     }
                 }
-                if (missing) Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
+                if (missing || (ok == 0 && total > 0)) Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
                 // historie ze zásuvky (hodinová energie za 7 dní): jednou denně a hned, když se zásuvka znovu objeví
                 sendPlugHistories(email, pass, plugs, idIp);
                 if (plugs.length() > 0) o.put("tp", plugs);
@@ -258,7 +258,7 @@ public final class Collector {
             for (java.util.Iterator<String> it = j.keys(); it.hasNext(); ) { String k = it.next(); m.put(k, j.getJSONObject(k).optString("ip")); }
         } catch (Exception ignored) { }
         long age = System.currentTimeMillis() - sp.getLong("tapo_scan_t", 0);
-        boolean want = m.isEmpty() ? age > 5 * 60_000L : age > 6 * 3600_000L || (sp.getBoolean("tapo_rescan", false) && age > 30 * 60_000L);
+        boolean want = m.isEmpty() ? age > 3 * 60_000L : age > 6 * 3600_000L || (sp.getBoolean("tapo_rescan", false) && age > 30 * 60_000L);
         if (!want) return m;
         Map<String, JSONObject> found = TapoScan.scan(ctx, email, pass);
         sp.edit().putLong("tapo_scan_t", System.currentTimeMillis()).putBoolean("tapo_rescan", false).apply();
