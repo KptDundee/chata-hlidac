@@ -49,15 +49,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for sha in $(gh api "repos/${{ github.repository }}/deployments?environment=github-pages&per_page=6" --jq '.[].sha'); do
-            st=$(gh api "repos/${{ github.repository }}/pages/deployments/$sha" --jq .status 2>/dev/null || true)
-            case "$st" in
-              deployment_in_progress|deployment_queued|syncing_files|updating_pages|pending)
-                age=$(gh api "repos/${{ github.repository }}/deployments?sha=$sha&environment=github-pages" --jq '.[0].created_at')
-                if [ $(( $(date +%s) - $(date -d "$age" +%s) )) -gt 600 ]; then
-                  gh api -X POST "repos/${{ github.repository }}/pages/deployments/$sha/cancel" && echo "Zrušeno zaseknuté nasazení $sha ($st)"
-                fi;;
-            esac
+          # zkusí zrušit posledních ~8 nasazení starších než 10 min (u dokončených to jen nic neudělá)
+          gh api "repos/${{ github.repository }}/deployments?environment=github-pages&per_page=8" --jq '.[]|[.sha,.created_at]|@tsv' |
+          while read sha created; do
+            if [ $(( $(date +%s) - $(date -d "$created" +%s) )) -gt 600 ]; then
+              gh api -X POST "repos/${{ github.repository }}/pages/deployments/$sha/cancel" >/dev/null 2>&1 && echo "Zrušeno nasazení $sha" || true
+            fi
           done
 
       - name: Zveřejnit web
