@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.25 – 14. 10. 2026
+- Dlaždice Baterie teď při odběru navíc už neradí „vypni River“ naslepo: ukáže rozpad (za měničem X W: lednice, světla/kamery/wifi, River) a „Co dalšího je zapnuté? Odpoj to“. Když se opravdu nabíjí River, napíše to zvlášť (automatika ho při vybíjení vypne sama). Nabíjení River se do „navíc“ nepočítá.
+
 ## 3.24 – 14. 10. 2026
 - **Rozbor nocí z historie:** hlídač si z historie regulátoru (Solar Guardian: napětí, proud, režim, teplota baterie) a z hodinové spotřeby zásuvky za měničem (Tapo) spočítá posledních **90 nocí** (`nh`) – večerní napětí, ranní minimum, kolik Ah regulátor přes den dodal a kolik z toho čistě zůstalo v baterii, od kdy byla ve Float, kolik se přes noc odebralo, délka noci, teplota. Karta 🔎 tak porovnává posledních 5 nocí s obdobím, kdy to bylo v pořádku (ne jen s 14 dny vlastních měření). Načítá se postupně, plně za ~1 h.
 

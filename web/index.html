@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.24", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.25", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -993,12 +993,16 @@ function homeData(d){
   const hrs = new Date().getHours() + new Date().getMinutes()/60;
   const dcWh = mWh!=null ? mWh/0.88 + idle*hrs : null;
   // běžný odběr navíc (lednice + medián „ostatní“) → kolik W je navíc
-  const fr = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.zasuvka_lednice||"")) : null;
+  const fr = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.zasuvka_lednice ?? "185")) : null;
+  const rvp = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.river_auto_ip ?? "157")) : null;
+  const riverW = rvp && rvp.w!=null ? rvp.w : null;          // nabíjení River (zásuvka za měničem)
   const onv = Object.keys(d.days||{}).sort().slice(-8).map(k=>d.days[k].on).filter(x=>x!=null).sort((x,y)=>x-y);
   const onMed = onv.length ? onv[Math.floor(onv.length/2)] : null;
   const frW = fr && fr.w!=null && !fr.err && !fr.off ? fr.w : (cfg.lednice_max_W ?? 80);   // neměřená lednice = počítat naplno, ne 0 W
-  const extraW = invF && inv.mw!=null && onMed!=null ? Math.max(0, inv.mw - frW - onMed) : null;
-  return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW};
+  const extraW = invF && inv.mw!=null && onMed!=null ? Math.max(0, inv.mw - frW - onMed - (riverW||0)) : null;
+  const frTxt = fr && fr.w!=null && !fr.err && !fr.off ? `lednice ${nf(frW)} W` : `lednice neměřená (~${nf(frW)} W)`;
+  const brk = invF && inv.mw!=null && onMed!=null ? `Za měničem ${nf(inv.mw)} W: ${frTxt}, světla/kamery/wifi ~${nf(onMed)} W${riverW>2?`, River ${nf(riverW)} W`:""}` : "";
+  return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW, riverW, brk};
 }
 function tileBat(d, h){
   const t = {k:"bat", wide:true, icon:"🔋", label:"Baterie teď"};
@@ -1013,7 +1017,8 @@ function tileBat(d, h){
   if(h.bv < WARN_V) return {...t, cls:"warn", v, st:"Baterie slábne", a:"Omez spotřebu"};
   if(h.net!=null && h.net <= -0.3){
     const ex = h.extraW!=null && h.extraW >= (h.cfg.odber_navic_W ?? 40);
-    if(ex) return {...t, cls: h.net <= -(h.cfg.odber_z_baterie_A ?? 2) ? "bad" : "warn", v, st:`Vybíjí se – odběr ${nf(h.extraW)} W navíc`, a:"Vypni nabíjení zařízení nebo River"};
+    if(ex) return {...t, cls: h.net <= -(h.cfg.odber_z_baterie_A ?? 2) ? "bad" : "warn", v, st:`Vybíjí se – ${nf(h.extraW)} W navíc za měničem`, a:`${h.brk}. Co dalšího je zapnuté? Odpoj to`};
+    if(h.riverW!=null && h.riverW > 5) return {...t, cls:"warn", v, st:`Vybíjí se – River bere ${nf(h.riverW)} W`, a:"Automatika River ho při vybíjení sama vypne"};
     if(h.day && (h.status===1||h.status===2)) return {...t, cls:"warn", v, st:`Vybíjí se – slunce nestačí (${mode})`, a:[panels, load].filter(Boolean).join(" · ")};
     return {...t, cls:"ok", v, st: h.day ? "Vybíjí se – málo slunce" : "Vybíjí se – tma, běžný odběr", a:[panels, load].filter(Boolean).join(" · ") || "Nic nedělej"};
   }
