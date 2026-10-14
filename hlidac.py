@@ -1683,7 +1683,7 @@ def read_inverter(data, topic, now, cfg=None):
         inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
     tp = body.get("tp")
     if isinstance(tp, list):
-        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm") if p.get(k) is not None}
+        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone") if p.get(k) is not None}
                      for p in tp if isinstance(p, dict)][:12]
     if body.get("av"):
         inv["av"] = str(body["av"])[:12]       # verze aplikace na Flipu
@@ -1713,7 +1713,7 @@ def read_inverter(data, topic, now, cfg=None):
         inv["w"] = round((inv.get("mw") or 0) + inv["rw"], 1)
         inv["src"] = "tapo"
     if gen and (gen.get("w") is not None or gen.get("wh") is not None):
-        inv["gen"] = {"w": gen.get("w"), "wh": gen.get("wh"), "off": gen.get("off")}
+        inv["gen"] = {"w": gen.get("w"), "wh": gen.get("wh"), "off": gen.get("off"), "since": gen.get("since"), "gone": gen.get("gone")}
     if "w" not in inv and not inv.get("tp") and "ph" not in inv:
         return None
     data["inverter"] = inv
@@ -1933,7 +1933,8 @@ def gen_sessions(data, st, now, topic, cfg):
     day_wh = lambda: ((data.get("days", {}).get(now.strftime("%Y-%m-%d")) or {}).get("tp") or {}).get(gip)
     if active:
         if not cur:
-            cur = {"t0": ts, "src": "tapo" if gen_on else "river", "rv": {}, "wh": 0.0,
+            t0 = int(g.get("since") or ts) if gen_on else ts       # Flip ví, kdy se zásuvka objevila
+            cur = {"t0": min(t0, ts), "src": "tapo" if gen_on else "river", "rv": {}, "wh": 0.0,
                    "d": now.strftime("%Y-%m-%d"), "w0": day_wh()}
             log("ev", "Generátor: začátek nabíjení" + (f" ({fmt(g.get('w'))} W)" if gen_on else ""))
         # energie z generátoru: přírůstek denního počítadla zásuvky (přes půlnoc se počítá znovu od nuly)
@@ -1956,6 +1957,16 @@ def gen_sessions(data, st, now, topic, cfg):
         return
     if cur and not fresh and ts - cur.get("t1", ts) < 3600:
         return                                         # Flip chvíli mlčí – běh ještě neukončovat
+    if cur:                                            # konečné % River (nabíjení právě skončilo)
+        for r in rivers:
+            e = cur["rv"].get(str(r.get("sn", ""))[-6:])
+            if e is not None and r.get("soc") is not None:
+                e["s1"] = r["soc"]
+    if cur and g.get("gone"):                          # Flip ví, kdy zásuvka zmizela (generátor se vypnul)
+        cur["t1"] = max(cur.get("t0", 0), min(int(g["gone"]), ts))
+        dw = day_wh()
+        if dw is not None and cur.get("d") == now.strftime("%Y-%m-%d"):
+            cur["wh"] = round(cur.get("wh_prev", 0.0) + max(0.0, dw - (cur.get("w0") or 0.0)), 1)
     if cur:                                            # běh skončil → uložit a poslat souhrn
         cur["rv"] = {k: v for k, v in cur["rv"].items() if v.get("chg")}
         rec = {k: v for k, v in cur.items() if k not in ("w0", "wh_prev", "d", "w")}

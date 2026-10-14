@@ -54,6 +54,16 @@ public class GatewayService extends Service {
         collector = new Collector(this, ble);
         NotificationManager nm = getSystemService(NotificationManager.class);
         nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Chata brána", NotificationManager.IMPORTANCE_LOW));
+        // každých 30 s: objevila se / zmizela zásuvka (generátor)? → poslat hned (Flip je na nabíječce, nespí)
+        Thread w = new Thread(() -> {
+            while (!exec.isShutdown()) {
+                SystemClock.sleep(30_000);
+                if (!Prefs.get(this).getBoolean(Prefs.RUNNING, false)) continue;
+                try { exec.execute(() -> { if (collector.watch()) tick(); }); } catch (Exception ignored) { }
+            }
+        }, "zasuvky-watch");
+        w.setDaemon(true);
+        w.start();
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {

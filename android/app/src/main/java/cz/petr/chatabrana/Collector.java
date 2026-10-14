@@ -25,6 +25,12 @@ public final class Collector {
     private final Map<String, String> names = new HashMap<>();
     private final Map<String, String> models = new HashMap<>();
     private final Map<String, String> lastState = new HashMap<>();   // ať se do záznamu nepíše pořád dokola totéž
+    // rychlé hlídání zásuvek, které jsou většinu času bez proudu (např. za generátorem)
+    private final java.util.Set<String> offIps = new java.util.HashSet<>();      // při posledním čtení nedostupné
+    private final Map<String, Long> onSince = new HashMap<>();                    // IP → kdy se objevila
+    private final Map<String, Long> goneAt = new HashMap<>();                     // IP → kdy zmizela
+    private final Map<String, JSONObject> lastGood = new HashMap<>();             // IP → poslední úspěšné čtení
+    private long lastFastRead;
 
     public Collector(Context ctx, BleListener ble) {
         this.ctx = ctx.getApplicationContext();
@@ -83,7 +89,24 @@ public final class Collector {
                     p.put("ip", id);                                         // hlídač zásuvky rozlišuje podle čísla
                     if (!id.equals(octet)) p.put("a", octet);
                     plugs.put(p);
-                    if (p.has("off")) { off++; missing |= map.containsValue(ip); } else if (!p.has("err")) ok++;
+                    if (p.has("off")) {
+                        off++; missing |= map.containsValue(ip);
+                        // poslední počítadlo před výpadkem proudu a čas zmizení posílat ještě 40 min (hlídač běží po 10 min)
+                        Long g = goneAt.get(ip);
+                        if (g == null && onSince.containsKey(ip)) { g = System.currentTimeMillis(); goneAt.put(ip, g); }
+                        if (g != null && System.currentTimeMillis() - g < 40 * 60_000L) {
+                            p.put("gone", g / 1000);
+                            JSONObject lg = lastGood.get(ip);
+                            if (lg != null && lg.has("wh")) p.put("wh", lg.getInt("wh"));
+                        } else { goneAt.remove(ip); lastGood.remove(ip); }
+                        onSince.remove(ip);
+                        offIps.add(ip);
+                    } else if (!p.has("err")) {
+                        ok++;
+                        if (offIps.remove(ip) && !onSince.containsKey(ip)) onSince.put(ip, System.currentTimeMillis());
+                        goneAt.remove(ip);
+                        if (onSince.containsKey(ip)) { p.put("since", onSince.get(ip) / 1000); lastGood.put(ip, p); }
+                    }
                 }
                 if (missing) Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
                 if (plugs.length() > 0) o.put("tp", plugs);
@@ -174,6 +197,40 @@ public final class Collector {
         return p;
     }
 
+    /**
+     * Rychlá kontrola (každých 30 s ze služby): objevila se zásuvka, která byla bez proudu? Zmizela ta, co právě běží?
+     * @return true = hned poslat data (začátek / konec běhu zásuvky)
+     */
+    public boolean watch() {
+        String email = Prefs.s(ctx, Prefs.TAPO_EMAIL), pass = Prefs.s(ctx, Prefs.TAPO_PASSWORD);
+        if (email.isEmpty()) return false;
+        boolean send = false;
+        for (String ip : new java.util.ArrayList<>(offIps)) {
+            try (java.net.Socket so = new java.net.Socket()) {
+                so.connect(new java.net.InetSocketAddress(ip, 80), 400);
+                onSince.put(ip, System.currentTimeMillis());
+                Prefs.log(ctx, "Zásuvka " + ip + " se objevila – posílám hned");
+                send = true;
+            } catch (Exception ignored) { }
+        }
+        // běžící „občasné“ zásuvky číst každou minutu, ať se při výpadku proudu ztratí co nejméně
+        if (!onSince.isEmpty() && System.currentTimeMillis() - lastFastRead > 55_000) {
+            lastFastRead = System.currentTimeMillis();
+            for (String ip : new java.util.ArrayList<>(onSince.keySet())) {
+                if (offIps.contains(ip) || goneAt.containsKey(ip)) continue;
+                JSONObject p = readPlug(ip, email, pass);
+                if (p.has("off") || p.has("err")) {
+                    goneAt.put(ip, System.currentTimeMillis());
+                    Prefs.log(ctx, "Zásuvka " + ip + " zmizela – posílám hned");
+                    send = true;
+                } else {
+                    lastGood.put(ip, p);
+                }
+            }
+        }
+        return send;
+    }
+
     /** Číslo zásuvky → IP. Síť se prohledá při prvním spuštění, každých 6 h a když mapovaná zásuvka nejde (nejvýš 1× za 30 min). */
     private Map<String, String> plugMap(String email, String pass) {
         Map<String, String> m = new HashMap<>();
@@ -188,7 +245,8 @@ public final class Collector {
         Map<String, JSONObject> found = TapoScan.scan(ctx, email, pass);
         sp.edit().putLong("tapo_scan_t", System.currentTimeMillis()).putBoolean("tapo_rescan", false).apply();
         if (found.isEmpty()) return m;
-        JSONObject j = new JSONObject();
+        JSONObject j;                                           // známé zásuvky si pamatovat, i když teď nemají proud (generátor)
+        try { j = new JSONObject(sp.getString("tapo_map", "{}")); } catch (Exception e) { j = new JSONObject(); }
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, JSONObject> en : found.entrySet()) {
             try { j.put(en.getKey(), en.getValue()); } catch (Exception ignored) { }
@@ -199,7 +257,7 @@ public final class Collector {
         sp.edit().putString("tapo_map", j.toString()).apply();
         Prefs.log(ctx, "Hledání zásuvek: nalezeno " + found.size() + (sb.length() > 0 ? " · změny: " + sb : " · beze změn"));
         m.clear();
-        for (Map.Entry<String, JSONObject> en : found.entrySet()) m.put(en.getKey(), en.getValue().optString("ip"));
+        for (java.util.Iterator<String> it = j.keys(); it.hasNext(); ) { String k = it.next(); m.put(k, j.optJSONObject(k) != null ? j.optJSONObject(k).optString("ip") : ""); }
         return m;
     }
 
