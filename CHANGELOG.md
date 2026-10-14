@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.40 – 14. 10. 2026
+- Hlídač sám převede zásuvku na číslo z jejího jména („(3) (R) …“ → 3), i když Flip pošle starou IP – funguje se starším Flipem i s ručním seznamem adres
+
 ## 3.39 – 14. 10. 2026
 - Zásuvky přenastaveny na čísla z názvů (Flip 1.3): (1) měnič 220, (2) River žlutý, (3) River červený, (4) lednice, (5) wifi router, (6) malá River, (7) nabíjení z generátoru, (8) nabíjení River ze solár (automatika)
 

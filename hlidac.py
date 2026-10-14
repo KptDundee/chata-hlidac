@@ -1688,7 +1688,14 @@ def read_inverter(data, topic, now, cfg=None):
     tp = body.get("tp")
     if isinstance(tp, list):
         inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone") if p.get(k) is not None}
-                     for p in tp if isinstance(p, dict)][:12]
+                     for p in tp if isinstance(p, dict)][:16]
+        # zásuvka se pozná podle čísla v první závorce jména („(3) (R) River…“), ne podle IP – i se starším Flipem
+        import re as _re
+        for p in inv["tp"]:
+            m = _re.match(r"\s*\((\d{1,3})\)", str(p.get("n") or ""))
+            if m and str(p.get("ip")) != str(int(m.group(1))):
+                p["a"] = p.get("a") or p.get("ip")
+                p["ip"] = str(int(m.group(1)))
     if body.get("av"):
         inv["av"] = str(body["av"])[:12]       # verze aplikace na Flipu
     for k in ("st", "al"):
