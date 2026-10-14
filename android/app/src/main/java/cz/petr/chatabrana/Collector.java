@@ -137,6 +137,17 @@ public final class Collector {
             }
 
             o.put("av", appVersion());
+            // je Flip na Wi‑Fi? (po restartu routeru se umí přepnout na mobilní data a pak nevidí zásuvky)
+            try {
+                android.net.ConnectivityManager cm = ctx.getSystemService(android.net.ConnectivityManager.class);
+                boolean wifi = false;
+                for (android.net.Network n : cm.getAllNetworks()) {
+                    android.net.NetworkCapabilities nc = cm.getNetworkCapabilities(n);
+                    if (nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) wifi = true;
+                }
+                o.put("wifi", wifi ? 1 : 0);
+                if (!wifi) sum.append(", BEZ Wi‑Fi");
+            } catch (Exception ignored) { }
 
             // 4) odeslat
             String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);

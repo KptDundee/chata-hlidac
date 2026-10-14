@@ -1696,6 +1696,8 @@ def read_inverter(data, topic, now, cfg=None):
             if m and str(p.get("ip")) != str(int(m.group(1))):
                 p["a"] = p.get("a") or p.get("ip")
                 p["ip"] = str(int(m.group(1)))
+    if body.get("wifi") is not None:
+        inv["wifi"] = int(body["wifi"])
     if body.get("av"):
         inv["av"] = str(body["av"])[:12]       # verze aplikace na Flipu
     for k in ("st", "al"):
@@ -1860,6 +1862,15 @@ def check_gateway(inv, st, now, topic, cfg):
         if st.get("gw_silent"):
             ntfy(topic, "📱 Brána na chatě zase posílá", "Data z telefonu u měniče znovu chodí.", 2, "white_check_mark")
         st["gw_silent"] = False
+    # Flip mimo Wi‑Fi (na mobilních datech) → nevidí zásuvky
+    if inv and age <= lim and inv.get("wifi") is not None:
+        if inv["wifi"] == 0 and not st.get("gw_nowifi"):
+            ntfy(topic, "📶 Flip není na Wi‑Fi chaty",
+                 "Posílá přes mobilní data, takže nevidí zásuvky Tapo (spotřeba, River, generátor, automatika).\n"
+                 "Připoj ho na Flipu zpět k Wi‑Fi; v nastavení Wi‑Fi vypni „přepínání na mobilní data“.", 4, "warning")
+            st["gw_nowifi"] = True
+        elif inv["wifi"] == 1:
+            st["gw_nowifi"] = False
     ph = (inv or {}).get("ph")
     if ph and ph.get("b") is not None:
         st["ph_last"] = {"b": ph["b"], "c": bool(ph.get("c")), "t": inv["t"]}

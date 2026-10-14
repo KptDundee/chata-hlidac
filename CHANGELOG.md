@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.41 – 14. 10. 2026
+- **Flip 1.3.2 hlásí, jestli je na Wi‑Fi.** Po restartu routeru se Flip umí přepnout na mobilní data a pak nevidí zásuvky (14. 10. se to stalo). Hlídač pošle notifikaci „📶 Flip není na Wi‑Fi chaty“ a web to ukáže v liště k řešení.
+- Flip 1.3.1: hledání zásuvek zapisuje do záznamu výsledek (sítě, kolik adres odpovídá, kolik zásuvek Tapo, chyby)
+
 ## 3.40 – 14. 10. 2026
 - Hlídač sám převede zásuvku na číslo z jejího jména („(3) (R) …“ → 3), i když Flip pošle starou IP – funguje se starším Flipem i s ručním seznamem adres
 
