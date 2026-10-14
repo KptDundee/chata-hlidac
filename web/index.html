@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.38", FLIP_VER = "1.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.39", FLIP_VER = "1.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -575,7 +575,7 @@ function render(){
     const now = new Date(), hrs = now.getHours() + now.getMinutes()/60;
     const idle = d.cfg?.menic_vlastni_W ?? 6, dcWh = mWh/0.88 + idle*hrs;
     // nabíjení River přes .157 je za měničem, ale není to spotřeba chaty → oddělit (lednice + ostatní)
-    const td = (d.days && d.days[tday]) || {}, fip = String(d.cfg?.zasuvka_lednice ?? "185");
+    const td = (d.days && d.days[tday]) || {}, fip = String(d.cfg?.zasuvka_lednice ?? "4");
     const owv = pts.filter(p=>p.ow!=null && p.t >= Date.now()/1000-86400).map(p=>p.ow).sort((a,b)=>a-b);
     const owAvg = owv.length ? owv[Math.floor(owv.length/2)] : null;
     const cabin = (td.ra_min && tpd[fip]!=null && owAvg!=null) ? tpd[fip] + owAvg*hrs : null;
@@ -1028,8 +1028,8 @@ function homeData(d){
   const hrs = new Date().getHours() + new Date().getMinutes()/60;
   const dcWh = mWh!=null ? mWh/0.88 + idle*hrs : null;
   // běžný odběr navíc (lednice + medián „ostatní“) → kolik W je navíc
-  const fr = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.zasuvka_lednice ?? "185")) : null;
-  const rvp = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.river_auto_ip ?? "157")) : null;
+  const fr = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.zasuvka_lednice ?? "4")) : null;
+  const rvp = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.river_auto_ip ?? "8")) : null;
   const riverW = rvp && rvp.w!=null ? rvp.w : null;          // nabíjení River (zásuvka za měničem)
   const onv = Object.keys(d.days||{}).sort().slice(-8).map(k=>d.days[k].on).filter(x=>x!=null).sort((x,y)=>x-y);
   const onMed = onv.length ? onv[Math.floor(onv.length/2)] : null;
@@ -1215,7 +1215,7 @@ function ledger(d, h){
   const tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
   const tpd = ((d.days && d.days[tday]) || {}).tp || {};
   const hrs = new Date().getHours() + new Date().getMinutes()/60;
-  const fip = String(cfg.zasuvka_lednice ?? "185");
+  const fip = String(cfg.zasuvka_lednice ?? "4");
   const owv = pts.filter(p=>p.ow!=null && p.t >= Date.now()/1000-86400).map(p=>p.ow).sort((a,b)=>a-b);
   const owAvg = owv.length ? owv[Math.floor(owv.length/2)] : null;
   const ips = x => String(x||"").split(/[,;\s]+/).filter(Boolean);
@@ -1342,7 +1342,7 @@ function tileRivers(d, h){
 function dayLedger(d, h){
   const cfg = d.cfg||{}, tpd = (((d.days||{})[dkey(h.now)]||{}).tp)||{}, ips = x => String(x||"").split(/[,;\s]+/).filter(Boolean);
   const mip = String(cfg.zasuvka_menic ?? "").trim() || (d.inverter && d.inverter.mip);
-  const auto = tpd[String(cfg.river_auto_ip ?? "157")] || 0, gen = tpd[String(cfg.zasuvka_generator ?? "115")];
+  const auto = tpd[String(cfg.river_auto_ip ?? "8")] || 0, gen = tpd[String(cfg.zasuvka_generator ?? "7")];
   const menic = mip!=null && tpd[mip]!=null ? tpd[mip] : null;
   const RL = riverList(d, h);
   const rvT = RL.map(r=>({name:r.name, o: r.wh ?? r.T.o ?? 0, w:r.w}));
@@ -1532,7 +1532,7 @@ function detToday(body){
 }
 /* ---------- rozbor nocí: proč je ranní minimum nižší (posledních 5 nocí vs předtím) ---------- */
 function nightRows(d){
-  const P = d.points || [], idle = d.cfg?.menic_vlastni_W ?? 6, fip = String(d.cfg?.zasuvka_lednice ?? "185"), D = d.days || {};
+  const P = d.points || [], idle = d.cfg?.menic_vlastni_W ?? 6, fip = String(d.cfg?.zasuvka_lednice ?? "4"), D = d.days || {};
   const byDay = {}; P.forEach(p => (byDay[dkey(p.t)] = byDay[dkey(p.t)] || []).push(p));
   const keys = Object.keys(byDay).sort(), rows = [];
   const loadA = p => p.mw!=null && p.bat_v ? (p.mw/0.88 + idle)/p.bat_v : null;
@@ -1664,7 +1664,7 @@ function detYesterday(body){
   const d = DATA, h = homeData(d), yk = dkey(h.now - 86400), D = (d.days||{})[yk] || {}, w = d.wxo || {};
   const acc = (w.acc||[]).find(x=>x.d===yk);
   const mip = String(d.cfg?.zasuvka_menic ?? "").trim() || (d.inverter && d.inverter.mip);
-  const fip = String(d.cfg?.zasuvka_lednice ?? "185");
+  const fip = String(d.cfg?.zasuvka_lednice ?? "4");
   const tp = D.tp || {}, cons = mip && tp[mip]!=null ? tp[mip]/1000 : null, idle = d.cfg?.menic_vlastni_W ?? 6;
   const dc = cons!=null ? cons/0.88 + idle*24/1000 : null, bal = dc!=null && D.solar_kwh!=null ? D.solar_kwh*0.9 - dc : null;
   const rows = (w.acc||[]).slice().reverse().slice(0,14);

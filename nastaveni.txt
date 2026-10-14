@@ -67,16 +67,17 @@ telefon_upozornit = 50, 30, 20, 10, 0
 
 # --- Zásuvky Tapo (konec IP adresy) ---
 # zásuvka za měničem, která MĚŘÍ (odběr ze solární baterie); prázdné = podle názvu „220V měnič“
-zasuvka_menic = 
+zasuvka_menic = 1
 # zásuvky na EcoFlow River (zimní provoz)
-zasuvky_river = 188, 170, 166
+# zásuvky podle čísla v názvu v aplikaci Tapo: (1) měnič 220, (2) River žlutý, (3) River červený, (4) lednice, (5) wifi router, (6) malá River, (7) nabíjení z generátoru, (8) nabíjení ze solár
+zasuvky_river = 2, 3, 6
 # zásuvka, přes kterou nabíjí generátor
-zasuvka_generator = 115
+zasuvka_generator = 7
 
 # --- Automatické nabíjení River přebytkem ze slunce ---
 # zapne zásuvku, když je solární baterie plná (Float) a panely dávají dost; vypne při poklesu
 river_auto = zapnuto
-river_auto_ip = 157
+river_auto_ip = 8
 river_auto_pv_on = 150
 river_auto_pv_off = 100
 river_auto_v_off = 12.5
@@ -93,7 +94,7 @@ river_auto_notifikace = vypnuto
 river_auto_off_min = 20
 
 # --- Ostatní odběr za měničem (světla, kamery, wifi) = zásuvka měniče − lednice ---
-zasuvka_lednice = 185
+zasuvka_lednice = 4
 ostatni_hlidat = zapnuto
 
 # --- Počasí a zimní provoz ---

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.39 – 14. 10. 2026
+- Zásuvky přenastaveny na čísla z názvů (Flip 1.3): (1) měnič 220, (2) River žlutý, (3) River červený, (4) lednice, (5) wifi router, (6) malá River, (7) nabíjení z generátoru, (8) nabíjení River ze solár (automatika)
+
 ## 3.38 – 14. 10. 2026
 - **Historie přímo ze zásuvek:** zásuvka Tapo si sama pamatuje hodinovou energii. Flip 1.3 ji z každé měřicí zásuvky pošle jednou denně a hned, když se zásuvka znovu objeví (generátor naskočil) – 7 dní zpět. Hlídač podle ní **opraví denní součty** zásuvek a **doplní / opraví běhy generátoru**, i když je Flip nezachytil (v seznamu „z historie zásuvky“ / „opraveno podle zásuvky“).
 - Rychlé 30s hlídání z verze 3.37 zrušeno (Flip není na nabíječce, Android by ho stejně uspal). Pro přesný konec stačí před vypnutím generátoru dát na Flipu „Odeslat teď“.
