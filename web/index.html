@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.31", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.32", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1168,19 +1168,28 @@ function tileRiver(d, h){
   const wait = ra.wait && ra.wait > h.now ? `Zkusí znovu po ${hmT(ra.wait)}` : h.day ? "Zapne se, až bude přebytek" : `Zapne se ${dayPhase(d).ph==="predawn" ? "dnes" : "zítra"} při slunci`;
   return {...t, cls:"ok", v:"Vypnuto", st: h.day ? "Čeká na přebytek slunce" : "Tma – nenabíjí", a: wait};
 }
-/* generátor a nabíjení River mimo automatiku – na hlavní stránce, jen když se něco děje */
+/* generátor: běžící běh (gen_cur) nebo poslední běh (gen_log) – vidět i po vypnutí zásuvky */
+function genSummary(r, cap){
+  const rv = Object.values(r.rv||{}).filter(v=>v.s0!=null && v.s1!=null);
+  const got = rv.reduce((s,v)=>s+Math.max(0,(v.s1-v.s0)/100*cap),0);
+  return {rv, got, txt: rv.map(v=>`${v.name||"River"} ${nf(v.s0)} → ${nf(v.s1)} %`).join(" · "),
+    eff: r.wh && got > 0 ? Math.round(got/r.wh*100) : null};
+}
 function tileGen(d, h){
-  const g = h.invF ? h.inv.gen : null, ef = (d.ef_gens||[]).find(x=>x.online);
-  const rvFresh = h.now - (d.rivers_t||0) < 3600;
-  const chg = rvFresh ? (d.rivers||[]).filter(r=>r.online && (r.in_w||0) > 20) : [];
-  const auto = d.river_auto && d.river_auto.on;
-  const genOn = (g && g.w > 5) || ef;
-  if(!genOn && !(chg.length && !auto)) return null;
-  const parts = chg.map(r=>`${r.name||"River"} ${nf(r.soc)} % ← ${nf(r.in_w)} W${r.chg_min && r.chg_min < 6000 ? ` · plná za ${Math.floor(r.chg_min/60)} h ${Math.round(r.chg_min%60)} min` : ""}`);
-  return {k:"river", icon:"⛽", wide:true, cls:"ok", label: genOn ? "Generátor běží" : "River se nabíjí",
-    v: g && g.w > 5 ? `${nf(g.w)}<small>W</small>` : chg.length ? `${nf(chg[0].soc)}<small>%</small>` : `<span style="font-size:20px">online</span>`,
-    st: parts.join(" · ") || (g && g.w > 5 ? "Generátor dodává (zásuvka Tapo)" : "Generátor je online (EcoFlow)"),
-    a: (g && g.wh ? `Dnes z generátoru ${nf(g.wh/1000,2)} kWh · ` : "") + "Při 100 % přijde notifikace – pak vypni generátor", info:true};
+  const cap = d.cfg?.river_Wh ?? 768, cur = d.gen_cur, last = (d.gen_log||[]).slice(-1)[0];
+  if(cur){
+    const S = genSummary(cur, cap), dur = (cur.t1 - cur.t0)/60;
+    return {k:"gen", icon:"⛽", wide:true, cls:"ok", info:true, label:`Generátor běží od ${hmT(cur.t0)} (${durTxt(dur)})`,
+      v: cur.wh ? `${nf(cur.wh/1000,2)}<small>kWh dodal</small>` : cur.w ? `${nf(cur.w)}<small>W</small>` : "běží",
+      st: S.txt || (cur.w ? `Teď ${nf(cur.w)} W` : "Nabíjí"), a: `Nabito zatím ~${nf(S.got/1000,2)} kWh${S.eff?` · účinnost ~${S.eff} %`:""} · při 100 % přijde notifikace`};
+  }
+  if(last && h.now - last.t1 < 36*3600){
+    const S = genSummary(last, cap);
+    return {k:"gen", icon:"⛽", wide:true, cls:"ok", info:true, label:`Generátor – poslední běh ${relDay(last.t0)} ${hmT(last.t0)}–${hmT(last.t1)}`,
+      v: last.wh ? `${nf(last.wh/1000,2)}<small>kWh dodal</small>` : `${durTxt((last.t1-last.t0)/60)}`,
+      st: S.txt ? `${S.txt} (+${nf(S.got/1000,2)} kWh)` : "River se nenabíjela", a: S.eff ? `Účinnost nabíjení ~${S.eff} %` : ""};
+  }
+  return null;
 }
 function ledger(d, h){
   const cfg = d.cfg || {}, idle = cfg.menic_vlastni_W ?? 6, pts = d.points || [];
@@ -1322,6 +1331,7 @@ const DET = {
   pastnight:{t:"🌘 Minulá noc", s:"Jak dopadla a jak sedí předpověď", build:detPastNight, title:()=>`🌘 ${tilePastNight(DATA, homeData(DATA)).label}`},
   yday:  {t:"📅 Včera", s:"Včerejší výroba a spotřeba, předpověď vs skutečnost", build:detYesterday},
   wx:    {t:"☀️ Počasí a výroba", s:"Předpověď na 7 dní", ids:["wxcard"]},
+  gen:   {t:"⛽ Generátor", s:"Běhy generátoru: kolik dodal a kolik se nabilo", build:detGen},
   river: {t:"🔌 River a zásuvky", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
   today: {t:"⚡ Dnes", s:"Výroba a spotřeba", build:detToday},
   health:{t:"❤️ Zdraví baterie", s:"Kapacita AGM baterie a hluboká vybití", ids:["s_health"]},
@@ -1538,6 +1548,15 @@ function nightAnalysisHtml(d){
     <div class="sub" style="font-size:12px;margin-top:6px">Zvýrazněné = posledních ${A.length} nocí. ${hist ? `Zdroj: historie regulátoru (Solar Guardian) a hodinová spotřeba zásuvky za měničem (Tapo), ${R.length} nocí.` : "Zdroj: podrobná měření hlídače (14 dní) – historie regulátoru se ještě načítá."} Ah do baterie přes den = co regulátor dodal minus odběr chaty; Ah z baterie přes noc = zásuvka za měničem ÷ 0,88 + ${nf(d.cfg?.menic_vlastni_W ?? 6)} W.</div></div>`;
 }
 const nextKey = k => { const e = new Date(k+"T12:00"); e.setDate(e.getDate()+1); return e.toLocaleDateString("sv-SE"); };
+function detGen(body){
+  const d = DATA, cap = d.cfg?.river_Wh ?? 768, L = (d.gen_log||[]).slice().reverse();
+  const rows = (d.gen_cur ? [Object.assign({run:true}, d.gen_cur)] : []).concat(L).map(r=>{ const S = genSummary(r, cap);
+    return `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px">
+      <b>${relDay(r.t0)} ${hmT(r.t0)}–${r.run?"běží":hmT(r.t1)}</b><span style="font-variant-numeric:tabular-nums">${r.wh?`${nf(r.wh/1000,2)} kWh dodal`:"–"}</span></div>
+      <div class="sub" style="font-size:13px">${durTxt((r.t1-r.t0)/60)}${S.txt?` · ${S.txt} (+${nf(S.got/1000,2)} kWh)`:""}${S.eff?` · účinnost ~${S.eff} %`:""}</div></div>`; }).join("");
+  body.insertAdjacentHTML("beforeend", `<div class="card">${rows || '<span class="sub">Zatím žádný zaznamenaný běh generátoru.</span>'}</div>
+  <div class="sub" style="margin:0 4px 12px;line-height:1.5">Dodáno = energie přes zásuvku Tapo generátoru. Nabito = změna % River × kapacita (${cap} Wh). Účinnost = nabito ÷ dodáno (ztráty nabíječky River a odběr během nabíjení).</div>`);
+}
 function detPastNight(body){
   const d = DATA, n = pastNight(d), C = nightCorr(d), f = d.forecast;
   if(!n || n.none){ body.insertAdjacentHTML("beforeend", `<div class="card sub">${n ? nightName(n.end) : "Minulá noc"}: málo uložených měření.</div>`); return; }

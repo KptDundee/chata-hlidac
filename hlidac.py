@@ -1021,6 +1021,7 @@ def main():
                          ("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_, data)),
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
                          ("River napájí chatu", lambda: river_supply(data, st, now, topic, cfg, rise, set_)),
+                         ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
             try:
@@ -1860,6 +1861,101 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
              f"~{datetime.fromtimestamp(until, TZ).strftime('%H:%M')} (rezerva {res} %).\nPřepoj chatu na druhou River nebo omez odběr.",
              4, "battery,warning")
         st["rv_night_warned"] = True
+
+
+def gen_sessions(data, st, now, topic, cfg):
+    """Záznam běhů generátoru: od kdy do kdy, kolik dodal (zásuvka Tapo generátoru) a o kolik se nabily River.
+    data["gen_log"] = [{t0, t1, wh, rv: {sn: {name, s0, s1}}, src}], poslední běh zůstane vidět i po vypnutí."""
+    ts = int(now.timestamp())
+    inv = data.get("inverter") or {}
+    fresh = inv and ts - inv.get("t", 0) < 1800
+    gip = str(cfg.get("zasuvka_generator") or "").strip()
+    g = (inv.get("gen") or {}) if fresh else {}
+    gen_on = (g.get("w") or 0) > 5
+    rv_fresh = ts - (data.get("rivers_t") or 0) < 3600
+    rivers = [r for r in (data.get("rivers") or []) if r.get("online")] if rv_fresh else []
+    auto_on = bool((data.get("river_auto") or {}).get("on"))
+    chg = [r for r in rivers if (r.get("in_w") or 0) > 20]
+    active = gen_on or (bool(chg) and not auto_on)
+    log_ = data.setdefault("gen_log", [])
+    if not st.get("gen_bf"):                          # jednorázově: dohledat dřívější běhy z uložených bodů (14 dní)
+        st["gen_bf"] = True
+        try:
+            pts = data.get("points", [])
+            on = [p for p in pts if ((p.get("tp") or {}).get(gip) or 0) > 5]
+            runs, run = [], []
+            for p_ in on:
+                if run and p_["t"] - run[-1]["t"] > 2400:
+                    runs.append(run); run = []
+                run.append(p_)
+            if run:
+                runs.append(run)
+            names = [r.get("name") for r in (data.get("rivers") or [])]
+            for run in runs:
+                t0, t1 = run[0]["t"], run[-1]["t"]
+                if t1 - t0 < 600 or (cur := st.get("gen_cur")) and cur.get("t0", 0) <= t1:
+                    continue
+                wh = 0.0
+                for a_, b_ in zip(run, run[1:]):
+                    wh += a_["tp"][gip] * min(b_["t"] - a_["t"], 1800) / 3600
+                before = next((p_ for p_ in reversed(pts) if p_["t"] <= t0 and p_.get("rv")), None)
+                after = next((p_ for p_ in pts if p_["t"] >= t1 and p_.get("rv")), None)
+                rv = {}
+                if before and after:
+                    for i, (x, y) in enumerate(zip(before["rv"], after["rv"])):
+                        if x.get("s") is not None and y.get("s") is not None and y["s"] > x["s"]:
+                            rv[str(i)] = {"name": names[i] if i < len(names) else "River", "s0": x["s"], "s1": y["s"], "chg": True}
+                log_.append({"t0": t0, "t1": t1, "wh": round(wh, 1), "rv": rv, "src": "body"})
+            log_.sort(key=lambda r: r["t0"])
+        except Exception as e:
+            print("Generátor – zpětně:", e)
+    cur = st.get("gen_cur")
+    day_wh = lambda: ((data.get("days", {}).get(now.strftime("%Y-%m-%d")) or {}).get("tp") or {}).get(gip)
+    if active:
+        if not cur:
+            cur = {"t0": ts, "src": "tapo" if gen_on else "river", "rv": {}, "wh": 0.0,
+                   "d": now.strftime("%Y-%m-%d"), "w0": day_wh()}
+            log("ev", "Generátor: začátek nabíjení" + (f" ({fmt(g.get('w'))} W)" if gen_on else ""))
+        # energie z generátoru: přírůstek denního počítadla zásuvky (přes půlnoc se počítá znovu od nuly)
+        dw = day_wh()
+        if dw is not None:
+            if cur.get("d") != now.strftime("%Y-%m-%d"):
+                cur["wh_prev"] = cur.get("wh", 0.0)
+                cur["d"], cur["w0"] = now.strftime("%Y-%m-%d"), 0.0
+            cur["wh"] = round(cur.get("wh_prev", 0.0) + max(0.0, dw - (cur.get("w0") or 0.0)), 1)
+        for r in rivers:
+            k = str(r.get("sn", ""))[-6:]
+            e = cur["rv"].setdefault(k, {"name": r.get("name"), "s0": r.get("soc")})
+            e["s1"] = r.get("soc")
+            if (r.get("in_w") or 0) > 20:
+                e["chg"] = True
+        cur["t1"] = ts
+        cur["w"] = g.get("w") if gen_on else None
+        st["gen_cur"] = cur
+        data["gen_cur"] = {k: v for k, v in cur.items() if k not in ("w0", "wh_prev", "d")}
+        return
+    if cur and not fresh and ts - cur.get("t1", ts) < 3600:
+        return                                         # Flip chvíli mlčí – běh ještě neukončovat
+    if cur:                                            # běh skončil → uložit a poslat souhrn
+        cur["rv"] = {k: v for k, v in cur["rv"].items() if v.get("chg")}
+        rec = {k: v for k, v in cur.items() if k not in ("w0", "wh_prev", "d", "w")}
+        log_.append(rec)
+        del log_[:-60]
+        st["gen_cur"] = None
+        data.pop("gen_cur", None)
+        cap = cfg.get("river_Wh") or 768
+        rv_txt, got = [], 0.0
+        for v in rec["rv"].values():
+            if v.get("s0") is not None and v.get("s1") is not None:
+                d_ = (v["s1"] - v["s0"]) / 100 * cap
+                got += max(0.0, d_)
+                rv_txt.append(f"{v.get('name') or 'River'} {fmt(v['s0'])} → {fmt(v['s1'])} % (+{fmt(d_ / 1000, 2)} kWh)")
+        dur = (rec["t1"] - rec["t0"]) / 3600
+        eff = f" · účinnost ~{fmt(got / rec['wh'] * 100)} %" if rec.get("wh") and got > 0 else ""
+        msg = (f"Běžel ~{fmt(dur, 1)} h, dodal {fmt((rec.get('wh') or 0) / 1000, 2)} kWh." if rec.get("wh") else f"Běžel ~{fmt(dur, 1)} h.") + \
+              ("\n" + "\n".join(rv_txt) if rv_txt else "") + eff
+        log("ev", "Generátor: konec – " + msg.replace("\n", " · "))
+        ntfy(topic, "⛽ Generátor doběhl", msg, 2, "fuelpump")
 
 
 def check_river(r, st, topic, cfg):

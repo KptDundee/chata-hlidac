@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.32 – 14. 10. 2026
+- **Záznam běhů generátoru:** hlídač si pamatuje každý běh (od–do, kolik dodal přes zásuvku Tapo, River z → na %, nabito kWh, účinnost). Na hlavní stránce dlaždice „⛽ Generátor běží“ a po vypnutí „poslední běh …“ ještě 36 h; ťuknutím seznam všech běhů. Po skončení běhu notifikace „⛽ Generátor doběhl“ se souhrnem.
+
 ## 3.31 – 14. 10. 2026
 - **Generátor a nabíjení River na hlavní stránce:** když generátor dodává (zásuvka Tapo generátoru) nebo je online v EcoFlow, nebo když se River nabíjí mimo automatiku, nahoře se objeví dlaždice „⛽ Generátor běží / River se nabíjí“ – výkon, % River, za jak dlouho bude plná, kolik dnes dodal generátor. Dřív to bylo schované jen v detailu baterie.
 
