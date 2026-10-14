@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.29", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.30", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -209,7 +209,7 @@ details.sec>.in{margin-top:8px}
 <main id="app" class="hide">
   <header>
     <h1>⚡ Chata – elektřina<span class="ver" id="ver">v3.6</span></h1>
-    <div class="hrow"><div class="sub" id="upd">…</div>
+    <div class="hrow"><div class="sub"><span id="upd">…</span><div id="flipbat" style="margin-top:3px;font-weight:600"></div></div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
   <div class="card hide" id="tokbox" style="margin-bottom:12px">
@@ -570,6 +570,11 @@ function render(){
     $("t_a").innerHTML = `${nf(rWh/1000,2)}<small>kWh</small>`; $("t_a_n").textContent = "z River";
   } else { $("t_a").innerHTML = "–"; $("t_a_n").textContent = "čeká na data ze zásuvky"; }
   const age = last.age_min;
+  { const g = d.inverter, ph = g && g.ph, fb = $("flipbat");      // baterie Flipu – klíčová pro celou bránu
+    if(ph && ph.b!=null){
+      const old = Date.now()/1000 - g.t > 1800, col = ph.b <= 20 ? "--crit" : ph.b <= 50 && !ph.c ? "--warn" : ph.c ? "--good" : "--text2";
+      fb.innerHTML = `📱 Flip <span style="color:var(${col})">${nf(ph.b)} %</span> · ${ph.c ? "⚡ nabíjí se" : `<span style="color:var(--warn)">nenabíjí se!</span>`}${old ? ` · <span style="color:var(--crit)">mlčí ${ago(g.t)}</span>` : ""}`;
+    } else fb.textContent = g ? "📱 Flip: baterie neznámá" : ""; }
   { const R = regStale(d), u = $("upd");
     u.textContent = !d.updated ? "Zatím žádná data" : R.stale ? `⚠ Regulátor mlčí od ${relDay(d.updated)} ${hmT(d.updated)} – jeho údaje jsou STARÉ` : `Data z regulátoru ${ago(d.updated)}`;
     u.style.color = R.stale ? "var(--crit)" : ""; u.style.fontWeight = R.stale ? "700" : ""; }
@@ -1818,7 +1823,7 @@ const SETTINGS = [
   ["Brána na chatě (telefon)", [
     ["brana_hlidat","Upozornit, když brána mlčí","Telefon u měniče přestal posílat data","","", "sw"],
     ["brana_ticho_min","Mlčí déle než","","min",10,"num"],
-    ["telefon_baterie_pod","Baterie telefonu pod","","%",5,"num"],
+    ["telefon_baterie_pod","Baterie Flipu – červeně pod","","%",5,"num"],
   ]],
   ["Zásuvky (konec IP adresy)", [
     ["zasuvka_menic","Zásuvka za měničem","Odběr ze solární baterie","",0,"txt"],

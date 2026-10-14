@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.30 – 14. 10. 2026
+- **Baterie Flipu nahoře na stránce:** „📱 Flip 64 % · ⚡ nabíjí se“ / „nenabíjí se!“ (oranžově), pod 20 % červeně, a když Flip mlčí, „mlčí před …“
+- **Notifikace po stupních** 50, 30, 20, 10 a 0 % (když se nenabíjí) – každý stupeň jednou, po nabití znovu; od 20 % vyšší priorita. Nastavení `telefon_upozornit`
+- Notifikace „Brána neposílá data“ řekne, kolik % měl Flip naposledy a jestli se nabíjel (vybitý Flip vs. jiná příčina)
+
 ## 3.29 – 14. 10. 2026
 - **Generátor EcoFlow Smart Generator** (SN „DG…“) z účtu EcoFlow se už nepočítá jako River (nepletl by výdrž River ani automatiku). Na webu v sekci River vlastní karta „⛽ … (EcoFlow)“ s online stavem a rozbalovacím seznamem všeho, co generátor posílá – podle toho se pak udělá pořádná dlaždice (výkon, palivo, olej, motohodiny).
 

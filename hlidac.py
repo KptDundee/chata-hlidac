@@ -33,7 +33,7 @@ DEFAULTS = {
     "zasuvka_menic": "", "zasuvky_river": "172, 190, 165", "zasuvka_generator": "115",
     "river_auto": True, "river_auto_ip": "157", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
-    "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
+    "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15, "telefon_upozornit": "50,30,20,10,0",
     "river_vymenit": True, "river_vymenit_pod": 15, "river_Wh": 768, "river_rezerva_pct": 5, "river_nabita": True,
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
     "pocasi": True, "rezim": "auto", "zima_pripojit_od_V": 12.7, "zima_pripojit_do_V": 12.4,
@@ -1761,23 +1761,34 @@ def check_gateway(inv, st, now, topic, cfg):
     age = (now.timestamp() - inv["t"]) / 60 if inv else 99999
     lim = cfg["brana_ticho_min"] or 60
     if age > lim and not st.get("gw_silent"):
+        pl = st.get("ph_last") or {}
+        bt = f" Naposledy měl baterii {pl['b']:.0f} %{' (nabíjel se)' if pl.get('c') else ' a nenabíjel se'}." if pl.get("b") is not None else ""
         ntfy(topic, "📵 Brána na chatě neposílá data",
-             f"Telefon u měniče se neozval {'přes 12 h' if age > 700 else f'{age:.0f} min'}. Vybitý, vypnutá Wi-Fi, nebo ho Android uspal?", 4, "warning")
+             f"Flip se neozval {'přes 12 h' if age > 700 else f'{age:.0f} min'}.{bt} Vybitý, vypnutá Wi-Fi, nebo ho Android uspal?", 4, "warning")
         st["gw_silent"] = True
     if age <= lim:
         if st.get("gw_silent"):
             ntfy(topic, "📱 Brána na chatě zase posílá", "Data z telefonu u měniče znovu chodí.", 2, "white_check_mark")
         st["gw_silent"] = False
     ph = (inv or {}).get("ph")
-    low = cfg["telefon_baterie_pod"]
-    if ph and low is not None and age <= lim:
-        b = ph.get("b")
-        if b is not None and b <= low and not ph.get("c") and not st.get("ph_low"):
-            ntfy(topic, f"🪫 Telefon na chatě má {b:.0f} %", "Brána brzy přestane posílat data – dobij ho (nebo zkontroluj nabíječku / zásuvku).", 4, "battery,warning")
-            st["ph_low"] = True
-        if b is not None and (b > low + 10 or ph.get("c")):
-            st["ph_low"] = False
-
+    if ph and ph.get("b") is not None:
+        st["ph_last"] = {"b": ph["b"], "c": bool(ph.get("c")), "t": inv["t"]}
+    # upozornění po stupních (výchozí 50, 30, 20, 10, 0 %) – každý stupeň jednou, znovu až po nabití
+    lv = sorted({int(float(x)) for x in str(cfg.get("telefon_upozornit") or "50,30,20,10,0").replace(";", ",").split(",")
+                 if x.strip().replace(".", "", 1).isdigit()}, reverse=True)
+    if ph and lv and age <= lim and ph.get("b") is not None:
+        b, chg = ph["b"], bool(ph.get("c"))
+        sent = set(st.get("ph_sent") or [])
+        crossed = [L for L in lv if b <= max(L, 2)]           # všechny stupně, pod které už spadl
+        if crossed and not chg and not set(crossed) <= sent:
+            L = min(crossed)
+            prio = 5 if L <= 10 else 4 if L <= 20 else 3
+            ntfy(topic, f"🪫 Flip na chatě má {b:.0f} %" + (" – vypíná se!" if L == 0 else ""),
+                 "Flip se nenabíjí. Bez něj nechodí data z Victronu ani zásuvek, nefunguje automatika River."
+                 "\nZkontroluj nabíječku / zásuvku u Flipu.", prio, "battery,warning")
+            sent.update(crossed)
+        sent = {x for x in sent if not (b > x + 5 or chg)}  # po nabití se stupně znovu odemknou
+        st["ph_sent"] = sorted(sent)
 
 def read_ecoflow(data, st, now, topic, cfg):
     """Načte River 2 Pro z EcoFlow API (jen když jsou nastavené klíče) a pohlídá je."""
