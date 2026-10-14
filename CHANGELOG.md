@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.36 – 14. 10. 2026
+- **Flip 1.3: zásuvky podle čísla ve jménu, ne podle IP.** Flip sám prohledá síť (při spuštění, každých 6 h a když zásuvka zmizí), najde všechny zásuvky Tapo a pozná je podle čísla v první závorce jména v aplikaci Tapo – „(3) (R) River žlutý“ = zásuvka 3. Router může přidělovat adresy, jak chce. V Nastavení hlídače se pak zásuvky zadávají tímto číslem. Bez čísla ve jménu platí konec IP adresy jako dřív. Ruční seznam adres na Flipu dál funguje (a určí i další podsíť k prohledání).
+- Web: jména zásuvek bez úvodních závorek, u zásuvky vidět číslo a IP
+
 ## 3.35 – 14. 10. 2026
 - Zásuvky River přenastaveny na .188 (žlutá), .170 (červená), .166 (malá) – zásuvky dostaly od routeru nové adresy
 - Dlaždice River řekne, když Flip zásuvku River nečte („? R3 · Flip zásuvku .165 nečte – přidej ji na Flipu“), a upozorní na zásuvky s „River“ v názvu, které nejsou přiřazené v Nastavení

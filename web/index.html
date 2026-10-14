@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.35", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.36", FLIP_VER = "1.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -498,7 +498,7 @@ function render(){
         : p.nm ? `<span>${p.on===1?"zapnutá":p.on===0?"vypnutá":""} · spotřebu neměří</span>` : p.wh!=null ? `<span>dnes ${nf(p.wh/1000,2)} kWh</span>` : "";
       const val = p.off || p.nm ? "" : p.w!=null ? nf(p.w)+" W" : "–";
       const tag = p.ip===autoIp ? ` <span style="font-size:11px;color:var(--s1)">· nabíjení River</span>` : "";
-      return `<div class="row" data-ip="${p.ip}" style="padding:8px 0;cursor:pointer${p.off?";opacity:.5":""}"><div class="t"><b style="font-weight:500">${p.n||("Zásuvka ."+p.ip)}${tag}</b>${sub}</div><div style="font-variant-numeric:tabular-nums;font-weight:600">${val} <span style="color:var(--muted);font-weight:400">›</span></div></div>`;
+      return `<div class="row" data-ip="${p.ip}" style="padding:8px 0;cursor:pointer${p.off?";opacity:.5":""}"><div class="t"><b style="font-weight:500">${p.n ? pn(p.n) : ("Zásuvka ."+p.ip)} <span class="sub">(${p.ip}${p.a?` · .${p.a}`:""})</span>${tag}</b>${sub}</div><div style="font-variant-numeric:tabular-nums;font-weight:600">${val} <span style="color:var(--muted);font-weight:400">›</span></div></div>`;
     };
     let rows = "";
     for(let g=0; g<4; g++){
@@ -1309,6 +1309,8 @@ function tileHtml(x){
 let RVSEL = (()=>{ try{ return localStorage.getItem("rvsel"); }catch(e){ return null; } })();
 const kWh = wh => wh==null ? "–" : `${nf(wh/1000, wh < 1000 ? 2 : 1)} kWh`;
 function riverToday(d, r){ const k = String(r.sn||"").slice(-6); return ((((d.days||{})[dkey(Date.now()/1000)]||{}).rv)||{})[k] || {}; }
+/* jméno zásuvky bez úvodních závorek „(3) (R) “ – číslo slouží k rozpoznání, na stránce není potřeba */
+const pn = n => String(n||"").replace(/^\s*\(\d{1,3}\)\s*(\([^)]*\)\s*)?/, "").trim();
 /* River = zásuvka Tapo na výstupu každé River (zasuvky_river) + případně data z EcoFlow (%, nabíjení) */
 function riverList(d, h){
   const cfg = d.cfg||{}, ips = String(cfg.zasuvky_river ?? "").split(/[,;\s]+/).filter(Boolean);
@@ -1316,7 +1318,7 @@ function riverList(d, h){
   const live = h.invF ? (h.inv.tp||[]) : [], ef = (d.rivers||[]), efFresh = h.now - (d.rivers_t||0) < 3600;
   const norm = x => String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
   return ips.map((ip, i) => {
-    const p = live.find(x=>x.ip===ip) || {}, nm = names[ip] || p.n || `River ${i+1}`;
+    const p = live.find(x=>x.ip===ip) || {}, nm = pn(names[ip] || p.n) || `River ${i+1}`;
     const e = ef.find(r=>norm(r.name) && (norm(nm).includes(norm(r.name)) || norm(r.name).includes(norm(nm)))) || (ef.length===ips.length ? ef[i] : null);
     const T = e ? riverToday(d, e) : {};
     return {ip, name:nm, w: p.w, off: !!p.off || p.err!=null, miss: h.invF && !live.some(x=>x.ip===ip), wh: tpd[ip], ef: e && efFresh ? e : null, efOld: e, T};
@@ -1330,7 +1332,7 @@ function tileRivers(d, h){
   const sel = R.find(r=>r.ip===RVSEL) || R.find(r=>(r.w||0) > 2) || R.find(act) || R[0];
   const tabs = `<div class="rtabs">${R.map(r=>`<button data-rv="${r.ip}" class="${act(r)?"on":""} ${r===sel?"sel":""}">${r.miss?"? ":""}${r.name.replace(/^River\s*/i,"R ").slice(0,12)}</button>`).join("")}</div>`;
   const e = sel.ef, iw = e ? e.in_w||0 : 0, soc = e ? e.soc : sel.efOld ? sel.efOld.soc : null;
-  const st = sel.miss ? `Flip zásuvku .${sel.ip} nečte – přidej ji na Flipu` : (sel.w||0) > 2 ? `napájí ${nf(sel.w)} W` : iw > 20 ? `⚡ nabíjí ${nf(iw)} W` : sel.off ? `zásuvka .${sel.ip} nedostupná` : "nenapájí";
+  const st = sel.miss ? `Flip zásuvku (${sel.ip}) nenašel` : (sel.w||0) > 2 ? `napájí ${nf(sel.w)} W` : iw > 20 ? `⚡ nabíjí ${nf(iw)} W` : sel.off ? `zásuvka .${sel.ip} nedostupná` : "nenapájí";
   const other = h.invF ? (h.inv.tp||[]).filter(p=>!R.some(r=>r.ip===p.ip) && /river|ecoflow|eco/i.test(p.n||"")) : [];
   return {...t, top:tabs, cls: act(sel) ? "ok" : "na",
     v: soc!=null ? `${nf(soc)}<small>%${e?"":" (staré)"}</small>` : (sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–"), st,

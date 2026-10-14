@@ -68,11 +68,24 @@ public final class Collector {
             int ok = 0, total = 0, off = 0;
             if (!email.isEmpty()) applyCommands(email, pass);
             if (!email.isEmpty()) {
-                for (String ip : Prefs.tapoIps(ctx)) {
+                Map<String, String> map = plugMap(email, pass);            // číslo zásuvky → IP (hledá se v síti)
+                java.util.LinkedHashSet<String> ipsAll = new java.util.LinkedHashSet<>(map.values());
+                ipsAll.addAll(Prefs.tapoIps(ctx));                          // ručně zadané adresy dál fungují
+                boolean missing = false;
+                for (String ip : ipsAll) {
                     total++;
                     JSONObject p = readPlug(ip, email, pass);
-                    if (p != null) { plugs.put(p); if (p.has("off")) off++; else if (!p.has("err")) ok++; }
+                    if (p == null) continue;
+                    String octet = ip.substring(ip.lastIndexOf('.') + 1), id = null;
+                    for (Map.Entry<String, String> en : map.entrySet()) if (en.getValue().equals(ip)) id = en.getKey();
+                    if (id == null) id = TapoScan.idFromName(names.get(ip));
+                    if (id == null) id = octet;
+                    p.put("ip", id);                                         // hlídač zásuvky rozlišuje podle čísla
+                    if (!id.equals(octet)) p.put("a", octet);
+                    plugs.put(p);
+                    if (p.has("off")) { off++; missing |= map.containsValue(ip); } else if (!p.has("err")) ok++;
                 }
+                if (missing) Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
                 if (plugs.length() > 0) o.put("tp", plugs);
                 sum.append(", zásuvky ").append(ok).append('/').append(total);
                 if (off > 0) sum.append(" (").append(off).append(" vypnuté)");
@@ -161,6 +174,35 @@ public final class Collector {
         return p;
     }
 
+    /** Číslo zásuvky → IP. Síť se prohledá při prvním spuštění, každých 6 h a když mapovaná zásuvka nejde (nejvýš 1× za 30 min). */
+    private Map<String, String> plugMap(String email, String pass) {
+        Map<String, String> m = new HashMap<>();
+        android.content.SharedPreferences sp = Prefs.get(ctx);
+        try {
+            JSONObject j = new JSONObject(sp.getString("tapo_map", "{}"));
+            for (java.util.Iterator<String> it = j.keys(); it.hasNext(); ) { String k = it.next(); m.put(k, j.getJSONObject(k).optString("ip")); }
+        } catch (Exception ignored) { }
+        long age = System.currentTimeMillis() - sp.getLong("tapo_scan_t", 0);
+        boolean want = m.isEmpty() ? age > 5 * 60_000L : age > 6 * 3600_000L || (sp.getBoolean("tapo_rescan", false) && age > 30 * 60_000L);
+        if (!want) return m;
+        Map<String, JSONObject> found = TapoScan.scan(ctx, email, pass);
+        sp.edit().putLong("tapo_scan_t", System.currentTimeMillis()).putBoolean("tapo_rescan", false).apply();
+        if (found.isEmpty()) return m;
+        JSONObject j = new JSONObject();
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, JSONObject> en : found.entrySet()) {
+            try { j.put(en.getKey(), en.getValue()); } catch (Exception ignored) { }
+            String ip = en.getValue().optString("ip");
+            if (!ip.equals(m.get(en.getKey()))) sb.append(sb.length() > 0 ? ", " : "").append("(").append(en.getKey()).append(") → ").append(ip);
+            names.remove(ip);                                    // ať se jméno načte znovu
+        }
+        sp.edit().putString("tapo_map", j.toString()).apply();
+        Prefs.log(ctx, "Hledání zásuvek: nalezeno " + found.size() + (sb.length() > 0 ? " · změny: " + sb : " · beze změn"));
+        m.clear();
+        for (Map.Entry<String, JSONObject> en : found.entrySet()) m.put(en.getKey(), en.getValue().optString("ip"));
+        return m;
+    }
+
     /** Povely od hlídače (ntfy téma <topic>-cmd): {"ip":"157","on":true,"id":…,"why":"…"} → přepnout zásuvku. */
     private void applyCommands(String email, String pass) {
         String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
@@ -189,7 +231,9 @@ public final class Collector {
             long done = Prefs.get(ctx).getLong("cmd_done", 0);
             if (id <= done) return;
             String ip = last.optString("ip", "");
-            if (ip.matches("\\d+")) ip = "192.168.0." + ip;
+            String mapped = plugMap(email, pass).get(ip);                // číslo zásuvky → aktuální IP
+            if (mapped != null && !mapped.isEmpty()) ip = mapped;
+            else if (ip.matches("\\d+")) ip = "192.168.0." + ip;
             boolean on = last.optBoolean("on", false);
             TapoKlap t = tapo.get(ip);
             if (t == null) { t = new TapoKlap(ip, email, pass); tapo.put(ip, t); }
