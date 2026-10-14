@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.26 – 14. 10. 2026
+- **River jako zdroj chaty:** hlídač pozná, která River teď chatu napájí (výstup EcoFlow > příjem), a spočítá, na jak dlouho vydrží při průměrném odběru za poslední 3 h (kapacita 768 Wh, rezerva 5 %, ztráty měniče River ~10 % – vše v Nastavení).
+  - Web: nahoře široká dlaždice **„River 2 Pro – napájí chatu“** (%, výdrž v hodinách, „Do zítřejšího rána vydrží – zítra ráno ~35 %“ / „Vybije se dnes ~23:40 – do zítřejšího rána nevydrží“); dlaždice noci počítá s River; baterie se jmenuje „Solární baterie teď“
+  - Notifikace večer: „🔋 River do zítřejšího rána nevydrží“ (jednou za noc)
+  - Hodinky (dlaždice): „🔋 River 62 % · ~10 h / do zítra 3:40“ místo předpovědi solární baterie – bez nové verze aplikace v hodinkách; komplikace dál ukazuje napětí
+
 ## 3.25 – 14. 10. 2026
 - Dlaždice Baterie teď při odběru navíc už neradí „vypni River“ naslepo: ukáže rozpad (za měničem X W: lednice, světla/kamery/wifi, River) a „Co dalšího je zapnuté? Odpoj to“. Když se opravdu nabíjí River, napíše to zvlášť (automatika ho při vybíjení vypne sama). Nabíjení River se do „navíc“ nepočítá.
 

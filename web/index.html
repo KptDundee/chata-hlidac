@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.25", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.26", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1005,7 +1005,7 @@ function homeData(d){
   return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW, riverW, brk};
 }
 function tileBat(d, h){
-  const t = {k:"bat", wide:true, icon:"🔋", label:"Baterie teď"};
+  const t = {k:"bat", wide:true, icon:"🔋", label: d.river_sup ? "Solární baterie teď" : "Baterie teď"};
   if(h.bv==null){ return {...t, cls:"na", v:"–", st:"Bez dat z regulátoru", a:"Zkontroluj Systém"}; }
   const arrow = h.net==null ? "" : h.net >= 0.3 ? `<span class="ar" style="color:var(--good)">↑ +${nf(h.net,1)} A</span>`
     : h.net <= -0.3 ? `<span class="ar" style="color:var(${h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.day ? "--crit" : "--text2"})">↓ −${nf(-h.net,1)} A</span>` : `<span class="ar" style="color:var(--text2)">≈ 0 A</span>`;
@@ -1083,6 +1083,10 @@ function tileNight(d, h){
     return {...t, cls:"ok", v:`${nf(f.v_until,2)}${unit}`, st:cap1(`${doRana(morT)} vydrží`), a: f.corr ? `S opravou ${f.corr>0?"+":"−"}${nf(Math.abs(f.corr),2)} V z minulých nocí` : "Nic nedělej"};
   }
   const ol = d.wxo && d.wxo.ol;
+  if(d.river_sup){ const M = riverMorning(d), rs = d.river_sup;     // chatu napájí River → noc = vydrží River?
+    return {...t, cls: M.ok ? "ok" : "bad", v: M.ok ? `${nf(Math.max(0,M.socM))}<small>% River ${rano(M.mor)}</small>` : `${hmT(rs.until)}<small>River vybitá ${relDay(rs.until)}</small>`,
+      st: M.ok ? cap1(`River ${doRana(M.mor)} vydrží`) : `River se vybije ${relDay(rs.until)} ~${hmT(rs.until)}`,
+      a: M.ok ? `Při ~${nf(rs.w)} W · solární baterie se zatím jen nabíjí` : "Dnes večer omez odběr / připrav druhou River"}; }
   if(ol && ol.mode === "zima") return {...t, cls:"ok", v:"River", st:"Zimní provoz", a:"Chata každou noc jede z River"};
   const dayBefore = dkey(morT - 86400), r = ol && (ol.days||[]).find(x=>x.d===dayBefore);   // days[i].mv = ráno PO dni i
   if(r && r.mv!=null){
@@ -1107,9 +1111,26 @@ function tileTomorrow(d, h){
   if(need && p.kwh >= need*0.6) return {...t, cls:"ok", v, st:`${txt} – skoro stačí`, a:"Nic zvláštního"};
   return {...t, cls:"warn", v, st:`${txt} – nedobije`, a:"Šetři, případně přepni na River"};
 }
+/* River jako zdroj chaty: stav ráno (příští ráno = dnes/zítra po východu + 1 h) */
+function riverMorning(d){
+  const rs = d.river_sup; if(!rs) return null;
+  const P = dayPhase(d), now = Date.now()/1000;
+  const mor = (P.ph==="predawn" ? P.rise : (P.rise ? P.rise + 86400 : now + 12*3600)) + 3600;
+  const socM = rs.soc - (mor - now)/3600 * rs.w / ((rs.cap||768)*0.9) * 100;
+  return {mor, socM, ok: rs.until >= mor};
+}
 function tileRiver(d, h){
   const t = {k:"river", icon:"🔌", label:"River"};
   const ra = d.river_auto, rv = d.rivers || [];
+  const rs = d.river_sup;
+  if(rs && h.now - (d.rivers_t||0) < 3600){
+    const lim = h.cfg.river_vymenit_pod ?? 15, M = riverMorning(d);
+    const dur = rs.h >= 1.5 ? `~${nf(rs.h,0)} h` : `~${nf(rs.h*60,0)} min`;
+    const cls = rs.soc <= lim ? "bad" : M && !M.ok ? "warn" : "ok";
+    return {...t, label:`${rs.name||"River"} – napájí chatu`, wide:true, cls, v:`${nf(rs.soc)}<small>%</small> <span class="ar" style="color:var(--text2)">${dur}</span>`,
+      st: M ? (M.ok ? `${cap1(doRana(M.mor))} vydrží – ${rano(M.mor)} ~${nf(Math.max(0,M.socM))} %` : `Vybije se ${relDay(rs.until)} ~${hmT(rs.until)} – ${doRana(M.mor)} nevydrží`) : `Vybije se ${relDay(rs.until)} ~${hmT(rs.until)}`,
+      a: rs.soc <= lim ? "Přepoj chatu na druhou River a tuhle nabij" : M && !M.ok ? "Dnes večer omez odběr nebo připrav druhou River" : `Chata bere průměrně ${nf(rs.w)} W (za poslední 3 h) · rezerva ${rs.res ?? 5} %`};
+  }
   const low = rv.find(r=>r.soc!=null && r.soc <= (h.cfg.river_vymenit_pod ?? 15));
   const zima = d.wxo && d.wxo.ol && d.wxo.ol.mode === "zima";
   if(low && zima) return {...t, cls:"warn", v:`${nf(low.soc)}<small>%</small>`, st:`${low.name||"River"} je skoro vybitá`, a:"Vyměň / nabij River"};
@@ -1216,11 +1237,12 @@ function tileHtml(x){
 function renderHome(d){
   const h = homeData(d);
   const bat = tileBat(d, h);
-  const now = [tileNight(d,h), tileTomorrow(d,h), tileRiver(d,h), tileToday(d,h)];
+  const rvT = tileRiver(d,h);
+  const now = d.river_sup ? [rvT, tileNight(d,h), tileTomorrow(d,h), tileToday(d,h)] : [tileNight(d,h), tileTomorrow(d,h), rvT, tileToday(d,h)];
   const lng = [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)];
   $("h_past").innerHTML = [tilePastNight(d,h), tileYesterday(d,h)].map(tileHtml).join("");
   const sortS = a => a.map((x,i)=>[x,i]).sort((p,q)=>(SEV[p[0].cls]-SEV[q[0].cls])||(p[1]-q[1])).map(p=>p[0]);
-  $("h_now").innerHTML = [bat, ...sortS(now)].map(tileHtml).join("");
+  $("h_now").innerHTML = (d.river_sup ? [rvT, bat, ...sortS(now.slice(1))] : [bat, ...sortS(now)]).map(tileHtml).join("");
   $("h_long").innerHTML = sortS(lng).map(tileHtml).join("");
   const issues = [bat, ...now].filter(x=>!x.info && (x.cls==="bad"||x.cls==="warn")).sort((p,q)=>SEV[p.cls]-SEV[q.cls]);
   const longIss = lng.filter(x=>x.cls==="bad"||x.cls==="warn");
@@ -1725,6 +1747,8 @@ const SETTINGS = [
   ["EcoFlow River", [
     ["river_vymenit","River skoro vybitá","Upozornit, ať ji vyměníš","","", "sw"],
     ["river_vymenit_pod","Vyměnit pod","","%",5,"num"],
+    ["river_Wh","Kapacita jedné River","River 2 Pro = 768 Wh – z toho výdrž","Wh",10,"num"],
+    ["river_rezerva_pct","Rezerva River","Výdrž se počítá do této hranice","%",1,"num"],
     ["river_nabita","River nabitá při nabíjení","Můžeš vypnout generátor","","", "sw"],
   ]],
   ["Automatické nabíjení River", [

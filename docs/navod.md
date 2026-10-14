@@ -23,6 +23,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
 - **Verdikt nahoře**: zeleně *Všechno v pořádku*, oranžově/červeně *1 věc k řešení* a co udělat. Pod ním drobně, co je potřeba řešit **dlouhodobě**. Ťuknutím se otevře detail té věci.
 - **Teď** – věci, na které se reaguje hned (problémové jsou vždy první):
   - 🔋 **Baterie teď**: napětí a skutečný proud do/z baterie (i s odběrem měniče). Vybíjí se kvůli odběru navíc → *vypni nabíjení zařízení*. Detail: velká karta baterie, bilance, grafy.
+  - 🔌 **River – napájí chatu** (jen když chatu napájí River): kolik má %, na jak dlouho vydrží při průměrném odběru za 3 h, jestli vydrží do zítřejšího rána a s kolika %. Kapacita, rezerva v Nastavení.
   - 🌙 **Noc z dneška na zítřek** (po půlnoci do východu **Noc ze včerejška na dnešek (běží)**): napětí „V zítra ráno“ (resp. „V dnes ráno“). Přes den odhad podle počasí a spotřeby, po dnešním západu přesná předpověď. Obojí s opravou z minulých nocí.
   - **Pravidlo pro čas:** slova ráno / noc / večer / den jsou v aplikaci, notifikacích i na hodinkách vždy s *dnes / zítra / včera* (dnešní / zítřejší / včerejší) – nikdy samotná.
   - ⚡ **Dnes**: ráno předpověď výroby, přes den vyrobeno zatím / předpověď, po západu výsledek dne a bilance. Spotřeba je vždy od půlnoci.

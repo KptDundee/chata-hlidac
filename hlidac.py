@@ -34,7 +34,7 @@ DEFAULTS = {
     "river_auto": True, "river_auto_ip": "157", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15,
-    "river_vymenit": True, "river_vymenit_pod": 15, "river_nabita": True,
+    "river_vymenit": True, "river_vymenit_pod": 15, "river_Wh": 768, "river_rezerva_pct": 5, "river_nabita": True,
     "zasuvka_lednice": "185", "ostatni_hlidat": True,
     "pocasi": True, "rezim": "auto", "zima_pripojit_od_V": 12.7, "zima_pripojit_do_V": 12.4,
     "sezona_upozornit": True,
@@ -1020,6 +1020,7 @@ def main():
                          ("Ostatní odběr", lambda: other_load_check(data, st, cfg, now, topic)),
                          ("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_)),
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
+                         ("River napájí chatu", lambda: river_supply(data, st, now, topic, cfg, rise, set_)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
             try:
@@ -1301,12 +1302,19 @@ def watch_publish(data, v, st, now, topic, cfg):
         t = next((p for p in preds if p["d"] == (now.date() + timedelta(days=1)).isoformat()), None)
         if t:
             fc = f"zítra {t.get('txt') or ''} ~{fmt(t['kwh'], 1)} kWh".replace("  ", " ")
+    rs = data.get("river_sup")
+    if rs:
+        hh = f"{rs['h']:.0f} h" if rs["h"] >= 1.5 else f"{rs['h'] * 60:.0f} min"
+        fc = f"🔋 River {rs['soc']} % · ~{hh}\ndo {rel_day(rs['until'], now)} {datetime.fromtimestamp(rs['until'], TZ).strftime('%H:%M')}"
+        if rs["soc"] <= (cfg["river_vymenit_pod"] or 15):
+            lvl = max(lvl, 1)
     body = {"t": int(now.timestamp()), "v": round(bv, 2), "soc": v.get("bat_soc"),
             "pv": round(v["pv_w"]) if v.get("pv_w") is not None else None,
             "w": round(inv["mw"]) if fresh and inv.get("mw") is not None else None,
             "st": st_txt, "fc": fc, "lvl": lvl, "day": v.get("day_kwh"),
             "ra": bool((data.get("river_auto") or {}).get("on")), "vmin": cfg["odpojeni_V"] or 11.6,
-            "lat": cfg["sirka"], "lon": cfg["delka"]}           # poloha chaty – hodinky z ní počítají východ / západ slunce
+            "lat": cfg["sirka"], "lon": cfg["delka"],
+            "rv": ({"s": rs["soc"], "h": rs["h"], "w": rs["w"], "u": rs["until"], "n": rs["name"]} if rs else None)}           # poloha chaty – hodinky z ní počítají východ / západ slunce
     try:
         req = urllib.request.Request(f"https://ntfy.sh/{topic}-hodinky", data=json.dumps(body).encode(),
                                      headers={"Title": "chata", "Priority": "1"}, method="POST")
@@ -1796,6 +1804,48 @@ def read_ecoflow(data, st, now, topic, cfg):
               + ("" if r["online"] else " (offline)"))
         check_river(r, st, topic, cfg)
     return rivers
+
+
+def river_supply(data, st, now, topic, cfg, rise, set_):
+    """Která River teď napájí chatu, kolik má a na jak dlouho vydrží při průměrném odběru (poslední 3 h).
+    data["river_sup"] = {name, soc, w, h, until}; večer upozorní, když nevydrží do zítřejšího rána."""
+    rv = data.get("rivers") or []
+    if now.timestamp() - (data.get("rivers_t") or 0) > 3600:
+        data.pop("river_sup", None)
+        return
+    act = [(i, r) for i, r in enumerate(rv) if r.get("online") and r.get("soc") is not None
+           and (r.get("out_w") or 0) - (r.get("in_w") or 0) > 3]
+    if not act:
+        data.pop("river_sup", None)
+        return
+    i, r = max(act, key=lambda x: x[1].get("out_w") or 0)
+    vals = [p["rv"][i]["o"] for p in data.get("points", [])
+            if p["t"] >= now.timestamp() - 3 * 3600 and len(p.get("rv") or []) > i and p["rv"][i].get("o") is not None]
+    avg = sum(vals) / len(vals) if len(vals) >= 3 else (r.get("out_w") or 0) - (r.get("in_w") or 0)
+    if avg < 3:
+        data.pop("river_sup", None)
+        return
+    cap = cfg.get("river_Wh") or 768
+    res = cfg.get("river_rezerva_pct") or 5
+    left = max(0.0, r["soc"] - res) / 100 * cap * 0.9          # 0,9 = ztráty měniče v River
+    h = left / avg
+    until = int(now.timestamp() + h * 3600)
+    data["river_sup"] = {"name": r["name"], "soc": round(r["soc"]), "w": round(avg), "h": round(h, 1), "until": until,
+                         "cap": cap, "res": res, "sn": str(r.get("sn", ""))[-6:]}
+    # večer: vydrží do zítřejšího rána?
+    if not (rise and set_):
+        return
+    evening = now >= set_ + timedelta(hours=1)
+    if not evening and not now < rise:
+        st["rv_night_warned"] = False
+        return
+    morning = (rise + timedelta(days=1) if evening else rise) + timedelta(hours=1)
+    if until < morning.timestamp() and not st.get("rv_night_warned"):
+        ntfy(topic, f"🔋 {r['name']} {do_rana(morning.timestamp(), now)} nevydrží",
+             f"{r['name']} má {fmt(r['soc'])} %, chata bere průměrně ~{fmt(avg)} W → vybije se {rel_day(until, now)} "
+             f"~{datetime.fromtimestamp(until, TZ).strftime('%H:%M')} (rezerva {res} %).\nPřepoj chatu na druhou River nebo omez odběr.",
+             4, "battery,warning")
+        st["rv_night_warned"] = True
 
 
 def check_river(r, st, topic, cfg):

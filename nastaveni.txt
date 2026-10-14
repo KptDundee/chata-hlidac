@@ -48,6 +48,10 @@ menic_vlastni_W = 6
 # upozornit, když je River skoro vybitá (vyměnit)
 river_vymenit = zapnuto
 river_vymenit_pod = 15
+# kapacita jedné River (Wh) – River 2 Pro má 768 Wh; z ní se počítá, na jak dlouho vydrží
+river_Wh = 768
+# kolik % nechat v rezervě (výdrž se počítá do této hranice)
+river_rezerva_pct = 5
 # upozornit, když se River při nabíjení (generátor) nabije na 100 %
 river_nabita = zapnuto
 
