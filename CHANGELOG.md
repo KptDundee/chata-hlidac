@@ -4,6 +4,7 @@
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
 ## 3.35 – 14. 10. 2026
+- Zásuvky River přenastaveny na .188 (žlutá), .170 (červená), .166 (malá) – zásuvky dostaly od routeru nové adresy
 - Dlaždice River řekne, když Flip zásuvku River nečte („? R3 · Flip zásuvku .165 nečte – přidej ji na Flipu“), a upozorní na zásuvky s „River“ v názvu, které nejsou přiřazené v Nastavení
 
 ## 3.34 – 14. 10. 2026

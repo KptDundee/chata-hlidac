@@ -69,7 +69,7 @@ telefon_upozornit = 50, 30, 20, 10, 0
 # zásuvka za měničem, která MĚŘÍ (odběr ze solární baterie); prázdné = podle názvu „220V měnič“
 zasuvka_menic = 
 # zásuvky na EcoFlow River (zimní provoz)
-zasuvky_river = 172, 190, 165
+zasuvky_river = 188, 170, 166
 # zásuvka, přes kterou nabíjí generátor
 zasuvka_generator = 115
 
