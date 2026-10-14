@@ -1225,15 +1225,28 @@ def overload_check(v, st, now, topic, cfg, data, rise, set_):
     # běžný odběr teď = lednice (měřená) + obvyklé světla/kamery/wifi (noční medián) → „navíc“ je to ostatní
     fr = next((p for p in inv.get("tp", []) if p.get("ip") == str(cfg.get("zasuvka_lednice") or "").strip()), None)
     ons = sorted(d["on"] for k, d in sorted(data.get("days", {}).items())[-8:] if d.get("on") is not None)
-    normal = ((fr or {}).get("w") or 0) + (ons[len(ons) // 2] if ons else 10)
+    # 3.21: bez platného měření lednice „navíc“ nepočítat – dřív se chybějící lednice brala jako 0 W
+    # a běžící kompresor (~60 W) se hlásil jako odběr navíc
+    if not fr or fr.get("w") is None or fr.get("err") or fr.get("off"):
+        data["extra_w"] = None
+        st["ovl_n"] = 0
+        return
+    base = ons[len(ons) // 2] if ons else 10
+    normal = fr["w"] + base
     extra = inv["mw"] - normal
     data["extra_w"] = round(extra)
     lim = cfg.get("odber_z_baterie_A") or 2.0
     navic_min = cfg.get("odber_navic_W") or 40
-    if net < -lim and extra >= navic_min and not st.get("ra_on") and now.timestamp() - st.get("ovl_ts", 0) > 3600:
+    hit = net < -lim and extra >= navic_min and not st.get("ra_on")
+    # musí trvat aspoň 2 běhy po sobě (~10–20 min) – rozjezd kompresoru nebo zásuvky čtené v jinou vteřinu nespustí poplach
+    st["ovl_n"] = (st.get("ovl_n", 0) + 1) if hit else 0
+    if hit:
+        log("ev", f"Odběr navíc? měnič {fmt(inv['mw'])} W = lednice {fmt(fr['w'])} W + běžně {fmt(base)} W + navíc {fmt(extra)} W "
+                  f"(baterie {fmt(net, 1)} A, {st['ovl_n']}. běh)")
+    if hit and st["ovl_n"] >= 2 and now.timestamp() - st.get("ovl_ts", 0) > 3600:
         ntfy(topic, f"⚡ Odběr navíc ~{fmt(extra)} W – bere se z baterie",
-             f"Za měničem teď {fmt(inv['mw'])} W, běžně ~{fmt(normal)} W (lednice, světla, kamery, wifi) → navíc ~{fmt(extra)} W "
-             f"(nabíjení zařízení?). Panely dají {fmt(v.get('pv_w'))} W, baterie se vybíjí ~{fmt(-net, 1)} A ({fmt(bv, 2)} V).", 4, "zap,warning")
+             f"Za měničem teď {fmt(inv['mw'])} W = lednice {fmt(fr['w'])} W + světla/kamery/wifi běžně ~{fmt(base)} W + navíc ~{fmt(extra)} W "
+             f"(nabíjení zařízení?). Trvá to aspoň 2 kontroly po sobě. Panely dají {fmt(v.get('pv_w'))} W, baterie se vybíjí ~{fmt(-net, 1)} A ({fmt(bv, 2)} V).", 4, "zap,warning")
         st["ovl_ts"] = int(now.timestamp())
 
 

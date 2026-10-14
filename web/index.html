@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.20", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.21", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -996,7 +996,7 @@ function homeData(d){
   const fr = invF ? (inv.tp||[]).find(p=>p.ip===String(cfg.zasuvka_lednice||"")) : null;
   const onv = Object.keys(d.days||{}).sort().slice(-8).map(k=>d.days[k].on).filter(x=>x!=null).sort((x,y)=>x-y);
   const onMed = onv.length ? onv[Math.floor(onv.length/2)] : null;
-  const extraW = invF && inv.mw!=null && fr && fr.w!=null && onMed!=null ? Math.max(0, inv.mw - fr.w - onMed) : null;
+  const extraW = invF && inv.mw!=null && fr && fr.w!=null && !fr.err && !fr.off && onMed!=null ? Math.max(0, inv.mw - fr.w - onMed) : null;
   return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW};
 }
 function tileBat(d, h){

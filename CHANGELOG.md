@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.21 – 14. 10. 2026
+- **Falešný poplach „Odběr navíc“:** když zásuvka lednice zrovna neposlala hodnotu (chyba čtení), brala se lednice jako 0 W a běžící kompresor (~60 W) se hlásil jako odběr navíc. Teď se bez platného měření lednice nic nepočítá, poplach přijde až když odběr navíc trvá **2 kontroly po sobě** a notifikace i Deník ukazují celý rozpad: měnič = lednice + běžně + navíc
+
 ## 3.20 – 14. 10. 2026
 - **Jedno pravidlo pro čas:** ráno / noc / večer / den se všude píše vždy s *dnes / zítra / včera* (nebo *dnešní / zítřejší / včerejší*), žádné názvy dní v týdnu vedle toho. Platí pro dlaždice, verdikt, detaily, kartu Počasí, Nastavení, notifikace i hodinky.
   - Noci se jmenují oběma dny: **Noc z dneška na zítřek** (přes den a večer), **Noc ze včerejška na dnešek (běží)** (po půlnoci do východu), v Uplynulých **Noc ze včerejška na dnešek**
