@@ -150,3 +150,7 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 - Každá změna: zvýšit verzi (`VERSION`, `WEB_VER`), zapsat do `CHANGELOG.md` (nahoru, starší zůstávají) a aktualizovat tyto dokumenty.
 - Změna aplikace Flip: zvýšit `versionName`/`versionCode` a `FLIP_VER` ve webu.
 - Commity končí řádky `Co-Authored-By` a `Claude-Session`.
+
+
+**Deník nocí a učení (3.18)**: `night_log` – hodinu po západu `nlog[YYYY-MM-DD] = {p (s opravou), raw, corr, until, t, v0, w, cap}`; po `until` + 15 min `a` = minimum napětí v [until − 1 h, until + 15 min], `min` = minimum přes noc. `night_corr` = medián (a − raw) z posledních 10 nocí (≥ 3), omezeno ±0,4 V; `forecast` přičte opravu k `v_until` (a nastaví t_crit/t_off na `until`, když opravené napětí padne pod hranici). Jednorázový zpětný výpočet ~12 nocí z bodů (`nlog_bf`). Web: `dayPhase` (predawn / day / evening podle `data.sun`), dlaždice Dnes / Příští noc podle fáze, sekce Uplynulé (Minulá noc z bodů + nlog, Včera z `days` + `wxo.acc`).
+**Denní energie zásuvek (3.18)**: `day.tp[ip]` = součet přírůstků počítadla `wh` (pokles = reset → přírůstek = nová hodnota); poslední hodnoty v `state.tp_raw`.

@@ -3,6 +3,15 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.18 – 14. 10. 2026
+- **Oddělená minulost a budoucnost.** Dlaždice podle denní doby:
+  - **Dnes** – ráno předpověď výroby na dnešek, přes den „vyrobeno zatím z předpovědi“, po západu výsledek dne a bilance; spotřeba vždy „od půlnoci“
+  - **Příští noc** – přes den „Dnes v noci“ (odhad ráno podle počasí), po západu přesná předpověď („Dnešní noc“ / „Noc teď“)
+  - nová sekce **Uplynulé**: **Minulá noc** (večer → nejníž → ráno, odebráno, předpověď vs skutečnost) a **Včera** (výroba vs předpověď, spotřeba)
+- **Noční předpověď se učí:** hlídač si hodinu po západu zapíše očekávané ranní napětí, ráno změří skutečnost a medián rozdílu z posledních 10 nocí opravuje další předpovědi (max ±0,4 V); zpětně doplněno ~12 nocí
+- **Oprava spotřeby zásuvek za den:** počítá se z přírůstků počítadla Tapo (počítadlo se nenuluje přesně o půlnoci – dřív se do nového dne přenesla část včerejška, např. 0,95 kWh už v 8 ráno)
+- Opraveno: odhad „Dnes v noci“ bral napětí o den později
+
 ## 3.17 – 13. 10. 2026
 - Detail Baterie teď a Dnes: přepínač i **Rok** a **Vše** – nejnižší a nejvyšší napětí dne a výroba po měsících za poslední rok / celou historii (i minulé roky)
 

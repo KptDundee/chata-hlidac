@@ -631,6 +631,57 @@ def health_baseline(data):
     return first[len(first) // 2], vals
 
 
+def night_corr(data):
+    """Medián chyby (skutečnost − předpověď) za posledních 10 vyhodnocených nocí; oprava max ±0,4 V."""
+    errs = [v["a"] - v["raw"] for k, v in sorted((data.get("nlog") or {}).items()) if v.get("a") is not None and v.get("raw") is not None][-10:]
+    if len(errs) < 3:
+        return 0.0, len(errs)
+    errs.sort()
+    return round(max(-0.4, min(0.4, errs[len(errs) // 2])), 2), len(errs)
+
+
+def night_log(data, now, cfg, set_):
+    """Deník nocí: večerní předpověď (1 h po západu) a ranní skutečnost – z toho se předpověď učí."""
+    nl = data.setdefault("nlog", {})
+    if not data.get("nlog_bf"):                  # jednorázově zpětně: předpovědi za posledních ~12 nocí z uložených bodů
+        data["nlog_bf"] = 1
+        for i in range(12, 0, -1):
+            dd = now.date() - timedelta(days=i)
+            r_, s_ = sun_times(cfg["sirka"], cfg["delka"], dd)
+            if not s_:
+                continue
+            fake = s_ + timedelta(hours=1)
+            fb = forecast(data, fake, cfg)
+            if fb:
+                nl.setdefault(dd.isoformat(), {"p": fb["v_until"], "raw": fb.get("v_raw", fb["v_until"]), "corr": fb.get("corr", 0),
+                                               "until": fb["until"], "t": int(fake.timestamp()), "v0": fb.get("v_now"),
+                                               "w": fb.get("draw_w"), "cap": fb.get("cap"), "bf": 1})
+    f = data.get("forecast")
+    t = now.timestamp()
+    if f and set_ and t >= set_.timestamp() + 3600:
+        key = now.strftime("%Y-%m-%d")
+        if key not in nl:
+            nl[key] = {"p": f["v_until"], "raw": f.get("v_raw", f["v_until"]), "corr": f.get("corr", 0), "until": f["until"],
+                       "t": int(t), "v0": f.get("v_now"), "w": f.get("draw_w"), "cap": f.get("cap")}
+    pts = data.get("points", [])
+    for k, e in nl.items():
+        if e.get("a") is not None or e.get("skip") or t < e["until"] + 900:
+            continue
+        # skutečnost = ranní minimum (hodinu před koncem noci až 15 min po něm – než začne nabíjet)
+        near = [p["bat_v"] for p in pts if e["until"] - 3600 <= p["t"] <= e["until"] + 900 and p.get("bat_v")]
+        night = [p["bat_v"] for p in pts if e["t"] <= p["t"] <= e["until"] + 600 and p.get("bat_v")]
+        if near:
+            e["a"] = round(min(near), 2)
+            e["min"] = round(min(night), 2) if night else None
+            if not e.get("bf"):
+                log("ev", f"Noc {k}: předpověď {fmt(e['p'], 2)} V, ráno skutečně {fmt(e['a'], 2)} V")
+        elif t > e["until"] + 6 * 3600:
+            e["a"] = None
+            e["skip"] = True
+    for k in sorted(nl)[:-40]:
+        nl.pop(k)
+
+
 def forecast(data, now, cfg):
     """Vydrží baterie do rána? Výpočet z kapacity a očekávané noční spotřeby.
 
@@ -665,6 +716,10 @@ def forecast(data, now, cfg):
          "v_now": round(v - 0.05, 2), "v_until": round(v_from_soc(max(soc_until, 0)) - a * 0.015, 2),
          "draw_w": round(draw), "ah_night": round(a * hours), "n": len(pts), "cap": round(cap),
          "measured": len(measured) >= 6}
+    # učení: o kolik se předpověď v minulých nocích pletla (medián) → oprava ranního napětí
+    corr, ncorr = night_corr(data)
+    f["v_raw"], f["corr"], f["corr_n"] = f["v_until"], corr, ncorr
+    f["v_until"] = round(f["v_until"] + corr, 2)
     for key, lim in (("t_crit", cfg["baterie_kriticka_V"]), ("t_off", cfg["odpojeni_V"])):
         if lim is None:
             continue
@@ -673,6 +728,8 @@ def forecast(data, now, cfg):
             f[key] = int(t_now)
         elif a > 0 and ah_left / a < hours:
             f[key] = int(t_now + ah_left / a * 3600)
+        elif f["v_until"] < lim:                  # podle opravy z minulých nocí ráno pod hranicí
+            f[key] = f["until"]
     # skutečný noční trend napětí (jen pro kontrolu, z doby po západu)
     night = [p for p in data.get("points", []) if p["t"] >= max(t_now - 3 * 3600, set_.timestamp() if now >= set_ else 0)
              and p.get("bat_v") is not None and (p.get("pv_w") or 0) < 5]
@@ -771,12 +828,25 @@ def main():
                 pt["ow"] = ow
             day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
             names = data.setdefault("plug_names", {})
+            # denní energie zásuvek z PŘÍRŮSTKŮ počítadla: Tapo nuluje „dnes“ podle svých hodin (ne přesně
+            # o půlnoci našeho dne), takže maximum by do nového dne přeneslo kus včerejška
+            raw = st.setdefault("tp_raw", {})
+            first_v2 = not st.get("tp_v2")
             for p in inv.get("tp", []):
                 if p.get("ip") and p.get("n"):
                     names[p["ip"]] = p["n"]
                 if p.get("ip") and p.get("wh") is not None:
+                    ip, wh = p["ip"], float(p["wh"])
                     dt = day.setdefault("tp", {})
-                    dt[p["ip"]] = max(dt.get(p["ip"], 0), p["wh"])
+                    if first_v2:                          # přechod na nový výpočet: dnešek nejvýš to, co ukazuje počítadlo
+                        dt[ip] = round(min(dt.get(ip, wh), wh), 1)
+                    else:
+                        prev = raw.get(ip)
+                        inc = 0.0 if prev is None else (wh - prev if wh >= prev else wh)   # pokles = počítadlo se vynulovalo
+                        if 0 <= inc < 3000:
+                            dt[ip] = round(dt.get(ip, 0) + inc, 1)
+                    raw[ip] = wh
+            st["tp_v2"] = True
         if rivers:
             data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w")} for r in rivers]
     try:
@@ -806,6 +876,10 @@ def main():
         log("err", f"Výpočet zdraví baterie: {str(e)[:100]}")
     data["forecast"] = forecast(data, now, cfg)
     st["_forecast"] = data["forecast"]
+    try:
+        night_log(data, now, cfg, set_)
+    except Exception as e:
+        print("Deník nocí:", e)
     st["_rivers"] = [{"name": r["name"], "soc": r.get("soc")} for r in (rivers or [])]
     note_run(data, now, sg=True, inv=inv)
     mode = "leto"
