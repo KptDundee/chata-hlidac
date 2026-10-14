@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.22", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.23", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1328,7 +1328,8 @@ function detNight(body){
     ${fcVis ? "" : `<div class="sub" style="margin-top:8px">${/^\d/.test(nt.v) ? `Teď je to odhad podle počasí a běžné spotřeby (${rano(morT)} ~${nt.v.replace(/<[^>]+>/g," ").replace(/\s+V.*$/,"")} V). ` : ""}Přesná předpověď se spočítá dnes po západu slunce${d.sun?` (~${hmT(d.sun[1])})`:""} z měřeného odběru a kapacity baterie.</div>`}
     </div></div>`
   + chartCard("dn_v", "Napětí baterie za posledních 48 h", "V · čárkovaně hranice upozornění")
-  + chartCard("dn_min", "Nejnižší napětí každého dne", "V · posledních 30 dní (obvykle to ráno před nabíjením)"));
+  + chartCard("dn_min", "Nejnižší napětí každého dne", "V · posledních 30 dní (obvykle to ráno před nabíjením)")
+  + nightAnalysisHtml(d));
   const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
   lineChart($("dn_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:48,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
   const days = Object.keys(d.days||{}).sort().slice(-30).map(k=>({k,...d.days[k]}));
@@ -1365,6 +1366,89 @@ function detToday(body){
   else barChart($("dt_prod"), Object.keys(D).sort().slice(-Math.round(hrs/24)-1).map(k=>({k, v:D[k].solar_kwh})), "v", css("--s2"), {unit:"kWh",dec:2});
   lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
 }
+/* ---------- rozbor nocí: proč je ranní minimum nižší (posledních 5 nocí vs předtím) ---------- */
+function nightRows(d){
+  const P = d.points || [], idle = d.cfg?.menic_vlastni_W ?? 6, fip = String(d.cfg?.zasuvka_lednice ?? "185"), D = d.days || {};
+  const byDay = {}; P.forEach(p => (byDay[dkey(p.t)] = byDay[dkey(p.t)] || []).push(p));
+  const keys = Object.keys(byDay).sort(), rows = [];
+  const loadA = p => p.mw!=null && p.bat_v ? (p.mw/0.88 + idle)/p.bat_v : null;
+  for(let i=0;i<keys.length-1;i++){
+    const k = keys[i], k2 = keys[i+1], a = byDay[k], b = byDay[k2];
+    const sunPts = a.filter(p=>(p.pv_w||0)>=3), risePts = b.filter(p=>(p.pv_w||0)>=3);
+    if(!sunPts.length || !risePts.length) continue;
+    const set = sunPts[sunPts.length-1].t, rise = risePts[0].t;
+    if(rise - set < 6*3600) continue;
+    const night = P.filter(p=>p.t>set && p.t<=rise && p.bat_v);
+    if(night.length < 5 || night[0].t - set > 3*3600) continue;
+    let ah=0, cov=0, fr=0, frc=0, ow=0, owc=0, dah=0, dcov=0;
+    for(let j=1;j<night.length;j++){ const x=night[j-1], dt=Math.min(night[j].t-x.t, 3*3600)/3600, la=loadA(x);
+      if(la!=null){ ah+=la*dt; cov+=dt; } if(x.tp && x.tp[fip]!=null){ fr+=x.tp[fip]*dt; frc+=dt; } if(x.ow!=null){ ow+=x.ow; owc++; } }
+    const hrs = (rise-set)/3600;
+    const dayP = a.filter(p=>p.t<=set);
+    for(let j=1;j<dayP.length;j++){ const x=dayP[j-1], dt=Math.min(dayP[j].t-x.t, 3600)/3600, la=loadA(x);
+      if(x.bat_a!=null && la!=null && (x.pv_w||0)>=3){ dah += (x.bat_a - la)*dt; dcov += dt; } }
+    const near = (t) => night.reduce((m,p)=>Math.abs(p.t-t)<Math.abs(m.t-t)?p:m, night[0]);
+    const v0 = near(set+3600).bat_v;
+    const minPts = P.filter(p=>p.t>set && p.t<=rise+5400 && p.bat_v);
+    const vmin = Math.min(...minPts.map(p=>p.bat_v));
+    const temps = night.map(p=>p.bat_t).filter(x=>x!=null);
+    const ahN = cov > hrs*0.6 ? ah*hrs/cov : null;
+    rows.push({k, set, rise, hrs, v0, vmin, ah:ahN, w: cov ? ah/cov*12.3 : null,
+      fr: frc > hrs*0.5 ? fr/frc*hrs : null, ow: owc ? ow/owc : null, tmin: temps.length ? Math.min(...temps) : null,
+      prod: D[k]?.solar_kwh, fl: D[k]?.fl || 0, ra: D[k]?.ra_min || 0, dah: dcov > 2 ? dah : null,
+      slope: ahN && ahN > 5 ? (v0 - vmin)*1000/ahN*10 : null});
+  }
+  return rows;
+}
+function nightAnalysisHtml(d){
+  const R = nightRows(d);
+  if(R.length < 4) return `<div class="card"><b>🔎 Proč je ranní minimum takové</b><div class="sub">Zatím málo nocí s podrobnými měřeními (${R.length}).</div></div>`;
+  const nA = Math.min(5, R.length - 2), A = R.slice(-nA), B = R.slice(0, -nA);
+  const avg = (X, f) => { const v = X.map(f).filter(x=>x!=null && !isNaN(x)); return v.length ? v.reduce((s,x)=>s+x,0)/v.length : null; };
+  const m = f => [avg(B,f), avg(A,f)];
+  const [vB, vA] = m(r=>r.vmin), [v0B, v0A] = m(r=>r.v0), [ahB, ahA] = m(r=>r.ah), [wB, wA] = m(r=>r.w), [frB, frA] = m(r=>r.fr), [owB, owA] = m(r=>r.ow);
+  const [hB, hA] = m(r=>r.hrs), [tB, tA] = m(r=>r.tmin), [pB, pA] = m(r=>r.prod), [dB, dA] = m(r=>r.dah), [sB, sA] = m(r=>r.slope), [raB, raA] = m(r=>r.ra);
+  const flB = B.filter(r=>r.fl).length, flA = A.filter(r=>r.fl).length;
+  const why = [];
+  const pc = (a,b) => a && b!=null ? Math.round((b/a-1)*100) : null;
+  if(v0B!=null && v0A!=null && v0A < v0B - 0.05){
+    let s = `<b>Večer je baterie méně nabitá:</b> 1 h po západu ${nf(v0B,2)} → ${nf(v0A,2)} V.`;
+    if(dB!=null && dA!=null) s += ` Přes den do ní čistě přiteklo ${nf(dB,0)} → ${nf(dA,0)} Ah`;
+    if(pB!=null && pA!=null) s += `, panely vyrobily ${nf(pB,2)} → ${nf(pA,2)} kWh/den`;
+    s += `, do Float (plná) se dostala ${flB}/${B.length} → ${flA}/${A.length} dní.`;
+    if(raA > raB + 15) s += ` River se přes den nabíjel déle (${nf(raB,0)} → ${nf(raA,0)} min/den).`;
+    why.push([v0B - v0A, s]);
+  }
+  if(ahB && ahA && ahA > ahB*1.12){
+    let s = `<b>Přes noc se odebírá víc:</b> ${nf(ahB,0)} → ${nf(ahA,0)} Ah (+${pc(ahB,ahA)} %)`;
+    if(wB!=null && wA!=null) s += `, průměrně ${nf(wB,0)} → ${nf(wA,0)} W z baterie`;
+    s += ".";
+    const parts = [];
+    if(frB!=null && frA!=null) parts.push(`lednice ${nf(frB,0)} → ${nf(frA,0)} Wh za noc`);
+    if(owB!=null && owA!=null) parts.push(`světla/kamery/wifi ${nf(owB,0)} → ${nf(owA,0)} W`);
+    if(hB!=null && hA!=null && hA > hB + 0.2) parts.push(`noc delší ${nf(hB,1)} → ${nf(hA,1)} h`);
+    if(parts.length) s += ` Z toho: ${parts.join(", ")}.`;
+    why.push([(ahA-ahB)*(sA||sB||20)/10/1000, s]);
+  } else if(hB!=null && hA!=null && hA > hB + 0.3){
+    why.push([0.02, `<b>Noci jsou delší:</b> ${nf(hB,1)} → ${nf(hA,1)} h – baterie táhne chatu déle.`]);
+  }
+  if(sB && sA && sA > sB*1.2) why.push([(sA-sB)*(ahA||ahB)/10/1000, `<b>Baterie na stejný odběr klesá víc:</b> ${nf(sB,0)} → ${nf(sA,0)} mV na 10 Ah – chlad nebo méně nabitá baterie (u vybitější AGM napětí padá rychleji), případně stárnutí.`]);
+  if(tB!=null && tA!=null && tA < tB - 2) why.push([0.01, `<b>Baterie je chladnější:</b> v noci nejníž ${nf(tB,0)} → ${nf(tA,0)} °C (AGM má v chladu nižší napětí i kapacitu).`]);
+  why.sort((x,y)=>y[0]-x[0]);
+  const fmtK = k => { const n = relN(nextKey(k)); if(n===0) return "včera → dnes"; if(n===-1) return "předevčírem → včera";
+    const a = new Date(k+"T12:00"), z = new Date(nextKey(k)+"T12:00"); return `${a.getDate()}. → ${z.getDate()}. ${z.getMonth()+1}.`; };
+  const c = v => v==null ? "" : `color:var(${v < CRIT_V ? "--crit" : v < WARN_V ? "--warn" : "--text"})`;
+  const td = (x, st="") => `<td style="padding:3px 4px;text-align:right;white-space:nowrap;${st}">${x}</td>`;
+  const rows = R.slice().reverse().map((r,i)=>`<tr style="${i<nA?"background:color-mix(in srgb,var(--warn) 8%,transparent)":""}">
+    <td style="padding:3px 4px;white-space:nowrap">${fmtK(r.k)}</td>${td(r.prod!=null?nf(r.prod,2):"–")}${td(r.fl?hmT(r.fl):"ne")}${td(nf(r.v0,2))}${td(r.ah!=null?nf(r.ah,0):"–")}${td(r.fr!=null?nf(r.fr,0):"–")}${td(r.tmin!=null?nf(r.tmin,0):"–")}${td(`<b>${nf(r.vmin,2)}</b>`, c(r.vmin))}</tr>`).join("");
+  return `<div class="card"><b>🔎 Proč je ranní minimum takové</b>
+    <div style="margin:6px 0 8px">Nejnižší napětí (ráno): <b>${nf(vB,2)} → ${nf(vA,2)} V</b> <span class="sub">(průměr ${B.length} starších nocí → posledních ${A.length})</span></div>
+    ${why.length ? why.map(w=>`<div style="margin:4px 0">• ${w[1]}</div>`).join("") : `<div class="sub">Žádná výrazná změna v nabití přes den, odběru, délce noci ani teplotě.</div>`}
+    <div style="overflow-x:auto;margin-top:10px"><table style="border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%">
+      <tr style="color:var(--muted);text-align:right"><th style="text-align:left;padding:3px 4px">noc</th><th>výroba kWh<br>ten den</th><th>Float<br>od</th><th>V 1 h po<br>západu</th><th>Ah<br>přes noc</th><th>lednice<br>Wh</th><th>°C<br>min</th><th>V min<br>ráno</th></tr>${rows}</table></div>
+    <div class="sub" style="font-size:12px;margin-top:6px">Zvýrazněné = posledních ${A.length} nocí. Ah přes noc = odběr měniče se ztrátami (zásuvka za měničem ÷ 0,88 + ${nf(d.cfg?.menic_vlastni_W ?? 6)} W). Podrobná měření se drží 14 dní.</div></div>`;
+}
+const nextKey = k => { const e = new Date(k+"T12:00"); e.setDate(e.getDate()+1); return e.toLocaleDateString("sv-SE"); };
 function detPastNight(body){
   const d = DATA, n = pastNight(d), C = nightCorr(d), f = d.forecast;
   if(!n || n.none){ body.insertAdjacentHTML("beforeend", `<div class="card sub">${n ? nightName(n.end) : "Minulá noc"}: málo uložených měření.</div>`); return; }
@@ -1384,6 +1468,7 @@ function detPastNight(body){
     ${diff!=null ? rowI("Rozdíl skutečnost − předpověď", `<b style="color:var(${Math.abs(diff)<=0.1?"--good":"--warn"})">${diff>0?"+":"−"}${nf(Math.abs(diff),2)} V</b>`) : ""}
     ${rowI("Oprava pro příští noci", C.n>=3 ? `<b>${C.c>0?"+":C.c<0?"−":"±"}${nf(Math.abs(C.c),2)} V</b> <span class="sub">(medián z ${C.n} nocí)</span>` : `zatím ne <span class="sub">(${C.n} z 3 nocí)</span>`)}
   </div>`
+  + nightAnalysisHtml(d)
   + chartCard("dp_v", `Napětí ${ev.toLowerCase()} → ${rano(n.end)}`, "V · čárkovaně hranice upozornění")
   + `<div class="card"><b>Předpověď vs skutečnost – posledních ${nl.length} nocí</b>
       <div class="sub" style="font-size:12px">noc (večer → ráno) · předpověď napětí na to ráno → skutečnost</div>

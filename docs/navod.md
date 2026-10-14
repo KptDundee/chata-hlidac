@@ -29,6 +29,7 @@ Data jsou zašifrovaná heslem. Bez něj je nikdo nepřečte.
   - ☀️ **Zítra**: výroba podle počasí a jestli dobije. Detail: předpověď na 7 dní.
   - 🔌 **River**: automatika nabíjení přebytkem. Detail: River a zásuvky Tapo.
 - **Uplynulé** (jen informace, nepočítá se do „věcí k řešení“):
+  - 🔎 **Proč je ranní minimum takové** (v detailu obou nocí): posledních 5 nocí proti starším – nabití přes den, odběr přes noc, lednice, délka noci, teplota; tabulka po nocích.
   - 🌘 **Noc ze včerejška na dnešek** (minulá noc): včera večer → nejníž → dnes ráno, kolik se odebralo, předpověď vs skutečnost a oprava pro další noci (detail: graf noci, posledních 10 nocí, jak se předpověď učí).
   - 📅 **Včera**: vyrobeno vs předpověď, spotřeba, bilance, oprava předpovědi výroby (detail: posledních 14 dní).
 - **Dlouhodobě** – menší dlaždice dole: 🔧 kabely a spoje (otevře návod na měření), ❤️ zdraví baterie, 🔆 panely, 📡 systém (co posílá data + deník).

@@ -158,3 +158,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **Denní energie zásuvek (3.18)**: `day.tp[ip]` = součet přírůstků počítadla `wh` (pokles = reset → přírůstek = nová hodnota); poslední hodnoty v `state.tp_raw`.
 
 **Odběr navíc (3.21)**: `overload_check` počítá `extra = mw − lednice_w − medián on` ; od 3.22 se neměřená lednice (`err`/`off`/chybí) počítá jako `lednice_max_W` (80 W), notifikace hned při první kontrole (nejvýš 1× za hodinu), každý zásah do Deníku s rozpadem.
+
+**Rozbor nocí (3.23)**: web `nightRows` z `points` (14 dní): západ/východ = poslední/první bod s pv_w ≥ 3, `v0` 1 h po západu, `vmin` do východu + 1,5 h, `ah` = Σ (mw/0,88 + idle)/V·dt, `fr` = Wh lednice, `dah` = čistý přítok přes den (bat_a − odběr), `slope` = mV na 10 Ah, `tmin` z bat_t. `nightAnalysisHtml` porovná posledních 5 nocí se staršími.

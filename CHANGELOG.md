@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.23 – 14. 10. 2026
+- **🔎 Proč je ranní minimum takové** (detail noci z dneška na zítřek i noci ze včerejška na dnešek): porovná posledních 5 nocí se staršími (14 dní podrobných měření) a vypíše, co se změnilo – jak moc se baterie přes den nabila (čistý přítok Ah, výroba, Float), kolik se přes noc odebralo (Ah, W, lednice, světla/kamery/wifi, délka noci), jak rychle napětí klesá na 10 Ah a teplota baterie. Pod tím tabulka po nocích.
+
 ## 3.22 – 14. 10. 2026
 - „Odběr navíc“ zase hned při první kontrole (bez čekání na 2 běhy – radši falešný poplach než vybitá baterie, třeba při 600 W)
 - Když zásuvka lednice nepošle hodnotu, počítá se s lednicí naplno (**80 W**, Nastavení → „Lednice naplno“), ne s 0 W. Notifikace pak píše „lednice neměřená – počítám ~80 W“
