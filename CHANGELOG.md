@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.29 – 14. 10. 2026
+- **Generátor EcoFlow Smart Generator** (SN „DG…“) z účtu EcoFlow se už nepočítá jako River (nepletl by výdrž River ani automatiku). Na webu v sekci River vlastní karta „⛽ … (EcoFlow)“ s online stavem a rozbalovacím seznamem všeho, co generátor posílá – podle toho se pak udělá pořádná dlaždice (výkon, palivo, olej, motohodiny).
+
 ## 3.28 – 14. 10. 2026
 - Regulátor mlčí: místo jedné „diagnózy“ seznam možných příčin (zaseknutý Wi‑Fi modul regulátoru, vypadlá Wi‑Fi / router, regulátor bez napájení, výpadek cloudu) a tip „vypni a zapni Wi‑Fi modul regulátoru“; když je router na zásuvce Tapo, řekne, jestli má proud
 

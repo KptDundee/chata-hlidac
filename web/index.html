@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.28", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.29", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -456,6 +456,15 @@ function render(){
         <div class="n">${st}${r.online?t:""}${old?" · data jsou stará":""}</div></div>`;}).join("");
     rvEl.classList.remove("hide");
   } else rvEl.classList.add("hide");
+  // generátor EcoFlow (z účtu EcoFlow) – zatím surové údaje, ať je vidět, co posílá
+  const gens = d.ef_gens || [];
+  if(gens.length){
+    rvEl.insertAdjacentHTML("beforeend", gens.map(g=>`<div class="card tile" style="grid-column:1/-1"><div class="l">⛽ ${g.name} (EcoFlow)</div>
+      <div class="v" style="font-size:20px">${g.online ? "online" : "vypnutý / offline"}</div>
+      <details style="margin-top:6px"><summary class="sub" style="font-size:12.5px">Co generátor posílá (${Object.keys(g.q||{}).length} údajů)</summary>
+      <div style="font-size:12px;font-variant-numeric:tabular-nums;column-count:2;margin-top:4px">${Object.entries(g.q||{}).map(([k,v])=>`<div>${k}: <b>${v}</b></div>`).join("") || "nic"}</div></details></div>`).join(""));
+    rvEl.classList.remove("hide");
+  }
   const gw = d.inverter, gwFresh = gw && Date.now()/1000 - gw.t < 1800;
   const pl = $("plugs"), tp = (gw && gwFresh && gw.tp) || [], ph = gw && gw.ph;
   if(tp.length || ph){

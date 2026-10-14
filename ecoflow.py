@@ -69,6 +69,15 @@ def read_rivers(ak, sk, host_hint=None):
         if os.environ.get("ECOFLOW_DEBUG") == "1":
             print("EcoFlow klíče", sn, json.dumps({k: q[k] for k in sorted(q)
                                                      if any(x in k.lower() for x in ("soc", "watt", "remain", "temp"))}))
+        if str(sn or "").upper().startswith("DG"):          # generátor EcoFlow Smart Generator (SN „DG…“)
+            r["gen"] = True
+            # klíče generátoru zatím neznáme → poslat výběr podle názvu (zobrazí se na webu, pak se zpřesní)
+            r["q"] = {k: v for k, v in sorted(q.items())
+                      if isinstance(v, (int, float, str)) and len(str(v)) < 24
+                      and any(x in k.lower() for x in ("watt", "oil", "fuel", "lpg", "gas", "engine", "run", "temp",
+                                                       "state", "mode", "err", "volt", "amp", "hour", "time", "level"))}
+            if len(r["q"]) > 40:
+                r["q"] = dict(list(r["q"].items())[:40])
         for key, names in KEYS.items():
             for n in names:
                 if q.get(n) is not None:

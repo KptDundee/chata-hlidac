@@ -1797,6 +1797,9 @@ def read_ecoflow(data, st, now, topic, cfg):
         return None
     st["eco_err"] = 0
     st["eco_host"] = host
+    gens = [r for r in rivers if r.get("gen")]
+    rivers = [r for r in rivers if not r.get("gen")]
+    data["ef_gens"] = gens
     data["rivers"] = rivers
     data["rivers_t"] = int(now.timestamp())
     for r in rivers:
