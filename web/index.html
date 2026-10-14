@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.37", FLIP_VER = "1.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.38", FLIP_VER = "1.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1626,7 +1626,7 @@ function detGen(body){
   const d = DATA, cap = d.cfg?.river_Wh ?? 768, L = (d.gen_log||[]).slice().reverse();
   const rows = (d.gen_cur ? [Object.assign({run:true}, d.gen_cur)] : []).concat(L).map(r=>{ const S = genSummary(r, cap);
     return `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px">
-      <b>${relDay(r.t0)} ${hmT(r.t0)}–${r.run?"běží":hmT(r.t1)}</b><span style="font-variant-numeric:tabular-nums">${r.wh?`${nf(r.wh/1000,2)} kWh dodal`:"–"}</span></div>
+      <b>${relDay(r.t0)} ${hmT(r.t0)}–${r.run?"běží":hmT(r.t1)}</b>${r.src==="hist"?' <span class="sub">(z historie zásuvky)</span>':r.kor?' <span class="sub">(opraveno podle zásuvky)</span>':""}<span style="font-variant-numeric:tabular-nums">${r.wh?`${nf(r.wh/1000,2)} kWh dodal`:"–"}</span></div>
       <div class="sub" style="font-size:13px">${durTxt((r.t1-r.t0)/60)}${S.txt?` · ${S.txt} (+${nf(S.got/1000,2)} kWh)`:""}${S.eff?` · účinnost ~${S.eff} %`:""}</div></div>`; }).join("");
   body.insertAdjacentHTML("beforeend", `<div class="card">${rows || '<span class="sub">Zatím žádný zaznamenaný běh generátoru.</span>'}</div>
   <div class="sub" style="margin:0 4px 12px;line-height:1.5">Dodáno = energie přes zásuvku Tapo generátoru. Nabito = změna % River × kapacita (${cap} Wh). Účinnost = nabito ÷ dodáno (ztráty nabíječky River a odběr během nabíjení).</div>`);

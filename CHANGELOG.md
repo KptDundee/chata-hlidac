@@ -3,9 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
-## 3.37 – 14. 10. 2026
-- **Flip 1.3: občasné zásuvky (generátor) hned.** Flip každých 30 s zkouší zásuvky, které jsou bez proudu; jakmile se objeví, hned pošle data (s časem, kdy se objevila). Běžící takovou zásuvku čte každou minutu; když zmizí (generátor se vypnul), hned pošle poslední stav počítadla a čas zmizení. Ztráta na konci běhu nejvýš ~1 min místo 10 min. Flip si pamatuje i zásuvky, které při hledání neměly proud.
-- Hlídač: začátek a konec běhu generátoru podle časů z Flipu (ne podle toho, kdy proběhla kontrola)
+## 3.38 – 14. 10. 2026
+- **Historie přímo ze zásuvek:** zásuvka Tapo si sama pamatuje hodinovou energii. Flip 1.3 ji z každé měřicí zásuvky pošle jednou denně a hned, když se zásuvka znovu objeví (generátor naskočil) – 7 dní zpět. Hlídač podle ní **opraví denní součty** zásuvek a **doplní / opraví běhy generátoru**, i když je Flip nezachytil (v seznamu „z historie zásuvky“ / „opraveno podle zásuvky“).
+- Rychlé 30s hlídání z verze 3.37 zrušeno (Flip není na nabíječce, Android by ho stejně uspal). Pro přesný konec stačí před vypnutím generátoru dát na Flipu „Odeslat teď“.
+- Flip si pamatuje i zásuvky, které při hledání v síti neměly proud; u zásuvky, která se znovu objeví, posílá čas objevení, a když zmizí, ještě 40 min poslední stav počítadla a čas zmizení.
 
 ## 3.36 – 14. 10. 2026
 - **Flip 1.3: zásuvky podle čísla ve jménu, ne podle IP.** Flip sám prohledá síť (při spuštění, každých 6 h a když zásuvka zmizí), najde všechny zásuvky Tapo a pozná je podle čísla v první závorce jména v aplikaci Tapo – „(3) (R) River žlutý“ = zásuvka 3. Router může přidělovat adresy, jak chce. V Nastavení hlídače se pak zásuvky zadávají tímto číslem. Bez čísla ve jménu platí konec IP adresy jako dřív. Ruční seznam adres na Flipu dál funguje (a určí i další podsíť k prohledání).

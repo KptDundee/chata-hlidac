@@ -30,7 +30,6 @@ public final class Collector {
     private final Map<String, Long> onSince = new HashMap<>();                    // IP → kdy se objevila
     private final Map<String, Long> goneAt = new HashMap<>();                     // IP → kdy zmizela
     private final Map<String, JSONObject> lastGood = new HashMap<>();             // IP → poslední úspěšné čtení
-    private long lastFastRead;
 
     public Collector(Context ctx, BleListener ble) {
         this.ctx = ctx.getApplicationContext();
@@ -78,6 +77,7 @@ public final class Collector {
                 java.util.LinkedHashSet<String> ipsAll = new java.util.LinkedHashSet<>(map.values());
                 ipsAll.addAll(Prefs.tapoIps(ctx));                          // ručně zadané adresy dál fungují
                 boolean missing = false;
+                Map<String, String> idIp = new HashMap<>();
                 for (String ip : ipsAll) {
                     total++;
                     JSONObject p = readPlug(ip, email, pass);
@@ -87,6 +87,7 @@ public final class Collector {
                     if (id == null) id = TapoScan.idFromName(names.get(ip));
                     if (id == null) id = octet;
                     p.put("ip", id);                                         // hlídač zásuvky rozlišuje podle čísla
+                    idIp.put(id, ip);
                     if (!id.equals(octet)) p.put("a", octet);
                     plugs.put(p);
                     if (p.has("off")) {
@@ -109,6 +110,8 @@ public final class Collector {
                     }
                 }
                 if (missing) Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
+                // historie ze zásuvky (hodinová energie za 7 dní): jednou denně a hned, když se zásuvka znovu objeví
+                sendPlugHistories(email, pass, plugs, idIp);
                 if (plugs.length() > 0) o.put("tp", plugs);
                 sum.append(", zásuvky ").append(ok).append('/').append(total);
                 if (off > 0) sum.append(" (").append(off).append(" vypnuté)");
@@ -198,37 +201,52 @@ public final class Collector {
     }
 
     /**
-     * Rychlá kontrola (každých 30 s ze služby): objevila se zásuvka, která byla bez proudu? Zmizela ta, co právě běží?
-     * @return true = hned poslat data (začátek / konec běhu zásuvky)
+     * Zásuvka si energii pamatuje sama (hodinově). Hlídač podle toho zpětně opraví denní součty i běhy generátoru,
+     * i když Flip zásuvku zrovna nezachytil. Posílá do <topic>-tp-hist: {"id":"3","h":{"2026-10-14":[24× Wh]}}.
      */
-    public boolean watch() {
-        String email = Prefs.s(ctx, Prefs.TAPO_EMAIL), pass = Prefs.s(ctx, Prefs.TAPO_PASSWORD);
-        if (email.isEmpty()) return false;
-        boolean send = false;
-        for (String ip : new java.util.ArrayList<>(offIps)) {
-            try (java.net.Socket so = new java.net.Socket()) {
-                so.connect(new java.net.InetSocketAddress(ip, 80), 400);
-                onSince.put(ip, System.currentTimeMillis());
-                Prefs.log(ctx, "Zásuvka " + ip + " se objevila – posílám hned");
-                send = true;
-            } catch (Exception ignored) { }
-        }
-        // běžící „občasné“ zásuvky číst každou minutu, ať se při výpadku proudu ztratí co nejméně
-        if (!onSince.isEmpty() && System.currentTimeMillis() - lastFastRead > 55_000) {
-            lastFastRead = System.currentTimeMillis();
-            for (String ip : new java.util.ArrayList<>(onSince.keySet())) {
-                if (offIps.contains(ip) || goneAt.containsKey(ip)) continue;
-                JSONObject p = readPlug(ip, email, pass);
-                if (p.has("off") || p.has("err")) {
-                    goneAt.put(ip, System.currentTimeMillis());
-                    Prefs.log(ctx, "Zásuvka " + ip + " zmizela – posílám hned");
-                    send = true;
-                } else {
-                    lastGood.put(ip, p);
+    private void sendPlugHistories(String email, String pass, JSONArray plugs, Map<String, String> idIp) {
+        String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
+        if (topic.isEmpty()) return;
+        java.text.SimpleDateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        String today = df.format(new java.util.Date());
+        for (int k = 0; k < plugs.length(); k++) {
+            JSONObject p = plugs.optJSONObject(k);
+            if (p == null || p.has("off") || p.has("err") || p.has("nm") || !p.has("wh")) continue;
+            String id = p.optString("ip"), key = "hist_" + id;
+            boolean cameBack = p.has("since");
+            if (!cameBack && today.equals(Prefs.get(ctx).getString(key, ""))) continue;
+            String ip = idIp.get(id);
+            if (ip == null) continue;
+            try {
+                TapoKlap t = tapo.get(ip);
+                if (t == null) { t = new TapoKlap(ip, email, pass); tapo.put(ip, t); }
+                JSONObject days = new JSONObject();
+                java.util.Calendar cal = java.util.Calendar.getInstance();
+                cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0);
+                cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0);
+                for (int back = 0; back < 7; back++) {
+                    java.util.Calendar d = (java.util.Calendar) cal.clone();
+                    d.add(java.util.Calendar.DAY_OF_MONTH, -back);
+                    long start = d.getTimeInMillis() / 1000;
+                    JSONObject r = new JSONObject(t.call("get_energy_data",
+                            "{\"start_timestamp\":" + start + ",\"end_timestamp\":" + (start + 86400 - 1) + ",\"interval\":60}"));
+                    JSONObject res = r.optJSONObject("result");
+                    if (r.optInt("error_code", 0) != 0 || res == null) break;
+                    JSONArray data = res.optJSONArray("data");
+                    if (data == null) continue;
+                    JSONArray h = new JSONArray();
+                    for (int i = 0; i < 24; i++) h.put(data.optInt(i, -1));
+                    days.put(df.format(d.getTime()), h);
                 }
+                if (days.length() > 0) {
+                    post("https://ntfy.sh/" + topic + "-tp-hist", new JSONObject().put("id", id).put("h", days).toString());
+                    Prefs.get(ctx).edit().putString(key, today).apply();
+                    Prefs.log(ctx, "Historie zásuvky (" + id + ") odeslána: " + days.length() + " dní");
+                }
+            } catch (Exception e) {
+                Prefs.log(ctx, "Historie zásuvky (" + id + "): " + e.getMessage());
             }
         }
-        return send;
     }
 
     /** Číslo zásuvky → IP. Síť se prohledá při prvním spuštění, každých 6 h a když mapovaná zásuvka nejde (nejvýš 1× za 30 min). */

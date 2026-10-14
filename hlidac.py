@@ -901,6 +901,10 @@ def main():
     rivers = read_ecoflow(data, st, now, topic, cfg)
     inv = read_inverter(data, topic, now, cfg)
     read_plug_history(data, topic)
+    try:
+        read_tp_history(data, topic, cfg)
+    except Exception as e:
+        print("Historie zásuvek:", e)
     check_gateway(inv, st, now, topic, cfg)
     if inv and now.timestamp() - inv["t"] < 1200:   # alarm / vypnutí hlášené samotným měničem
         al = inv.get("al") if inv.get("al") not in ("0", "NONE", "No alarm") else None
@@ -1746,6 +1750,84 @@ def read_plug_history(data, topic):
         hourly.pop(dk)
     if n:
         print(f"Historie zásuvky: {n} dní")
+
+
+def read_tp_history(data, topic, cfg):
+    """Hodinová energie, kterou si pamatují samy zásuvky (Flip ji posílá do <topic>-tp-hist).
+    Opraví denní součty zásuvek a zpětně doplní / opraví běhy generátoru, které Flip nezachytil."""
+    try:
+        lines = urllib.request.urlopen(f"https://ntfy.sh/{topic}-tp-hist/json?poll=1&since=24h", timeout=20).read().decode().splitlines()
+    except Exception as e:
+        print("Historie zásuvek (ntfy):", e)
+        return
+    th = data.setdefault("tp_hist", {})
+    changed = set()
+    for ln in lines:
+        try:
+            m = json.loads(ln)
+            if m.get("event") != "message":
+                continue
+            body = json.loads(m.get("message") or "{}")
+        except ValueError:
+            continue
+        pid = str(body.get("id") or "")
+        for dk, arr in (body.get("h") or {}).items():
+            if pid and isinstance(arr, list) and len(arr) == 24:
+                th.setdefault(pid, {})[dk] = [None if x is None or x < 0 else x for x in arr]
+                changed.add((pid, dk))
+    for pid in th:
+        for dk in sorted(th[pid])[:-14]:
+            th[pid].pop(dk)
+    today = datetime.now(TZ).strftime("%Y-%m-%d")
+    for pid, dk in changed:
+        arr = th[pid][dk]
+        tot = sum(x for x in arr if x)
+        day = data["days"].setdefault(dk, {})
+        tp = day.setdefault("tp", {})
+        cur = tp.get(pid)
+        new = max(cur or 0, tot) if dk == today else tot          # minulé dny: zásuvka má pravdu
+        if cur is None or abs(new - cur) > 5:
+            tp[pid] = round(new, 1)
+            if cur is not None and dk != today:
+                log("ev", f"Zásuvka ({pid}) {dk}: opraveno {fmt(cur / 1000, 2)} → {fmt(new / 1000, 2)} kWh podle historie zásuvky")
+    gip = str(cfg.get("zasuvka_generator") or "").strip()
+    if gip and gip in th:
+        gen_from_history(data, th[gip])
+
+
+def gen_from_history(data, hist):
+    """Běhy generátoru z hodinové historie jeho zásuvky: doplní chybějící, opraví energii u zaznamenaných."""
+    log_ = data.setdefault("gen_log", [])
+    now = datetime.now(TZ)
+    for dk in sorted(hist):
+        arr = hist[dk]
+        base = datetime.strptime(dk, "%Y-%m-%d").replace(tzinfo=TZ)
+        blocks, cur = [], None
+        for hh, wh in enumerate(arr):
+            if wh and wh > 3:
+                if cur and cur[1] == hh:
+                    cur[1], cur[2] = hh + 1, cur[2] + wh
+                else:
+                    cur = [hh, hh + 1, wh]
+                    blocks.append(cur)
+            else:
+                cur = None
+        for h0, h1, wh in blocks:
+            t0 = (base + timedelta(hours=h0)).timestamp()
+            t1 = (base + timedelta(hours=h1)).timestamp()
+            if t1 > now.timestamp() - 600:
+                continue                                         # hodina ještě běží – vyhodnotit později
+            ov = [r for r in log_ if r["t0"] < t1 + 600 and r["t1"] > t0 - 600]
+            if ov:
+                r = ov[0]
+                r["wh_h"] = round(wh, 1)
+                if not r.get("wh") or abs(r["wh"] - wh) > max(20, wh * 0.1):
+                    r["wh_old"], r["wh"], r["kor"] = r.get("wh"), round(wh, 1), True
+            else:
+                log_.append({"t0": int(t0), "t1": int(t1), "wh": round(wh, 1), "rv": {}, "src": "hist", "kor": True})
+                log("ev", f"Generátor: doplněn běh {dk} {h0}:00–{h1}:00 ({fmt(wh / 1000, 2)} kWh) z historie zásuvky")
+    log_.sort(key=lambda r: r["t0"])
+    del log_[:-60]
 
 
 def check_gateway(inv, st, now, topic, cfg):
