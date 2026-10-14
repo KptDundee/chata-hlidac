@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.18", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.19", FLIP_VER = "1.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1040,26 +1040,30 @@ function pastNight(d){
   const vEnd = mor.length ? Math.min(...mor) : night[night.length-1].bat_v;
   return {start, end, key:dkey(start), v0:first.bat_v, vmin:Math.min(...night.map(p=>p.bat_v)), vEnd, kwh: wh/1000, pts: night, e:(d.nlog||{})[dkey(start)]};
 }
+const WD_ACC = ["neděli","pondělí","úterý","středu","čtvrtek","pátek","sobotu"], WD_S = ["ne","po","út","st","čt","pá","so"];
 function tileNight(d, h){
   const P = dayPhase(d), f = d.forecast, C = nightCorr(d);
-  if(f && f.until && h.now < f.until){       // noc běží (nebo začala večer)
-    const t = {k:"night", icon:"🌙", label: P.ph==="predawn" ? "Noc teď" : "Dnešní noc"};
-    if(f.t_off) return {...t, cls:"bad", v:`${hmT(f.t_off)}`, st:"Do rána nevydrží", a:`Měnič se vypne ~${hmT(f.t_off)} – přepni na River`};
-    if(f.t_crit) return {...t, cls:"warn", v:`${nf(f.v_until,2)}<small>V ráno</small>`, st:"Vydrží těsně", a:`Pod ${nf(CRIT_V,1)} V ~${hmT(f.t_crit)} – omez odběr`};
-    return {...t, cls:"ok", v:`${nf(f.v_until,2)}<small>V ráno</small>`, st:"Do rána vydrží", a: f.corr ? `S opravou ${f.corr>0?"+":"−"}${nf(Math.abs(f.corr),2)} V z minulých nocí` : "Nic nedělej"};
+  // ráno, ke kterému se noc vztahuje: v noci po půlnoci dnešní, jinak zítřejší
+  const mor = new Date((P.ph==="predawn" ? h.now : h.now + 86400)*1000), md = mor.getDay();
+  const label = `Noc na ${WD_ACC[md]}${P.ph==="predawn" ? " (teď)" : ""}`;
+  const rano = P.ph==="predawn" ? "dnes ráno" : `zítra (${WD_S[md]}) ráno`;
+  const unit = `<small>V ${P.ph==="predawn" ? "ráno" : WD_S[md]+" ráno"}</small>`;
+  const t = {k:"night", icon:"🌙", label};
+  if(f && f.until && h.now < f.until){       // noc běží (nebo začala večer) – přesná předpověď
+    if(f.t_off) return {...t, cls:"bad", v:`${hmT(f.t_off)}`, st:`Do rána nevydrží`, a:`Měnič se vypne ~${hmT(f.t_off)} – přepni na River`};
+    if(f.t_crit) return {...t, cls:"warn", v:`${nf(f.v_until,2)}${unit}`, st:`Vydrží těsně – ${rano} pod ${nf(CRIT_V,1)} V`, a:`~${hmT(f.t_crit)} – omez odběr`};
+    return {...t, cls:"ok", v:`${nf(f.v_until,2)}${unit}`, st:"Do rána vydrží", a: f.corr ? `S opravou ${f.corr>0?"+":"−"}${nf(Math.abs(f.corr),2)} V z minulých nocí` : "Nic nedělej"};
   }
-  const t = {k:"night", icon:"🌙", label:"Dnes v noci"};
   const ol = d.wxo && d.wxo.ol;
   if(ol && ol.mode === "zima") return {...t, cls:"ok", v:"River", st:"Zimní provoz", a:"Chata v noci jede z River"};
   const today = dkey(h.now), r = ol && (ol.days||[]).find(x=>x.d===today);
   if(r && r.mv!=null){
     const mv = r.mv + C.c, cls = mv < CRIT_V ? "bad" : mv < WARN_V ? "warn" : "ok";
-    return {...t, cls, v:`${nf(mv,2)}<small>V ráno</small>`, st: cls==="ok" ? "Do rána vydrží" : cls==="warn" ? "Ráno bude baterie slabá" : "Do rána nevydrží",
+    return {...t, cls, v:`${nf(mv,2)}${unit}`, st: cls==="ok" ? "Do rána vydrží" : cls==="warn" ? `${rano.charAt(0).toUpperCase()+rano.slice(1)} bude baterie slabá` : `Do rána (${WD_S[md]}) nevydrží`,
       a: cls==="ok" ? "Odhad podle počasí – přesně po západu" : "Večer omez odběr / připrav River"};
   }
   return {...t, cls:"na", v:"–", st:"Předpověď večer", a:""};
 }
-
 function tileTomorrow(d, h){
   const t = {k:"wx", icon:"☀️", label:"Zítra"};
   const w = d.wxo; if(!w || !w.preds) return {...t, cls:"na", v:"–", st:"Bez předpovědi", a:""};
@@ -1117,7 +1121,7 @@ function tileToday(d, h){
     a: L.bal!=null ? `Po všech ztrátách baterii dnes ${L.bal>=0?"přibylo":"ubylo"} ${nf(Math.abs(L.bal),2)} kWh` : cons};
 }
 function tilePastNight(d, h){
-  const t = {k:"pastnight", icon:"🌘", label:"Minulá noc", info:true}, n = pastNight(d);
+  const n = pastNight(d), t = {k:"pastnight", icon:"🌘", label: n ? `Minulá noc (na ${WD_ACC[new Date(n.end*1000).getDay()]})` : "Minulá noc", info:true};
   if(!n || n.none) return {...t, cls:"na", v:"–", st:"Málo dat", a:""};
   const cls = n.vEnd < CRIT_V ? "bad" : n.vEnd < WARN_V ? "warn" : "ok";
   const e = n.e, diff = e && e.a!=null ? e.a - e.p : null;
@@ -1211,7 +1215,7 @@ function renderHome(d){
 /* ---------- detail dlaždice: vlastní obsah pro každou dlaždici; delší části se přesunou sem z původní stránky ---------- */
 const DET = {
   bat:   {t:"🔋 Baterie teď", s:"Stav, tok energie do/z baterie a grafy", build:detBat},
-  night: {t:"🌙 Příští noc", s:"Vydrží baterie do rána?", build:detNight},
+  night: {t:"🌙 Příští noc", s:"Vydrží baterie do rána?", build:detNight, title:()=>`🌙 ${tileNight(DATA, homeData(DATA)).label}`},
   pastnight:{t:"🌘 Minulá noc", s:"Jak noc dopadla a jak sedí předpověď", build:detPastNight},
   yday:  {t:"📅 Včera", s:"Výroba a spotřeba, předpověď vs skutečnost", build:detYesterday},
   wx:    {t:"☀️ Počasí a výroba", s:"Předpověď na 7 dní", ids:["wxcard"]},
@@ -1388,7 +1392,7 @@ function openDet(k){
   if(k === "wire"){ openWire(); return; }
   const c = DET[k]; if(!c) return;
   closeDetMove(); DET_K = k;
-  $("dett").textContent = c.t; $("dets").textContent = c.s;
+  $("dett").textContent = c.title ? c.title() : c.t; $("dets").textContent = c.s;
   const body = $("detbody"); body.innerHTML = "";
   if(c.build){ c.build(body); if(k==="today"){ moveIn(body, "prodCard"); moveIn(body, "s_tbl"); } }
   if(k === "all") body.insertAdjacentHTML("beforeend", `<div class="sub" style="margin-bottom:14px"><span class="unusedtag">NEPOUŽITO</span> = je jen tady, na dlaždicích zatím není.</div>`);

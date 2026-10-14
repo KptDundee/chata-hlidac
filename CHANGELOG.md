@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.19 – 14. 10. 2026
+- Noci se jmenují podle rána: **Noc na čtvrtek**, **Minulá noc (na středu)**; napětí „V čt ráno“, text „Zítra (čt) ráno bude baterie slabá“ – žádné „ráno“ bez určení dne
+
 ## 3.18 – 14. 10. 2026
 - **Oddělená minulost a budoucnost.** Dlaždice podle denní doby:
   - **Dnes** – ráno předpověď výroby na dnešek, přes den „vyrobeno zatím z předpovědi“, po západu výsledek dne a bilance; spotřeba vždy „od půlnoci“
