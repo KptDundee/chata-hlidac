@@ -258,6 +258,8 @@ def night_row(k, ser, data, lat, lon, idle):
 
 def import_history(token, data, st, now, cfg, budget_s=90):
     """Postupně (po měsících, odzadu) doplní denní výrobu, min/max napětí a noční napětí ze Solar Guardianu."""
+    if not st.get("hist_v7"):              # 3.47: min/max dne jen ze vzorků (bez okamžitých propadů regulátoru) → projít znovu
+        st.update({"hist_v6": False, "hist_v7": True, "minmax_over": True})
     if not st.get("hist_v6"):              # nová verze importu (+ plná, nejnižší napětí, špička proudu) → projít znovu
         st.update({"hist_v3": True, "hist_v4": True, "hist_v5": True, "hist_v6": True, "hist_done": False, "hist_back": 0, "hist_empty": 0, "hist_err": 0})
         for d in data["days"].values():
@@ -300,10 +302,11 @@ def import_history(token, data, st, now, cfg, budget_s=90):
                 day = data["days"].setdefault(dk, {})
                 if "solar_kwh" in dd:
                     day["solar_kwh"] = round(max(day.get("solar_kwh", 0), dd["solar_kwh"]), 2)
+                over = st.get("minmax_over") and dk != now.strftime("%Y-%m-%d")
                 if "min_v" in dd:
-                    day["min_v"] = round(min(day.get("min_v", 99), dd["min_v"]), 2)
+                    day["min_v"] = round(dd["min_v"] if over else min(day.get("min_v", 99), dd["min_v"]), 2)
                 if "max_v" in dd:
-                    day["max_v"] = round(max(day.get("max_v", 0), dd["max_v"]), 2)
+                    day["max_v"] = round(dd["max_v"] if over else max(day.get("max_v", 0), dd["max_v"]), 2)
             cser = [dict(t=t, **x) for t, x in sorted(full.items())]
             for x in cser:
                 if x.get("s") is not None:
@@ -339,8 +342,44 @@ def import_history(token, data, st, now, cfg, budget_s=90):
         st["hist_back"], st["hist_empty"] = back, empty
         if empty >= 3 or back >= 60:       # 3 prázdné měsíce za sebou = dál už nic není
             st["hist_done"] = True
+            st["minmax_over"] = False
             print("Import historie hotový.")
             return
+
+
+def backfill_points(token, data, now, hours=3):
+    """Doplní body historie mezi běhy hlídače (cron běží nepravidelně, v noci i po 30–40 min) z historie
+    Solar Guardianu (~10 min) – graf napětí pak ukáže i skutečné minimum dne."""
+    ts = int(now.timestamp())
+    start = datetime.fromtimestamp(ts - hours * 3600, TZ).replace(second=0, microsecond=0)
+    end = now + timedelta(minutes=1)
+    ser = {}
+    for key in ("bat_v", "bat_a", "pv_w", "status", "bat_soc"):
+        for ms, val in history(token, POINTS[key][0], start, end):
+            if val is None:
+                continue
+            ser.setdefault(int(ms / 1000) // 60 * 60, {})[key] = round(int(val) if key == "status" else val, 2)
+    have = sorted(p["t"] for p in data["points"])
+    import bisect
+    added = 0
+    for t, x in sorted(ser.items()):
+        if "bat_v" not in x or x["bat_v"] <= 5 or t > ts - 120:
+            continue
+        i = bisect.bisect_left(have, t)
+        if any(abs(have[j] - t) < 300 for j in (i - 1, i) if 0 <= j < len(have)):
+            continue
+        data["points"].append({"t": t, **x, "bf": 1})
+        bisect.insort(have, t)
+        added += 1
+        day = data["days"].setdefault(datetime.fromtimestamp(t, TZ).strftime("%Y-%m-%d"), {})
+        day["min_v"] = round(min(day.get("min_v", 99), x["bat_v"]), 2)
+        day["max_v"] = round(max(day.get("max_v", 0), x["bat_v"]), 2)
+        if x.get("bat_soc") is not None:
+            day["soc_min"] = min(day.get("soc_min", 999), x["bat_soc"])
+            day["soc_max"] = max(day.get("soc_max", -1), x["bat_soc"])
+    data["points"].sort(key=lambda p: p["t"])
+    if added:
+        print(f"Doplněno {added} bodů z historie Solar Guardianu")
 
 
 def import_soc_history(token, data, st, now, budget_s=40):
@@ -493,8 +532,12 @@ def record(data, v, now):
     # Regulátor denní počítadla v noci nuluje (po setmění) → držet maximum / minimum za kalendářní den
     if v.get("day_kwh") is not None:
         day["solar_kwh"] = round(max(day.get("solar_kwh", 0), v["day_kwh"]), 2)
-    lows = [x for x in (v.get("min_v"), v.get("bat_v")) if x]
-    highs = [x for x in (v.get("max_v"), v.get("bat_v")) if x]
+    # min / max dne jen z naměřených bodů (po ~10 min) – stejná data jako graf napětí.
+    # Vlastní min/max regulátoru chytá i okamžité propady (rozběh lednice…) a nuluje se až po setmění → jen pro informaci
+    if v.get("min_v"):
+        day["min_vr"] = round(min(v["min_v"], day.get("min_vr", 99)), 2)
+    lows = [x for x in (v.get("bat_v"),) if x]
+    highs = [x for x in (v.get("bat_v"),) if x]
     if lows:
         day["min_v"] = round(min(lows + ([day["min_v"]] if "min_v" in day else [])), 2)
     if highs:
@@ -972,6 +1015,10 @@ def main():
     st["sg_ok"] = True
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
     if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
+        try:
+            backfill_points(token, data, now)
+        except Exception as e:
+            print("Doplnění bodů:", e)
         record(data, v, now)
         if inv and now.timestamp() - inv["t"] < 1200:
             pt = data["points"][-1]

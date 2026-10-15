@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.47 – 15. 10. 2026
+- **Nejnižší napětí dne sedí s grafem napětí:** dřív se do něj počítal i vlastní údaj regulátoru, který chytá okamžité propady (rozběh lednice, měniče) a nuluje se až po setmění – v grafu (body po 10–40 min) ten moment nebyl. Teď min/max dne jen z měření; historie se jednou znovu projde. Okamžitý propad regulátoru je v bublině bodového grafu pro informaci.
+- **Hustší graf:** mezi běhy hlídače (v noci i po 30–40 min) se body doplní z historie Solar Guardianu (~10 min)
+- **Napětí:** Victron čárkovaně nad regulátorem + nový graf **rozdílu napětí regulátor − měnič** (úbytek na kabelech)
+- Při otevření aplikace „Načítám data z chaty… N s“ místo černé obrazovky
+
 ## 3.46 – 15. 10. 2026
 - **Detail Solární baterie přeskládaný:** nahoře grafy, pod nimi číselné údaje, dole výklad
 - Pořadí grafů: do/z baterie (sčítací) → výkon panelů → napětí → odběr z baterie → nejnižší napětí každého dne (body) → výroba
