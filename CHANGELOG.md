@@ -3,6 +3,14 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.45 – 15. 10. 2026
+- **Dlaždice Solární baterie** (hlavní stránka): napětí, stav (Nabíjí se · Boost / Vybíjí se / Nabito · Float / V klidu) a 3 údaje – nabití % (regulátor), panely W, odběr z baterie W. Žádný výklad; jen u akutního stavu (regulátor mlčí, pod 12,2 / 12,0 V, odběr navíc) blikající ❗.
+- **Detail Solární baterie** – nejdřív data, pak grafy, výklad až dole:
+  - Teď (napětí, %, panely, odběr, do/z baterie, stav, regulátor, teplota, Victron) · Dnes · Včera (nejnižší/nejvyšší napětí i nabití) · Nejnižší stav za 7 dní / 30 dní / rok / celou historii (s datem)
+  - Grafy podle důležitosti: výkon panelů → odběr z baterie → do/z baterie (bilance se ztrátami měniče) → napětí → nabití % → nejnižší napětí dne → **nejnižší nabití dne** → nejvyšší napětí dne → výroba po dnech / měsících
+  - Když chata jede z River, grafy to ukazují šedě; odběr ze solární baterie je pak jen měnič (vypnutý = 0 W), spotřeba River se sem nepočítá
+- Hlídač: denní **nejnižší a nejvyšší nabití (%)** se ukládá a jednorázově se doplní z historie Solar Guardianu (po měsících zpět, jako napětí)
+
 ## 3.44 – 15. 10. 2026
 - **Hodinky – River jako zdroj i bez EcoFlow:** dlaždice se dřív přepnula na River jen podle dat z EcoFlow (ta zatím nechodí), proto celou noc ukazovala solár. Teď se River pozná i ze zásuvky na jejím výstupu (zasuvky_river, odběr > 3 W): „🔋 River malý · 45 W / od 22:10 · 0,42 kWh“. Až půjde EcoFlow, přibude % a do kdy vydrží.
 - Hodinky: „🏠 W“ = odběr celé chaty (solár + River), ne jen za měničem

@@ -343,6 +343,46 @@ def import_history(token, data, st, now, cfg, budget_s=90):
             return
 
 
+def import_soc_history(token, data, st, now, budget_s=40):
+    """Jednorázově (po měsících, odzadu) doplní nejnižší a nejvyšší nabití dne (%) podle regulátoru ze Solar Guardianu."""
+    if st.get("soc_hist_done"):
+        return
+    t0 = time.time()
+    first = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    back, empty = st.get("soc_hist_back", 0), st.get("soc_hist_empty", 0)
+    while time.time() - t0 < budget_s:
+        y, m = first.year, first.month - back
+        while m <= 0:
+            y, m = y - 1, m + 12
+        start = first.replace(year=y, month=m)
+        end = (start + timedelta(days=32)).replace(day=1)
+        try:
+            daily = {}
+            for ms, val in history(token, POINTS["bat_soc"][0], start, end):
+                if val is None or not (0 <= val <= 100):
+                    continue
+                dk = datetime.fromtimestamp(ms / 1000, TZ).strftime("%Y-%m-%d")
+                lo, hi = daily.get(dk, (999, -1))
+                daily[dk] = (min(lo, val), max(hi, val))
+        except Exception as e:
+            print("Import historie nabití:", e)
+            st["soc_hist_err"] = st.get("soc_hist_err", 0) + 1
+            if st["soc_hist_err"] >= 5:
+                st["soc_hist_done"] = True
+            return
+        for dk, (lo, hi) in daily.items():
+            day = data["days"].setdefault(dk, {})
+            day["soc_min"] = min(day.get("soc_min", 999), lo)
+            day["soc_max"] = max(day.get("soc_max", -1), hi)
+        print(f"Import historie nabití {start:%Y-%m}: {len(daily)} dní")
+        back += 1
+        empty = empty + 1 if not daily else 0
+        st["soc_hist_back"], st["soc_hist_empty"] = back, empty
+        if empty >= 3 or back >= 60:
+            st["soc_hist_done"] = True
+            return
+
+
 def read_values(token):
     hdr = {"token": token}
     d = post(DISPATCH + "device/getDevServerAddr", {"type": 3, "deviceNos": [DEVICE_NO]}, hdr)
@@ -463,6 +503,7 @@ def record(data, v, now):
     v["day_kwh"], v["min_v"], v["max_v"] = day.get("solar_kwh"), day.get("min_v"), day.get("max_v")
     if v.get("bat_soc") is not None:
         day["soc_min"] = min(day.get("soc_min", 999), v["bat_soc"])
+        day["soc_max"] = max(day.get("soc_max", -1), v["bat_soc"])
     # kdy poprvé přešla do Float (0 = dnes ještě ne) – pro učení předpovědi (plná baterie = přiškrcená výroba)
     if v.get("status") is not None and int(v["status"]) == 1 and not day.get("fl"):
         day["fl"] = ts
@@ -978,6 +1019,10 @@ def main():
     except Exception as e:
         print("Import historie selhal:", e)
         log("err", f"Import historie Solar Guardian: {str(e)[:100]}")
+    try:
+        import_soc_history(token, data, st, now)
+    except Exception as e:
+        print("Import historie nabití selhal:", e)
     try:
         night_history(token, data, st, now, cfg)
     except Exception as e:
