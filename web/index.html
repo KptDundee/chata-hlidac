@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.51", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.52", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1070,12 +1070,14 @@ function homeData(d){
   const menicOff = invF && inv.mw==null && (!mp || mp.off || mp.gone || mp.err!=null);
   const loadB = loadW!=null ? loadW : menicOff ? (cfg.desulfator_W ?? 0.25) : null;              // W ze solární baterie (DC, se ztrátami měniče)
   const netB = loadB!=null && bv && a!=null ? a - loadB/bv : null;      // A do (+) / z (−) baterie
-  const rvOn = invF && riverIds(cfg).some(id=>((inv.tp||[]).find(p=>p.ip===id)||{}).w > 3);
+  const rvOn = invF && !((inv.mw||0) > 3) && riverIds(cfg).some(id=>((inv.tp||[]).find(p=>p.ip===id)||{}).w > 3);
   return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW, riverW, brk, menicOff, loadB, netB, rvOn, td};
 }
 const riverIds = cfg => String(cfg.zasuvky_river ?? "").split(/[,;\s]+/).filter(Boolean);
-/* bod historie: chata napájená z River (některá zásuvka River bere > 3 W) */
-const ptRiver = (p, ids) => !!p.tp && ids.some(id => (p.tp[id]||0) > 3);
+/* bod historie: chata (hlavní okruh) napájená z River = měnič nic nedává a některá zásuvka River ano.
+   Když měnič dodává, River jen napájí něco konkrétního (TV, telefon) – chata pořád jede ze soláru. */
+const menicId = () => String(DATA?.cfg?.zasuvka_menic ?? "").trim() || DATA?.inverter?.mip || "1";
+const ptRiver = (p, ids) => !!p.tp && (p.mw ?? p.tp[menicId()] ?? 0) <= 3 && ids.some(id => (p.tp[id]||0) > 3);
 /* úseky [od, do], kdy chata jela z River – pro šedé pozadí grafů */
 function riverBands(pts, ids){ const B=[]; let cur=null, prev=null;
   for(const p of pts){ if(!p.tp) continue; const on = ptRiver(p, ids);
@@ -1406,7 +1408,7 @@ function tileRivers(d, h){
   const sel = R.find(r=>r.ip===RVSEL) || R.find(r=>(r.w||0) > 2) || R.find(act) || R[0];
   const tabs = `<div class="rtabs">${R.map(r=>`<button data-rv="${r.ip}" class="${act(r)?"on":""} ${r===sel?"sel":""}">${r.miss?"? ":""}${r.name.replace(/^River\s*/i,"").slice(0,12)}</button>`).join("")}</div>`;
   const e = sel.ef, iw = e ? e.in_w||0 : 0, soc = e ? e.soc : sel.efOld ? sel.efOld.soc : null;
-  const st = sel.miss ? `Flip zásuvku (${sel.ip}) nenašel` : (sel.w||0) > 2 ? "napájí chatu" : iw > 20 ? `⚡ nabíjí ${nf(iw)} W` : sel.off ? `zásuvka .${sel.ip} nedostupná` : "nenapájí";
+  const st = sel.miss ? `Flip zásuvku (${sel.ip}) nenašel` : (sel.w||0) > 2 ? (h.invF && (h.inv.mw||0) > 3 ? "napájí spotřebič" : "napájí chatu") : iw > 20 ? `⚡ nabíjí ${nf(iw)} W` : sel.off ? `zásuvka .${sel.ip} nedostupná` : "nenapájí";
   const other = h.invF ? (h.inv.tp||[]).filter(p=>!R.some(r=>r.ip===p.ip) && /river|ecoflow|eco/i.test(p.n||"")) : [];
   return {...t, top:tabs, cls: act(sel) ? "ok" : "na",
     v: sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–", st,
@@ -1589,7 +1591,7 @@ function detUse(body){
   html += `<div class="card"><h2 style="margin:0 0 6px">Výklad</h2><div class="sub" style="line-height:1.55">
     <b>Celkem</b> = zásuvka 220 V za měničem (solární baterie) + zásuvky na výstupu River. <b>Ostatní</b> = celkem − měřené zásuvky, tedy vše bez vlastní zásuvky.<br>
     <b>Ztráty měniče</b> jen u 220 V: z baterie se bere ~12 % víc + ${nf(U.idle,1)} W (měnič naprázdno, desulfátor). U jednotlivých spotřebičů je změřený příkon.<br>
-    <b>Solár / River:</b> když napájí oba zdroje najednou, spotřeba se rozdělí podle jejich výkonu (odhad). Před ${U.od.split("-").reverse().join(". ").replace(/^0/,"")} vše ze soláru.<br>
+    <b>Solár / River:</b> hlavní okruh chaty jede vždy z jednoho zdroje. Když měnič dodává, jsou všechny měřené zásuvky ze soláru a co zároveň dává River, je samostatný neměřený spotřebič (TV, telefon) → „ostatní z River“. Když měnič nedává nic a River ano, je chata přepojená na River. Před ${U.od.split("-").reverse().join(". ").replace(/^0/,"")} vše ze soláru.<br>
     <b>Historie:</b> 220 V, lednice a Wi‑Fi zpětně${mig?` (stará jména přiřazena: ${mig})`:""}; ostatní zásuvky od 14. 10. 2026. Podrobný průběh po 10 min jen 14 dní, pak součty po dnech.<br>
     <b>Nabíjení River ze soláru</b> (zásuvka 8) neměří – když běží, schová se v „ostatní“.</div></div>`;
   body.insertAdjacentHTML("beforeend", html);

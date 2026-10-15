@@ -1149,8 +1149,10 @@ def main():
             R_ = sum((byid.get(i) or {}).get("w") or 0 for i in ips(cfg.get("zasuvky_river")))
             if now.strftime("%Y-%m-%d") < str(cfg.get("river_noci_od") or "2026-10-15"):
                 fs = 1.0
-            elif S_ + R_ > 3:
-                fs = S_ / (S_ + R_)
+            elif S_ > 3:         # měnič dodává → hlavní okruh chaty (i všechny měřené zásuvky) jede ze soláru;
+                fs = 1.0         # River zároveň napájí jen něco konkrétního neměřeného (TV, telefon) → „ostatní z River“
+            elif R_ > 3:
+                fs = 0.0         # měnič nic nedává, River ano → chata přepojená na River
             else:
                 fs = 1.0 if S_ > 0 or (byid.get(mip_) and not byid[mip_].get("off")) else 0.0
             for p in inv.get("tp", []):
@@ -2208,7 +2210,7 @@ def river_supply_plugs(data, now, cfg):
         return
     ids = ips(cfg.get("zasuvky_river"))
     act = [p for p in inv.get("tp", []) if str(p.get("ip")) in ids and (p.get("w") or 0) > 3 and not p.get("gone")]
-    if not act:
+    if not act or (inv.get("mw") or 0) > 3:     # měnič dodává = chata jede ze soláru, River jen napájí nějaký spotřebič
         return
     p = max(act, key=lambda x: x.get("w") or 0)
     pid = str(p["ip"])
