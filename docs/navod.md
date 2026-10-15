@@ -205,6 +205,9 @@ Analogový ciferník v leteckém stylu (tmavě modrý sunburst do černa, zapuš
 - Komplikace vlevo a nahoře jdou v editoru ciferníku vyměnit (dlouze podržet → Upravit).
 
 
+### Kabely a spoje (3.54)
+Úbytek napětí = regulátor − měnič, jen z měření ze stejné chvíle a bez stálého rozdílu kalibrace přístrojů. V klidu ~0, s proudem roste. Upozornění: 🔥 nad 0,35 V hned (zkontroluj pojistku a spoje – nejsou horké?), 🔧 odpor nad 20 mΩ za den.
+
 ### Regulátor neposílá data
 Po 30 min bez dat přijde notifikace a web zčervená („údaje níže nejsou aktuální“). Napětí pak ukazuje Victron. Možné příčiny: zaseknutý Wi‑Fi modul regulátoru, vypadlá Wi‑Fi / router (aplikace řekne, jestli má zásuvka routeru proud), regulátor bez napájení z baterie, výpadek cloudu. 💡 Tip: často pomůže vypnout a zapnout Wi‑Fi modul regulátoru (14. 10. 2026 pomohlo).
 

@@ -128,3 +128,8 @@ odber_z_baterie_A = 2
 odber_navic_W = 40
 # když zásuvka lednice nepošle hodnotu, počítat s lednicí naplno (W) – ať kompresor nevypadá jako odběr navíc
 lednice_max_W = 80
+
+# Kabely a spoje (regulátor → baterie → měnič)
+kabely_ubytek_V = 0.35          # okamžité upozornění, když regulátor ukazuje o tolik víc než měnič (bez rozdílu kalibrace)
+kabely_odpor_mOhm = 20          # jednou denně upozornit, když odpor cesty za 24 h vyjde vyšší (v pořádku do ~10 mΩ)
+desulfator_W = 0.25             # stálý odběr desulfátoru přímo z baterie (JCP-2-ABC: max 0,02 A)

@@ -29,7 +29,7 @@ DEFAULTS = {
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
-    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25,
+    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20,
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
@@ -434,6 +434,70 @@ def migrate_plug_ids(data, st, cfg):
     data["tp_mig"] = {o: [n, old[o]] for o, n in mp.items()}
     st["tp_mig1"] = True
     print("Přejmenování staré historie zásuvek:", data["tp_mig"])
+
+
+def sync_inverter_voltage(data, inv, v, now, tol=150):
+    """Napětí Victronu přiřadí k bodu regulátoru, který je časově nejblíž (nejvýš tol s). Jinak by se porovnávaly
+    dvě různé chvíle (Flip posílá po 10 min, regulátor má vlastní takt) a rozdíl napětí by vycházel i záporný."""
+    vt = inv["t"] - (inv.get("age") or 0)                       # kdy Victron měřil
+    ts = now.timestamp()
+    reg_t = ts - (v.get("age_min") or 0) * 60                   # kdy měřil regulátor (poslední bod)
+    best, bd = None, None
+    for p in data["points"][-12:]:
+        if not p.get("bat_v"):
+            continue
+        te = reg_t if p is data["points"][-1] else p["t"]
+        dd = abs(te - vt)
+        if bd is None or dd < bd:
+            best, bd = p, dd
+    if best is None or bd > tol:
+        return
+    best["iv"] = inv["v"]
+    best["ivs"] = int(vt - (reg_t if best is data["points"][-1] else best["t"]))    # posun v s (synchronizováno)
+    if inv.get("lw") is not None:
+        best["lw"] = inv["lw"]
+
+
+def wiring_check(data, st, now, topic, cfg):
+    """Úbytek napětí na kabelech a spojích (regulátor − Victron, jen časově souhlasná měření, minus stálý rozdíl
+    kalibrace přístrojů změřený v klidu). Upozorní na výrazný úbytek hned a na zvýšený odpor spojů jednou denně."""
+    ts = now.timestamp()
+    idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
+    rows = []
+    for p in data.get("points", []):
+        if p["t"] < ts - 3 * 86400 or p.get("ivs") is None or not p.get("bat_v") or not p.get("iv"):
+            continue
+        lw = p.get("lw", p.get("mw"))
+        if lw is None:
+            continue
+        ir, ii = max(p.get("bat_a") or 0, 0), (lw / 0.88 + idle) / p["iv"]
+        rows.append((p["t"], p["bat_v"] - p["iv"], ir, ii))
+    if not rows:
+        return
+    med = lambda a: sorted(a)[len(a) // 2]
+    quiet = [r[1] for r in rows if r[2] < 0.5 and r[3] < 3]
+    off = med(quiet) if len(quiet) >= 3 else 0.0
+    data["wire_off"] = round(off, 3)
+    lim_v = cfg.get("kabely_ubytek_V") or 0.35
+    lim_r = cfg.get("kabely_odpor_mOhm") or 20
+    t, dv, ir, ii = rows[-1]
+    drop = dv - off
+    if ts - t < 1800 and drop >= lim_v and ts - st.get("wire_acute_t", 0) > 6 * 3600:
+        ntfy(topic, "🔥 Velký úbytek napětí na kabelech",
+             f"Regulátor ukazuje o {fmt(drop, 2)} V víc než měnič (při ~{fmt(ir + ii, 0)} A).\n"
+             f"Na cestě regulátor → baterie → měnič je velký odpor – zkontroluj pojistku, pouzdro a spoje (nejsou horké / natavené?).",
+             4, "fire,warning")
+        st["wire_acute_t"] = ts
+    load = [(r[1] - off) / (r[2] + r[3]) for r in rows if r[0] >= ts - 86400 and r[2] + r[3] >= 8]
+    if len(load) >= 4:
+        mo = med(load) * 1000
+        data["wire_mo"] = round(mo, 1)
+        day = now.strftime("%Y-%m-%d")
+        if mo >= lim_r and st.get("wire_warn_d") != day:
+            ntfy(topic, "🔧 Zvýšený odpor kabelů a spojů",
+                 f"Za posledních 24 h vychází odpor cesty regulátor → baterie → měnič ~{fmt(mo, 0)} mΩ (v pořádku je do ~10 mΩ).\n"
+                 f"Při proudu 20 A je to úbytek ~{fmt(mo * 20 / 1000, 2)} V. Zkontroluj pojistku a spoje.", 3, "wrench")
+            st["wire_warn_d"] = day
 
 
 def night_modes(data, now, cfg, days_back=120):
@@ -1126,10 +1190,8 @@ def main():
                 pt["mw"] = inv["mw"]
             if (inv.get("gen") or {}).get("w") is not None:
                 pt["gw"] = inv["gen"]["w"]
-            if inv.get("v") is not None:            # napětí měřené měničem
-                pt["iv"] = inv["v"]
-            if inv.get("lw") is not None:           # odběr ve stejném okamžiku jako to napětí
-                pt["lw"] = inv["lw"]
+            if inv.get("v") is not None:            # napětí měřené měničem → jen k bodu regulátoru ze STEJNÉ chvíle
+                sync_inverter_voltage(data, inv, v, now)
             plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
             if plugs:
                 pt["tp"] = plugs
@@ -1180,6 +1242,10 @@ def main():
     except Exception as e:
         print("Import historie selhal:", e)
         log("err", f"Import historie Solar Guardian: {str(e)[:100]}")
+    try:
+        wiring_check(data, st, now, topic, cfg)
+    except Exception as e:
+        print("Kabely:", e)
     try:
         migrate_plug_ids(data, st, cfg)
     except Exception as e:

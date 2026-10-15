@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.53", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.54", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -943,7 +943,8 @@ $("tileclose").addEventListener("click",()=>{TILE=null;$("tilem").classList.add(
 /* ---------- Kabely a spoje: rozdíl napětí regulátor × měnič ---------- */
 function wiring(d){
   const cut = Date.now()/1000 - 3*86400, idle = d.cfg?.menic_vlastni_W ?? 6;
-  const rows = (d.points||[]).filter(p=>p.t>=cut && p.bat_v>5 && p.iv>5 && Math.abs(p.bat_v-p.iv)<2).map(p=>{
+  // jen měření regulátoru a Victronu ze stejné chvíle (ivs = hlídač je spároval, v3.54)
+  const rows = (d.points||[]).filter(p=>p.t>=cut && p.ivs!=null && p.bat_v>5 && p.iv>5 && Math.abs(p.bat_v-p.iv)<2).map(p=>{
     const lw = p.lw ?? p.mw;
     const ir = Math.max(p.bat_a ?? 0, 0), ii = lw!=null ? (lw/0.88 + idle)/p.iv : null;
     return {t:p.t, vr:p.bat_v, vi:p.iv, dv:p.bat_v-p.iv, ir, ii};
@@ -1703,7 +1704,7 @@ function detBat(body){
         chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · panely přes regulátor − odběr (i se ztrátami měniče) · pozadí: oranžová Boost, zelená Float, šedá = chata na River")
       + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
       + chartCard("dc_v", "Napětí baterie", `V · <span style="color:var(--s1)">━ regulátor</span> · <span style="color:var(--s2)">╍ měnič (Victron)</span> · <span style="color:var(--crit)">○ nejnižší bod dne</span> · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
-      + chartCard("dc_vd", "Rozdíl napětí regulátor − měnič", "V · úbytek na kabelech a spojích: při nabíjení kladný, roste s proudem; v klidu ~0")
+      + chartCard("dc_vd", "Úbytek napětí na kabelech", `V · regulátor − měnič, jen měření ze stejné chvíle, bez stálého rozdílu kalibrace přístrojů · roste s proudem, v klidu ~0 · červeně ${nf(cfg.kabely_ubytek_V ?? 0.35,2)} V = upozornění`)
       + chartCard("dc_load", "Odběr z baterie", "W · měnič + jeho ztráty · šedě = chata jela z River"))
     + chartCard("dc_min", "Nejnižší napětí každého dne", `V · <span style="color:var(--s1)">●</span> noc se zátěží (chata na solární baterii) · <span style="color:var(--muted)">○</span> chata na River – baterie v klidu, nesrovnatelné · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
     + chartCard("dc_prod", detLong() ? "Výroba po měsících" : "Výroba po dnech", "kWh")
@@ -1759,8 +1760,9 @@ function detBat(body){
     return {t:p.t, status:p.status, ld: ld!=null ? Math.round(ld) : null, b: ld!=null && p.bat_a!=null && p.bat_v ? Math.round(p.bat_a*p.bat_v - ld) : null}; });
   lineChart($("dc_bal"), lp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]],neg:css("--crit"),bands});
   lineChart($("dc_pv"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
-  lineChart($("dc_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,dayMin:true,k2:{key:"iv",color:css("--s2"),name:"měnič"}});
-  lineChart($("dc_vd"), pts.map(p=>({t:p.t, dv: p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:hrs,refs:[[0,"--muted"]]});
+  lineChart($("dc_v"), pts.map(p=>({...p, ivx: p.ivs!=null ? p.iv : null})), "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,dayMin:true,k2:{key:"ivx",color:css("--s2"),name:"měnič"}});
+  const WR = wiring(d), off = WR ? WR.off : 0, lim = cfg.kabely_ubytek_V ?? 0.35;
+  lineChart($("dc_vd"), pts.map(p=>({t:p.t, dv: p.ivs!=null && p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv-off).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:hrs,gap:3*3600,refs:[[0,"--muted"],[lim,"--crit"]]});
   lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
 }
 function detNight(body){
