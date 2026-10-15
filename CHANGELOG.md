@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.43 – 15. 10. 2026
+- **Flip 1.3.3:** po hledání v síti se zahodí staré relace se zásuvkami (hledání se přihlásilo znovu a zásuvky staré relace zrušily → „HTTP 403“ a 0/14); při HTTP 403/401 se zásuvka hned zkusí znovu s novým přihlášením; ruční seznam adres se používá jen, když hledání nic nenajde (dřív se míchaly staré neplatné adresy → „6/14 (7 vypnuté)“)
+- Spotřebiče: jen zásuvky pojmenované „(N) …“ nebo živé, bez starých záznamů podle IP
+
 ## 3.42 – 14. 10. 2026
 - **Hlavní stránka po vrstvách:**
   - **Teď:** Solární baterie · River (stav: která napájí chatu a kolik W; % nabití až z EcoFlow)

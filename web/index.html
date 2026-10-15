@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.42", FLIP_VER = "1.3.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.43", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1388,7 +1388,9 @@ function tileDevices(d, h){
   const mip = String(cfg.zasuvka_menic ?? "").trim() || (d.inverter && d.inverter.mip);
   const skip = new Set([mip, ...ips(cfg.zasuvky_river), String(cfg.zasuvka_generator ?? "7"), String(cfg.river_auto_ip ?? "8")]);
   const live = h.invF ? (h.inv.tp||[]) : [];
-  const ids = [...new Set([...Object.keys(tpd), ...live.map(p=>p.ip)])].filter(id=>!skip.has(id));
+  // jen zásuvky pojmenované číslem „(N) …“ nebo právě živé – staré záznamy podle IP adres vynechat
+  const named = id => /^\s*\(\d{1,3}\)/.test(names[id]||"");
+  const ids = [...new Set([...Object.keys(tpd).filter(named), ...live.filter(p=>!p.off).map(p=>p.ip)])].filter(id=>!skip.has(id));
   const rows = ids.map(id=>{ const p = live.find(x=>x.ip===id)||{}; return {id, n: pn(names[id]||p.n)||`zásuvka ${id}`, wh: tpd[id], w: p.w, nm: p.nm, off: p.off}; })
     .sort((a,b)=>(b.wh||0)-(a.wh||0));
   return {k:"river", icon:"🔌", label:"Spotřebiče", wide:true, cls:"ok", info:true, v:"", st:"dnes · teď",

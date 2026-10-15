@@ -75,7 +75,7 @@ public final class Collector {
             if (!email.isEmpty()) {
                 Map<String, String> map = plugMap(email, pass);            // číslo zásuvky → IP (hledá se v síti)
                 java.util.LinkedHashSet<String> ipsAll = new java.util.LinkedHashSet<>(map.values());
-                ipsAll.addAll(Prefs.tapoIps(ctx));                          // ručně zadané adresy dál fungují
+                if (map.isEmpty()) ipsAll.addAll(Prefs.tapoIps(ctx));       // ruční adresy jen když hledání nic nenašlo
                 boolean missing = false;
                 Map<String, String> idIp = new HashMap<>();
                 for (String ip : ipsAll) {
@@ -163,7 +163,19 @@ public final class Collector {
         }
     }
 
+    /** Čtení zásuvky; když zásuvka zrušila relaci (HTTP 403/401), jednou hned znovu s novým přihlášením. */
     private JSONObject readPlug(String ip, String email, String pass) {
+        JSONObject p = readPlugOnce(ip, email, pass);
+        String err = p.optString("err", "");
+        if (err.contains("HTTP 403") || err.contains("HTTP 401")) {
+            tapo.remove(ip);
+            JSONObject p2 = readPlugOnce(ip, email, pass);
+            if (!p2.has("err")) return p2;
+        }
+        return p;
+    }
+
+    private JSONObject readPlugOnce(String ip, String email, String pass) {
         JSONObject p = new JSONObject();
         try {
             p.put("ip", ip.substring(ip.lastIndexOf('.') + 1));
@@ -272,6 +284,7 @@ public final class Collector {
         boolean want = m.isEmpty() ? age > 3 * 60_000L : age > 6 * 3600_000L || (sp.getBoolean("tapo_rescan", false) && age > 30 * 60_000L);
         if (!want) return m;
         Map<String, JSONObject> found = TapoScan.scan(ctx, email, pass);
+        tapo.clear();                                            // hledání se přihlásilo znovu → staré relace zásuvky zrušila (HTTP 403)
         sp.edit().putLong("tapo_scan_t", System.currentTimeMillis()).putBoolean("tapo_rescan", false).apply();
         if (found.isEmpty()) return m;
         JSONObject j;                                           // známé zásuvky si pamatovat, i když teď nemají proud (generátor)
