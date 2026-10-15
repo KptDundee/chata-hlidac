@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.47", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.48", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -703,6 +703,12 @@ function lineChart(el, pts, key, color, o){
   }
   // mezery v datech > 40 min přeruší čáru
   const GAP=o.gap||2400;
+  if(o.dayMin){   // nejnižší bod každého dne: kroužek + hodnota (stejné číslo jako v bodovém grafu)
+    const by={}; for(const q of p){ if(q.t<t0) continue; const k=dkey(q.t); if(!by[k]||q[key]<by[k][key]) by[k]=q; }
+    let m=""; for(const q of Object.values(by)){ const X=x(q.t), Y=y(q[key]);
+      m+=`<circle cx="${X}" cy="${Y}" r="4" fill="none" stroke="var(--crit)" stroke-width="1.8"/><text x="${Math.min(W-M.r-14,Math.max(M.l+14,X))}" y="${Math.min(H-M.b-4,Y+16)}" text-anchor="middle" style="fill:var(--crit);font-weight:700">${nf(q[key],2)}</text>`; }
+    o._marks=m;
+  }
   let dPath="",prev=null; for(const q of p){dPath+=(prev&&q.t-prev.t<GAP?"L":"M")+x(q.t).toFixed(1)+","+y(q[key]).toFixed(1);prev=q;}
   if(p2.length>1){let d2="",pr=null;for(const q of p2){d2+=(pr&&q.t-pr.t<GAP?"L":"M")+x(q.t).toFixed(1)+","+y(q[k2.key]).toFixed(1);pr=q;}
     k2.top=d2;}
@@ -714,7 +720,7 @@ function lineChart(el, pts, key, color, o){
       <path d="${dPath}" fill="none" stroke="${o.neg}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#${id}b)"/>`);
     color = "transparent";
   }
-  svg.insertAdjacentHTML("beforeend",`<path d="${dPath}" fill="none" stroke="${color}" stroke-width="${k2&&k2.top?3:2}" stroke-linejoin="round" stroke-linecap="round"/>${k2&&k2.top?`<path d="${k2.top}" fill="none" stroke="${k2.color}" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round"/>`:""}<line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" stroke-width="1" opacity="0"/><circle class="cd" r="4.5" fill="${o.neg?"var(--text2)":color}" stroke="var(--surface)" stroke-width="2" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
+  svg.insertAdjacentHTML("beforeend",`<path d="${dPath}" fill="none" stroke="${color}" stroke-width="${k2&&k2.top?3:2}" stroke-linejoin="round" stroke-linecap="round"/>${k2&&k2.top?`<path d="${k2.top}" fill="none" stroke="${k2.color}" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round"/>`:""}${o._marks||""}<line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" stroke-width="1" opacity="0"/><circle class="cd" r="4.5" fill="${o.neg?"var(--text2)":color}" stroke="var(--surface)" stroke-width="2" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
   const ch=svg.querySelector(".ch"), cd=svg.querySelector(".cd");
   const move=ev=>{const r=svg.getBoundingClientRect();const tx=t0+(t1-t0)*((ev.clientX-r.left)*W/r.width-M.l)/(W-M.l-M.r);let best=p[0];for(const q of p)if(Math.abs(q.t-tx)<Math.abs(best.t-tx))best=q;const X=x(best.t),Y=y(best[key]);ch.setAttribute("x1",X);ch.setAttribute("x2",X);ch.setAttribute("opacity",.5);cd.setAttribute("cx",X);cd.setAttribute("cy",Y);cd.setAttribute("opacity",1);
     let extra=k2&&best[k2.key]!=null?`<br>${k2.name} ${nf(best[k2.key],o.dec)} ${o.unit}${key==="bat_v"?` (rozdíl ${nf(best[key]-best[k2.key],2)} V)`:""}`:"";
@@ -1551,7 +1557,7 @@ function detBat(body){
     + (detLong() ? "" :
         chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · panely přes regulátor − odběr (i se ztrátami měniče) · pozadí: oranžová Boost, zelená Float, šedá = chata na River")
       + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
-      + chartCard("dc_v", "Napětí baterie", `V · <span style="color:var(--s1)">━ regulátor</span> · <span style="color:var(--s2)">╍ měnič (Victron)</span> · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
+      + chartCard("dc_v", "Napětí baterie", `V · <span style="color:var(--s1)">━ regulátor</span> · <span style="color:var(--s2)">╍ měnič (Victron)</span> · <span style="color:var(--crit)">○ nejnižší bod dne</span> · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
       + chartCard("dc_vd", "Rozdíl napětí regulátor − měnič", "V · úbytek na kabelech a spojích: při nabíjení kladný, roste s proudem; v klidu ~0")
       + chartCard("dc_load", "Odběr z baterie", "W · měnič + jeho ztráty · šedě = chata jela z River"))
     + chartCard("dc_min", "Nejnižší napětí každého dne", `V · bod = den (z měření po ~10 min, stejně jako graf napětí) · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
@@ -1608,7 +1614,7 @@ function detBat(body){
     return {t:p.t, status:p.status, ld: ld!=null ? Math.round(ld) : null, b: ld!=null && p.bat_a!=null && p.bat_v ? Math.round(p.bat_a*p.bat_v - ld) : null}; });
   lineChart($("dc_bal"), lp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]],neg:css("--crit"),bands});
   lineChart($("dc_pv"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
-  lineChart($("dc_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,k2:{key:"iv",color:css("--s2"),name:"měnič"}});
+  lineChart($("dc_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,dayMin:true,k2:{key:"iv",color:css("--s2"),name:"měnič"}});
   lineChart($("dc_vd"), pts.map(p=>({t:p.t, dv: p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:hrs,refs:[[0,"--muted"]]});
   lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
 }
@@ -1955,7 +1961,7 @@ function dotChart(el, dd, key, color, o){
     s+=`<circle cx="${cx}" cy="${y(q[key])}" r="${Math.max(1.6,Math.min(4.5,bw/2.4))}" fill="${c}" stroke="var(--surface)" stroke-width="2"/><rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
     if(i%Math.ceil(p.length/6)===0||i===p.length-1)s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${dayLabel(q.k)}</text>`;});
   svg.insertAdjacentHTML("beforeend",`<path d="${line}" fill="none" stroke="${color}" stroke-width="1.5" opacity=".35"/>`+s);
-  hover(svg,p,q=>`${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br>min <b>${nf(q.min_v,2)} V</b>${q.soc_min!=null&&q.soc_min<999?` (${nf(q.soc_min)} %)`:""}${q.max_v!=null?` · max ${nf(q.max_v,2)} V`:""}${q.min_vr!=null&&q.min_vr<q.min_v-0.05?`<br><span style="color:var(--text2)">okamžitý propad (regulátor) ${nf(q.min_vr,2)} V</span>`:""}`);
+  hover(svg,p,q=>`${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br>min <b>${nf(q.min_v,2)} V</b>${q.min_t?` v ${hmT(q.min_t)}`:""}${q.soc_min!=null&&q.soc_min<999?` (${nf(q.soc_min)} %)`:""}${q.max_v!=null?` · max ${nf(q.max_v,2)} V`:""}${q.min_vr!=null&&q.min_vr<q.min_v-0.05?`<br><span style="color:var(--text2)">okamžitý propad (regulátor) ${nf(q.min_vr,2)} V</span>`:""}`);
 }
 function hover(svg,p,html){
   svg.addEventListener("pointermove",ev=>{const i=ev.target.dataset&&ev.target.dataset.i;if(i==null)return hideTip();showTip(ev,html(p[+i]));});

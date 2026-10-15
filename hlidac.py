@@ -295,6 +295,8 @@ def import_history(token, data, st, now, cfg, budget_s=90):
                     if key == "day_kwh":
                         dd["solar_kwh"] = max(dd.get("solar_kwh", 0), val)
                     elif key == "bat_v" and val > 5:
+                        if val < dd.get("min_v", 99):
+                            dd["min_t"] = int(ms / 1000)
                         dd["min_v"] = min(dd.get("min_v", 99), val)
                         dd["max_v"] = max(dd.get("max_v", 0), val)
                     got += 1
@@ -304,6 +306,8 @@ def import_history(token, data, st, now, cfg, budget_s=90):
                     day["solar_kwh"] = round(max(day.get("solar_kwh", 0), dd["solar_kwh"]), 2)
                 over = st.get("minmax_over") and dk != now.strftime("%Y-%m-%d")
                 if "min_v" in dd:
+                    if over or dd["min_v"] < day.get("min_v", 99):
+                        day["min_t"] = dd.get("min_t")
                     day["min_v"] = round(dd["min_v"] if over else min(day.get("min_v", 99), dd["min_v"]), 2)
                 if "max_v" in dd:
                     day["max_v"] = round(dd["max_v"] if over else max(day.get("max_v", 0), dd["max_v"]), 2)
@@ -372,12 +376,22 @@ def backfill_points(token, data, now, hours=3):
         bisect.insort(have, t)
         added += 1
         day = data["days"].setdefault(datetime.fromtimestamp(t, TZ).strftime("%Y-%m-%d"), {})
+        if x["bat_v"] < day.get("min_v", 99):
+            day["min_t"] = t
         day["min_v"] = round(min(day.get("min_v", 99), x["bat_v"]), 2)
         day["max_v"] = round(max(day.get("max_v", 0), x["bat_v"]), 2)
         if x.get("bat_soc") is not None:
             day["soc_min"] = min(day.get("soc_min", 999), x["bat_soc"])
             day["soc_max"] = max(day.get("soc_max", -1), x["bat_soc"])
     data["points"].sort(key=lambda p: p["t"])
+    if hours > 3:     # první plné doplnění: dnešní min/max přepočítat jen z bodů (dřív v něm byl i okamžitý propad regulátoru)
+        dk = now.strftime("%Y-%m-%d")
+        today = [p for p in data["points"] if p.get("bat_v") and p["bat_v"] > 5
+                 and datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d") == dk]
+        if today:
+            lo = min(today, key=lambda p: p["bat_v"])
+            day = data["days"].setdefault(dk, {})
+            day.update({"min_v": round(lo["bat_v"], 2), "min_t": lo["t"], "max_v": round(max(p["bat_v"] for p in today), 2)})
     if added:
         print(f"Doplněno {added} bodů z historie Solar Guardianu")
 
@@ -537,6 +551,8 @@ def record(data, v, now):
     if v.get("min_v"):
         day["min_vr"] = round(min(v["min_v"], day.get("min_vr", 99)), 2)
     lows = [x for x in (v.get("bat_v"),) if x]
+    if lows and lows[0] < day.get("min_v", 99):
+        day["min_t"] = ts
     highs = [x for x in (v.get("bat_v"),) if x]
     if lows:
         day["min_v"] = round(min(lows + ([day["min_v"]] if "min_v" in day else [])), 2)
@@ -1016,7 +1032,8 @@ def main():
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
     if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
         try:
-            backfill_points(token, data, now)
+            backfill_points(token, data, now, 3 if st.get("bf14") else KEEP_DETAIL_DAYS * 24)   # poprvé celých 14 dní
+            st["bf14"] = True
         except Exception as e:
             print("Doplnění bodů:", e)
         record(data, v, now)
