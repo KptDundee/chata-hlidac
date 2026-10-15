@@ -396,6 +396,43 @@ def backfill_points(token, data, now, hours=3):
         print(f"Doplněno {added} bodů z historie Solar Guardianu")
 
 
+def night_modes(data, now, cfg, days_back=120):
+    """Pro každý den: jak byla zatížená solární baterie v ~6 h před nejnižším napětím dne (obvykle noc → ráno).
+    days[k]["mn"] = "s" (chatu napájela solární baterie přes měnič) | "r" (chata na River / měnič bez odběru,
+    baterie v klidu) – minima obou druhů nejsou porovnatelná. Bez dat se nic nezapíše."""
+    rids = ips(cfg.get("zasuvky_river"))
+    ph = data.get("plug_hourly") or {}
+    pts = data.get("points") or []
+    for k in sorted(data.get("days", {}))[-days_back:]:
+        day = data["days"][k]
+        t = day.get("min_t") or datetime.strptime(k + " 06:00", "%Y-%m-%d %H:%M").replace(tzinfo=TZ).timestamp()
+        a = t - 6 * 3600
+        # 1) body hlídače (posledních 14 dní): odběr za měničem vs. zásuvky River
+        sol = riv = 0
+        for p in pts:
+            if a <= p["t"] <= t and ("mw" in p or "tp" in p):
+                if (p.get("mw") or 0) > 5:
+                    sol += 1
+                elif any(((p.get("tp") or {}).get(i) or 0) > 3 for i in rids) or "mw" not in p:
+                    riv += 1
+        mode = None
+        if sol + riv >= 3:
+            mode = "s" if sol >= riv else "r"
+        else:
+            # 2) hodinová spotřeba zásuvky za měničem (Tapo si ji pamatuje): ~0 Wh = chata nebrala ze solární baterie
+            vals, h = [], a
+            while h < t:
+                dt_ = datetime.fromtimestamp(h, TZ)
+                arr = ph.get(dt_.strftime("%Y-%m-%d"))
+                if arr and arr[dt_.hour] is not None:
+                    vals.append(arr[dt_.hour])
+                h += 3600
+            if len(vals) >= 3:
+                mode = "s" if sum(vals) / len(vals) > 5 else "r"
+        if mode:
+            day["mn"] = mode
+
+
 def import_soc_history(token, data, st, now, budget_s=40):
     """Jednorázově (po měsících, odzadu) doplní nejnižší a nejvyšší nabití dne (%) podle regulátoru ze Solar Guardianu."""
     if st.get("soc_hist_done"):
@@ -1083,6 +1120,10 @@ def main():
     except Exception as e:
         print("Import historie selhal:", e)
         log("err", f"Import historie Solar Guardian: {str(e)[:100]}")
+    try:
+        night_modes(data, now, cfg)
+    except Exception as e:
+        print("Druh nocí:", e)
     try:
         import_soc_history(token, data, st, now)
     except Exception as e:

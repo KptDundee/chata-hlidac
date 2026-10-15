@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.48", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.49", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -706,7 +706,8 @@ function lineChart(el, pts, key, color, o){
   if(o.dayMin){   // nejnižší bod každého dne: kroužek + hodnota (stejné číslo jako v bodovém grafu)
     const by={}; for(const q of p){ if(q.t<t0) continue; const k=dkey(q.t); if(!by[k]||q[key]<by[k][key]) by[k]=q; }
     let m=""; for(const q of Object.values(by)){ const X=x(q.t), Y=y(q[key]);
-      m+=`<circle cx="${X}" cy="${Y}" r="4" fill="none" stroke="var(--crit)" stroke-width="1.8"/><text x="${Math.min(W-M.r-14,Math.max(M.l+14,X))}" y="${Math.min(H-M.b-4,Y+16)}" text-anchor="middle" style="fill:var(--crit);font-weight:700">${nf(q[key],2)}</text>`; }
+      const mc = ((DATA.days||{})[dkey(q.t)]||{}).mn==="r" ? "--muted" : "--crit";
+      m+=`<circle cx="${X}" cy="${Y}" r="4" fill="none" stroke="var(${mc})" stroke-width="1.8"/><text x="${Math.min(W-M.r-14,Math.max(M.l+14,X))}" y="${Math.min(H-M.b-4,Y+16)}" text-anchor="middle" style="fill:var(${mc});font-weight:700">${nf(q[key],2)}</text>`; }
     o._marks=m;
   }
   let dPath="",prev=null; for(const q of p){dPath+=(prev&&q.t-prev.t<GAP?"L":"M")+x(q.t).toFixed(1)+","+y(q[key]).toFixed(1);prev=q;}
@@ -1535,7 +1536,7 @@ function monthlyBars(el, hrs){
 /* nejnižší / nejvyšší hodnota dne za posledních N dní (z data.days) → {v, k} */
 function dayExt(key, days, fn){
   const D = DATA.days || {}, from = dkey(Date.now()/1000 - (days-1)*86400); let best = null;
-  for(const k of Object.keys(D)){ if(k < from) continue; const v = D[k][key]; if(v==null || v>=999 || v<0) continue;
+  for(const k of Object.keys(D)){ if(k < from) continue; if(key==="min_v" && D[k].mn==="r") continue; const v = D[k][key]; if(v==null || v>=999 || v<0) continue;
     if(!best || (fn==="min" ? v < best.v : v > best.v)) best = {v, k}; }
   return best;
 }
@@ -1560,7 +1561,7 @@ function detBat(body){
       + chartCard("dc_v", "Napětí baterie", `V · <span style="color:var(--s1)">━ regulátor</span> · <span style="color:var(--s2)">╍ měnič (Victron)</span> · <span style="color:var(--crit)">○ nejnižší bod dne</span> · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
       + chartCard("dc_vd", "Rozdíl napětí regulátor − měnič", "V · úbytek na kabelech a spojích: při nabíjení kladný, roste s proudem; v klidu ~0")
       + chartCard("dc_load", "Odběr z baterie", "W · měnič + jeho ztráty · šedě = chata jela z River"))
-    + chartCard("dc_min", "Nejnižší napětí každého dne", `V · bod = den (z měření po ~10 min, stejně jako graf napětí) · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
+    + chartCard("dc_min", "Nejnižší napětí každého dne", `V · <span style="color:var(--s1)">●</span> noc se zátěží (chata na solární baterii) · <span style="color:var(--muted)">○</span> chata na River – baterie v klidu, nesrovnatelné · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
     + chartCard("dc_prod", detLong() ? "Výroba po měsících" : "Výroba po dnech", "kWh")
     + sec(`Teď<span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500;margin-left:8px">${R.t ? `regulátor ${relDay(R.t)} ${hmT(R.t)}` : ""}</span>`, [
       rowI("Napětí", `<span style="font-size:20px">${V(h.bv)}</span>`),
@@ -1577,15 +1578,15 @@ function detBat(body){
     + sec("Dnes", [
       rowI("Výroba", `${nf(h.prod,2)} kWh`),
       rowI("Odběr ze solární baterie", h.dcWh!=null ? kWh(h.dcWh) : "–"),
-      rowI("Nejnižší / nejvyšší napětí", `${V(td.min_v)} / ${V(td.max_v)}`),
+      rowI(`Nejnižší / nejvyšší napětí${td.mn==="r"?" <span class=\"sub\">(noc na River)</span>":""}`, `${V(td.min_v)} / ${V(td.max_v)}`),
       rowI("Nejnižší / nejvyšší nabití", `${P(td.soc_min)} / ${P(td.soc_max)}`),
     ])
     + sec("Včera", [
       rowI("Výroba", yd.solar_kwh!=null ? `${nf(yd.solar_kwh,2)} kWh` : "–"),
-      rowI("Nejnižší / nejvyšší napětí", `${V(yd.min_v)} / ${V(yd.max_v)}`),
+      rowI(`Nejnižší / nejvyšší napětí${yd.mn==="r"?" <span class=\"sub\">(noc na River)</span>":""}`, `${V(yd.min_v)} / ${V(yd.max_v)}`),
       rowI("Nejnižší / nejvyšší nabití", `${P(yd.soc_min)} / ${P(yd.soc_max)}`),
     ])
-    + sec("Nejnižší stav za období", [
+    + sec(`Nejnižší stav za období <span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500">napětí jen z nocí se zátěží</span>`, [
       rowI("7 dní", `${ext("min_v",7,"min",V)} · ${ext("soc_min",7,"min",P)}`),
       rowI("30 dní", `${ext("min_v",30,"min",V)} · ${ext("soc_min",30,"min",P)}`),
       rowI("Rok", `${ext("min_v",365,"min",V)} · ${ext("soc_min",365,"min",P)}`),
@@ -1956,12 +1957,16 @@ function dotChart(el, dd, key, color, o){
   let lo=Math.min(...p.map(q=>q[key]),CRIT_V)-.2, hi=Math.max(...p.map(q=>q[key]),WARN_V)+.2;
   const {svg,y}=frame(el,lo,hi,1); refLines(svg,y,o.refs);
   const n=Math.max(p.length,7), bw=(W-M.l-M.r)/n; let s="",line="";
-  p.forEach((q,i)=>{const cx=M.l+bw*i+bw/2;line+=(i?"L":"M")+cx+","+y(q[key]);
+  let first=true;
+  p.forEach((q,i)=>{const cx=M.l+bw*i+bw/2, rv=q.mn==="r", rr=Math.max(1.6,Math.min(4.5,bw/2.4));
+    if(!rv){line+=(first?"M":"L")+cx+","+y(q[key]);first=false;}       // čára jen přes noci se zátěží
     const c=q[key]<CRIT_V?"var(--crit)":q[key]<WARN_V?"var(--serious)":color;
-    s+=`<circle cx="${cx}" cy="${y(q[key])}" r="${Math.max(1.6,Math.min(4.5,bw/2.4))}" fill="${c}" stroke="var(--surface)" stroke-width="2"/><rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    s+=rv ? `<circle cx="${cx}" cy="${y(q[key])}" r="${rr}" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.8"/>`
+          : `<circle cx="${cx}" cy="${y(q[key])}" r="${rr}" fill="${c}" stroke="var(--surface)" stroke-width="2"/>`;
+    s+=`<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
     if(i%Math.ceil(p.length/6)===0||i===p.length-1)s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${dayLabel(q.k)}</text>`;});
   svg.insertAdjacentHTML("beforeend",`<path d="${line}" fill="none" stroke="${color}" stroke-width="1.5" opacity=".35"/>`+s);
-  hover(svg,p,q=>`${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br>min <b>${nf(q.min_v,2)} V</b>${q.min_t?` v ${hmT(q.min_t)}`:""}${q.soc_min!=null&&q.soc_min<999?` (${nf(q.soc_min)} %)`:""}${q.max_v!=null?` · max ${nf(q.max_v,2)} V`:""}${q.min_vr!=null&&q.min_vr<q.min_v-0.05?`<br><span style="color:var(--text2)">okamžitý propad (regulátor) ${nf(q.min_vr,2)} V</span>`:""}`);
+  hover(svg,p,q=>`${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br>min <b>${nf(q.min_v,2)} V</b>${q.min_t?` v ${hmT(q.min_t)}`:""}<br><span style="color:var(--text2)">${q.mn==="r"?"chata na River – baterie bez zátěže (nesrovnatelné)":q.mn==="s"?"chata na solární baterii":"zátěž neznámá"}</span>${q.soc_min!=null&&q.soc_min<999?` (${nf(q.soc_min)} %)`:""}${q.max_v!=null?` · max ${nf(q.max_v,2)} V`:""}${q.min_vr!=null&&q.min_vr<q.min_v-0.05?`<br><span style="color:var(--text2)">okamžitý propad (regulátor) ${nf(q.min_vr,2)} V</span>`:""}`);
 }
 function hover(svg,p,html){
   svg.addEventListener("pointermove",ev=>{const i=ev.target.dataset&&ev.target.dataset.i;if(i==null)return hideTip();showTip(ev,html(p[+i]));});
