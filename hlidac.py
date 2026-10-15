@@ -436,6 +436,60 @@ def migrate_plug_ids(data, st, cfg):
     print("Přejmenování staré historie zásuvek:", data["tp_mig"])
 
 
+def backfill_flip(data, now, cfg):
+    """Flip posílá každých 10 min, ale hlídač (cron GitHubu) běží nepravidelně – často jen po 30–45 min. Ze zpráv
+    v ntfy (drží 12 h) doplní odběr a zásuvky i do mezer mezi běhy: k bodu regulátoru ze stejné chvíle (±5 min),
+    jinak jako samostatný bod jen s údaji z Flipu."""
+    msgs = data.pop("_inv_msgs", None) or []
+    if len(msgs) < 2:
+        return
+    import bisect
+    ts = now.timestamp()
+    cut = ts - KEEP_DETAIL_DAYS * 86400
+    pts = data["points"]
+    times = [p["t"] for p in pts]
+    added = filled = 0
+    for m in msgs[:-1]:                        # poslední zprávu zpracuje běžný běh
+        inv = inv_from_msg(m, now, cfg)
+        if not inv or inv["t"] < cut or ts - inv["t"] < 120:
+            continue
+        t = inv["t"]
+        plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
+        i = bisect.bisect_left(times, t)
+        near = [j for j in (i - 1, i) if 0 <= j < len(pts) and abs(pts[j]["t"] - t) <= 300]
+        if near:
+            pt = min((pts[j] for j in near), key=lambda q: abs(q["t"] - t))
+            if "tp" in pt or "mw" in pt:
+                continue                       # už má data z Flipu
+            filled += 1
+        else:
+            pt = {"t": t, "bf": 2}
+            pts.insert(i, pt)
+            times.insert(i, t)
+            added += 1
+        if inv.get("w") is not None:
+            pt["ac_w"] = inv["w"]
+        if inv.get("mw") is not None:
+            pt["mw"] = inv["mw"]
+        if (inv.get("gen") or {}).get("w") is not None:
+            pt["gw"] = inv["gen"]["w"]
+        if plugs:
+            pt["tp"] = plugs
+        # napětí Victronu jen k bodu regulátoru ze stejné chvíle
+        if inv.get("v") is not None:
+            vt = t - (inv.get("age") or 0)
+            k = bisect.bisect_left(times, vt)
+            cand = [pts[j] for j in (k - 1, k) if 0 <= j < len(pts) and pts[j].get("bat_v") and abs(pts[j]["t"] - vt) <= 150]
+            if cand:
+                b = min(cand, key=lambda q: abs(q["t"] - vt))
+                if b.get("ivs") is None:
+                    b["iv"], b["ivs"] = inv["v"], int(vt - b["t"])
+                    if inv.get("lw") is not None:
+                        b["lw"] = inv["lw"]
+    if added or filled:
+        print(f"Flip: doplněno {filled} bodů, přidáno {added} bodů z ntfy")
+
+
 def sync_inverter_voltage(data, inv, v, now, tol=150):
     """Napětí Victronu přiřadí k bodu regulátoru, který je časově nejblíž (nejvýš tol s). Jinak by se porovnávaly
     dvě různé chvíle (Flip posílá po 10 min, regulátor má vlastní takt) a rozdíl napětí by vycházel i záporný."""
@@ -669,6 +723,7 @@ def load_data(passphrase):
 
 
 def save_data(passphrase, data):
+    data.pop("_inv_msgs", None)
     flush_log(data)
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     salt, iv = os.urandom(16), os.urandom(12)
@@ -1237,6 +1292,11 @@ def main():
             st["tp_v2"] = True
         if rivers:
             data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w")} for r in rivers]
+    try:
+        backfill_flip(data, now, cfg)
+    except Exception as e:
+        print("Doplnění z Flipu:", e)
+    data.pop("_inv_msgs", None)
     try:
         import_history(token, data, st, now, cfg)
     except Exception as e:
@@ -1928,27 +1988,8 @@ def ips(txt):
     return [x for x in re.split(r"[,;\s]+", str(txt or "")) if x]
 
 
-def read_inverter(data, topic, now, cfg=None):
-    """Poslední zpráva z ESP32 u měniče (posílá do ntfy tématu <NTFY_TOPIC>-menic každých 10 min).
-
-    Formát zprávy: JSON {"w": průměr VA, "max": max VA, "v": napětí baterie, "st": stav, "al": alarm}.
-    """
-    url = f"https://ntfy.sh/{topic}-menic/json?poll=1&since=12h"
-    try:
-        lines = urllib.request.urlopen(url, timeout=20).read().decode().strip().splitlines()
-    except Exception as e:
-        print("Měnič (ntfy):", e)
-        return None
-    last = None
-    for ln in lines:
-        try:
-            m = json.loads(ln)
-            if m.get("event") == "message":
-                last = m
-        except ValueError:
-            pass
-    if not last:
-        return None
+def inv_from_msg(last, now, cfg=None):
+    """Jedna zpráva Flipu (ntfy) → slovník měniče a zásuvek (bez zápisu do data)."""
     try:
         body = json.loads(last.get("message") or "{}")
     except ValueError:
@@ -2015,6 +2056,35 @@ def read_inverter(data, topic, now, cfg=None):
         inv["gen"] = {"w": gen.get("w"), "wh": gen.get("wh"), "off": gen.get("off"), "since": gen.get("since"), "gone": gen.get("gone")}
     if "w" not in inv and not inv.get("tp") and "ph" not in inv:
         return None
+    return inv
+
+
+def read_inverter(data, topic, now, cfg=None):
+    """Poslední zpráva z ESP32 u měniče (posílá do ntfy tématu <NTFY_TOPIC>-menic každých 10 min).
+
+    Formát zprávy: JSON {"w": průměr VA, "max": max VA, "v": napětí baterie, "st": stav, "al": alarm}.
+    """
+    url = f"https://ntfy.sh/{topic}-menic/json?poll=1&since=12h"
+    try:
+        lines = urllib.request.urlopen(url, timeout=20).read().decode().strip().splitlines()
+    except Exception as e:
+        print("Měnič (ntfy):", e)
+        return None
+    msgs = []
+    for ln in lines:
+        try:
+            m = json.loads(ln)
+            if m.get("event") == "message":
+                msgs.append(m)
+        except ValueError:
+            pass
+    if not msgs:
+        return None
+    last = msgs[-1]
+    inv = inv_from_msg(last, now, cfg)
+    if inv is None:
+        return None
+    data["_inv_msgs"] = msgs               # všechny zprávy za 12 h – doplnění mezer mezi běhy hlídače
     data["inverter"] = inv
     print(f"Měnič: {fmt(inv.get('w'))} W (max {fmt(inv.get('max'))}), {fmt(inv.get('v'), 2)} V, {inv.get('st', '')}")
     return inv
