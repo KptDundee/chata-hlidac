@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.54", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.55", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1130,9 +1130,10 @@ function batAcute(d, h){       // jen to, co vyžaduje akci hned
 }
 function batFlow(h){           // stav: nabíjí / vybíjí / nabito / v klidu
   const mode = {1:"Float",2:"Boost",3:"vyrovnávací"}[h.status];
-  if(h.netB!=null && h.netB >= 0.3) return {t:`Nabíjí se${mode?` · ${mode}`:""}`, c:"--good"};
   if(h.netB!=null && h.netB <= -0.3) return {t:"Vybíjí se", c:"--serious"};
-  if(h.status===1) return {t:"Nabito · Float", c:"--good"};
+  if(h.status===1) return {t:"Nabito · Float", c:"--good"};                       // plná – regulátor jen udržuje
+  if(h.status===2 && h.bv >= 14.1) return {t:"Dobíjí se · Boost", c:"--good"};    // napětí drží, proud klesá – skoro plná
+  if(h.netB!=null && h.netB >= 0.3) return {t:`Nabíjí se${mode?` · ${mode}`:""}`, c:"--good"};
   if(h.netB==null) return {t: mode ? `Regulátor: ${mode}` : "Bez údaje o odběru", c:"--text2"};
   return {t:"V klidu", c:"--text2"};
 }
@@ -1742,6 +1743,7 @@ function detBat(body){
         ${$("invsync").classList.contains("hide") ? "" : `<div class="sub" style="margin-top:8px">${$("invsync").innerHTML}</div>`}
         ${$("gen").classList.contains("hide") ? "" : `<div class="sub" style="margin-top:8px">${$("gen").innerHTML}</div>`}
         <div class="sub" style="margin-top:10px;line-height:1.55">
+        Stav: <b>Nabíjí se</b> = Boost pod ~14,1 V, plný proud · <b>Dobíjí se</b> = Boost nad 14,1 V, napětí drží a proud klesá – regulátor už ukazuje ~100 %, ale baterie ještě není plná · <b>Nabito</b> = Float, plná.<br>
         <b>Boost</b> – regulátor nabíjí plným proudem až na ~14,4 V a chvíli napětí drží. <b>Float</b> – baterie je nabitá, regulátor drží ~13,7 V a panely škrtí jen na to, co se spotřebuje. <b>Vyrovnávací</b> – občasné krátké přebití pro vyrovnání článků.<br>
         <b>Odběr z baterie</b> = co bere měnič (zásuvka za ním) + jeho ztráty (~12 %) + vlastní spotřeba ${nf(cfg.menic_vlastni_W ?? 6)} W. Regulátor sám odběr nevidí – měří jen svůj proud do baterie.<br>
         <b>Do / z baterie</b> = výkon z regulátoru − odběr. Kladné: baterie se nabíjí; záporné: vybíjí.<br>

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.55 – 15. 10. 2026
+- **Stav solární baterie rozlišuje fáze nabíjení** (dlaždice i hodinky): **Nabíjí se** (Boost pod ~14,1 V, plný proud) · **Dobíjí se** (Boost nad 14,1 V – napětí drží, proud klesá; regulátor už ukazuje ~100 %, ale baterie ještě není plná) · **Nabito** (Float). Float se už nikdy neukazuje jako „nabíjí se“.
+
 ## 3.54 – 15. 10. 2026
 - **Rozdíl napětí regulátor − měnič už není záporný:** napětí Victronu se přiřadí jen k bodu regulátoru ze stejné chvíle (do 2,5 min); dřív se porovnávaly údaje až 20 min od sebe. Od rozdílu se odečte stálý rozdíl kalibrace přístrojů změřený v klidu. Graf se jmenuje **Úbytek napětí na kabelech**, s červenou hranicí upozornění.
 - **Upozornění na kabely a spoje:** 🔥 hned, když úbytek přesáhne 0,35 V (jako u natavené pojistky – max 1× za 6 h); 🔧 jednou denně, když odpor cesty regulátor → baterie → měnič za 24 h vyjde nad 20 mΩ. Nastavení `kabely_ubytek_V`, `kabely_odpor_mOhm`.

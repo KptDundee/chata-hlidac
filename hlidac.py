@@ -1572,7 +1572,9 @@ def watch_publish(data, v, st, now, topic, cfg):
         lvl = 1
     inv = data.get("inverter") or {}
     fresh = inv and now.timestamp() - inv.get("t", 0) < 1800
-    st_txt = {1: "nabito", 2: "nabíjí", 3: "vyrovnává", 0: "nenabíjí"}.get(int(v["status"]) if v.get("status") is not None else -1, "")
+    stc = int(v["status"]) if v.get("status") is not None else -1
+    # Boost pod ~14,1 V = nabíjí plným proudem; nad = dobíjí (napětí drží, proud klesá – „100 %“ podle regulátoru, ale ještě ne plná)
+    st_txt = {1: "nabito", 2: "dobíjí" if bv >= 14.1 else "nabíjí", 3: "vyrovnává", 0: "nenabíjí"}.get(stc, "")
     f = data.get("forecast")
     fc = ""
     if f and f.get("until"):
