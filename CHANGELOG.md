@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.50 – 15. 10. 2026
+- Noci na River se rozpoznávají až **od 15. 10. 2026** (nastavení `river_noci_od`). Dřív v noci River nejel a jeho zásuvky sloužily jinak → všechny starší noci = solární baterie se zátěží.
+
 ## 3.49 – 15. 10. 2026
 - **Noci na River se nemíchají s nocemi na solární baterii:** u každého dne se pozná, jestli ~6 h před nejnižším napětím chatu napájela solární baterie (odběr za měničem), nebo River (baterie bez zátěže). Zdroj: body hlídače, starší dny hodinová spotřeba zásuvky měniče z Tapo.
   - Bodový graf: ● plný = noc se zátěží (spojené čarou – trend vybíjení), ○ šedý prázdný = noc na River (nesrovnatelné, mimo čáru); v bublině popis

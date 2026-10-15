@@ -71,6 +71,7 @@ zasuvka_menic = 1
 # zásuvky na EcoFlow River (zimní provoz)
 # zásuvky podle čísla v názvu v aplikaci Tapo: (1) měnič 220, (2) River žlutý, (3) River červený, (4) lednice, (5) wifi router, (6) malá River, (7) nabíjení z generátoru, (8) nabíjení ze solár
 zasuvky_river = 2, 3, 6
+river_noci_od = 2026-10-15     # od kdy může chata v noci jet z River (dřív zásuvky River sloužily jinak – starší noci = vždy solární baterie)
 # zásuvka, přes kterou nabíjí generátor
 zasuvka_generator = 7
 

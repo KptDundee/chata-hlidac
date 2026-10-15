@@ -30,7 +30,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
-    "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "zasuvka_generator": "7",
+    "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
     "brana_hlidat": True, "brana_ticho_min": 60, "telefon_baterie_pod": 15, "telefon_upozornit": "50,30,20,10,0",
@@ -401,10 +401,14 @@ def night_modes(data, now, cfg, days_back=120):
     days[k]["mn"] = "s" (chatu napájela solární baterie přes měnič) | "r" (chata na River / měnič bez odběru,
     baterie v klidu) – minima obou druhů nejsou porovnatelná. Bez dat se nic nezapíše."""
     rids = ips(cfg.get("zasuvky_river"))
+    od = str(cfg.get("river_noci_od") or "2026-10-15")      # dřív v noci River nejel (zásuvky sloužily jinak)
     ph = data.get("plug_hourly") or {}
     pts = data.get("points") or []
     for k in sorted(data.get("days", {}))[-days_back:]:
         day = data["days"][k]
+        if k < od:
+            day["mn"] = "s"
+            continue
         t = day.get("min_t") or datetime.strptime(k + " 06:00", "%Y-%m-%d %H:%M").replace(tzinfo=TZ).timestamp()
         a = t - 6 * 3600
         # 1) body hlídače (posledních 14 dní): odběr za měničem vs. zásuvky River
