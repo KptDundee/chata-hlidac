@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.50", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.51", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -12,13 +12,13 @@
 <style>
 :root{
   --bg:#f3f2ee;--surface:#fcfcfb;--text:#0b0b0b;--text2:#52514e;--muted:#8a8984;--line:#e4e3de;--grid:#ecebe6;
-  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948;
   --good:#0ca30c;--warn:#fab219;--serious:#ec835a;--crit:#d03b3b;
   --radius:16px;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#111110;--surface:#1a1a19;--text:#f0efec;--text2:#c3c2b7;--muted:#8c8b84;--line:#2c2c2a;--grid:#262624;
-  --s1:#3987e5;--s2:#d95926;--s3:#1baf7a;
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767;
 }}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
@@ -199,6 +199,11 @@ details.sec>.in{margin-top:8px}
 .hgrid.small .ht{min-height:0;padding:11px 12px 11px 14px}
 .hgrid.small .ht .v{font-size:21px;margin:4px 0 1px}
 .ht .bang{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--crit);color:#fff;font-weight:800;font-size:12px;margin-left:6px;animation:blink 1s steps(2,start) infinite}
+.ut{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+.ut th{font-size:12px;color:var(--text2);font-weight:600;text-align:right;padding:4px 0 6px 8px;white-space:nowrap}
+.ut td{padding:7px 0 7px 8px;border-top:1px solid var(--line);text-align:right;vertical-align:top;font-weight:600}
+.ut td:first-child{text-align:left;padding-left:0;color:var(--text2);font-weight:500;font-size:13.5px}
+.ut tr.tot td{font-weight:750}.ut tr.tot td:first-child{color:var(--text);font-weight:650}
 @keyframes blink{to{visibility:hidden}}
 @media (prefers-reduced-motion:reduce){.ht .bang{animation:none}}
 .ht .bar{height:6px;border-radius:3px;background:var(--grid);margin-top:8px;overflow:hidden}.ht .bar div{height:100%;background:var(--c);border-radius:3px}
@@ -1037,7 +1042,7 @@ let HEALTH = null;
 const hmT = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
 function homeData(d){
   const last = d.last || {}, pts = d.points || [], lp = pts[pts.length-1] || {};
-  const now = Date.now()/1000, cfg = d.cfg || {}, idle = cfg.menic_vlastni_W ?? 6;
+  const now = Date.now()/1000, cfg = d.cfg || {}, idle = (cfg.menic_vlastni_W ?? 6) + (cfg.desulfator_W ?? 0.25);
   const bv = last.bat_v ?? lp.bat_v, status = last.status ?? lp.status, a = last.bat_a ?? lp.bat_a, pv = last.pv_w ?? lp.pv_w;
   const inv = d.inverter, invF = inv && now - inv.t < 1800;
   const loadW = invF && inv.mw!=null ? inv.mw/0.88 + idle : null;
@@ -1063,7 +1068,7 @@ function homeData(d){
   // měnič vypnutý (zásuvka za ním nedostupná, Flip přitom posílá) → solární baterie nedává nic (chata třeba na River)
   const mp = invF && mip!=null ? (inv.tp||[]).find(p=>p.ip===String(mip)) : null;
   const menicOff = invF && inv.mw==null && (!mp || mp.off || mp.gone || mp.err!=null);
-  const loadB = loadW!=null ? loadW : menicOff ? 0 : null;              // W ze solární baterie (DC, se ztrátami měniče)
+  const loadB = loadW!=null ? loadW : menicOff ? (cfg.desulfator_W ?? 0.25) : null;              // W ze solární baterie (DC, se ztrátami měniče)
   const netB = loadB!=null && bv && a!=null ? a - loadB/bv : null;      // A do (+) / z (−) baterie
   const rvOn = invF && riverIds(cfg).some(id=>((inv.tp||[]).find(p=>p.ip===id)||{}).w > 3);
   return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW, riverW, brk, menicOff, loadB, netB, rvOn, td};
@@ -1436,14 +1441,14 @@ function tileProdGen(d, h){
 /* ---- spotřeba dnes ---- */
 function tileUseSolar(d, h){
   const L = dayLedger(d, h);
-  return {k:"bat", icon:"🔆", label:"Ze solární baterie", cls:"ok", info:true, v: L.solar!=null ? `${nf(L.solar/1000,2)}<small>kWh</small>` : "–",
-    st: h.invF && h.inv.mw!=null ? `teď ${nf(h.inv.mw)} W za měničem` : "měnič bez dat",
-    rows:[["měnič", L.menic!=null ? kWh(L.menic) : "–"], ["− River", kWh(L.auto)]]};
+  return {k:"use", icon:"🔆", label:"Ze soláru", cls:"ok", info:true, v: L.solar!=null ? `${nf(L.solar/1000,2)}<small>kWh</small>` : "–",
+    st: h.invF && h.inv.mw!=null ? `teď ${nf(h.inv.mw)} W` : h.menicOff ? "měnič vypnutý" : "měnič bez dat",
+    rows:[["vč. ztrát", h.dcWh!=null ? kWh(h.dcWh) : "–"]]};
 }
 function tileUseRiver(d, h){
   const L = dayLedger(d, h), dot = '<span style="color:var(--good)">●</span>';
   const nowW = L.rvT.filter(r=>(r.w||0)>2).reduce((s,r)=>s+r.w,0);
-  return {k:"river", icon:"🔋", label:"Z River", cls:"ok", info:true, v:`${nf(L.rvOut/1000,2)}<small>kWh</small>`,
+  return {k:"use", icon:"🔋", label:"Z River", cls:"ok", info:true, v:`${nf(L.rvOut/1000,2)}<small>kWh</small>`,
     st: nowW ? `teď ${nf(nowW)} W` : "teď nenapájí",
     rows: L.rvT.map(r=>[`${(r.w||0)>2?dot+" ":""}${r.name.replace(/^River\s*/i,"")}`, kWh(r.o||0)])};
 }
@@ -1459,8 +1464,153 @@ function tileDevices(d, h){
   const ids = [...new Set([...Object.keys(tpd).filter(named), ...live.filter(p=>!p.off).map(p=>p.ip)])].filter(id=>!skip.has(id));
   const rows = ids.map(id=>{ const p = live.find(x=>x.ip===id)||{}; return {id, n: pn(names[id]||p.n)||`zásuvka ${id}`, wh: tpd[id], w: p.w, nm: p.nm, off: p.off}; })
     .sort((a,b)=>(b.wh||0)-(a.wh||0));
-  return {k:"river", icon:"🔌", label:"Spotřebiče", wide:true, cls:"ok", info:true, v:"", st:"dnes · teď",
+  return {k:"use", icon:"🔌", label:"Spotřebiče", wide:true, cls:"ok", info:true, v:"", st:"dnes · teď",
     rows: rows.length ? rows.map(r=>[r.n, `${r.nm ? "neměří" : kWh(r.wh||0)}${r.off ? " · vyp." : r.w!=null ? ` · ${nf(r.w)} W` : ""}`]) : [["žádné zásuvky", ""]]};
+}
+/* ================= SPOTŘEBA: co bralo a kdy (v3.51) ================= */
+const USE_FROM = "2026-10-14";      // od přejmenování zásuvek „(N) …“; dřív jen 220 V, lednice, Wi‑Fi
+const DEVC = ["--s1","--s3","--s4","--s5","--s7","--s6","--s8"];
+function useModel(d){
+  const cfg = d.cfg||{}, ids = x => String(x||"").split(/[,;\s]+/).filter(Boolean), names = d.plug_names||{};
+  const mip = String(cfg.zasuvka_menic ?? "").trim() || (d.inverter && d.inverter.mip) || "1";
+  const rids = ids(cfg.zasuvky_river), gen = String(cfg.zasuvka_generator ?? "7"), auto = String(cfg.river_auto_ip ?? "8");
+  const fr = String(cfg.zasuvka_lednice ?? "4");
+  const named = Object.keys(names).filter(k=>/^\s*\(\d{1,3}\)/.test(names[k]||""));
+  const live = (d.inverter && d.inverter.tp || []).map(p=>p.ip).filter(Boolean);
+  const skip = new Set([mip, ...rids, gen, auto]);
+  const wifi = named.find(k=>/wi.?fi|router/i.test(names[k])) || null;
+  const devIds = [...new Set([...named, ...live])].filter(k=>!skip.has(k) && /^\d{1,3}$/.test(k))
+    .sort((a,b)=>(a===fr?-1:b===fr?1:a===wifi?-1:b===wifi?1:(+a)-(+b)));
+  const devs = devIds.map((id,i)=>({id, name: pn(names[id]) || `zásuvka ${id}`, color: css(DEVC[i % DEVC.length]), hist: id===fr || id===wifi}));
+  const idle = (cfg.menic_vlastni_W ?? 6) + (cfg.desulfator_W ?? 0.25);
+  return {mip, rids, gen, auto, fr, wifi, devs, idle, od: cfg.river_noci_od || "2026-10-15"};
+}
+/* jeden bod: W podle zásuvek; ostatní = celkem (220 V + River) − měřené spotřebiče */
+function useAt(p, U){
+  if(!p.tp) return null; const tp = p.tp;
+  const S = tp[U.mip] ?? null, R = U.rids.reduce((s,i)=>s+(tp[i]||0),0);
+  if(S==null && !R) return null;
+  const v = {}; let dev = 0;
+  for(const x of U.devs){ if(tp[x.id]!=null){ v[x.id] = tp[x.id]; dev += tp[x.id]; } }
+  v._o = Math.max(0, (S||0) + R - dev);
+  return {t:p.t, S, R, tot:(S||0)+R, v};
+}
+/* jeden den: Wh podle zásuvek, rozdělené na solár / River */
+function useDay(k, U){
+  const D = (DATA.days||{})[k] || {}, tp = D.tp || {}, tps = D.tps || {};
+  const old = k < USE_FROM;
+  const sp = id => tps[id] || {s: k < U.od ? (tp[id]||0) : (tp[id]||0), r: 0};
+  const S = tp[U.mip] ?? null, R = old ? 0 : U.rids.reduce((s,i)=>s+(tp[i]||0),0);
+  const v = {}, vs = {}; let ds = 0, dr = 0, any = false;
+  for(const x of U.devs){ if(old && !x.hist) continue; if(tp[x.id]==null) continue; any = true;
+    v[x.id] = tp[x.id]; const q = sp(x.id); vs[x.id] = q; ds += q.s||0; dr += q.r||0; }
+  if(S==null && !R && !any) return null;
+  const os = Math.max(0, (S||0) - ds), or = Math.max(0, R - dr);
+  v._o = os + or; vs._o = {s:os, r:or};
+  return {k, S, R, tot:(S||0)+R, v, vs};
+}
+function stackChart(el, rows, layers, o){
+  rows = rows.filter(Boolean); if(rows.length < 2) return empty(el);
+  const hi = Math.max(10, ...rows.map(r=>layers.reduce((s,l)=>s+(r.v[l.id]||0),0))) * 1.12;
+  const {svg,y} = frame(el, 0, hi, 0);
+  const t1 = Date.now()/1000, t0 = t1 - (o.hours||24)*3600, x = t=>M.l+(W-M.l-M.r)*(t-t0)/(t1-t0);
+  xLabels(svg,t0,t1,x);
+  let b=""; for(const [a,e] of o.bands||[]){ if(e<t0) continue; const xa=Math.max(M.l,x(a)), xe=Math.min(W-M.r,x(e)); if(xe-xa>=1) b+=`<rect x="${xa}" y="${M.t}" width="${xe-xa}" height="${H-M.t-M.b}" fill="var(--muted)" opacity=".16"/>`; }
+  // souvislé úseky (mezera > 40 min čáru přeruší)
+  const segs = []; let cur = [];
+  for(const r of rows){ if(r.t < t0) continue; if(cur.length && r.t - cur[cur.length-1].t > 2400){ segs.push(cur); cur = []; } cur.push(r); }
+  if(cur.length) segs.push(cur);
+  let a = "";
+  for(const sg of segs){ if(sg.length < 2) continue;
+    const base = sg.map(()=>0);
+    for(const l of layers){
+      const top = sg.map((r,i)=>base[i] + (r.v[l.id]||0));
+      if(top.some((v,i)=>v>base[i])){
+        a += `<path d="M${sg.map((r,i)=>`${x(r.t).toFixed(1)},${y(top[i]).toFixed(1)}`).join("L")}L${sg.slice().reverse().map((r,j)=>`${x(r.t).toFixed(1)},${y(base[sg.length-1-j]).toFixed(1)}`).join("L")}Z" fill="${l.color}" opacity="${l.id==="_o"?.45:.85}" stroke="var(--surface)" stroke-width="1"/>`; }
+      top.forEach((v,i)=>base[i]=v);
+    }
+  }
+  svg.insertAdjacentHTML("beforeend", b + a + `<line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--text2)" stroke-width="1" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
+  const ch = svg.querySelector(".ch"), vis = rows.filter(r=>r.t>=t0);
+  const move = ev=>{ const r0=svg.getBoundingClientRect(); const tx=t0+(t1-t0)*((ev.clientX-r0.left)*W/r0.width-M.l)/(W-M.l-M.r);
+    let best=vis[0]; for(const q of vis) if(Math.abs(q.t-tx)<Math.abs(best.t-tx)) best=q; if(!best) return;
+    const X=x(best.t); ch.setAttribute("x1",X); ch.setAttribute("x2",X); ch.setAttribute("opacity",.5);
+    const tot = layers.reduce((s,l)=>s+(best.v[l.id]||0),0);
+    showTip(ev, `${fmtT(best.t)}<br><b>celkem ${nf(tot)} W</b>${best.R>3?` · <span style="color:var(--s1)">River ${nf(best.R)} W</span>`:""}<br>` + layers.slice().reverse().filter(l=>best.v[l.id]!=null).map(l=>`<span style="color:${l.color}">■</span> ${l.name} ${nf(best.v[l.id])} W`).join("<br>")); };
+  svg.addEventListener("pointermove",move); svg.addEventListener("pointerdown",move); svg.addEventListener("pointerleave",()=>{ch.setAttribute("opacity",0);hideTip();});
+}
+function stackBars(el, days, layers, o){
+  days = days.filter(Boolean); if(!days.length) return empty(el, "Zatím žádné celé dny.");
+  const sum = q => layers.reduce((s,l)=>s+(q.v[l.id]||0),0);
+  const hi = Math.max(...days.map(sum))/1000*1.15 || 1; const {svg,y} = frame(el, 0, hi, hi<2?1:0);
+  const n = Math.max(days.length,7), bw=(W-M.l-M.r)/n, w=Math.max(2,Math.min(28,bw-2));
+  let s="";
+  days.forEach((q,i)=>{ const cx=M.l+bw*i+bw/2; let base=0;
+    for(const l of layers){ const v=(q.v[l.id]||0)/1000; if(v<=0) continue;
+      const yt=y(base+v), yb=y(base); s+=`<rect x="${cx-w/2}" y="${yt}" width="${w}" height="${Math.max(0,yb-yt-(w>4?1:0))}" fill="${l.color}" opacity="${l.id==="_o"?.5:.9}"/>`; base+=v; }
+    s+=`<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    if(i%Math.ceil(days.length/6)===0||i===days.length-1) s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${dayLabel(q.k)}</text>`; });
+  svg.insertAdjacentHTML("beforeend", s);
+  hover(svg, days, q=>`${dTxt(q.k)}<br><b>${nf(sum(q)/1000,2)} kWh</b><br>` + layers.slice().reverse().filter(l=>(q.v[l.id]||0)>0).map(l=>`<span style="color:${l.color}">■</span> ${l.name} ${nf(q.v[l.id]/1000,2)} kWh`).join("<br>"));
+}
+function useDays(hrs, U){
+  const from = dkey(Date.now()/1000 - hrs*3600);
+  return Object.keys(DATA.days||{}).sort().filter(k=>k>=from).map(k=>useDay(k, U));
+}
+function detUse(body){
+  const d = DATA, h = homeData(d), U = useModel(d), hrs = detHours(), long = detLong() || hrs > 7*24;
+  const SRC = [{id:"s", name:"ze soláru", color:css("--s2")}, {id:"r", name:"z River", color:css("--s1")}];
+  const L = [...U.devs.map(x=>({id:x.id, name:x.name, color:x.color})), {id:"_o", name:"ostatní (neměřené)", color:css("--muted")}];
+  const leg = L.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ");
+  const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), bands = riverBands(pts, U.rids);
+  const rows = pts.map(p=>useAt(p, U));
+  const dd = useDays(Math.max(hrs, 24), U);
+  const ser = (id) => rows.filter(Boolean).map(r=>({t:r.t, w: id==="_o" ? r.v._o : r.v[id] ?? null}));
+  const srcBars = (id) => dd.filter(Boolean).filter(q=>q.vs[id]).map(q=>({k:q.k, v:{s:q.vs[id].s||0, r:q.vs[id].r||0}}));
+  let html = segHtml()
+    + chartCard("u_all", "Co bralo kdy", `${long ? "kWh za den" : "W"} · ${leg}${long ? "" : " · šedé pozadí = chata na River"}`)
+    + chartCard("u_220", "220 V – zásuvka za měničem (ze solární baterie)", long ? `kWh za den · <span style="color:var(--s2)">■</span> změřeno · v bublině i se ztrátami měniče` : `W · <span style="color:var(--s2)">━ změřeno na zásuvce</span> · <span style="color:var(--s1)">╍ vzato z baterie (+12 % ztráty měniče, +${nf(U.idle,1)} W měnič a desulfátor)</span>`);
+  for(const x of U.devs) html += chartCard("u_d"+x.id, x.name, long ? `kWh za den · <span style="color:var(--s2)">■</span> ze soláru · <span style="color:var(--s1)">■</span> z River${x.hist?"":" · historie od 14. 10."}` : "W · šedé pozadí = chata na River");
+  html += chartCard("u_o", "Ostatní (neměřené)", `${long ? "kWh za den" : "W"} · celkový odběr − měřené zásuvky: světla, kamery, … (+ nabíjení River ze soláru, zásuvka 8 neměří)`);
+  // čísla
+  const td = useDay(dkey(h.now), U), yd = useDay(dkey(h.now-86400), U);
+  const wk = useDays(7*24, U).filter(Boolean).filter(q=>q.k < dkey(h.now));
+  const avg = id => wk.length ? wk.reduce((s,q)=>s+(id==="tot"?q.tot:(q.v[id]||0)),0)/wk.length : null;
+  const k2 = wh => wh==null ? "–" : nf(wh/1000, 2);
+  const cell = (q, id) => { if(!q) return "–"; const v = id==="tot" ? q.tot : q.v[id]; if(v==null) return "–";
+    const sp = id==="tot" ? {s:q.S||0, r:q.R||0} : q.vs[id];
+    return `${k2(v)}${sp && sp.r > 5 ? `<div class="sub" style="font-size:11px;font-weight:500;white-space:nowrap">☀ ${k2(sp.s||0)}<br>R ${k2(sp.r)}</div>` : ""}`; };
+  const rowsN = [["Chata celkem","tot"], ...L.map(l=>[l.name, l.id])];
+  html += `<div class="card"><h2 style="margin:0 0 6px">Čísla <span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500">kWh · ☀ ze soláru · R z River</span></h2>
+    <table class="ut"><thead><tr><th></th><th>dnes</th><th>včera</th><th>⌀ 7 dní</th></tr></thead><tbody>
+    ${rowsN.map(([n,id],i)=>`<tr${i===0?' class="tot"':""}><td>${n}</td><td>${cell(td,id)}</td><td>${cell(yd,id)}</td><td>${k2(avg(id))}</td></tr>`).join("")}
+    <tr><td>Z baterie vč. ztrát měniče</td><td>${k2(h.dcWh)}</td><td></td><td></td></tr></tbody></table></div>`;
+  const mig = d.tp_mig ? Object.entries(d.tp_mig).map(([o,[n,nm]])=>`„${nm}“ (.${o}) → ${pn((d.plug_names||{})[n])||n}`).join(", ") : "";
+  html += `<div class="card"><h2 style="margin:0 0 6px">Výklad</h2><div class="sub" style="line-height:1.55">
+    <b>Celkem</b> = zásuvka 220 V za měničem (solární baterie) + zásuvky na výstupu River. <b>Ostatní</b> = celkem − měřené zásuvky, tedy vše bez vlastní zásuvky.<br>
+    <b>Ztráty měniče</b> jen u 220 V: z baterie se bere ~12 % víc + ${nf(U.idle,1)} W (měnič naprázdno, desulfátor). U jednotlivých spotřebičů je změřený příkon.<br>
+    <b>Solár / River:</b> když napájí oba zdroje najednou, spotřeba se rozdělí podle jejich výkonu (odhad). Před ${U.od.split("-").reverse().join(". ").replace(/^0/,"")} vše ze soláru.<br>
+    <b>Historie:</b> 220 V, lednice a Wi‑Fi zpětně${mig?` (stará jména přiřazena: ${mig})`:""}; ostatní zásuvky od 14. 10. 2026. Podrobný průběh po 10 min jen 14 dní, pak součty po dnech.<br>
+    <b>Nabíjení River ze soláru</b> (zásuvka 8) neměří – když běží, schová se v „ostatní“.</div></div>`;
+  body.insertAdjacentHTML("beforeend", html);
+  // grafy
+  if(long){
+    stackBars($("u_all"), dd, L, {});
+    barChart($("u_220"), dd.filter(q=>q && q.S!=null).map(q=>({k:q.k, v:q.S/1000})), "v", css("--s2"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b> změřeno<br>z baterie ~${nf(q.v/0.88 + U.idle*24/1000,2)} kWh`});
+    for(const x of U.devs) stackBars($("u_d"+x.id), srcBars(x.id), SRC, {});
+    stackBars($("u_o"), srcBars("_o"), SRC, {});
+    return;
+  }
+  stackChart($("u_all"), rows, L, {hours:hrs, bands});
+  lineChart($("u_220"), rows.filter(Boolean).map(r=>({t:r.t, s:r.S, dc: r.S!=null ? Math.round(r.S/0.88 + U.idle) : null})), "s", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,k2:{key:"dc",color:css("--s1"),name:"z baterie"}});
+  for(const x of U.devs) lineChart($("u_d"+x.id), ser(x.id), "w", x.color, {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
+  lineChart($("u_o"), ser("_o"), "w", css("--muted"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
+}
+function tileUseTotal(d, h){
+  const U = useModel(d), td = useDay(dkey(h.now), U) || {tot:0};
+  const nowW = h.invF ? (h.inv.mw||0) + (h.inv.rw||0) : null;
+  return {k:"use", icon:"🏠", label:"Chata celkem", wide:true, cls:"ok", v:`${nf(td.tot/1000,2)}<small>kWh</small>`,
+    st: nowW!=null ? `teď ${nf(nowW)} W` : "teď bez dat (Flip)"};
 }
 function alertItems(d, h){
   const A = [], RS = regStale(d), g = d.inverter, ph = g && g.ph, lim = d.cfg?.river_vymenit_pod ?? 15;
@@ -1478,7 +1628,7 @@ function renderHome(d){
   const h = homeData(d);
   $("h_src").innerHTML = [tileSolar(d, h), tileRivers(d, h)].map(tileHtml).join("");
   $("h_day").innerHTML = [tileProdSolar(d, h), tileProdGen(d, h)].map(tileHtml).join("");
-  $("h_use").innerHTML = [tileUseSolar(d, h), tileUseRiver(d, h)].map(tileHtml).join("");
+  $("h_use").innerHTML = [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)].map(tileHtml).join("");
   $("h_dev").innerHTML = tileHtml(tileDevices(d, h));
   $("h_now").innerHTML = [tileNight(d,h), tileTomorrow(d,h)].map(tileHtml).join("");
   $("h_past").innerHTML = [tilePastNight(d,h), tileYesterday(d,h)].map(tileHtml).join("");
@@ -1509,6 +1659,7 @@ const DET = {
   alerts:{t:"⚠️ K řešení", s:"Jen mimořádné věci – pravidelné (noc, zítřek) jsou ve svých dlaždicích", build:detAlerts},
   gen:   {t:"⛽ Generátor", s:"Běhy generátoru: kolik dodal a kolik se nabilo", build:detGen},
   river: {t:"🔌 River a zásuvky", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
+  use:   {t:"🏠 Spotřeba", s:"Co bralo a kdy – podle zásuvek, ze soláru / z River", build:detUse},
   today: {t:"⚡ Dnes", s:"Výroba a spotřeba", build:detToday},
   health:{t:"❤️ Zdraví baterie", s:"Kapacita AGM baterie a hluboká vybití", ids:["s_health"]},
   pan:   {t:"🔆 Panely", s:"Kolik panelů zapojit a pojistka", ids:["s_pan"]},

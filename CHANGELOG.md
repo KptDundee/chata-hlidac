@@ -3,6 +3,17 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.51 – 15. 10. 2026
+- **Spotřeba dnes:** nahoře dlaždice **Chata celkem** (kWh dnes, W teď), pod ní **Ze soláru** (měřeno na zásuvce 220 V + řádek „vč. ztrát“ měniče) a **Z River**
+- **Detail Spotřeba** (rozklik kterékoli z nich nebo Spotřebičů):
+  - **Co bralo kdy** – složený graf: lednice, Wi‑Fi, další zásuvky a „ostatní (neměřené)“; šedé pozadí = chata na River. Rok / Vše = sloupce kWh po dnech
+  - **220 V**: změřeno na zásuvce + kolik to vzalo z baterie (+12 % ztráty měniče, měnič naprázdno, desulfátor)
+  - Každá zásuvka zvlášť (W; pro delší období kWh po dnech rozdělené ze soláru / z River), pak **Ostatní (neměřené)** = celkem − měřené zásuvky
+  - Tabulka: dnes / včera / ⌀ 7 dní, u každého ☀ ze soláru a R z River; výklad dole
+- Hlídač: spotřeba každé zásuvky se dělí na solár / River podle výkonu obou zdrojů v tu chvíli (`days.tps`) – od 15. 10. 2026
+- Historie: 220 V, lednice a Wi‑Fi se ze staré historie (uložené pod IP adresou) jednou přejmenují na nová čísla podle starého jména; ostatní zásuvky od 14. 10. 2026
+- Desulfátor (JCP‑2‑ABC, max 0,02 A ≈ 0,25 W) přičten ke stálému odběru z baterie (`desulfator_W`)
+
 ## 3.50 – 15. 10. 2026
 - Noci na River se rozpoznávají až **od 15. 10. 2026** (nastavení `river_noci_od`). Dřív v noci River nejel a jeho zásuvky sloužily jinak → všechny starší noci = solární baterie se zátěží.
 

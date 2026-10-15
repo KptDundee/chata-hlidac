@@ -29,7 +29,7 @@ DEFAULTS = {
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
-    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6,
+    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25,
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
@@ -394,6 +394,46 @@ def backfill_points(token, data, now, hours=3):
             day.update({"min_v": round(lo["bat_v"], 2), "min_t": lo["t"], "max_v": round(max(p["bat_v"] for p in today), 2)})
     if added:
         print(f"Doplněno {added} bodů z historie Solar Guardianu")
+
+
+def migrate_plug_ids(data, st, cfg):
+    """Jednorázově: do 14. 10. 2026 se zásuvky ukládaly pod koncovkou IP adresy, od té doby pod číslem ze jména „(N) …“.
+    Zásuvky, které měří pořád totéž – 220 V za měničem, lednice, Wi‑Fi – se ve staré historii přejmenují na nová čísla
+    (podle starého jména v aplikaci Tapo). Ostatní staré záznamy zůstanou, web je nezobrazuje."""
+    if st.get("tp_mig1"):
+        return
+    import re as _re
+    names = data.get("plug_names") or {}
+    new = {k: v for k, v in names.items() if _re.match(r"\s*\(\d{1,3}\)", str(v or ""))}
+    old = {k: v for k, v in names.items() if k not in new}
+    pats = [("menic", r"m[eě]ni[cč]|inverter|220|230"), ("lednice", r"lednic|fridge|chlad"), ("wifi", r"wi.?fi|router|internet|m7000")]
+    want = {"menic": str(cfg.get("zasuvka_menic") or "1"), "lednice": str(cfg.get("zasuvka_lednice") or "4")}
+    wf = next((k for k, v in new.items() if _re.search(pats[2][1], v, _re.I)), None)
+    if wf:
+        want["wifi"] = wf
+    mp = {}
+    for k, v in old.items():
+        for cat, rx in pats:
+            if cat in want and _re.search(rx, str(v), _re.I) and k != want[cat]:
+                mp[k] = want[cat]
+                break
+    for day in data.get("days", {}).values():
+        dt = day.get("tp")
+        if not dt:
+            continue
+        for o, n in mp.items():
+            if o in dt:
+                dt[n] = round(dt.get(n, 0) + dt.pop(o), 1)
+    for p in data.get("points", []):
+        tp = p.get("tp")
+        if tp:
+            for o, n in mp.items():
+                if o in tp:
+                    tp[n] = tp.pop(o) if n not in tp else tp[n]
+                    tp.pop(o, None)
+    data["tp_mig"] = {o: [n, old[o]] for o, n in mp.items()}
+    st["tp_mig1"] = True
+    print("Přejmenování staré historie zásuvek:", data["tp_mig"])
 
 
 def night_modes(data, now, cfg, days_back=120):
@@ -1102,6 +1142,17 @@ def main():
             # o půlnoci našeho dne), takže maximum by do nového dne přeneslo kus včerejška
             raw = st.setdefault("tp_raw", {})
             first_v2 = not st.get("tp_v2")
+            # podíl zdrojů teď: solár (zásuvka 220 V za měničem) vs. River (zásuvky na výstupu River) → rozdělení spotřeby
+            byid = {str(p.get("ip")): p for p in inv.get("tp", [])}
+            mip_ = str(cfg.get("zasuvka_menic") or inv.get("mip") or "")
+            S_ = (byid.get(mip_) or {}).get("w") or 0
+            R_ = sum((byid.get(i) or {}).get("w") or 0 for i in ips(cfg.get("zasuvky_river")))
+            if now.strftime("%Y-%m-%d") < str(cfg.get("river_noci_od") or "2026-10-15"):
+                fs = 1.0
+            elif S_ + R_ > 3:
+                fs = S_ / (S_ + R_)
+            else:
+                fs = 1.0 if S_ > 0 or (byid.get(mip_) and not byid[mip_].get("off")) else 0.0
             for p in inv.get("tp", []):
                 if p.get("ip") and p.get("n"):
                     names[p["ip"]] = p["n"]
@@ -1115,6 +1166,9 @@ def main():
                         inc = 0.0 if prev is None else (wh - prev if wh >= prev else wh)   # pokles = počítadlo se vynulovalo
                         if 0 <= inc < 3000:
                             dt[ip] = round(dt.get(ip, 0) + inc, 1)
+                            sp = day.setdefault("tps", {}).setdefault(ip, {"s": 0, "r": 0})
+                            sp["s"] = round(sp["s"] + inc * fs, 1)
+                            sp["r"] = round(sp["r"] + inc * (1 - fs), 1)
                     raw[ip] = wh
             st["tp_v2"] = True
         if rivers:
@@ -1124,6 +1178,10 @@ def main():
     except Exception as e:
         print("Import historie selhal:", e)
         log("err", f"Import historie Solar Guardian: {str(e)[:100]}")
+    try:
+        migrate_plug_ids(data, st, cfg)
+    except Exception as e:
+        print("Přejmenování zásuvek:", e)
     try:
         night_modes(data, now, cfg)
     except Exception as e:

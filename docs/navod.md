@@ -211,6 +211,8 @@ Po 30 min bez dat přijde notifikace a web zčervená („údaje níže nejsou a
 
 ## Hlavní stránka (od 3.33) – pevná struktura
 
+**Spotřeba dnes (3.51):** Chata celkem (přes celou šířku), pod ní Ze soláru a Z River. Rozkliknutím detail: nejdřív složený graf „co bralo kdy“, pak 220 V (změřeno i se ztrátami měniče), každá zásuvka zvlášť, „ostatní (neměřené)“ – světla, kamery a vše bez vlastní zásuvky; pod grafy tabulka dnes / včera / ⌀ 7 dní (☀ ze soláru, R z River). Zásuvka 8 (nabíjení River ze soláru) zatím neměří – když běží, je v „ostatní“.
+
 **Dlaždice Solární baterie (3.45):** napětí, stav (Nabíjí se / Vybíjí se / Nabito / V klidu), nabití % podle regulátoru, panely W, odběr z baterie W (měnič i se ztrátami; „měnič vyp.“ = chata na River). Blikající ❗ jen když je třeba jednat – podrobnosti po rozkliknutí.
 Detail (od 3.46): nahoře grafy – do/z baterie, výkon panelů, napětí (regulátor modře + měnič Victron oranžově), odběr z baterie, nejnižší napětí každého dne (body), výroba. Pod nimi čísla (teď, dnes, včera, nejnižší stav za 7 / 30 dní / rok / celou historii), úplně dole výklad. Šedé pozadí v grafech = chata jela z River. V bodovém grafu nejnižšího napětí: plný bod = noc, kdy chatu napájela solární baterie (tyhle se dají porovnávat, spojuje je čára); prázdný šedý kroužek = noc na River (baterie bez zátěže – vyšší napětí, nesrovnatelné).
 1. Hlavička: čas dat z regulátoru, baterie Flipu; vpravo Načíst, ↻, ⚙.
