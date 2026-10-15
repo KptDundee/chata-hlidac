@@ -3,6 +3,13 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.46 – 15. 10. 2026
+- **Detail Solární baterie přeskládaný:** nahoře grafy, pod nimi číselné údaje, dole výklad
+- Pořadí grafů: do/z baterie (sčítací) → výkon panelů → napětí → odběr z baterie → nejnižší napětí každého dne (body) → výroba
+- **Napětí v jednom grafu:** regulátor (modře) a měnič Victron (oranžově); v bublině i jejich rozdíl
+- Zpět **bodový graf nejnižšího napětí dne** (bod = den, v bublině i nejnižší % a nejvyšší napětí)
+- Pryč: graf nabití % (je to jen přepočet napětí regulátorem), samostatné grafy nejnižšího / nejvyššího napětí a nabití dne
+
 ## 3.45 – 15. 10. 2026
 - **Dlaždice Solární baterie** (hlavní stránka): napětí, stav (Nabíjí se · Boost / Vybíjí se / Nabito · Float / V klidu) a 3 údaje – nabití % (regulátor), panely W, odběr z baterie W. Žádný výklad; jen u akutního stavu (regulátor mlčí, pod 12,2 / 12,0 V, odběr navíc) blikající ❗.
 - **Detail Solární baterie** – nejdřív data, pak grafy, výklad až dole:

@@ -212,7 +212,7 @@ Po 30 min bez dat přijde notifikace a web zčervená („údaje níže nejsou a
 ## Hlavní stránka (od 3.33) – pevná struktura
 
 **Dlaždice Solární baterie (3.45):** napětí, stav (Nabíjí se / Vybíjí se / Nabito / V klidu), nabití % podle regulátoru, panely W, odběr z baterie W (měnič i se ztrátami; „měnič vyp.“ = chata na River). Blikající ❗ jen když je třeba jednat – podrobnosti po rozkliknutí.
-Detail: nahoře všechny údaje (teď, dnes, včera, nejnižší stav za 7 / 30 dní / rok / celou historii), pod tím grafy od nejdůležitějších, úplně dole výklad (Boost, Float, jak se počítá odběr). Šedé pozadí v grafech = chata jela z River.
+Detail (od 3.46): nahoře grafy – do/z baterie, výkon panelů, napětí (regulátor modře + měnič Victron oranžově), odběr z baterie, nejnižší napětí každého dne (body), výroba. Pod nimi čísla (teď, dnes, včera, nejnižší stav za 7 / 30 dní / rok / celou historii), úplně dole výklad. Šedé pozadí v grafech = chata jela z River.
 1. Hlavička: čas dat z regulátoru, baterie Flipu; vpravo Načíst, ↻, ⚙.
 2. Lišta „Nic k řešení / N věcí k řešení“ – jen mimořádné věci, podrobnosti po ťuknutí.
 3. **Teď:** Solární baterie, River (záložka pro každou River; svítí ta, která napájí nebo se nabíjí).

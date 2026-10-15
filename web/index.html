@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.45", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.46", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -679,7 +679,8 @@ function hideTip(){tip.style.opacity=0;}
 
 function lineChart(el, pts, key, color, o){
   const p=pts.filter(q=>q[key]!=null); if(p.length<2) return empty(el);
-  let lo=Math.min(...p.map(q=>q[key])), hi=Math.max(...p.map(q=>q[key]));
+  const k2=o.k2, p2=k2?pts.filter(q=>q[k2.key]!=null):[];
+  let lo=Math.min(...p.map(q=>q[key]),...p2.map(q=>q[k2.key])), hi=Math.max(...p.map(q=>q[key]),...p2.map(q=>q[k2.key]));
   for(const[v]of o.refs||[]){lo=Math.min(lo,v);hi=Math.max(hi,v);}
   if(o.zero) lo=0; const pad=(hi-lo)*(o.pad||.1)||1; hi+=pad; if(!o.zero) lo-=pad*.5;
   const {svg,y}=frame(el,lo,hi,(hi-lo)<1&&o.dec>1?2:o.dec>0?1:0);
@@ -702,6 +703,8 @@ function lineChart(el, pts, key, color, o){
   // mezery v datech > 40 min přeruší čáru
   const GAP=o.gap||2400;
   let dPath="",prev=null; for(const q of p){dPath+=(prev&&q.t-prev.t<GAP?"L":"M")+x(q.t).toFixed(1)+","+y(q[key]).toFixed(1);prev=q;}
+  if(p2.length>1){let d2="",pr=null;for(const q of p2){d2+=(pr&&q.t-pr.t<GAP?"L":"M")+x(q.t).toFixed(1)+","+y(q[k2.key]).toFixed(1);pr=q;}
+    svg.insertAdjacentHTML("beforeend",`<path d="${d2}" fill="none" stroke="${k2.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);}
   if(o.area){let a="",seg=[];const flush=()=>{if(seg.length>1)a+=`M${x(seg[0].t)},${y(lo)}`+seg.map(q=>`L${x(q.t)},${y(q[key])}`).join("")+`L${x(seg[seg.length-1].t)},${y(lo)}Z`;seg=[];};prev=null;for(const q of p){if(prev&&q.t-prev.t>=GAP)flush();seg.push(q);prev=q;}flush();svg.insertAdjacentHTML("beforeend",`<path d="${a}" fill="${color}" opacity=".14"/>`);}
   if(o.neg){   // část pod nulou (vybíjení) červeně: stejná čára dvakrát, oříznutá nad / pod nulou
     const id = "cl"+Math.random().toString(36).slice(2,8), y0 = Math.max(M.t, Math.min(H-M.b, y(0)));
@@ -713,8 +716,9 @@ function lineChart(el, pts, key, color, o){
   svg.insertAdjacentHTML("beforeend",`<path d="${dPath}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" stroke-width="1" opacity="0"/><circle class="cd" r="4.5" fill="${o.neg?"var(--text2)":color}" stroke="var(--surface)" stroke-width="2" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
   const ch=svg.querySelector(".ch"), cd=svg.querySelector(".cd");
   const move=ev=>{const r=svg.getBoundingClientRect();const tx=t0+(t1-t0)*((ev.clientX-r.left)*W/r.width-M.l)/(W-M.l-M.r);let best=p[0];for(const q of p)if(Math.abs(q.t-tx)<Math.abs(best.t-tx))best=q;const X=x(best.t),Y=y(best[key]);ch.setAttribute("x1",X);ch.setAttribute("x2",X);ch.setAttribute("opacity",.5);cd.setAttribute("cx",X);cd.setAttribute("cy",Y);cd.setAttribute("opacity",1);
-    let extra=key==="bat_v"&&best.bat_soc!=null?`<br>SOC ${nf(best.bat_soc)} %`:"";
-    if(key==="bat_v"&&best.iv!=null)extra+=`<br>měnič ${nf(best.iv,2)} V při ${nf(best.lw??best.ac_w)} W`;
+    let extra=k2&&best[k2.key]!=null?`<br>${k2.name} ${nf(best[k2.key],o.dec)} ${o.unit}${key==="bat_v"?` (rozdíl ${nf(best[key]-best[k2.key],2)} V)`:""}`:"";
+    if(key==="bat_v"&&best.bat_soc!=null)extra+=`<br>SOC ${nf(best.bat_soc)} %`;
+    if(key==="bat_v"&&best.iv!=null)extra+=`<br>odběr ${nf(best.lw??best.ac_w)} W`;
     else if(key==="bat_v"&&best.ac_w!=null)extra+=`<br>odběr ${nf(best.ac_w)} W`;if(key==="bat_v"&&best.bat_a!=null)extra+=` · ${nf(best.bat_a,1)} A`;
     if(o.modes && best.status!=null) extra+=`<br>${({1:"Float – nabito, panely škrtí",2:"Boost – nabíjí",3:"vyrovnávací nabíjení",0:"nenabíjí"})[best.status]||""}`;
     showTip(ev,`${fmtT(best.t)}<br><b>${nf(best[key],o.dec)} ${o.unit}</b>${extra}`);};
@@ -1542,6 +1546,14 @@ function detBat(body){
   const sec = (t, rows) => `<div class="card"><h2 style="margin:0 0 4px">${t}</h2>${rows.join("")}</div>`;
   body.insertAdjacentHTML("beforeend",
     (ac ? `<div class="card" style="border-left:4px solid var(--crit)"><b>⚠ ${ac}</b></div>` : "")
+    + segHtml()
+    + (detLong() ? "" :
+        chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · panely přes regulátor − odběr (i se ztrátami měniče) · pozadí: oranžová Boost, zelená Float, šedá = chata na River")
+      + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
+      + chartCard("dc_v", "Napětí baterie", `V · <span style="color:var(--s1)">━ regulátor</span> · <span style="color:var(--s2)">━ měnič (Victron)</span> · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
+      + chartCard("dc_load", "Odběr z baterie", "W · měnič + jeho ztráty · šedě = chata jela z River"))
+    + chartCard("dc_min", "Nejnižší napětí každého dne", `V · bod = den · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
+    + chartCard("dc_prod", detLong() ? "Výroba po měsících" : "Výroba po dnech", "kWh")
     + sec(`Teď<span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500;margin-left:8px">${R.t ? `regulátor ${relDay(R.t)} ${hmT(R.t)}` : ""}</span>`, [
       rowI("Napětí", `<span style="font-size:20px">${V(h.bv)}</span>`),
       rowI("Nabití (podle regulátoru)", P(last.bat_soc)),
@@ -1571,17 +1583,6 @@ function detBat(body){
       rowI("Rok", `${ext("min_v",365,"min",V)} · ${ext("soc_min",365,"min",P)}`),
       rowI("Celá historie", `${ext("min_v",36500,"min",V)} · ${ext("soc_min",36500,"min",P)}`),
     ])
-    + segHtml()
-    + (detLong() ? "" :
-        chartCard("dc_pv", "Výkon panelů", "W · pozadí: oranžová Boost, zelená Float")
-      + chartCard("dc_load", "Odběr z baterie", "W · měnič + jeho ztráty · šedě = chata jela z River")
-      + chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · panely přes regulátor − odběr · šedě = chata na River (odběr z baterie jen měnič, je‑li zapnutý)")
-      + chartCard("dc_v", "Napětí baterie", `V · čárkovaně ${nf(WARN_V,1)} V (slábne) a ${nf(CRIT_V,1)} V (alarm)`)
-      + chartCard("dc_soc", "Nabití podle regulátoru", "% · orientační (regulátor ho odhaduje z napětí)"))
-    + chartCard("dc_min", "Nejnižší napětí dne", `V · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
-    + chartCard("dc_smin", "Nejnižší nabití dne", "% podle regulátoru")
-    + chartCard("dc_max", "Nejvyšší napětí dne", "V · jak vysoko se baterie den co den nabila")
-    + chartCard("dc_prod", detLong() ? "Výroba po měsících" : "Výroba po dnech", "kWh")
     + `<div class="card"><h2 style="margin:0 0 6px">Výklad</h2>
         <div class="advice">${s.a}</div>
         ${$("invsync").classList.contains("hide") ? "" : `<div class="sub" style="margin-top:8px">${$("invsync").innerHTML}</div>`}
@@ -1590,13 +1591,12 @@ function detBat(body){
         <b>Boost</b> – regulátor nabíjí plným proudem až na ~14,4 V a chvíli napětí drží. <b>Float</b> – baterie je nabitá, regulátor drží ~13,7 V a panely škrtí jen na to, co se spotřebuje. <b>Vyrovnávací</b> – občasné krátké přebití pro vyrovnání článků.<br>
         <b>Odběr z baterie</b> = co bere měnič (zásuvka za ním) + jeho ztráty (~12 %) + vlastní spotřeba ${nf(cfg.menic_vlastni_W ?? 6)} W. Regulátor sám odběr nevidí – měří jen svůj proud do baterie.<br>
         <b>Do / z baterie</b> = výkon z regulátoru − odběr. Kladné: baterie se nabíjí; záporné: vybíjí.<br>
+        <b>Napětí</b>: regulátor měří na svých svorkách, Victron na svých. Při nabíjení je regulátor výš, při odběru Victron níž – rozdíl je úbytek na kabelech a spojích (malý = v pořádku, viz Kabely a spoje).<br>
         <b>Nabití %</b> je jen odhad regulátoru z napětí (po nabití v klidu ~12,8 V ≈ 60 %) – rozhodující je napětí.<br>
         Když chata jede z River, solární baterie dává jen měniči (je‑li zapnutý) – grafy to ukazují šedě a spotřeba River se sem nepočítá.</div>
       </div>`);
-  const hrs = detHours(), dhrs = Math.max(hrs, 30*24), dp = dailyPts(dhrs), g = 4*86400;
-  lineChart($("dc_min"), dp, "min_v", css("--s1"), {unit:"V",dec:2,hours:dhrs,gap:g,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
-  lineChart($("dc_smin"), dp.map(p=>({...p, sm: p.soc_min!=null && p.soc_min<999 ? p.soc_min : null})), "sm", css("--s2"), {unit:"%",dec:0,hours:dhrs,gap:g,zero:true});
-  lineChart($("dc_max"), dp, "max_v", css("--s3"), {unit:"V",dec:2,hours:dhrs,gap:g,pad:.15});
+  const hrs = detHours(), dhrs = Math.max(hrs, 30*24);
+  dotChart($("dc_min"), dailyPts(dhrs).map(p=>({...p, k: dkey(p.t)})), "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   if(detLong()) monthlyBars($("dc_prod"), hrs);
   else barChart($("dc_prod"), Object.keys(d.days||{}).sort().filter(k=>k>=dkey(Date.now()/1000-29*86400)).map(k=>({k, v:d.days[k].solar_kwh??0})), "v", css("--s2"), {unit:"kWh",dec:1,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
   if(detLong()) return;
@@ -1604,11 +1604,10 @@ function detBat(body){
   const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), bands = riverBands(pts, ids);
   const lp = pts.map(p=>{ const ld = p.mw!=null ? p.mw/0.88 + idle : ptRiver(p, ids) ? 0 : null;
     return {t:p.t, status:p.status, ld: ld!=null ? Math.round(ld) : null, b: ld!=null && p.bat_a!=null && p.bat_v ? Math.round(p.bat_a*p.bat_v - ld) : null}; });
+  lineChart($("dc_bal"), lp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]],neg:css("--crit"),bands});
   lineChart($("dc_pv"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
+  lineChart($("dc_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,k2:{key:"iv",color:css("--s2"),name:"měnič"}});
   lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
-  lineChart($("dc_bal"), lp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,refs:[[0,"--muted"]],neg:css("--crit"),bands});
-  lineChart($("dc_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands});
-  lineChart($("dc_soc"), pts, "bat_soc", css("--s2"), {unit:"%",dec:0,hours:hrs,zero:true});
 }
 function detNight(body){
   const d = DATA, h = homeData(d), nt = tileNight(d, h), f = d.forecast;
@@ -1950,10 +1949,10 @@ function dotChart(el, dd, key, color, o){
   const n=Math.max(p.length,7), bw=(W-M.l-M.r)/n; let s="",line="";
   p.forEach((q,i)=>{const cx=M.l+bw*i+bw/2;line+=(i?"L":"M")+cx+","+y(q[key]);
     const c=q[key]<CRIT_V?"var(--crit)":q[key]<WARN_V?"var(--serious)":color;
-    s+=`<circle cx="${cx}" cy="${y(q[key])}" r="4.5" fill="${c}" stroke="var(--surface)" stroke-width="2"/><rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    s+=`<circle cx="${cx}" cy="${y(q[key])}" r="${Math.max(1.6,Math.min(4.5,bw/2.4))}" fill="${c}" stroke="var(--surface)" stroke-width="2"/><rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
     if(i%Math.ceil(p.length/6)===0||i===p.length-1)s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${dayLabel(q.k)}</text>`;});
   svg.insertAdjacentHTML("beforeend",`<path d="${line}" fill="none" stroke="${color}" stroke-width="1.5" opacity=".35"/>`+s);
-  hover(svg,p,q=>`${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br>min <b>${nf(q.min_v,2)} V</b>${q.max_v!=null?` · max ${nf(q.max_v,2)} V`:""}`);
+  hover(svg,p,q=>`${new Date(q.k).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}<br>min <b>${nf(q.min_v,2)} V</b>${q.soc_min!=null&&q.soc_min<999?` (${nf(q.soc_min)} %)`:""}${q.max_v!=null?` · max ${nf(q.max_v,2)} V`:""}`);
 }
 function hover(svg,p,html){
   svg.addEventListener("pointermove",ev=>{const i=ev.target.dataset&&ev.target.dataset.i;if(i==null)return hideTip();showTip(ev,html(p[+i]));});
