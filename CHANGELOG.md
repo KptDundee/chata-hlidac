@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.53 – 15. 10. 2026
+- **Tři pohledy na spotřebu:** Chata celkem → vše; **Ze soláru** → jen doba, kdy chatu napájela solární baterie; **Z River** → jen doba, kdy jela River (chata nebo samostatný spotřebič). Platí pro všechny grafy i tabulku.
+- Místo složeného grafu po zásuvkách jen **odběr chaty** (součet) daného pohledu
+- **Čísla sedí:** ze soláru + z River = celkem. Denní kWh z počítadel zásuvek, rozdělení na solár / River podle průběhu po 10 min (dřív se dělilo až od nasazení 3.51, proto nesouhlasila); dlaždice Ze soláru / Z River počítají stejně jako detail
+- Rozdělení podle skutečných dat od 14. 10. 2026 (noc 14./15. 10. jela chata z River)
+
 ## 3.52 – 15. 10. 2026
 - **Hlavní okruh chaty jede vždy z jednoho zdroje:** když měnič dodává (> 3 W), všechny měřené zásuvky jsou ze soláru a co zároveň dává River, je samostatný neměřený spotřebič (TV, nabíjení telefonu) → „ostatní z River“. Chata je „na River“ jen když měnič nedává nic a River ano. Místo rozdělování podle poměru výkonu.
 - Podle toho i šedé pozadí v grafech, hodinky („River napájí chatu“ jen při přepojené chatě) a dlaždice River („napájí chatu“ / „napájí spotřebič“)

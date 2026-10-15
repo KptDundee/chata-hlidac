@@ -211,6 +211,7 @@ Po 30 min bez dat přijde notifikace a web zčervená („údaje níže nejsou a
 
 ## Hlavní stránka (od 3.33) – pevná struktura
 
+**Spotřeba (3.53):** Chata celkem = Ze soláru + Z River. Každá dlaždice otevře svůj pohled – grafy a tabulka jen za dobu, kdy běžel daný zdroj (celkem = vše).
 **Spotřeba dnes (3.51):** Chata celkem (přes celou šířku), pod ní Ze soláru a Z River. Rozkliknutím detail: nejdřív složený graf „co bralo kdy“, pak 220 V (změřeno i se ztrátami měniče), každá zásuvka zvlášť, „ostatní (neměřené)“ – světla, kamery a vše bez vlastní zásuvky; pod grafy tabulka dnes / včera / ⌀ 7 dní (☀ ze soláru, R z River). Zásuvka 8 (nabíjení River ze soláru) zatím neměří – když běží, je v „ostatní“.
 
 **Dlaždice Solární baterie (3.45):** napětí, stav (Nabíjí se / Vybíjí se / Nabito / V klidu), nabití % podle regulátoru, panely W, odběr z baterie W (měnič i se ztrátami; „měnič vyp.“ = chata na River). Blikající ❗ jen když je třeba jednat – podrobnosti po rozkliknutí.
