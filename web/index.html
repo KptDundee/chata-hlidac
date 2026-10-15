@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.55", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.56", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2346,6 +2346,18 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden&&PW)refres
 setInterval(()=>{if(PW&&!document.hidden)refresh();},5*60*1000);
 setInterval(()=>{if(DATA)render();},60*1000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>DATA&&render());
+/* Zpět (gesto / tlačítko telefonu): otevřené okno (detail, zásuvka, kabely, nastavení) se zavře místo odchodu z aplikace.
+   Každé otevření okna přidá záznam do historie; zavření křížkem ho zase odebere. */
+(()=>{
+  const LAY = ["detm","plugm","wirem","set"], open = new Set(); let skip = 0;
+  const closeOf = id => ({detm:()=>$("detclose").click(), plugm:()=>$("plugclose").click(), wirem:()=>$("wireclose").click(), set:()=>closeSettings()})[id];
+  const mo = new MutationObserver(()=>{ for(const id of LAY){ const vis = !$(id).classList.contains("hide");
+    if(vis && !open.has(id)){ open.add(id); history.pushState({lay:id}, ""); }
+    else if(!vis && open.has(id)){ open.delete(id); if(history.state && history.state.lay===id){ skip++; history.back(); } } } });
+  for(const id of LAY) mo.observe($(id), {attributes:true, attributeFilter:["class"]});
+  addEventListener("popstate", ()=>{ if(skip){ skip--; return; }
+    const id = [...open].pop(); if(id){ open.delete(id); closeOf(id)(); } });
+})();
 (async()=>{const s=store.get("pw"), bt=$("boot");
   if(s){ bt.classList.remove("hide"); const t0=Date.now(); const iv=setInterval(()=>{$("bootsec").textContent=Math.round((Date.now()-t0)/1000)+" s";},500);
     const ok=await unlock(s,true); clearInterval(iv); bt.classList.add("hide"); if(ok) return; }

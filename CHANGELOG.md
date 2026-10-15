@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.56 – 15. 10. 2026
+- **Zpět gestem / tlačítkem telefonu** zavře otevřený detail (i zásuvku, kabely, nastavení) a vrátí na hlavní stránku – dřív aplikace zmizela
+
 ## 3.55 – 15. 10. 2026
 - **Stav solární baterie rozlišuje fáze nabíjení** (dlaždice i hodinky): **Nabíjí se** (Boost pod ~14,1 V, plný proud) · **Dobíjí se** (Boost nad 14,1 V – napětí drží, proud klesá; regulátor už ukazuje ~100 %, ale baterie ještě není plná) · **Nabito** (Float). Float se už nikdy neukazuje jako „nabíjí se“.
 
