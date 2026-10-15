@@ -188,6 +188,8 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 
 - **Komplikace** „Chata – napětí baterie“: dlouze podrž ciferník → Upravit → místo komplikace. *V?* = data starší než hodina, *V!* = kritické napětí.
 - **Dlaždice** „Chata“: napětí (barevně), nabití podle regulátoru, panely, odběr, předpověď. Ťuknutím se obnoví.
+  - Když chatu napájí **River** (některá ze zásuvek River 2 / 3 / 6 bere víc než 3 W), místo předpovědi ukáže: „🔋 River malý · 45 W / od 22:10 · 0,42 kWh“. Jakmile půjdou data z EcoFlow, ukáže místo toho % a do kdy River vydrží. Odběr 🏠 = celá chata (solár + River).
+  - Projeví se do 10 minut od dalšího běhu hlídače – jen když Flip posílá data ze zásuvek (Flip na Wi‑Fi chaty).
 - V aplikaci Chata na hodinkách musí být zadané **téma ntfy** (stejné jako v aplikaci ntfy).
 - **Komplikace** „Chata – východ / západ slunce“: časy u chaty (počítá se v hodinkách, bez internetu).
 

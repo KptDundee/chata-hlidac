@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.43", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.44", FLIP_VER = "1.3.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1134,6 +1134,8 @@ function tileNight(d, h){
     return {...t, cls:"ok", v:`${nf(f.v_until,2)}${unit}`, st:cap1(`${doRana(morT)} vydrží`), a: f.corr ? `S opravou ${f.corr>0?"+":"−"}${nf(Math.abs(f.corr),2)} V z minulých nocí` : "Nic nedělej"};
   }
   const ol = d.wxo && d.wxo.ol;
+  if(d.river_sup && d.river_sup.soc==null){ const rs = d.river_sup;   // jen ze zásuvky (bez EcoFlow): % neznáme
+    return {...t, cls:"ok", v:"River", st:`Chatu napájí ${rs.name}`, a:`~${nf(rs.w)} W · od ${hmT(rs.t0)} ${nf((rs.wh||0)/1000,2)} kWh · % až z EcoFlow`}; }
   if(d.river_sup){ const M = riverMorning(d), rs = d.river_sup;     // chatu napájí River → noc = vydrží River?
     return {...t, cls: M.ok ? "ok" : "bad", v: M.ok ? `${nf(Math.max(0,M.socM))}<small>% River ${rano(M.mor)}</small>` : `${hmT(rs.until)}<small>River vybitá ${relDay(rs.until)}</small>`,
       st: M.ok ? cap1(`River ${doRana(M.mor)} vydrží`) : `River se vybije ${relDay(rs.until)} ~${hmT(rs.until)}`,
@@ -1164,7 +1166,7 @@ function tileTomorrow(d, h){
 }
 /* River jako zdroj chaty: stav ráno (příští ráno = dnes/zítra po východu + 1 h) */
 function riverMorning(d){
-  const rs = d.river_sup; if(!rs) return null;
+  const rs = d.river_sup; if(!rs || rs.soc==null) return null;
   const P = dayPhase(d), now = Date.now()/1000;
   const mor = (P.ph==="predawn" ? P.rise : (P.rise ? P.rise + 86400 : now + 12*3600)) + 3600;
   const socM = rs.soc - (mor - now)/3600 * rs.w / ((rs.cap||768)*0.9) * 100;

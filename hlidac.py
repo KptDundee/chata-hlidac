@@ -1308,18 +1308,22 @@ def watch_publish(data, v, st, now, topic, cfg):
         if t:
             fc = f"zítra {t.get('txt') or ''} ~{fmt(t['kwh'], 1)} kWh".replace("  ", " ")
     rs = data.get("river_sup")
-    if rs:
-        hh = f"{rs['h']:.0f} h" if rs["h"] >= 1.5 else f"{rs['h'] * 60:.0f} min"
+    if rs and rs.get("plug"):          # bez EcoFlow: jen ze zásuvky na výstupu River (% a výdrž neznáme)
+        t0 = datetime.fromtimestamp(rs["t0"], TZ)
+        od = t0.strftime("%H:%M") if t0.date() == now.date() else f"{rel_day(rs['t0'], now)} {t0.strftime('%H:%M')}"
+        fc = f"🔋 {rs['name']} · {rs['now']} W\nod {od} · {fmt(rs['wh'] / 1000, 2)} kWh"
+    elif rs:
+        hh =f"{rs['h']:.0f} h" if rs["h"] >= 1.5 else f"{rs['h'] * 60:.0f} min"
         fc = f"🔋 River {rs['soc']} % · ~{hh}\ndo {rel_day(rs['until'], now)} {datetime.fromtimestamp(rs['until'], TZ).strftime('%H:%M')}"
         if rs["soc"] <= (cfg["river_vymenit_pod"] or 15):
             lvl = max(lvl, 1)
     body = {"t": int(now.timestamp()), "v": round(bv, 2), "soc": v.get("bat_soc"),
             "pv": round(v["pv_w"]) if v.get("pv_w") is not None else None,
-            "w": round(inv["mw"]) if fresh and inv.get("mw") is not None else None,
+            "w": (round((inv.get("mw") or 0) + (inv.get("rw") or 0)) if fresh and (inv.get("mw") is not None or inv.get("rw") is not None) else None),   # celá chata: solár + River
             "st": st_txt, "fc": fc, "lvl": lvl, "day": v.get("day_kwh"),
             "ra": bool((data.get("river_auto") or {}).get("on")), "vmin": cfg["odpojeni_V"] or 11.6,
             "lat": cfg["sirka"], "lon": cfg["delka"],
-            "rv": ({"s": rs["soc"], "h": rs["h"], "w": rs["w"], "u": rs["until"], "n": rs["name"]} if rs else None)}           # poloha chaty – hodinky z ní počítají východ / západ slunce
+            "rv": ({"s": rs.get("soc"), "h": rs.get("h"), "w": rs["w"], "u": rs.get("until"), "n": rs["name"]} if rs else None)}           # poloha chaty – hodinky z ní počítají východ / západ slunce
     try:
         req = urllib.request.Request(f"https://ntfy.sh/{topic}-hodinky", data=json.dumps(body).encode(),
                                      headers={"Title": "chata", "Priority": "1"}, method="POST")
@@ -1945,13 +1949,12 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     """Která River teď napájí chatu, kolik má a na jak dlouho vydrží při průměrném odběru (poslední 3 h).
     data["river_sup"] = {name, soc, w, h, until}; večer upozorní, když nevydrží do zítřejšího rána."""
     rv = data.get("rivers") or []
-    if now.timestamp() - (data.get("rivers_t") or 0) > 3600:
-        data.pop("river_sup", None)
-        return
-    act = [(i, r) for i, r in enumerate(rv) if r.get("online") and r.get("soc") is not None
-           and (r.get("out_w") or 0) - (r.get("in_w") or 0) > 3]
+    act = []
+    if now.timestamp() - (data.get("rivers_t") or 0) <= 3600:
+        act = [(i, r) for i, r in enumerate(rv) if r.get("online") and r.get("soc") is not None
+               and (r.get("out_w") or 0) - (r.get("in_w") or 0) > 3]
     if not act:
-        data.pop("river_sup", None)
+        river_supply_plugs(data, now, cfg)      # bez EcoFlow: pozná se ze zásuvek na výstupu River
         return
     i, r = max(act, key=lambda x: x[1].get("out_w") or 0)
     vals = [p["rv"][i]["o"] for p in data.get("points", [])
@@ -1981,6 +1984,38 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
              f"~{datetime.fromtimestamp(until, TZ).strftime('%H:%M')} (rezerva {res} %).\nPřepoj chatu na druhou River nebo omez odběr.",
              4, "battery,warning")
         st["rv_night_warned"] = True
+
+
+def river_supply_plugs(data, now, cfg):
+    """Záloha, když z EcoFlow nic nepřichází: kterou River chata právě tahne, se pozná ze zásuvky Tapo
+    na jejím výstupu (zasuvky_river). data["river_sup"] = {name, w, t0, wh, plug: True} – bez % a výdrže."""
+    data.pop("river_sup", None)
+    inv = data.get("inverter") or {}
+    ts = now.timestamp()
+    if not inv or ts - inv.get("t", 0) > 1800:
+        return
+    ids = ips(cfg.get("zasuvky_river"))
+    act = [p for p in inv.get("tp", []) if str(p.get("ip")) in ids and (p.get("w") or 0) > 3 and not p.get("gone")]
+    if not act:
+        return
+    p = max(act, key=lambda x: x.get("w") or 0)
+    pid = str(p["ip"])
+    import re as _re
+    name = _re.sub(r"^\s*(\([^)]*\)\s*)+", "", str(p.get("n") or "")).strip() or f"River ({pid})"
+    # od kdy napájí (souvislý úsek bodů s odběrem > 3 W) a kolik za tu dobu dodala
+    pts = [q for q in data.get("points", []) if q["t"] >= ts - 36 * 3600]
+    t0, wh, nxt = ts, 0.0, (ts, p.get("w") or 0)
+    for q in reversed(pts):
+        w = (q.get("tp") or {}).get(pid)
+        if w is None or w <= 3:
+            break
+        wh += (nxt[1] + w) / 2 * min(nxt[0] - q["t"], 1800) / 3600
+        t0, nxt = q["t"], (q["t"], w)
+    vals = [(q.get("tp") or {}).get(pid) for q in pts if q["t"] >= max(t0, ts - 3 * 3600)]
+    vals = [x for x in vals if x is not None]
+    avg = sum(vals) / len(vals) if len(vals) >= 3 else (p.get("w") or 0)
+    data["river_sup"] = {"name": name, "w": round(avg), "now": round(p.get("w") or 0), "t0": int(t0),
+                         "wh": round(wh), "id": pid, "plug": True}
 
 
 def gen_sessions(data, st, now, topic, cfg):

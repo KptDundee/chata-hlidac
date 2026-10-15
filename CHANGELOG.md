@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.44 – 15. 10. 2026
+- **Hodinky – River jako zdroj i bez EcoFlow:** dlaždice se dřív přepnula na River jen podle dat z EcoFlow (ta zatím nechodí), proto celou noc ukazovala solár. Teď se River pozná i ze zásuvky na jejím výstupu (zasuvky_river, odběr > 3 W): „🔋 River malý · 45 W / od 22:10 · 0,42 kWh“. Až půjde EcoFlow, přibude % a do kdy vydrží.
+- Hodinky: „🏠 W“ = odběr celé chaty (solár + River), ne jen za měničem
+- Web, dlaždice Noc: když chatu napájí River a % neznáme, ukáže kterou River a kolik dodala
+
 ## 3.43 – 15. 10. 2026
 - **Flip 1.3.3:** po hledání v síti se zahodí staré relace se zásuvkami (hledání se přihlásilo znovu a zásuvky staré relace zrušily → „HTTP 403“ a 0/14); při HTTP 403/401 se zásuvka hned zkusí znovu s novým přihlášením; ruční seznam adres se používá jen, když hledání nic nenajde (dřív se míchaly staré neplatné adresy → „6/14 (7 vypnuté)“)
 - Spotřebiče: jen zásuvky pojmenované „(N) …“ nebo živé, bez starých záznamů podle IP
