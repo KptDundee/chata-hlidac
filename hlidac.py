@@ -2410,9 +2410,11 @@ def read_ecoflow(data, st, now, topic, cfg):
 
 
 def hash_soc(data, st, now, cfg):
-    """Nabití „#“ počítáním ampérhodin (ne z napětí): Q = Ah do baterie − Ah z baterie od kotvy.
-    Kotva 100 # = skutečně plná baterie (Float aspoň 30 min); když plná nebyla, nejlepší stav za posledních 7 dní.
-    Do bodů ukládá q (Ah, souvislá řada) a hq (Ah od kotvy, ≤ 0). data["hq"] = shrnutí pro web."""
+    """Nabití „#“ počítáním ampérhodin (ne z napětí). Pokaždé se přepočítá z bodů (14 dní):
+    qr = souvislý součet Ah do (×0,9) / z baterie. Plné nabití = Float nepřetržitě ≥ 30 min.
+    Každý bod se vztahuje k nejbližšímu plnému nabití: po něm = od posledního plného (max. 3 dny),
+    před ním = kolik chybělo do následujícího plného (max. 3 dny), jinak nejlepší stav za 2 dny.
+    Body: q / hq = Ah od plné (≤ 0). data["hq"] = shrnutí pro web."""
     pts = [p for p in data.get("points", []) if p.get("bat_v") and p.get("bat_a") is not None]
     if len(pts) < 2:
         return
@@ -2420,65 +2422,70 @@ def hash_soc(data, st, now, cfg):
     rids = ips(cfg.get("zasuvky_river"))
     mip = str(cfg.get("zasuvka_menic") or (data.get("inverter") or {}).get("mip") or "1")
     eff = 0.9                                   # nabíjecí účinnost AGM
-    last_t = st.get("hq_t", 0)
-    q = st.get("hq_q", 0.0)
-    fl_since = st.get("hq_fl", 0)
-    full_t = st.get("hq_full_t", 0)
-    mw_last, mw_t = None, 0
+    qr, fl_since, fulls, mw_last, mw_t = 0.0, 0, [], None, 0
+    pts[0]["qr"] = 0.0
     for a, b in zip(pts, pts[1:]):
-        # odběr za měničem: poslední známý (do 30 min), při chatě na River / vypnutém měniči jen vlastní spotřeba
         if a.get("mw") is not None:
             mw_last, mw_t = a["mw"], a["t"]
-        if b["t"] <= last_t:
-            continue
         dt = b["t"] - a["t"]
-        if dt <= 0 or dt > 2400:
-            continue
-        if mw_last is not None and a["t"] - mw_t <= 1800:
-            load = mw_last / 0.88 + idle
-        elif a.get("tp") and (a["tp"].get(mip) or 0) <= 3 and any((a["tp"].get(i) or 0) > 3 for i in rids):
-            load = cfg.get("desulfator_W") or 0
-        else:
-            load = idle + 30                    # bez dat o odběru: běžná chata (lednice + drobnosti)
-        i_net = a["bat_a"] - load / a["bat_v"]
-        q += i_net * dt / 3600 * (eff if i_net > 0 else 1.0)
-        # skutečně plná: Float nepřetržitě aspoň 30 min
-        if a.get("status") == 1 and b.get("status") == 1:
+        if 0 < dt <= 2400:
+            if mw_last is not None and a["t"] - mw_t <= 1800:
+                load = mw_last / 0.88 + idle
+            elif a.get("tp") and (a["tp"].get(mip) or 0) <= 3 and any((a["tp"].get(i) or 0) > 3 for i in rids):
+                load = cfg.get("desulfator_W") or 0
+            else:
+                load = idle + 30                # bez dat o odběru: běžná chata
+            i_net = a["bat_a"] - load / a["bat_v"]
+            qr += i_net * dt / 3600 * (eff if i_net > 0 else 1.0)
+        b["qr"] = round(qr, 2)
+        if a.get("status") == 1 and b.get("status") == 1 and dt <= 2400:
             fl_since = fl_since or a["t"]
-            if b["t"] - fl_since >= 1800:
-                full_t, q = b["t"], 0.0
+            if b["t"] - fl_since >= 1800 and (not fulls or fulls[-1][0] < fl_since):
+                fulls.append((fl_since, b["t"]))          # (začátek Floatu, okamžik „plná“)
         else:
             fl_since = 0
-        b["q"] = round(q, 2)
-    st.update({"hq_t": pts[-1]["t"], "hq_q": q, "hq_fl": fl_since, "hq_full_t": full_t})
-    # kotva: plné nabití (q = 0 od té doby), jinak nejlepší stav za 7 dní
-    ts = now.timestamp()
-    win = [p for p in pts if p.get("q") is not None and p["t"] >= max(full_t, ts - 7 * 86400)]
-    if not win:
-        return
-    if full_t and full_t >= ts - 7 * 86400:
-        ref, kind, ref_t = 0.0, "full", full_t
-        best = max(win, key=lambda p: p["q"])
-        if best["q"] > 0:                       # po plném nabití už nemůže být „víc než plná“
-            ref, ref_t = best["q"], best["t"]
-    else:
-        best = max(win, key=lambda p: p["q"])
-        ref, kind, ref_t = best["q"], "best", best["t"]
-    for p in pts:
-        if p.get("q") is not None:
-            p["hq"] = round(min(0.0, p["q"] - ref), 2)
+    # kotva pro každý bod
+    import bisect
+    ftimes = [f[1] for f in fulls]
+    qr_at = {p["t"]: p["qr"] for p in pts}
+    out, run_max, cur_f = [], None, None
+    for idx, p in enumerate(pts):
+        t = p["t"]
+        k = bisect.bisect_right(ftimes, t)
+        prev_f = ftimes[k - 1] if k else None
+        next_f = ftimes[k] if k < len(ftimes) else None
+        if prev_f and t - prev_f <= 3 * 86400:
+            if cur_f != prev_f:
+                cur_f, run_max = prev_f, qr_at[prev_f]
+            run_max = max(run_max, p["qr"])       # po plném nabití už „víc než plná“ být nemůže
+            h = p["qr"] - run_max
+        elif next_f and next_f - t <= 3 * 86400:
+            h = min(0.0, p["qr"] - qr_at[next_f])
+        else:
+            win = [x["qr"] for x in pts[max(0, idx - 300):idx + 1] if x["t"] >= t - 2 * 86400]
+            h = min(0.0, p["qr"] - max(win))
+        p["q"] = p["hq"] = round(min(0.0, h), 2)
+    full_t = ftimes[-1] if ftimes else 0
+    st["hq_full_t"] = full_t
     cap = eff_cap(data, cfg)
-    # nejnižší # každého dne (pro dlouhodobý graf; body se drží jen 14 dní)
+    # nejnižší # každého dne (přepočet z bodů; body se drží 14 dní)
+    mins = {}
     for p in pts:
-        if p.get("hq") is not None:
-            dd = data["days"].setdefault(datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d"), {})
-            v_ = round(max(0, 100 + p["hq"] / cap * 100))
-            if v_ < dd.get("hq_min", 999):
-                dd["hq_min"] = v_
+        k_ = datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d")
+        v_ = round(max(0, 100 + p["hq"] / cap * 100))
+        mins[k_] = min(mins.get(k_, 999), v_)
+    for k_, v_ in mins.items():
+        data["days"].setdefault(k_, {})["hq_min"] = v_
+    last = pts[-1]
+    ts = now.timestamp()
+    kind = "full" if full_t and ts - full_t <= 3 * 86400 else "best"
     nqc = sum(1 for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok"))
     capsrc = "testy z Ah" if nqc >= 2 else "zdraví baterie" if cap != (cfg["kapacita_Ah"] or 200) else "štítek"
-    data["hq"] = {"capsrc": capsrc, "nqc": nqc, "ah": round(min(0.0, q - ref), 1), "cap": round(cap), "kind": kind, "ref_t": int(ref_t),
-                  "pct": round(max(0, 100 + min(0.0, q - ref) / cap * 100)), "full_t": int(full_t) if full_t else None}
+    data["hq"] = {"capsrc": capsrc, "nqc": nqc, "ah": round(last["hq"], 1), "cap": round(cap), "kind": kind,
+                  "ref_t": int(full_t if kind == "full" else last["t"]), "pct": round(max(0, 100 + last["hq"] / cap * 100)),
+                  "full_t": int(full_t) if full_t else None, "fl_since": int(fl_since) if fl_since else None}
+    for k_ in ("hq_t", "hq_q", "hq_fl"):
+        st.pop(k_, None)
 
 
 # klidové napětí AGM 12 V → nabití (přibližně, 25 °C)

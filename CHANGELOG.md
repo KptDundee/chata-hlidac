@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.78 – 16. 10. 2026
+- **Oprava Nabití #:** ve Float ukazovalo 40 # – kotva „nejlepší stav za 7 dní“ se při dopočtu historie (díry v datech, odhadnutý odběr) rozjela vysoko. Teď se každý okamžik vztahuje k **nejbližšímu skutečnému plnému nabití** (Float ≥ 30 min): po něm kolik ubylo, před ním kolik do plného chybělo (do 3 dnů) – i dnešní ráno se tak srovná podle dnešního Floatu. „Nejlepší stav“ jen jako nouzovka za 2 dny. Přepočítává se z bodů při každém běhu. V detailu: „Float od …, plná se počítá od …“.
+
 ## 3.77 – 16. 10. 2026
 - **Graf Nabití # je v detailu solární baterie první**, s čárkovanou hranicí **50 #** (doporučená spodní hranice pro AGM) a 100 #. Pro Rok / Vše graf **nejnižšího # každého dne** (ukládá se od 16. 10. 2026).
 - Výklad: kdy je baterie „prázdná“ – měnič vypíná při ~11,6 V (≈ 10–20 #), pro životnost AGM nejít pod 50 #.
