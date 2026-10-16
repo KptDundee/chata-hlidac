@@ -239,3 +239,6 @@ Spustí hlídače a zároveň probudí Flip – ten změří a odešle hned. Za 
 
 ### Okno River (3.65)
 Dlaždice River v řádku Teď má záložky pro tři River a generátor – co dělají právě teď. Rozkliknutím: časová osa „Co se dělo“ (kdy která River napájela chatu nebo jen spotřebič, kdy běžel generátor), výkon každé River, generátor, běhy generátoru a čísla. Nabití % a nabíjení každé River se objeví, až poběží EcoFlow.
+
+### Nabití # (3.75)
+Vedle % regulátoru (odhad z napětí – v Boostu ukazuje 100 %, i když baterie plná není) je **#**: spočítané z toho, kolik ampérhodin do baterie přiteklo a kolik odteklo. 100 # = baterie skutečně plná (regulátor aspoň 30 min ve Float); když plná dlouho nebyla, nejlepší stav za posledních 7 dní. Když nic neteče, # se nemění.

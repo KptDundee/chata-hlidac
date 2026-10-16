@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.75 – 16. 10. 2026
+- **Nabití # (spočítané z Ah):** vedle % regulátoru (z napětí) nový údaj se značkou **#**. Počítá ampérhodiny – co do baterie přiteklo z regulátoru (účinnost nabíjení ~90 %) a co odteklo do měniče (zásuvka 220 V + ztráty + vlastní spotřeba + desulfátor). **100 #** = baterie skutečně plná (Float aspoň 30 min); když plná nebyla, nejlepší stav za posledních 7 dní. Při každém plném nabití se srovná. Kapacita ze Zdraví baterie; v detailu i odebrané Ah. Dlaždice: „72 % · 86 #“, detail: řádek v Teď, graf **Nabití #**, výklad.
+
 ## 3.74 – 16. 10. 2026
 - **Okno EcoFlow ukazuje nabíjení:** v řádku Teď nový řádek **Nabíjení ze soláru** (zásuvka 8: nabíjí / vypnuto, a kterou River – pozná se z názvu zásuvky, např. „(8) nabíjení River malý“); River při běžícím generátoru „nabíjí se z generátoru“, při zapnuté zásuvce 8 „nabíjí se ze soláru“. Na časové ose řádek **Ze soláru**, v tabulce doba nabíjení ze soláru (dnes / období). Kolik energie šlo do které River, ukáže až EcoFlow.
 - Hlídač ukládá do bodů, kdy byla zásuvka nabíjení ze soláru zapnutá (`rc`).

@@ -1374,6 +1374,7 @@ def main():
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
                          ("River napájí chatu", lambda: river_supply(data, st, now, topic, cfg, rise, set_)),
                          ("Připomínka EcoFlow", lambda: ecoflow_reminder(data, st, now, topic)),
+                         ("Nabití #", lambda: hash_soc(data, st, now, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
@@ -2402,6 +2403,69 @@ def read_ecoflow(data, st, now, topic, cfg):
               + ("" if r["online"] else " (offline)"))
         check_river(r, st, topic, cfg)
     return rivers
+
+
+def hash_soc(data, st, now, cfg):
+    """Nabití „#“ počítáním ampérhodin (ne z napětí): Q = Ah do baterie − Ah z baterie od kotvy.
+    Kotva 100 # = skutečně plná baterie (Float aspoň 30 min); když plná nebyla, nejlepší stav za posledních 7 dní.
+    Do bodů ukládá q (Ah, souvislá řada) a hq (Ah od kotvy, ≤ 0). data["hq"] = shrnutí pro web."""
+    pts = [p for p in data.get("points", []) if p.get("bat_v") and p.get("bat_a") is not None]
+    if len(pts) < 2:
+        return
+    idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
+    rids = ips(cfg.get("zasuvky_river"))
+    mip = str(cfg.get("zasuvka_menic") or (data.get("inverter") or {}).get("mip") or "1")
+    eff = 0.9                                   # nabíjecí účinnost AGM
+    last_t = st.get("hq_t", 0)
+    q = st.get("hq_q", 0.0)
+    fl_since = st.get("hq_fl", 0)
+    full_t = st.get("hq_full_t", 0)
+    mw_last, mw_t = None, 0
+    for a, b in zip(pts, pts[1:]):
+        # odběr za měničem: poslední známý (do 30 min), při chatě na River / vypnutém měniči jen vlastní spotřeba
+        if a.get("mw") is not None:
+            mw_last, mw_t = a["mw"], a["t"]
+        if b["t"] <= last_t:
+            continue
+        dt = b["t"] - a["t"]
+        if dt <= 0 or dt > 2400:
+            continue
+        if mw_last is not None and a["t"] - mw_t <= 1800:
+            load = mw_last / 0.88 + idle
+        elif a.get("tp") and (a["tp"].get(mip) or 0) <= 3 and any((a["tp"].get(i) or 0) > 3 for i in rids):
+            load = cfg.get("desulfator_W") or 0
+        else:
+            load = idle + 30                    # bez dat o odběru: běžná chata (lednice + drobnosti)
+        i_net = a["bat_a"] - load / a["bat_v"]
+        q += i_net * dt / 3600 * (eff if i_net > 0 else 1.0)
+        # skutečně plná: Float nepřetržitě aspoň 30 min
+        if a.get("status") == 1 and b.get("status") == 1:
+            fl_since = fl_since or a["t"]
+            if b["t"] - fl_since >= 1800:
+                full_t, q = b["t"], 0.0
+        else:
+            fl_since = 0
+        b["q"] = round(q, 2)
+    st.update({"hq_t": pts[-1]["t"], "hq_q": q, "hq_fl": fl_since, "hq_full_t": full_t})
+    # kotva: plné nabití (q = 0 od té doby), jinak nejlepší stav za 7 dní
+    ts = now.timestamp()
+    win = [p for p in pts if p.get("q") is not None and p["t"] >= max(full_t, ts - 7 * 86400)]
+    if not win:
+        return
+    if full_t and full_t >= ts - 7 * 86400:
+        ref, kind, ref_t = 0.0, "full", full_t
+        best = max(win, key=lambda p: p["q"])
+        if best["q"] > 0:                       # po plném nabití už nemůže být „víc než plná“
+            ref, ref_t = best["q"], best["t"]
+    else:
+        best = max(win, key=lambda p: p["q"])
+        ref, kind, ref_t = best["q"], "best", best["t"]
+    for p in pts:
+        if p.get("q") is not None:
+            p["hq"] = round(min(0.0, p["q"] - ref), 2)
+    cap = eff_cap(data, cfg)
+    data["hq"] = {"ah": round(min(0.0, q - ref), 1), "cap": round(cap), "kind": kind, "ref_t": int(ref_t),
+                  "pct": round(max(0, 100 + min(0.0, q - ref) / cap * 100)), "full_t": int(full_t) if full_t else None}
 
 
 def ecoflow_reminder(data, st, now, topic):
