@@ -475,6 +475,9 @@ def backfill_flip(data, now, cfg):
             pt["gw"] = inv["gen"]["w"]
         if plugs:
             pt["tp"] = plugs
+        rcp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == str(cfg.get("river_auto_ip") or "")), None)
+        if rcp and rcp.get("on") == 1 and not rcp.get("off"):
+            pt["rc"] = 1                       # nabíjení River ze soláru (zásuvka 8, neměří) zapnuté
         # napětí Victronu jen k bodu regulátoru ze stejné chvíle
         if inv.get("v") is not None:
             vt = t - (inv.get("age") or 0)
@@ -1252,6 +1255,9 @@ def main():
             plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
             if plugs:
                 pt["tp"] = plugs
+            rcp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == str(cfg.get("river_auto_ip") or "")), None)
+            if rcp and rcp.get("on") == 1 and not rcp.get("off"):
+                pt["rc"] = 1                   # nabíjení River ze soláru (zásuvka 8, neměří) zapnuté
             ow = other_load(data, st, cfg, now, topic, inv, st.get("ra_on"))
             if ow is not None:
                 pt["ow"] = ow
