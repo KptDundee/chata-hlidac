@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.69 – 16. 10. 2026
+- Dlaždice River v řádku Teď se jmenuje **EcoFlow** (tři River a generátor)
+- Hlavička: tři řádky stejného tvaru – **Regulátor: před x min**, **Victron: před y min** (oranžově, když přes hodinu nic), **Flip: před z min · baterie %**
+
 ## 3.68 – 16. 10. 2026
 - **Okno River – výjimka z „grafy napřed“:** pod přepínačem období je nahoře tabulka čísel. Sloupec **dnes** je vždy, druhý sloupec se řídí přepínačem: Dnes → včera, 48 h, 7 dní, rok, celkem (součty kWh). Navíc řádek River celkem a počet běhů generátoru. Grafy až pod ní.
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.68", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.69", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -233,7 +233,7 @@ details.sec>.in{margin-top:8px}
 <main id="app" class="hide">
   <header>
     <h1>⚡ Chata – elektřina<span class="ver" id="ver">v3.6</span></h1>
-    <div class="hrow"><div class="sub"><span id="upd">…</span><div id="flipbat" style="margin-top:3px;font-weight:600"></div></div>
+    <div class="hrow"><div class="sub"><span id="upd">…</span><div id="flipbat"></div></div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
   <div class="card hide" id="tokbox" style="margin-bottom:12px">
@@ -605,11 +605,13 @@ function render(){
   { const g = d.inverter, ph = g && g.ph, fb = $("flipbat");      // baterie Flipu – klíčová pro celou bránu
     if(ph && ph.b!=null){
       const old = Date.now()/1000 - g.t > 1800, col = ph.b <= 20 ? "--crit" : ph.b <= 50 && !ph.c ? "--warn" : ph.c ? "--good" : "--text2";
-      fb.innerHTML = `📱 Flip <span style="color:var(${col})">${nf(ph.b)} %</span> · ${ph.c ? "⚡ nabíjí se" : `<span style="color:var(--warn)">nenabíjí se!</span>`}${old ? ` · <span style="color:var(--crit)">mlčí ${ago(g.t)}</span>` : ""}`;
-    } else fb.textContent = g ? "📱 Flip: baterie neznámá" : ""; }
+      fb.innerHTML = `${old ? `<span style="color:var(--crit)">Flip: mlčí ${ago(g.t)}</span>` : `Flip: ${ago(g.t)}`} · 📱 <span style="color:var(${col})">${nf(ph.b)} %</span> · ${ph.c ? "⚡ nabíjí se" : `<span style="color:var(--warn)">nenabíjí se</span>`}`;
+    } else fb.textContent = g ? `Flip: ${ago(g.t)} · baterie neznámá` : "Flip: zatím žádná data"; }
   { const R = regStale(d), u = $("upd");
-    u.textContent = !d.updated ? "Zatím žádná data" : R.stale ? `⚠ Regulátor mlčí od ${relDay(d.updated)} ${hmT(d.updated)} – jeho údaje jsou STARÉ` : `Data z regulátoru ${ago(d.updated)}`;
-    u.style.color = R.stale ? "var(--crit)" : ""; u.style.fontWeight = R.stale ? "700" : ""; }
+    const reg = !d.updated ? "Regulátor: zatím žádná data" : R.stale ? `<span style="color:var(--crit);font-weight:700">⚠ Regulátor mlčí od ${relDay(d.updated)} ${hmT(d.updated)} – údaje jsou STARÉ</span>` : `Regulátor: ${ago(d.updated)}`;
+    const vo = d.vic_t ? Date.now()/1000 - d.vic_t > 3600 : true;
+    const vic = d.vic_t ? `<span${vo ? ' style="color:var(--warn)"' : ""}>Victron: ${ago(d.vic_t)}</span>` : `<span style="color:var(--muted)">Victron: zatím bez dat</span>`;
+    u.innerHTML = `${reg}<br>${vic}`; u.style.color = ""; u.style.fontWeight = ""; }
   const err = d.state && d.state.err_n;
   const sun = d.sun ? ` · ☀ ${new Date(d.sun[0]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}–${new Date(d.sun[1]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}` : "";
   $("cloud").textContent = (d.checked?`Kontrola ${ago(d.checked)}`:"") + (err?` · cloud nedostupný (${err}× za sebou)`:" · cloud OK") + sun;
@@ -1630,7 +1632,7 @@ function rivState(x, h){
   return "nic nedělá";
 }
 function tileRivers(d, h){
-  const t = {k:"river", icon:"🔋", label:"River"};
+  const t = {k:"river", icon:"🔋", label:"EcoFlow"};
   const {R, G} = rivModel(d, h), all = [...R, G];
   if(!R.length) return {...t, cls:"na", v:"–", st:"Nastav zásuvky River v Nastavení"};
   const act = x => x.gen ? (x.w||0) > 5 || !!d.gen_cur : (x.w||0) > 2 || (x.ef && (x.ef.in_w||0) > 20);
@@ -1767,7 +1769,7 @@ const DET = {
   wx:    {t:"☀️ Počasí a výroba", s:"Předpověď na 7 dní", ids:["wxcard"]},
   alerts:{t:"⚠️ K řešení", s:"Jen mimořádné věci – pravidelné (noc, zítřek) jsou ve svých dlaždicích", build:detAlerts},
   gen:   {t:"⛽ Generátor", s:"Běhy generátoru: kolik dodal a kolik se nabilo", build:detGen},
-  river: {t:"🔋 River a generátor", s:"Co se s nimi děje teď a dělo v historii", build:detRiver},
+  river: {t:"🔋 EcoFlow", s:"Tři River a generátor – co se s nimi děje teď a dělo v historii", build:detRiver},
   plugs: {t:"🔌 River a zásuvky (původní)", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
   use:   {t:"🏠 Spotřeba celkem", s:"Co bralo a kdy – ze soláru i z River", build:b=>detUse(b,"a")},
   use_s: {t:"🔆 Spotřeba ze soláru", s:"Jen doba, kdy chatu napájela solární baterie", build:b=>detUse(b,"s")},
