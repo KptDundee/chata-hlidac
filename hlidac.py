@@ -1451,9 +1451,11 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
             on, reason = False, f"baterie se vybíjí ({fmt(net, 1)} A) – panely na River nestačí"
         elif status == 1 and bv < float_v - 0.4:
             on, reason = False, f"napětí ve Float kleslo na {fmt(bv, 2)} V – baterie se vybíjí"
-        elif status == 2 and bv < boost_v - 0.2 and bv < float_v - 0.15:
-            # (pokles jen na úroveň Float je normální konec Boostu, ne nedostatek slunce)
-            on, reason = False, f"regulátor už neudrží nabíjecí napětí ({fmt(bv, 2)} V) – River by brala z baterie"
+        elif status == 2 and bv < boost_v - 0.15:
+            # V Boostu musí regulátor DRŽET nabíjecí napětí – jen pak baterie bere, kolik potřebuje, a River jede
+            # z přebytku, který by regulátor jinak škrtil. Jakmile napětí klesne, panely nestačí na obojí → River pryč,
+            # baterie (ještě ne plně nabitá, i když regulátor ukazuje 100 %) má přednost. (Konec Boostu = stav Float.)
+            on, reason = False, f"regulátor už nedrží nabíjecí napětí ({fmt(bv, 2)} V) – baterie má přednost"
         elif bv < hold:
             on, reason = False, f"baterie se vybíjí ({fmt(bv, 2)} V)"
         elif bv < (cfg["river_auto_v_off"] or 0):

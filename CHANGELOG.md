@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.72 – 16. 10. 2026
+- **Automatika River v Boostu přísnější:** nabíjení River se v Boostu vypne, jakmile napětí klesne o 0,15 V pod nabíjecí (dřív až pod ~13,55 V) – to znamená, že panely nestačí na baterii i River a baterie by nedostávala plný proud. Solární baterie má vždy přednost.
+
 ## 3.71 – 16. 10. 2026
 - **Flip 1.3.8 – Victron:** test Bluetooth (displej svítí) měnič vidí, poslech na pozadí ne. Aplikace teď umí oprávnění **poloha „Povolit vždy“** (nastavit ručně: Nastavení → Aplikace → Chata brána → Oprávnění → Poloha → Povolit vždy) – Android pak doručuje vysílání Bluetooth i aplikaci na pozadí. Když filtrovaný poslech nic nechytí, zkusí Flip 15 s hledání **bez filtru** (jako Test Bluetooth) a zapíše do Deníku, jestli svítil displej a co viděl – pozná se, kde je příčina.
 - **Flip: zásuvky v Deníku podle našeho čísla** „(8) …“, ne podle IP. Zásuvky, které odmítají přihlášení (401), číslo prozradit nemůžou – Deník napíše, ať se v Tapo zapne „Kompatibilita s třetími stranami“.
