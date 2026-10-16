@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.65", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.66", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1597,6 +1597,14 @@ function tileUseTotal(d, h){
     st: nowW!=null ? `teď ${nf(nowW)} W` : "teď bez dat (Flip)"};
 }
 /* ================= OKNO RIVER: 3 baterie + generátor – co se s nimi děje teď a dělo v historii (v3.65) ================= */
+/* barva River podle jména: žlutý = žlutá, červený = červená, malý = modrá (ostatní podle pořadí) */
+function rivColor(name, i){
+  const n = String(name||"").toLowerCase();
+  if(/žlut|zlut|yellow/.test(n)) return css("--s4");
+  if(/červ|cerv|red/.test(n)) return css("--s8");
+  if(/mal|small|mini/.test(n)) return css("--s1");
+  return css(["--s3","--s5","--s7"][i % 3]);
+}
 function rivModel(d, h){
   const U = useModel(d), names = d.plug_names || {}, live = h.invF ? (h.inv.tp||[]) : [];
   const ef = d.rivers || [], efFresh = h.now - (d.rivers_t||0) < 3600, norm = x => String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -1604,11 +1612,11 @@ function rivModel(d, h){
   const R = U.rids.map((id, i) => {
     const p = live.find(x=>x.ip===id) || {}, nm = pn(names[id] || p.n) || `River ${i+1}`;
     const e = ef.find(r=>norm(r.name) && (norm(nm).includes(norm(r.name)) || norm(r.name).includes(norm(nm)))) || (ef.length===U.rids.length ? ef[i] : null);
-    return {id, name:nm, short:nm.replace(/^River\s*/i,"") || nm, color:css(cols[i % cols.length]), w:p.w, off:!!p.off || p.err!=null,
+    return {id, name:nm, short:nm.replace(/^River\s*/i,"") || nm, color:rivColor(nm, i), w:p.w, off:!!p.off || p.err!=null,
       miss: h.invF && !live.some(x=>x.ip===id), ef: e && efFresh ? e : null, sn: e ? String(e.sn||"").slice(-6) : null};
   });
   const gp = live.find(x=>x.ip===U.gen) || {};
-  const G = {id:U.gen, name:"Generátor", short:"Generátor", color:css("--s2"), w:(h.inv && h.inv.gen ? h.inv.gen.w : gp.w), gen:true};
+  const G = {id:U.gen, name:"Generátor", short:"Generátor", color:css("--s7"), w:(h.inv && h.inv.gen ? h.inv.gen.w : gp.w), gen:true};
   return {U, R, G};
 }
 /* stav zařízení teď (jedna věta) */
@@ -1664,7 +1672,7 @@ function detRiver(body){
   const RL = R.map(r=>({id:r.id, name:r.short, color:r.color}));
   let html = `<div class="card"><h2 style="margin:0 0 4px">Teď</h2>${[...R, G].map(x=>rowI(`<b style="color:${x.color}">${x.name}</b>`, `${rivState(x, h)}${x.ef && x.ef.soc!=null ? ` · ${nf(x.ef.soc)} %` : ""}`)).join("")}</div>`
     + segHtml()
-    + (long ? "" : chartCard("rv_tl", "Co se dělo", `plný pruh = napájí chatu · světlejší = napájí jen spotřebič (chata jela ze soláru) · <span style="color:var(--s2)">■</span> generátor běží`))
+    + (long ? "" : chartCard("rv_tl", "Co se dělo", `plný pruh = napájí chatu · světlejší = napájí jen spotřebič (chata jela ze soláru) · <span style="color:var(--s7)">■</span> generátor běží`))
     + chartCard("rv_out", "Z River do chaty", long ? `kWh za den · ${RL.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ")}` : "W · součet zásuvek na výstupu River")
     + (long ? "" : R.map(r=>chartCard("rv_w"+r.id, r.name, "W na výstupu (zásuvka Tapo)")).join(""))
     + chartCard("rv_gen", "Generátor", long ? "kWh za den (zásuvka generátoru)" : "W (zásuvka generátoru)")
@@ -1689,16 +1697,17 @@ function detRiver(body){
   body.insertAdjacentHTML("beforeend", html);
   if(long){
     stackBars($("rv_out"), dd.map(k=>({k, v:Object.fromEntries(R.map(r=>[r.id, day(k)[r.id]||0]))})), RL, {});
-    barChart($("rv_gen"), dd.map(k=>({k, v:(day(k)[U.gen]||0)/1000})), "v", css("--s2"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
+    barChart($("rv_gen"), dd.map(k=>({k, v:(day(k)[U.gen]||0)/1000})), "v", css("--s7"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
   } else {
     timelineChart($("rv_tl"), pts, rowsT, hrs);
     lineChart($("rv_out"), pts.filter(p=>p.tp).map(p=>({t:p.t, w:R.reduce((s,r)=>s+(p.tp[r.id]||0),0)})), "w", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
     for(const r of R) lineChart($("rv_w"+r.id), pts.filter(p=>p.tp).map(p=>({t:p.t, w:p.tp[r.id] ?? null})), "w", r.color, {unit:"W",dec:0,zero:true,area:true,hours:hrs});
-    lineChart($("rv_gen"), pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})), "w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
+    lineChart($("rv_gen"), pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})), "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
   }
   // EcoFlow: % a nabíjení (až budou data)
   if(!anyEF){ empty($("rv_soc"), "Až budou data z EcoFlow."); empty($("rv_in"), "Až budou data z EcoFlow."); return; }
-  const efs = (d.rivers||[]).map((r,i)=>({i, name:r.name||`River ${i+1}`, sn:String(r.sn||"").slice(-6), color:css(["--s1","--s3","--s5"][i%3])}));
+  const efs = (d.rivers||[]).map((r,i)=>{ const m = R.find(x=>x.sn && x.sn===String(r.sn||"").slice(-6));
+    return {i, name:r.name||`River ${i+1}`, sn:String(r.sn||"").slice(-6), color: m ? m.color : rivColor(r.name, i)}; });
   lineChart($("rv_soc"), pts.filter(p=>p.rv && p.rv[0]).map(p=>({t:p.t, s:p.rv[0].s, s2:p.rv[1] ? p.rv[1].s : null})), "s", efs[0].color,
     {unit:"%",dec:0,zero:true,hours:hrs,k2: efs[1] ? {key:"s2", color:efs[1].color, name:efs[1].name} : undefined});
   stackBars($("rv_in"), Object.keys(d.days||{}).sort().filter(k=>k >= dkey(Date.now()/1000 - Math.max(hrs,7*24)*3600)).map(k=>({k, v:Object.fromEntries(efs.map(e=>[e.sn, ((((d.days[k]||{}).rv)||{})[e.sn]||{}).i||0]))})),

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.66 – 16. 10. 2026
+- Barvy River podle jména: **žlutý = žlutá, červený = červená, malý = modrá**; generátor fialová (aby se nepletl s červenou)
+
 ## 3.65 – 16. 10. 2026
 - **Okno River (dlaždice v řádku Teď):** 4 zařízení – tři River a generátor, záložky na dlaždici se stavem teď (napájí chatu / napájí spotřebič / nabíjí se / nic nedělá; generátor běží / neběží). Detail: Teď (všechna 4 zařízení), **Co se dělo** (časová osa – kdy která River napájela a kdy běžel generátor), Z River do chaty, každá River zvlášť, Generátor, Nabití a Nabíjení River (připravené – ukážou se, až poběží EcoFlow), Běhy generátoru, Čísla (dnes / včera / ⌀ 7 dní), Výklad. Pro Rok / Vše sloupce kWh po dnech.
 - **Dlaždice Z River** ukazuje jen spotřebu (bez „teď nenapájí“)
