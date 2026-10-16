@@ -85,7 +85,7 @@ river_auto_v_off = 12.5
 # vypnout hned, jakmile napětí spadne pod tuto hodnotu (baterie se přestala nabíjet a začala vybíjet)
 river_auto_v_drzet = 13.0
 # nabíjet River už v Boostu, když regulátor drží nabíjecí napětí (baterie dostává plnou dávku)
-river_auto_boost = zapnuto
+river_auto_boost = vypnuto
 # nabíjecí napětí Boostu podle nastavení regulátoru (bez teplotní kompenzace)
 boost_V = 14.4
 # napětí Float podle regulátoru

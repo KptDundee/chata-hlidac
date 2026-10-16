@@ -1447,7 +1447,10 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         net = None
         if inv and now.timestamp() - inv.get("t", 0) < 1200 and inv.get("mw") is not None and v.get("bat_a") is not None:
             net = v["bat_a"] - (inv["mw"] / 0.88 + (cfg["menic_vlastni_W"] or 0)) / bv
-        if net is not None and net < -(cfg.get("odber_z_baterie_A") or 2.0):
+        if status == 2 and not cfg.get("river_auto_boost"):
+            # nabíjení River jen ve Float: v Boostu baterie ještě není plná → přednost má ona, i za cenu přebytku
+            on, reason = False, "regulátor je v Boostu – baterie ještě není plně nabitá (River jen ve Float)"
+        elif net is not None and net < -(cfg.get("odber_z_baterie_A") or 2.0):
             on, reason = False, f"baterie se vybíjí ({fmt(net, 1)} A) – panely na River nestačí"
         elif status == 1 and bv < float_v - 0.4:
             on, reason = False, f"napětí ve Float kleslo na {fmt(bv, 2)} V – baterie se vybíjí"

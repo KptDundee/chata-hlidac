@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.73 – 16. 10. 2026
+- **Nabíjení River ze soláru jen ve Float** (nastavení „Nabíjet River už v Boostu“ vypnuto): solární baterie se vždy dobije úplně, i za cenu ztráty přebytku. Když je River zapnutá a regulátor je v Boostu, automatika ji vypne.
+
 ## 3.72 – 16. 10. 2026
 - **Automatika River v Boostu přísnější:** nabíjení River se v Boostu vypne, jakmile napětí klesne o 0,15 V pod nabíjecí (dřív až pod ~13,55 V) – to znamená, že panely nestačí na baterii i River a baterie by nedostávala plný proud. Solární baterie má vždy přednost.
 
