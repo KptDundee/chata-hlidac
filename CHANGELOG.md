@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.85 – 16. 10. 2026
+- Dlaždice Solární baterie: napětí a nabití # **pod sebou** (vedle sebe se pletly).
+
 ## 3.84 – 16. 10. 2026
 - Dlaždice Solární baterie: **nabití # stejně velké jako napětí** vedle V (např. „12,74 V  86 #“; pod 50 # oranžově, pod 30 # červeně). Z řádku „nabití“ zmizelo, zůstalo tam jen % regulátoru.
 
