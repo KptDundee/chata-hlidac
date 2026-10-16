@@ -35,6 +35,8 @@ public class GatewayService extends Service {
     private Collector collector;
     private final ExecutorService exec = Executors.newSingleThreadExecutor();
     private long namesAt;
+    private volatile Thread wakeThread;
+    private volatile long lastWake;
 
     public static void start(Context c) { start(c, false); }
 
@@ -60,6 +62,7 @@ public class GatewayService extends Service {
         if (intent != null && ACTION_STOP.equals(intent.getAction())) {
             Prefs.get(this).edit().putBoolean(Prefs.RUNNING, false).apply();
             cancelAlarm(this);
+            Thread w = wakeThread; wakeThread = null; if (w != null) w.interrupt();
             ble.stop();
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
@@ -71,8 +74,45 @@ public class GatewayService extends Service {
         else startForeground(NOTIF_ID, n);
         ble.ensureRunning(intent != null && intent.getBooleanExtra("restart", false));
         scheduleAlarm(this);
+        startWakeListener();
         tick();
         return START_STICKY;
+    }
+
+    /**
+     * Nouzové spuštění z aplikace: trvalé spojení na ntfy téma <topic>-wake. Když tam přijde zpráva
+     * (tlačítko ⚡ Načíst na webu → hlídač ji pošle), Flip hned změří a odešle, nečeká na budík.
+     */
+    private void startWakeListener() {
+        if (wakeThread != null && wakeThread.isAlive()) return;
+        Thread t = new Thread(() -> {
+            while (wakeThread == Thread.currentThread()) {
+                String topic = Prefs.s(this, Prefs.NTFY_TOPIC);
+                if (topic.isEmpty()) { SystemClock.sleep(60_000); continue; }
+                java.net.HttpURLConnection c = null;
+                try {
+                    c = (java.net.HttpURLConnection) new java.net.URL("https://ntfy.sh/" + topic + "-wake/json").openConnection();
+                    c.setConnectTimeout(20_000);
+                    c.setReadTimeout(150_000);              // ntfy posílá „keepalive“ každých 45 s
+                    java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(c.getInputStream(), "UTF-8"));
+                    String ln;
+                    while ((ln = r.readLine()) != null && wakeThread == Thread.currentThread()) {
+                        if (!ln.contains("\"event\":\"message\"")) continue;
+                        if (SystemClock.elapsedRealtime() - lastWake < 60_000) continue;
+                        lastWake = SystemClock.elapsedRealtime();
+                        Prefs.log(this, "Probuzení z aplikace – měřím hned");
+                        tick();
+                    }
+                } catch (Exception e) {
+                    SystemClock.sleep(30_000);              // bez internetu: zkusit znovu za chvíli
+                } finally {
+                    if (c != null) c.disconnect();
+                }
+            }
+        }, "wake");
+        t.setDaemon(true);
+        wakeThread = t;
+        t.start();
     }
 
     private void tick() {

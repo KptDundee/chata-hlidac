@@ -1199,6 +1199,8 @@ def main():
     except OSError:
         data["ver"] = None
     rivers = read_ecoflow(data, st, now, topic, cfg)
+    if os.environ.get("WAKE") == "1":
+        wake_flip(topic)
     inv = read_inverter(data, topic, now, cfg)
     read_plug_history(data, topic)
     try:
@@ -2062,6 +2064,28 @@ def inv_from_msg(last, now, cfg=None):
     if "w" not in inv and not inv.get("tp") and "ph" not in inv:
         return None
     return inv
+
+
+def wake_flip(topic, wait_s=110):
+    """Nouzové „změř hned“ (tlačítko ⚡ Načíst na webu): pošle zprávu na <topic>-wake, Flip (1.3.5+) drží
+    spojení a hned změří a odešle. Počká, až nová data z Flipu dorazí (nejvýš wait_s)."""
+    t0 = int(time.time())
+    try:
+        urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-wake", data=b"mer", method="POST",
+                                                      headers={"Priority": "1"}), timeout=15).read()
+    except Exception as e:
+        print("Probuzení Flipu:", e)
+        return
+    while time.time() - t0 < wait_s:
+        time.sleep(10)
+        try:
+            lines = urllib.request.urlopen(f"https://ntfy.sh/{topic}-menic/json?poll=1&since={t0}", timeout=15).read().decode().splitlines()
+            if any('"event":"message"' in ln for ln in lines):
+                print(f"Flip odpověděl za {int(time.time() - t0)} s")
+                return
+        except Exception:
+            pass
+    print("Flip na probuzení neodpověděl (starší verze, spí nebo bez internetu)")
 
 
 def read_inverter(data, topic, now, cfg=None):
