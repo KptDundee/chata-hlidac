@@ -78,7 +78,7 @@ public class GatewayService extends Service {
     private void tick() {
         PowerManager pm = getSystemService(PowerManager.class);
         PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "chatabrana:tick");
-        wl.acquire(2 * 60_000L);
+        wl.acquire(4 * 60_000L);      // hledání zásuvek + historie + opakované odeslání se do 2 min nemusí vejít
         exec.execute(() -> {
             try {
                 if (SystemClock.elapsedRealtime() - namesAt > 3600_000L) { collector.forgetNames(); namesAt = SystemClock.elapsedRealtime(); }

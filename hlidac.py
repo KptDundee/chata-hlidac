@@ -1232,7 +1232,7 @@ def main():
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
     if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
         try:
-            backfill_points(token, data, now, 3 if st.get("bf14") else KEEP_DETAIL_DAYS * 24)   # poprvé celých 14 dní
+            backfill_points(token, data, now, 6 if st.get("bf14") else KEEP_DETAIL_DAYS * 24)   # poprvé celých 14 dní
             st["bf14"] = True
         except Exception as e:
             print("Doplnění bodů:", e)
@@ -1994,7 +1994,12 @@ def inv_from_msg(last, now, cfg=None):
         body = json.loads(last.get("message") or "{}")
     except ValueError:
         return None
-    inv = {"t": int(last.get("time") or now.timestamp())}
+    t_msg = int(last.get("time") or now.timestamp())
+    try:                                   # Flip 1.3.4+: čas měření (zpráva mohla odejít později z fronty)
+        t_meas = int(body.get("ts") or 0)
+    except (TypeError, ValueError):
+        t_meas = 0
+    inv = {"t": t_meas if 0 < t_meas <= t_msg + 60 and t_msg - t_meas < 2 * 86400 else t_msg}
     try:
         if float(body.get("lw", -1)) >= 0:
             inv["lw"] = round(float(body["lw"]), 1)
@@ -2080,6 +2085,13 @@ def read_inverter(data, topic, now, cfg=None):
             pass
     if not msgs:
         return None
+
+    def _mt(m):
+        try:
+            return int(json.loads(m.get("message") or "{}").get("ts") or m.get("time") or 0)
+        except (ValueError, AttributeError, TypeError):
+            return int(m.get("time") or 0)
+    msgs.sort(key=_mt)                     # podle času měření (zprávy z fronty Flipu chodí opožděně)
     last = msgs[-1]
     inv = inv_from_msg(last, now, cfg)
     if inv is None:

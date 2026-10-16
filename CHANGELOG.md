@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.59 – 16. 10. 2026
+- **Flip 1.3.4 – nic se neztratí při výpadku internetu:** když se zpráva nepodaří odeslat (router / 4G na chvíli bez spojení), Flip to za 20 s zkusí znovu a pak ji uloží do fronty (až ~1 den); při dalším odeslání pošle nejdřív frontu. Každá zpráva nese čas měření (`ts`), hlídač ji zařadí na správné místo. Probuzení telefonu prodlouženo na 4 min (hledání zásuvek se do 2 min nemuselo vejít).
+- Hlídač: zprávy Flipu řadí podle času měření; doplňování z historie regulátoru za posledních 6 h (dřív 3 h) – pro případ, že GitHub hlídače delší dobu nespustí
+
 ## 3.58 – 16. 10. 2026
 - **Hodnoty v grafech po ťuknutí:** bublina s hodnotou byla v detailech schovaná pod oknem (byla vidět jen svislá čára). Teď je nahoře a na telefonu zůstane, dokud neťukneš jinam nebo neposuneš stránku.
 - **Bodový graf nejnižšího napětí:** přímo v grafu je napsaná poslední hodnota a nejnižší noc se zátěží (hodnota + datum)

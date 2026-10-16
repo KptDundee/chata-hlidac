@@ -229,3 +229,7 @@ Dlaždice se nepřeskupují – mění se jen čísla a krátký text v nich.
 
 ## Zásuvky Tapo – pojmenování (od Flip 1.3)
 V aplikaci Tapo dej každé zásuvce jméno začínající číslem v závorce, např. `(3) (R) River žlutý`. První závorka = číslo zásuvky (podle něj ji hlídač pozná, i když router změní IP adresu), druhá závorka třeba Wi‑Fi, zbytek libovolně. Flip síť prohledá sám. V Nastavení hlídače (nastaveni.txt) se pak zásuvky zadávají tímto číslem: `zasuvky_river = 3, 4, 5`, `zasuvka_lednice = 2`… Po přejmenování na Flipu dej „Odeslat teď“ (hledání proběhne do pár minut).
+
+
+### Výpadky dat (3.59, Flip 1.3.4)
+Když Flip nemůže odeslat (výpadek internetu), uloží zprávy do fronty a pošle je, až se spojení obnoví – v grafech se díra dodatečně zaplní. Data regulátoru se doplňují z historie Solar Guardianu. Trvalé díry zůstanou jen, když Flip neměří vůbec (vybitý, vypnutý) nebo zamrzne Wi‑Fi modul regulátoru.

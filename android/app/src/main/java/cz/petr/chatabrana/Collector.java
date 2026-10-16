@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.BatteryManager;
+import android.os.SystemClock;
 import android.util.Base64;
 
 import org.json.JSONArray;
@@ -41,6 +42,7 @@ public final class Collector {
         try {
             JSONObject o = new JSONObject();
             o.put("ver", 1);
+            o.put("ts", System.currentTimeMillis() / 1000);     // kdy se měřilo (zpráva může odejít později z fronty)
             StringBuilder sum = new StringBuilder();
 
             // 1) měnič Victron (Bluetooth)
@@ -152,10 +154,22 @@ public final class Collector {
             // 4) odeslat
             String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
             if (topic.isEmpty()) return "Chybí ntfy téma v nastavení";
-            post("https://ntfy.sh/" + topic + "-menic", o.toString());
+            String url = "https://ntfy.sh/" + topic + "-menic";
+            int sentOld = flushOutbox(url);
+            try {
+                post(url, o.toString());
+            } catch (Exception e) {
+                SystemClock.sleep(20_000);                       // krátký výpadek internetu (router, 4G) → jednou znovu
+                try { post(url, o.toString()); }
+                catch (Exception e2) {
+                    int n = queue(o.toString());
+                    Prefs.log(ctx, "Neodesláno (" + e2.getMessage() + ") – ve frontě " + n + ", pošle se příště");
+                    return "Neodesláno – ve frontě " + n + " · " + sum;
+                }
+            }
             Prefs.get(ctx).edit().putLong(Prefs.LAST_SENT, System.currentTimeMillis()).apply();
-            Prefs.log(ctx, "Odesláno: " + sum);
-            return sum.toString();
+            Prefs.log(ctx, "Odesláno: " + sum + (sentOld > 0 ? " (+ " + sentOld + " z fronty)" : ""));
+            return sum.toString() + (sentOld > 0 ? " · +" + sentOld + " z fronty" : "");
         } catch (Exception e) {
             String m = "Chyba: " + e.getMessage();
             Prefs.log(ctx, m);
@@ -403,6 +417,36 @@ public final class Collector {
 
     /** Po hodině se znovu načtou názvy zásuvek (kdyby se přejmenovaly). */
     public void forgetNames() { names.clear(); models.clear(); }
+
+    /** Fronta neodeslaných zpráv (max ~1 den) – po obnovení internetu se pošlou, hlídač je zařadí podle "ts". */
+    private synchronized int queue(String msg) {
+        try {
+            JSONArray q = new JSONArray(Prefs.get(ctx).getString("outbox", "[]"));
+            q.put(msg);
+            while (q.length() > 150) q.remove(0);
+            Prefs.get(ctx).edit().putString("outbox", q.toString()).apply();
+            return q.length();
+        } catch (Exception e) { return 0; }
+    }
+
+    private synchronized int flushOutbox(String url) {
+        int sent = 0;
+        try {
+            JSONArray q = new JSONArray(Prefs.get(ctx).getString("outbox", "[]"));
+            if (q.length() == 0) return 0;
+            JSONArray rest = new JSONArray();
+            boolean fail = false;
+            for (int i = 0; i < q.length(); i++) {
+                if (!fail) {
+                    try { post(url, q.getString(i)); sent++; continue; }
+                    catch (Exception e) { fail = true; }
+                }
+                rest.put(q.getString(i));
+            }
+            Prefs.get(ctx).edit().putString("outbox", rest.toString()).apply();
+        } catch (Exception ignored) { }
+        return sent;
+    }
 
     private static void post(String url, String body) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
