@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.63", FLIP_VER = "1.3.6";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.64", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1616,6 +1616,7 @@ function alertItems(d, h){
   if(RS.stale) A.push({s:2, t:`Regulátor neposílá data (od ${relDay(RS.t)} ${hmT(RS.t)})`, k:"sys"});
   if(!g || h.now - g.t > 1800) A.push({s:2, t:`Flip neposílá data${g?` (od ${relDay(g.t)} ${hmT(g.t)})`:""}`, k:"sys"});
   else if(g.wifi===0) A.push({s:2, t:"Flip není na Wi‑Fi – zásuvky nejdou číst", k:"sys"});
+  if(g && h.now - g.t <= 1800 && d.vic_t && h.now - d.vic_t > 3600) A.push({s:1, t:`Victron neposílá (od ${relDay(d.vic_t)} ${hmT(d.vic_t)})`, k:"sys"});
   if(g && h.now - g.t <= 1800 && ph && ph.b!=null && !ph.c && ph.b <= 50) A.push({s: ph.b <= 20 ? 2 : 1, t:`Flip má ${nf(ph.b)} % a nenabíjí se`, k:"sys"});
   if(!RS.stale && h.bv!=null && h.bv < CRIT_V) A.push({s:2, t:`Solární baterie ${nf(h.bv,2)} V – pod ${nf(CRIT_V,1)} V`, k:"bat"});
   if(!RS.stale && h.extraW!=null && h.net!=null && h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.extraW >= (h.cfg.odber_navic_W ?? 40)) A.push({s:1, t:`Odběr ${nf(h.extraW)} W navíc za měničem`, k:"bat"});

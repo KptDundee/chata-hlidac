@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.64 – 16. 10. 2026
+- **Flip 1.3.7 – Victron:** poslech Bluetooth se po každém měření spustí znovu (Android/Samsung dlouho běžící sken na pozadí potichu utlumí – výsledky pak chodily jen, když skenovala jiná aplikace, např. VictronConnect); když nic nechytí, intenzivní hledání 40 s (dřív 20 s)
+- Lišta „K řešení“: **Victron neposílá** (od …), když z měniče přes hodinu nepřišla data, i když Flip jinak posílá
+
 ## 3.63 – 16. 10. 2026
 - **Odběr navíc se potvrzuje průměrem:** 16. 10. v 9:57 přišlo upozornění „za měničem 146 W“, ale graf zásuvky 220 V v aplikaci Tapo celé ráno nepřekročil ~70 W – jedno okamžité měření bylo mimo. Teď se z počítadla energie zásuvky (stejné, ze kterého kreslí graf Tapo) spočítá průměr za posledních ~10 min (dvě poslední zprávy Flipu); upozornění přijde, jen když odběr navíc ukazuje i průměr. Velký odběr (≥ 300 W okamžitě) se hlásí hned jako dřív. Zahozená špička se zapíše do Deníku.
 - Upozornění uvádí i průměr za posledních ~10 min

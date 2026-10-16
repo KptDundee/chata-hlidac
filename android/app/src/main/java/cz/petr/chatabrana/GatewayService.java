@@ -127,7 +127,9 @@ public class GatewayService extends Service {
                 String res = collector.runOnce();
                 String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
                 getSystemService(NotificationManager.class).notify(NOTIF_ID, notification(time + " · " + res));
-                ble.ensureRunning();
+                // poslech měniče po každém měření spustit znovu: Android (hlavně Samsung) dlouho běžící sken
+                // na pozadí potichu utlumí – výsledky pak chodí jen, když skenuje jiná aplikace (VictronConnect)
+                ble.ensureRunning(true);
             } finally {
                 if (wl.isHeld()) wl.release();
             }

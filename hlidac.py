@@ -2154,6 +2154,15 @@ def read_inverter(data, topic, now, cfg=None):
     if inv is None:
         return None
     data["_inv_msgs"] = msgs               # všechny zprávy za 12 h – doplnění mezer mezi běhy hlídače
+    # kdy naposledy přišla data z Victronu (Bluetooth) – web ukáže, když dlouho nechodí
+    for m in reversed(msgs):
+        try:
+            b_ = json.loads(m.get("message") or "{}")
+            if float(b_.get("v") or 0) > 5:
+                data["vic_t"] = int(b_.get("ts") or m.get("time")) - int(b_.get("age") or 0)
+                break
+        except (ValueError, TypeError):
+            pass
     # průměrný příkon každé zásuvky za posledních ~10 min z jejího počítadla energie (dvě poslední zprávy):
     # okamžitá hodnota může být krátká špička, průměr ukáže, co opravdu odtéká z baterie
     if len(msgs) >= 2:
