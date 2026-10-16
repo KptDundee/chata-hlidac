@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.76 – 16. 10. 2026
+- **Kapacita baterie se testuje sama:** jednou denně ráno (hodinu po východu), když byla baterie předchozí den skutečně plná (Float ≥ 30 min) a přes noc z ní ubylo aspoň 20 Ah (do ~85 % podle napětí). Nabití ráno z klidového napětí AGM (opraveno o pokles odběrem), kapacita = odebrané Ah ÷ ubylý podíl. Od 2 úspěšných testů se pro # a předpovědi bere jejich medián (dřív jen Zdraví baterie / štítek). Výsledky testů ve výkladu detailu baterie, zdroj kapacity u grafu Nabití #.
+
 ## 3.75 – 16. 10. 2026
 - **Nabití # (spočítané z Ah):** vedle % regulátoru (z napětí) nový údaj se značkou **#**. Počítá ampérhodiny – co do baterie přiteklo z regulátoru (účinnost nabíjení ~90 %) a co odteklo do měniče (zásuvka 220 V + ztráty + vlastní spotřeba + desulfátor). **100 #** = baterie skutečně plná (Float aspoň 30 min); když plná nebyla, nejlepší stav za posledních 7 dní. Při každém plném nabití se srovná. Kapacita ze Zdraví baterie; v detailu i odebrané Ah. Dlaždice: „72 % · 86 #“, detail: řádek v Teď, graf **Nabití #**, výklad.
 

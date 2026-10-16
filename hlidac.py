@@ -1018,6 +1018,9 @@ def charge_capacity(data, now, cfg):
 def eff_cap(data, cfg):
     """Skutečná kapacita pro výpočty (předpověď do rána, výhled, odhad nabití): medián posledních 14 spolehlivých nocí."""
     nom = cfg["kapacita_Ah"] or 200
+    qc = sorted(d["qc"]["cap"] for k, d in sorted(data.get("days", {}).items())[-45:] if (d.get("qc") or {}).get("ok"))
+    if len(qc) >= 2:                       # testy kapacity z Ah (plné nabití → noc → ráno) mají přednost
+        return max(40, min(300, qc[len(qc) // 2]))
     v = sorted(d["h"]["cap"] for k, d in sorted(data.get("days", {}).items())[-30:]
                if d.get("h") and d["h"].get("cap") and d["h"].get("ve", 0) >= 12.10)[-14:]
     if len(v) < 5:
@@ -1375,6 +1378,7 @@ def main():
                          ("River napájí chatu", lambda: river_supply(data, st, now, topic, cfg, rise, set_)),
                          ("Připomínka EcoFlow", lambda: ecoflow_reminder(data, st, now, topic)),
                          ("Nabití #", lambda: hash_soc(data, st, now, cfg)),
+                         ("Test kapacity", lambda: capacity_check(data, st, now, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
@@ -2464,8 +2468,63 @@ def hash_soc(data, st, now, cfg):
         if p.get("q") is not None:
             p["hq"] = round(min(0.0, p["q"] - ref), 2)
     cap = eff_cap(data, cfg)
-    data["hq"] = {"ah": round(min(0.0, q - ref), 1), "cap": round(cap), "kind": kind, "ref_t": int(ref_t),
+    nqc = sum(1 for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok"))
+    capsrc = "testy z Ah" if nqc >= 2 else "zdraví baterie" if cap != (cfg["kapacita_Ah"] or 200) else "štítek"
+    data["hq"] = {"capsrc": capsrc, "nqc": nqc, "ah": round(min(0.0, q - ref), 1), "cap": round(cap), "kind": kind, "ref_t": int(ref_t),
                   "pct": round(max(0, 100 + min(0.0, q - ref) / cap * 100)), "full_t": int(full_t) if full_t else None}
+
+
+# klidové napětí AGM 12 V → nabití (přibližně, 25 °C)
+AGM_OCV = [(11.95, 10), (12.05, 20), (12.15, 30), (12.25, 40), (12.35, 50), (12.45, 60), (12.55, 70), (12.65, 80), (12.75, 90), (12.85, 100)]
+
+
+def ocv_soc(v):
+    if v <= AGM_OCV[0][0]:
+        return AGM_OCV[0][1]
+    for (v0, s0), (v1, s1) in zip(AGM_OCV, AGM_OCV[1:]):
+        if v <= v1:
+            return s0 + (s1 - s0) * (v - v0) / (v1 - v0)
+    return 100
+
+
+def capacity_check(data, st, now, cfg):
+    """Jednou denně (po ránu): test kapacity z cyklu plné nabití → noc → ráno.
+    Podmínky: baterie byla skutečně plná (Float ≥ 30 min) během posledních 30 h, od té doby odebráno aspoň 20 Ah,
+    ráno před sluncem malý odběr a chata ne na River. Nabití ráno z napětí (AGM, opraveno o pokles odběrem),
+    kapacita = odebrané Ah ÷ (100 % − nabití ráno). Výsledek do days[k]["qc"]; eff_cap pak bere medián testů."""
+    rise, _ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    if not rise or now < rise + timedelta(hours=1):
+        return
+    k = now.strftime("%Y-%m-%d")
+    day = data["days"].setdefault(k, {})
+    if "qc" in day:
+        return
+    full_t = st.get("hq_full_t") or 0
+    pts = [p for p in data.get("points", []) if p.get("q") is not None and p.get("bat_v")]
+    mor = [p for p in pts if rise.timestamp() - 2 * 3600 <= p["t"] <= rise.timestamp() + 900
+           and (p.get("pv_w") or 0) < 5 and (p.get("mw") or 0) < 120 and not p.get("rc")]
+    res = {"ok": False}
+    if not full_t or rise.timestamp() - full_t > 30 * 3600:
+        res["why"] = "baterie nebyla plně nabitá"
+    elif not mor:
+        res["why"] = "chybí ranní měření"
+    else:
+        p = min(mor, key=lambda x: x["bat_v"])
+        idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
+        i_load = ((p.get("mw") or 0) / 0.88 + idle) / p["bat_v"]
+        v_rest = p["bat_v"] + 0.01 * i_load                       # pokles napětí odběrem ~10 mV/A
+        soc = ocv_soc(v_rest)
+        ah = -p["q"]                                               # q = 0 při plném nabití
+        res.update({"ah": round(ah, 1), "v": round(v_rest, 2), "soc": round(soc), "t": p["t"]})
+        if ah < 20 or soc > 85:
+            res["why"] = "vybitá málo – test by byl nepřesný"
+        else:
+            cap = ah / (1 - soc / 100)
+            res.update({"cap": round(cap), "ok": 40 <= cap <= 300})
+            if not res["ok"]:
+                res["why"] = "nesmyslný výsledek – nepoužito"
+    day["qc"] = res
+    print("Test kapacity:", res)
 
 
 def ecoflow_reminder(data, st, now, topic):
