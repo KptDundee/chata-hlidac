@@ -85,8 +85,14 @@ public final class Collector {
                     JSONObject p = readPlug(ip, email, pass);
                     if (p == null) continue;
                     String octet = ip.substring(ip.lastIndexOf('.') + 1), id = null;
-                    for (Map.Entry<String, String> en : map.entrySet()) if (en.getValue().equals(ip)) id = en.getKey();
-                    if (id == null) id = TapoScan.idFromName(names.get(ip));
+                    String byMap = null;
+                    for (Map.Entry<String, String> en : map.entrySet()) if (en.getValue().equals(ip)) byMap = en.getKey();
+                    id = TapoScan.idFromName(names.get(ip));                // rozhoduje jméno přečtené právě teď
+                    if (id != null && byMap != null && !id.equals(byMap)) {   // adresy se přeházely → najít zásuvky znovu
+                        Prefs.log(ctx, "Zásuvka na ." + octet + " je teď (" + id + "), ne (" + byMap + ") – hledám znovu");
+                        Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
+                    }
+                    if (id == null) id = byMap;
                     if (id == null) id = octet;
                     p.put("ip", id);                                         // hlídač zásuvky rozlišuje podle čísla
                     idIp.put(id, ip);
@@ -195,9 +201,13 @@ public final class Collector {
             p.put("ip", ip.substring(ip.lastIndexOf('.') + 1));
             TapoKlap t = tapo.get(ip);
             if (t == null) { t = new TapoKlap(ip, email, pass); tapo.put(ip, t); }
-            if (!names.containsKey(ip)) {
+            // jméno VŽDY čerstvě ze zásuvky: po restartu routeru se IP adresy přehází a jméno z mezipaměti
+            // (dřív až hodinu staré) by přiřadilo naměřené W jiné zásuvce
+            {
                 JSONObject info = new JSONObject(t.call("get_device_info")).optJSONObject("result");
                 if (info != null) {
+                    String did = info.optString("device_id", "");
+                    if (did.length() > 6) p.put("d", did.substring(did.length() - 6));   // otisk zařízení (kontrola záměny)
                     String nick = info.optString("nickname", "");
                     try { nick = new String(Base64.decode(nick, Base64.DEFAULT), StandardCharsets.UTF_8); } catch (Exception ignored) {}
                     names.put(ip, nick.isEmpty() ? ip : nick);

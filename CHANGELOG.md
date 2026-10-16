@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.62 – 16. 10. 2026
+- **Flip 1.3.6 – hodnoty zásuvek vždy ke správné zásuvce:** jméno zásuvky se dřív bralo z mezipaměti podle IP adresy (až hodinu staré). Když se po restartu routeru adresy přeházely, naměřené W se mohly připsat jiné zásuvce – web a upozornění pak ukazovaly jinou hodnotu než aplikace Tapo. Teď se jméno čte ze zásuvky při každém měření, číslo zásuvky rozhoduje podle něj (ne podle staré mapy adres) a při nesouladu Flip zásuvky znovu vyhledá. Posílá i otisk zařízení (`d`).
+- Upozornění na odběr navíc uvádí, která fyzická zásuvka 220 V hodnotu hlásila (jméno, IP, otisk zařízení) – pro kontrolu s aplikací Tapo.
+- (3.61: vysvětlení přes nabíjení River bylo chybné – River nebyl zapojený. Úprava upozornění tam zůstává jen pro případ, že zásuvka 8 je opravdu zapnutá.)
+
 ## 3.61 – 16. 10. 2026
 - **Odběr navíc a nabíjení River:** zásuvka 8 (nabíjení River ze soláru) je za měničem a neměří – když je zapnutá, celé nabíjení se jevilo jako „odběr navíc“. Když ji ovládá automatika (zapnutá nebo právě vypnutá – Flip povel provede až při dalším měření), upozornění se neposílá; automatika ji při vybíjení vypne sama. Bez automatiky upozornění přijde s poznámkou, že je zapnutá zásuvka nabíjení River.
 - Upozornění na odběr navíc vypíše i **měřené zásuvky** v tu chvíli a čas měření

@@ -1713,11 +1713,14 @@ def overload_check(v, st, now, topic, cfg, data, rise, set_):
     import re as _re
     others = [f"{_re.sub(r'^\s*(\([^)]*\)\s*)+', '', str(p.get('n') or p.get('ip')))} {fmt(p['w'])} W"
               for p in inv.get("tp", []) if str(p.get("ip")) not in skip and (p.get("w") or 0) >= 3]
-    hint = ""
+    mp_ = next((p for p in inv.get("tp", []) if str(p.get("ip")) == mip), {})
+    src = (f"\nZásuvka 220 V: „{mp_.get('n')}“ (IP .{mp_.get('a') or mp_.get('ip')}"
+           + (f", zařízení …{mp_['d']}" if mp_.get("d") else "") + f") hlásila {fmt(mp_.get('w'))} W.") if mp_ else ""
+    hint = src
     if river_on and not cfg.get("river_auto"):
-        hint = "\nZásuvka nabíjení River je zapnutá (neměří) – nejspíš je to ona."
+        hint += "\nZásuvka nabíjení River je zapnutá (neměří) – nejspíš je to ona."
     elif rp and rp.get("on") == 1:
-        hint = "\nZásuvka nabíjení River je zapnutá (neměří)."
+        hint += "\nZásuvka nabíjení River je zapnutá (neměří)."
     if hit:
         log("ev", f"Odběr navíc: měnič {fmt(inv['mw'])} W = {fr_txt} + běžně {fmt(base)} W + navíc {fmt(extra)} W (baterie {fmt(net, 1)} A)")
     if hit and now.timestamp() - st.get("ovl_ts", 0) > 3600:
@@ -2039,7 +2042,7 @@ def inv_from_msg(last, now, cfg=None):
         inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
     tp = body.get("tp")
     if isinstance(tp, list):
-        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone") if p.get(k) is not None}
+        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d") if p.get(k) is not None}
                      for p in tp if isinstance(p, dict)][:16]
         # zásuvka se pozná podle čísla v první závorce jména („(3) (R) River…“), ne podle IP – i se starším Flipem
         import re as _re
