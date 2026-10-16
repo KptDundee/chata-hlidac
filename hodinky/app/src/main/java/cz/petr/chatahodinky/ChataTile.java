@@ -59,8 +59,12 @@ public class ChataTile extends TileService {
             int lvl = d.optInt("lvl", 0);
             boolean old = Data.ageMin(d) > 60;
             col.addContent(text(Data.volt(d.optDouble("v")) + " V", 34, old ? GREY : Data.color(lvl), true, 1));
-            String l2 = (d.isNull("soc") ? "" : d.optInt("soc") + " %") + (d.optString("st").isEmpty() ? "" : " · " + d.optString("st"));
-            col.addContent(text(l2, 15, WHITE, false, 1));
+            if (!d.isNull("hq")) {                 // nabití # (z ampérhodin): výrazněji než ostatní, menší než napětí
+                int hq = d.optInt("hq");
+                col.addContent(text(hq + " #", 24, old ? GREY : hq < 30 ? Data.color(2) : hq < 50 ? Data.color(1) : WHITE, true, 1));
+            }
+            String l2 = (d.isNull("soc") ? "" : d.optInt("soc") + " %") + (d.optString("st").isEmpty() ? "" : (d.isNull("soc") ? "" : " · ") + d.optString("st"));
+            if (!l2.isEmpty()) col.addContent(text(l2, 15, WHITE, false, 1));
             StringBuilder l3 = new StringBuilder();
             if (!d.isNull("pv")) l3.append("☀ ").append(d.optInt("pv")).append(" W");
             if (!d.isNull("w")) l3.append(l3.length() > 0 ? "  " : "").append("🏠 ").append(d.optInt("w")).append(" W");

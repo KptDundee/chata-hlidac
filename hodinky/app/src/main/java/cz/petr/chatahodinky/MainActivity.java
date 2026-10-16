@@ -104,6 +104,7 @@ public class MainActivity extends Activity {
         StringBuilder s = new StringBuilder();
         s.append(Data.volt(d.optDouble("v"))).append(" V");
         if (!d.isNull("soc")) s.append(" · ").append(d.optInt("soc")).append(" %");
+        if (!d.isNull("hq")) s.append(" · ").append(d.optInt("hq")).append(" #");
         if (!d.optString("st").isEmpty()) s.append("\n").append(d.optString("st"));
         if (!d.isNull("pv")) s.append("\n☀ panely ").append(d.optInt("pv")).append(" W");
         if (!d.isNull("w")) s.append("\n🏠 odběr ").append(d.optInt("w")).append(" W");
