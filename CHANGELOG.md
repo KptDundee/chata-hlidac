@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.84 – 16. 10. 2026
+- Dlaždice Solární baterie: **nabití # stejně velké jako napětí** vedle V (např. „12,74 V  86 #“; pod 50 # oranžově, pod 30 # červeně). Z řádku „nabití“ zmizelo, zůstalo tam jen % regulátoru.
+
 ## 3.83 – 16. 10. 2026
 - **Flip 1.3.10 spouští hlídače sám po každém měření** (každých ~10 min): data na webu i hodinkách jsou pak čerstvá za 2–3 min místo 30–45 min (dřív čekal Flip i hlídač každý na svůj termín). V Nastavení Flipu nové pole **GitHub token** (stejný jako na webu u ⚡ Načíst). Bez tokenu funguje jako dřív. Probuzení z webu (⚡ Načíst) hlídače znovu nespouští – ten už běží.
 - **Hodinky 1.8: ťuknutí na dlaždici = změřit hned.** Hodinky pošlou Flipu „hodinky“ (ntfy `…-wake`), Flip změří a spustí hlídače; dlaždice ukáže „⏳ měří se…“ a do 5 min se obnovuje každou minutu, než přijdou nová data. Nejvýš jednou za 2 min. Když Flip spí / je bez internetu, nic se nestane a dlaždice ukáže data z dalšího běhu.
