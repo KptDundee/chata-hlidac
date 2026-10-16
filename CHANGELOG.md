@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.63 – 16. 10. 2026
+- **Odběr navíc se potvrzuje průměrem:** 16. 10. v 9:57 přišlo upozornění „za měničem 146 W“, ale graf zásuvky 220 V v aplikaci Tapo celé ráno nepřekročil ~70 W – jedno okamžité měření bylo mimo. Teď se z počítadla energie zásuvky (stejné, ze kterého kreslí graf Tapo) spočítá průměr za posledních ~10 min (dvě poslední zprávy Flipu); upozornění přijde, jen když odběr navíc ukazuje i průměr. Velký odběr (≥ 300 W okamžitě) se hlásí hned jako dřív. Zahozená špička se zapíše do Deníku.
+- Upozornění uvádí i průměr za posledních ~10 min
+
 ## 3.62 – 16. 10. 2026
 - **Flip 1.3.6 – hodnoty zásuvek vždy ke správné zásuvce:** jméno zásuvky se dřív bralo z mezipaměti podle IP adresy (až hodinu staré). Když se po restartu routeru adresy přeházely, naměřené W se mohly připsat jiné zásuvce – web a upozornění pak ukazovaly jinou hodnotu než aplikace Tapo. Teď se jméno čte ze zásuvky při každém měření, číslo zásuvky rozhoduje podle něj (ne podle staré mapy adres) a při nesouladu Flip zásuvky znovu vyhledá. Posílá i otisk zařízení (`d`).
 - Upozornění na odběr navíc uvádí, která fyzická zásuvka 220 V hodnotu hlásila (jméno, IP, otisk zařízení) – pro kontrolu s aplikací Tapo.

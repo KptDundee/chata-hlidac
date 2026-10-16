@@ -1706,7 +1706,18 @@ def overload_check(v, st, now, topic, cfg, data, rise, set_):
     rp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == rip), None)
     river_on = bool(st.get("ra_on")) or bool(rp and rp.get("on") == 1 and not rp.get("off"))
     just_off = now.timestamp() - st.get("ra_off_ts", 0) < 20 * 60
-    hit = net < -lim and extra >= navic_min and not ((river_on or just_off) and cfg.get("river_auto"))
+    # potvrzení průměrem za ~10 min (z počítadel zásuvek): krátká špička v jednom měření sama nestačí;
+    # velký odběr (≥ 300 W) se hlásí hned
+    avg = inv.get("avg") or {}
+    m_avg = avg.get(str(cfg.get("zasuvka_menic") or inv.get("mip") or ""))
+    f_avg = avg.get(str(cfg.get("zasuvka_lednice") or "").strip())
+    extra_avg = (m_avg - (f_avg if f_avg is not None else fr_w) - base) if m_avg is not None else None
+    data["extra_avg_w"] = round(extra_avg) if extra_avg is not None else None
+    sustained = extra_avg is None or extra_avg >= navic_min
+    hit = net < -lim and extra >= navic_min and (extra >= 300 or sustained) \
+        and not ((river_on or just_off) and cfg.get("river_auto"))
+    if net < -lim and extra >= navic_min and not hit and extra_avg is not None:
+        log("ev", f"Krátká špička za měničem {fmt(inv['mw'])} W (průměr za {inv.get('avg_dt', 0) // 60} min jen {fmt(m_avg)} W) – bez upozornění")
     fr_txt = f"lednice {fmt(fr_w)} W" if fr_ok else f"lednice neměřená – počítám ~{fmt(fr_w)} W"
     mip = str(cfg.get("zasuvka_menic") or inv.get("mip") or "")
     skip = {mip, rip, str(cfg.get("zasuvka_lednice") or "")} | set(ips(cfg.get("zasuvky_river")))
@@ -1728,6 +1739,7 @@ def overload_check(v, st, now, topic, cfg, data, rise, set_):
              f"Za měničem teď {fmt(inv['mw'])} W = {fr_txt} + světla/kamery/wifi běžně ~{fmt(base)} W + navíc ~{fmt(extra)} W "
              f"(nabíjení zařízení?). Panely dají {fmt(v.get('pv_w'))} W, baterie se vybíjí ~{fmt(-net, 1)} A ({fmt(bv, 2)} V).\n"
              f"Měřené zásuvky teď: {', '.join(others) if others else 'nic dalšího nebere'} (měřeno {datetime.fromtimestamp(inv['t'], TZ).strftime('%H:%M')})."
+             + (f"\nPrůměr za posledních {inv.get('avg_dt', 0) // 60} min: za měničem {fmt(m_avg)} W, navíc ~{fmt(extra_avg)} W." if extra_avg is not None else "")
              + hint, 4, "zap,warning")
         st["ovl_ts"] = int(now.timestamp())
 
@@ -2142,6 +2154,23 @@ def read_inverter(data, topic, now, cfg=None):
     if inv is None:
         return None
     data["_inv_msgs"] = msgs               # všechny zprávy za 12 h – doplnění mezer mezi běhy hlídače
+    # průměrný příkon každé zásuvky za posledních ~10 min z jejího počítadla energie (dvě poslední zprávy):
+    # okamžitá hodnota může být krátká špička, průměr ukáže, co opravdu odtéká z baterie
+    if len(msgs) >= 2:
+        try:
+            prev = inv_from_msg(msgs[-2], now, cfg)
+            dt = inv["t"] - prev["t"] if prev else 0
+            if prev and 300 <= dt <= 1800:
+                pw = {p.get("ip"): p.get("wh") for p in prev.get("tp", []) if p.get("wh") is not None}
+                avg = {}
+                for p in inv.get("tp", []):
+                    a, b = pw.get(p.get("ip")), p.get("wh")
+                    if a is not None and b is not None and b >= a:
+                        avg[p["ip"]] = round((b - a) * 3600 / dt, 1)
+                if avg:
+                    inv["avg"], inv["avg_dt"] = avg, int(dt)
+        except Exception as e:
+            print("Průměr zásuvek:", e)
     data["inverter"] = inv
     print(f"Měnič: {fmt(inv.get('w'))} W (max {fmt(inv.get('max'))}), {fmt(inv.get('v'), 2)} V, {inv.get('st', '')}")
     return inv
