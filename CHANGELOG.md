@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.67 – 16. 10. 2026
+- River žlutý opravdu žlutý (na tmavém pozadí byl oranžový) – vlastní barva `--rvy`
+
 ## 3.66 – 16. 10. 2026
 - Barvy River podle jména: **žlutý = žlutá, červený = červená, malý = modrá**; generátor fialová (aby se nepletl s červenou)
 

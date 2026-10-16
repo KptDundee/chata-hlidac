@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.66", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.67", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -12,13 +12,13 @@
 <style>
 :root{
   --bg:#f3f2ee;--surface:#fcfcfb;--text:#0b0b0b;--text2:#52514e;--muted:#8a8984;--line:#e4e3de;--grid:#ecebe6;
-  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948;
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948;--rvy:#c4a000;
   --good:#0ca30c;--warn:#fab219;--serious:#ec835a;--crit:#d03b3b;
   --radius:16px;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#111110;--surface:#1a1a19;--text:#f0efec;--text2:#c3c2b7;--muted:#8c8b84;--line:#2c2c2a;--grid:#262624;
-  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767;
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767;--rvy:#f5d90a;
 }}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
@@ -1600,7 +1600,7 @@ function tileUseTotal(d, h){
 /* barva River podle jména: žlutý = žlutá, červený = červená, malý = modrá (ostatní podle pořadí) */
 function rivColor(name, i){
   const n = String(name||"").toLowerCase();
-  if(/žlut|zlut|yellow/.test(n)) return css("--s4");
+  if(/žlut|zlut|yellow/.test(n)) return css("--rvy");          // opravdu žlutá (--s4 je na tmavém pozadí oranžová)
   if(/červ|cerv|red/.test(n)) return css("--s8");
   if(/mal|small|mini/.test(n)) return css("--s1");
   return css(["--s3","--s5","--s7"][i % 3]);
