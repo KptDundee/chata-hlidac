@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.78", FLIP_VER = "1.3.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.79", FLIP_VER = "1.3.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1847,7 +1847,7 @@ function detBat(body){
     + sec(`Teď<span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500;margin-left:8px">${R.t ? `regulátor ${relDay(R.t)} ${hmT(R.t)}` : ""}</span>`, [
       rowI("Napětí", `<span style="font-size:20px">${V(h.bv)}</span>`),
       rowI("Nabití (podle regulátoru)", P(last.bat_soc)),
-      ...(d.hq ? [rowI("Nabití # (spočítané z Ah)", `<b>${nf(d.hq.pct)} #</b> <span class="sub">(${d.hq.ah < 0 ? `−${nf(-d.hq.ah,1)} Ah od ` : "plná · "}${d.hq.kind==="full" ? `plného nabití ${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)}` : "nejlepšího stavu za 2 dny (plné nabití zatím nebylo)"}${d.hq.fl_since && (!d.hq.full_t || d.hq.full_t < d.hq.fl_since) ? ` · Float od ${hmT(d.hq.fl_since)}, plná se počítá od ${hmT(d.hq.fl_since+1800)}` : ""})</span>`)] : []),
+      ...(d.hq ? [rowI("Nabití # (spočítané z Ah)", `<b>${nf(d.hq.pct)} #</b> <span class="sub">(${d.hq.ah < 0 ? `−${nf(-d.hq.ah,1)} Ah od ` : "plná · "}${d.hq.kind==="full" ? `plného nabití ${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)}` : "nejlepšího stavu za 2 dny (plné nabití zatím nebylo)"})</span>`)] : []),
       rowI("Panely", h.pv!=null ? `${nf(h.pv)} W` : "–"),
       rowI("Odběr z baterie", odb),
       rowI("Do baterie (+) / z baterie (−)", balW!=null ? `<span style="color:var(${balW<=-15?"--crit":balW>=15?"--good":"--text"})">${sgn(balW)} W (${sgn(h.netB,1)} A)</span>` : "–"),
@@ -1885,7 +1885,7 @@ function detBat(body){
         <b>Do / z baterie</b> = výkon z regulátoru − odběr. Kladné: baterie se nabíjí; záporné: vybíjí.<br>
         <b>Napětí</b>: regulátor měří na svých svorkách, Victron na svých. Při nabíjení je regulátor výš, při odběru Victron níž – rozdíl je úbytek na kabelech a spojích (malý = v pořádku, viz Kabely a spoje).<br>
         <b>Kdy je baterie „prázdná“:</b> 0 # by byla úplně vybitá – tam se nikdy nejde. Měnič vypne při ~11,6 V pod zátěží (zhruba 10–20 #). Pro životnost AGM je rozumná spodní hranice <b>50 #</b>: pravidelné vybíjení níž ji rychle stárne. Prakticky tedy: pod 50 # už baterii nepoužívat, pod ~30 # (a 12,0 V) hrozí poškození.<br>
-        <b>Nabití #</b> se počítá z ampérhodin: kolik do baterie přiteklo z regulátoru (s účinností nabíjení ~90 %) a kolik odteklo do měniče (zásuvka 220 V + ztráty + vlastní spotřeba + desulfátor). 100 # = baterie skutečně plná (Float aspoň 30 min). Každý okamžik se vztahuje k nejbližšímu plnému nabití – po něm kolik ubylo, před ním kolik do plného chybělo (do 3 dnů); jinak nejlepší stav za 2 dny. Po každém plném nabití se srovná. # = podíl kapacity ${d.hq ? nf(d.hq.cap) : "–"} Ah – odebrané Ah jsou přesné i bez ní.<br>
+        <b>Nabití #</b> se počítá z ampérhodin: kolik do baterie přiteklo z regulátoru (s účinností nabíjení ~90 %) a kolik odteklo do měniče (zásuvka 220 V + ztráty + vlastní spotřeba + desulfátor). 100 # = baterie plná – regulátor přešel do Float (i když tam vydrží jen chvíli, je to nejlepší stav, jaký máme). Každý okamžik se vztahuje k nejbližšímu plnému nabití – po něm kolik ubylo, před ním kolik do plného chybělo (do 3 dnů); jinak nejlepší stav za 2 dny. Po každém plném nabití se srovná. # = podíl kapacity ${d.hq ? nf(d.hq.cap) : "–"} Ah – odebrané Ah jsou přesné i bez ní.<br>
         <b>Kapacita</b> se testuje sama jednou denně ráno: když byla baterie předchozí den skutečně plná a přes noc z ní ubylo aspoň 20 Ah, porovná se odebrané množství se stavem nabití podle ranního napětí (kapacita = Ah ÷ ubylý podíl). Od 2 úspěšných testů se bere jejich medián, do té doby Zdraví baterie, případně štítek.
         ${(()=>{ const T = Object.keys(d.days||{}).sort().filter(k=>d.days[k].qc).slice(-5).reverse(); return T.length ? "<br>Poslední testy: " + T.map(k=>{ const q = d.days[k].qc; return `${dayLabel(k)} ${q.ok ? `<b>${q.cap} Ah</b> (−${nf(q.ah,0)} Ah, ráno ${nf(q.v,2)} V ≈ ${q.soc} %)` : (q.why||"nepoužito")}`; }).join(" · ") : ""; })()}<br>
         <b>Nabití %</b> je jen odhad regulátoru z napětí (po nabití v klidu ~12,8 V ≈ 60 %) – rozhodující je napětí.<br>

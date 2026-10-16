@@ -2411,7 +2411,7 @@ def read_ecoflow(data, st, now, topic, cfg):
 
 def hash_soc(data, st, now, cfg):
     """Nabití „#“ počítáním ampérhodin (ne z napětí). Pokaždé se přepočítá z bodů (14 dní):
-    qr = souvislý součet Ah do (×0,9) / z baterie. Plné nabití = Float nepřetržitě ≥ 30 min.
+    qr = souvislý součet Ah do (×0,9) / z baterie. Plné nabití = přechod regulátoru do Float.
     Každý bod se vztahuje k nejbližšímu plnému nabití: po něm = od posledního plného (max. 3 dny),
     před ním = kolik chybělo do následujícího plného (max. 3 dny), jinak nejlepší stav za 2 dny.
     Body: q / hq = Ah od plné (≤ 0). data["hq"] = shrnutí pro web."""
@@ -2438,10 +2438,11 @@ def hash_soc(data, st, now, cfg):
             i_net = a["bat_a"] - load / a["bat_v"]
             qr += i_net * dt / 3600 * (eff if i_net > 0 else 1.0)
         b["qr"] = round(qr, 2)
-        if a.get("status") == 1 and b.get("status") == 1 and dt <= 2400:
-            fl_since = fl_since or a["t"]
-            if b["t"] - fl_since >= 1800 and (not fulls or fulls[-1][0] < fl_since):
-                fulls.append((fl_since, b["t"]))          # (začátek Floatu, okamžik „plná“)
+        # plná = regulátor přešel do Float (jeho vlastní kritérium konce nabíjení) – i když ve Float vydrží jen chvíli
+        if b.get("status") == 1:
+            if not fl_since:
+                fl_since = b["t"]
+                fulls.append((fl_since, b["t"]))
         else:
             fl_since = 0
     # kotva pro každý bod
