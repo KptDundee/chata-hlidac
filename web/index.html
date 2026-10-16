@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.69", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.70", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -409,6 +409,8 @@ const nf = (x,d=0) => x==null||isNaN(x) ? "–" : Number(x).toLocaleString("cs-C
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const fmtT = t => { const n = relN(t); const d = new Date(t*1000);      // „dnes 13:30“, „včera 06:40“, jinak „14. 10. 13:30“ (bez dnů v týdnu)
   return `${n>=-1 && n<=1 ? relDay(t) : d.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"})} ${d.toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}`; };
+/* stáří bez slova „před“: „teď“, „7 min“, „1 h 5 min“, „2 dny“ */
+const agoS = t => { const m = Math.round((Date.now()/1000 - t)/60); return m<1 ? "teď" : m<60 ? `${m} min` : m<1440 ? `${Math.floor(m/60)} h ${m%60} min` : `${Math.floor(m/1440)} dny`; };
 const ago = t => { const m = Math.round((Date.now()/1000 - t)/60); return m<1?"právě teď":m<60?`před ${m} min`:m<1440?`před ${Math.floor(m/60)} h ${m%60} min`:`před ${Math.floor(m/1440)} dny`; };
 
 let DATA = null, HOURS = 24, PW = null;
@@ -605,12 +607,13 @@ function render(){
   { const g = d.inverter, ph = g && g.ph, fb = $("flipbat");      // baterie Flipu – klíčová pro celou bránu
     if(ph && ph.b!=null){
       const old = Date.now()/1000 - g.t > 1800, col = ph.b <= 20 ? "--crit" : ph.b <= 50 && !ph.c ? "--warn" : ph.c ? "--good" : "--text2";
-      fb.innerHTML = `${old ? `<span style="color:var(--crit)">Flip: mlčí ${ago(g.t)}</span>` : `Flip: ${ago(g.t)}`} · 📱 <span style="color:var(${col})">${nf(ph.b)} %</span> · ${ph.c ? "⚡ nabíjí se" : `<span style="color:var(--warn)">nenabíjí se</span>`}`;
-    } else fb.textContent = g ? `Flip: ${ago(g.t)} · baterie neznámá` : "Flip: zatím žádná data"; }
+      const bc = ph.b <= 20 ? "--crit" : ph.c ? "--good" : "--text";       // nabíjí = zelená + ⚡, nenabíjí = bílá, málo = červená
+      fb.innerHTML = `<span${old ? ' style="color:var(--crit)"' : ""}>Flip ${agoS(g.t)}</span> · <b style="color:var(${bc})">${nf(ph.b)} %</b>${ph.c ? " ⚡" : ""}`;
+    } else fb.textContent = g ? `Flip ${agoS(g.t)}` : "Flip – zatím žádná data"; }
   { const R = regStale(d), u = $("upd");
-    const reg = !d.updated ? "Regulátor: zatím žádná data" : R.stale ? `<span style="color:var(--crit);font-weight:700">⚠ Regulátor mlčí od ${relDay(d.updated)} ${hmT(d.updated)} – údaje jsou STARÉ</span>` : `Regulátor: ${ago(d.updated)}`;
+    const reg = !d.updated ? "Regulátor – zatím žádná data" : `<span${R.stale ? ' style="color:var(--crit);font-weight:700"' : ""}>Regulátor ${agoS(d.updated)}${R.stale ? " ⚠" : ""}</span>`;
     const vo = d.vic_t ? Date.now()/1000 - d.vic_t > 3600 : true;
-    const vic = d.vic_t ? `<span${vo ? ' style="color:var(--warn)"' : ""}>Victron: ${ago(d.vic_t)}</span>` : `<span style="color:var(--muted)">Victron: zatím bez dat</span>`;
+    const vic = d.vic_t ? `<span${vo ? ' style="color:var(--warn)"' : ""}>Victron ${agoS(d.vic_t)}</span>` : `<span style="color:var(--muted)">Victron – zatím bez dat</span>`;
     u.innerHTML = `${reg}<br>${vic}`; u.style.color = ""; u.style.fontWeight = ""; }
   const err = d.state && d.state.err_n;
   const sun = d.sun ? ` · ☀ ${new Date(d.sun[0]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}–${new Date(d.sun[1]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}` : "";
