@@ -46,7 +46,7 @@ public final class Collector {
             StringBuilder sum = new StringBuilder();
 
             // 1) měnič Victron (Bluetooth)
-            if (ble.samples() == 0) ble.burst(40_000);   // trvalý poslech nic nechytil → 40 s intenzivně
+            if (ble.samples() == 0) ble.burst(20_000);   // trvalý poslech nic nechytil → 20 s intenzivně (jako do 1.3.6)
             if (ble.samples() == 0) {                    // ani tak nic → zkusit bez filtru (jako Test Bluetooth) a zapsat proč
                 android.os.PowerManager pm = ctx.getSystemService(android.os.PowerManager.class);
                 String r = ble.burstOpen(15_000);

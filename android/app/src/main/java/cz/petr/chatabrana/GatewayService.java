@@ -127,9 +127,9 @@ public class GatewayService extends Service {
                 String res = collector.runOnce();
                 String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
                 getSystemService(NotificationManager.class).notify(NOTIF_ID, notification(time + " · " + res));
-                // poslech měniče po každém měření spustit znovu: Android (hlavně Samsung) dlouho běžící sken
-                // na pozadí potichu utlumí – výsledky pak chodí jen, když skenuje jiná aplikace (VictronConnect)
-                ble.ensureRunning(true);
+                // 1.3.9: zpět jako do 1.3.6 – sken se restartuje jen po 25 min (restart po každém měření v 1.3.7
+                // poslech na pozadí zhoršil: Android sken spuštěný se zhasnutým displejem nemusí rozběhnout)
+                ble.ensureRunning();
             } finally {
                 if (wl.isHeld()) wl.release();
             }

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.81 – 16. 10. 2026
+- **Flip 1.3.9:** vrácen poslech Victronu jako do 1.3.6 – v 1.3.7 se sken restartoval po každém měření a příjem na pozadí se tím zhoršil (Android sken spuštěný se zhasnutým displejem nemusí rozběhnout); intenzivní hledání zase 20 s. Zůstává z 1.3.8: oprávnění poloha „Povolit vždy“, záložní hledání bez filtru se záznamem do Deníku, zásuvky v Deníku podle čísla. Obsahuje vše z 1.3.4–1.3.6 (fronta, probuzení z aplikace, čerstvá jména zásuvek).
+
 ## 3.80 – 16. 10. 2026
 - **Upozornění na nabití #:** pod **50 #** (baterie rychle stárne – omez odběr / přepni na River) a pod **30 #** (hrozí poškození); každé jednou, znovu až po nabití nad 60 #. Nastavení `hash_upozornit`.
 - Graf Nabití #: čárkovaná hranice s popiskem „50 #“
