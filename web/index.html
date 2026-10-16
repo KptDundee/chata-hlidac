@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.67", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.68", FLIP_VER = "1.3.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1671,7 +1671,7 @@ function detRiver(body){
   const dd = Object.keys(d.days||{}).sort().filter(k=>k >= dkey(Date.now()/1000 - Math.max(hrs,24)*3600) && k >= USE_FROM);
   const RL = R.map(r=>({id:r.id, name:r.short, color:r.color}));
   let html = `<div class="card"><h2 style="margin:0 0 4px">Teď</h2>${[...R, G].map(x=>rowI(`<b style="color:${x.color}">${x.name}</b>`, `${rivState(x, h)}${x.ef && x.ef.soc!=null ? ` · ${nf(x.ef.soc)} %` : ""}`)).join("")}</div>`
-    + segHtml()
+    + segHtml() + "@@RVTAB@@"
     + (long ? "" : chartCard("rv_tl", "Co se dělo", `plný pruh = napájí chatu · světlejší = napájí jen spotřebič (chata jela ze soláru) · <span style="color:var(--s7)">■</span> generátor běží`))
     + chartCard("rv_out", "Z River do chaty", long ? `kWh za den · ${RL.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ")}` : "W · součet zásuvek na výstupu River")
     + (long ? "" : R.map(r=>chartCard("rv_w"+r.id, r.name, "W na výstupu (zásuvka Tapo)")).join(""))
@@ -1683,13 +1683,20 @@ function detRiver(body){
   html += `<div class="card"><h2 style="margin:0 0 4px">Běhy generátoru</h2>${GL.length ? GL.map(r=>{ const S = genSummary(r, cap);
     return `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${relDay(r.t0)} ${hmT(r.t0)}–${r.run?"běží":hmT(r.t1)}</b><span style="font-variant-numeric:tabular-nums">${r.wh?`${nf(r.wh/1000,2)} kWh`:"–"}</span></div>
       <div class="sub" style="font-size:13px">${durTxt((r.t1-r.t0)/60)}${S.txt?` · ${S.txt}`:""}${S.eff?` · účinnost ~${S.eff} %`:""}</div></div>`; }).join("") : '<span class="sub">Zatím žádný zaznamenaný běh.</span>'}</div>`;
-  // čísla
+  // čísla: vždy dnes + součet za období zvolené přepínačem (stejné jako grafy)
   const k2 = wh => wh==null ? "–" : nf(wh/1000, 2), day = k => ((d.days||{})[k]||{}).tp || {};
-  const wk = Object.keys(d.days||{}).sort().filter(k=>k >= dkey(h.now - 7*86400) && k < dkey(h.now) && k >= USE_FROM);
-  const avg = id => wk.length ? wk.reduce((s,k)=>s+(day(k)[id]||0),0)/wk.length : null;
-  html += `<div class="card"><h2 style="margin:0 0 6px">Čísla <span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500">kWh · River = dodáno do chaty, generátor = vyrobeno</span></h2>
-    <table class="ut"><thead><tr><th></th><th>dnes</th><th>včera</th><th>⌀ 7 dní</th></tr></thead><tbody>
-    ${[...R, G].map(x=>`<tr><td>${x.name}</td><td>${k2(day(dkey(h.now))[x.id])}</td><td>${k2(day(dkey(h.now-86400))[x.id])}</td><td>${k2(avg(x.id))}</td></tr>`).join("")}</tbody></table></div>`;
+  const PER = {d:["včera",null], "48":["48 h",2], "168":["7 dní",7], y:["rok",365], all:["celkem",null]}[DETR] || ["včera",null];
+  const tk = dkey(h.now), keys = Object.keys(d.days||{}).sort().filter(k=>k >= USE_FROM);
+  const span = DETR==="d" ? keys.filter(k=>k===dkey(h.now-86400)) : DETR==="all" ? keys : keys.filter(k=>k >= dkey(h.now - (PER[1]-1)*86400));
+  const sum = id => span.length ? span.reduce((a,k)=>a+(day(k)[id]||0),0) : null;
+  const runs = (d.gen_log||[]).filter(r=>dkey(r.t0) >= (span[0]||tk) && (DETR!=="d" || dkey(r.t0)===span[0])).length;
+  const tab = `<div class="card"><h2 style="margin:0 0 6px">Čísla <span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500">kWh · River = dodáno do chaty, generátor = vyrobeno</span></h2>
+    <table class="ut"><thead><tr><th></th><th>dnes</th><th>${PER[0]}</th></tr></thead><tbody>
+    ${[...R, G].map(x=>`<tr><td><b style="color:${x.color};font-weight:600">${x.name}</b></td><td>${k2(day(tk)[x.id])}</td><td>${k2(sum(x.id))}</td></tr>`).join("")}
+    <tr class="tot"><td>River celkem</td><td>${k2(R.reduce((a,r)=>a+(day(tk)[r.id]||0),0))}</td><td>${k2(R.reduce((a,r)=>a+(sum(r.id)||0),0))}</td></tr>
+    <tr><td>Běhů generátoru</td><td>${(d.gen_log||[]).filter(r=>dkey(r.t0)===tk).length + (d.gen_cur ? 1 : 0)}</td><td>${runs}</td></tr></tbody></table>
+    ${keys.length && keys[0] > dkey(h.now - (PER[1]||9999)*86400) && DETR!=="d" ? `<div class="sub" style="margin-top:6px">Údaje po zásuvkách od ${dayLabel(keys[0])}.</div>` : ""}</div>`;
+  html = html.replace("@@RVTAB@@", tab);
   html += `<div class="card"><h2 style="margin:0 0 6px">Výklad</h2><div class="sub" style="line-height:1.55">
     <b>Napájí chatu</b> = chata je přepojená na River (měnič nic nedává). <b>Napájí spotřebič</b> = chata jede ze soláru a River zároveň napájí něco samostatného (TV, telefon).<br>
     Výstup River měří jeho zásuvka Tapo, generátor jeho zásuvka (7). <b>Nabití %, nabíjení a teplota</b> každé River přijdou z EcoFlow – generátor nabíjí všechny najednou, takže kolik šlo do které, ví jen EcoFlow.<br>
