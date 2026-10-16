@@ -2468,6 +2468,13 @@ def hash_soc(data, st, now, cfg):
         if p.get("q") is not None:
             p["hq"] = round(min(0.0, p["q"] - ref), 2)
     cap = eff_cap(data, cfg)
+    # nejnižší # každého dne (pro dlouhodobý graf; body se drží jen 14 dní)
+    for p in pts:
+        if p.get("hq") is not None:
+            dd = data["days"].setdefault(datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d"), {})
+            v_ = round(max(0, 100 + p["hq"] / cap * 100))
+            if v_ < dd.get("hq_min", 999):
+                dd["hq_min"] = v_
     nqc = sum(1 for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok"))
     capsrc = "testy z Ah" if nqc >= 2 else "zdraví baterie" if cap != (cfg["kapacita_Ah"] or 200) else "štítek"
     data["hq"] = {"capsrc": capsrc, "nqc": nqc, "ah": round(min(0.0, q - ref), 1), "cap": round(cap), "kind": kind, "ref_t": int(ref_t),

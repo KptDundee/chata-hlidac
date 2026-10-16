@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.76", FLIP_VER = "1.3.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.77", FLIP_VER = "1.3.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1835,12 +1835,12 @@ function detBat(body){
   body.insertAdjacentHTML("beforeend",
     (ac ? `<div class="card" style="border-left:4px solid var(--crit)"><b>⚠ ${ac}</b></div>` : "")
     + segHtml()
-    + (detLong() ? "" :
-        chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · panely přes regulátor − odběr (i se ztrátami měniče) · pozadí: oranžová Boost, zelená Float, šedá = chata na River")
+    + (detLong() ? chartCard("dc_hmin", "Nejnižší nabití # každého dne", "# · čárkovaně 50 # = doporučená spodní hranice pro AGM") :
+        chartCard("dc_hash", "Nabití #", d.hq ? `# · spočítané z Ah, 100 # = ${d.hq.kind==="full" ? "skutečně plná" : "nejlepší stav za 7 dní"} · kapacita ${nf(d.hq.cap)} Ah (${d.hq.capsrc||"zdraví baterie"}) · čárkovaně 50 # = doporučená spodní hranice` : "spočítá se po prvních hodinách dat")
+      + chartCard("dc_bal", "Do baterie (+) / z baterie (−)", "W · panely přes regulátor − odběr (i se ztrátami měniče) · pozadí: oranžová Boost, zelená Float, šedá = chata na River")
       + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
       + chartCard("dc_v", "Napětí baterie", `V · <span style="color:var(--s1)">━ regulátor</span> · <span style="color:var(--s2)">╍ měnič (Victron)</span> · <span style="color:var(--crit)">○ nejnižší bod dne</span> · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
       + chartCard("dc_vd", "Úbytek napětí na kabelech", `V · regulátor − měnič, jen měření ze stejné chvíle, bez stálého rozdílu kalibrace přístrojů · roste s proudem, v klidu ~0 · červeně ${nf(cfg.kabely_ubytek_V ?? 0.35,2)} V = upozornění`)
-      + chartCard("dc_hash", "Nabití #", d.hq ? `# · spočítané z Ah (do baterie − z baterie), 100 # = ${d.hq.kind==="full" ? "skutečně plná" : "nejlepší stav za 7 dní"} · kapacita ${nf(d.hq.cap)} Ah (${d.hq.capsrc||"zdraví baterie"})` : "spočítá se po prvních hodinách dat")
       + chartCard("dc_load", "Odběr z baterie", "W · měnič + jeho ztráty · šedě = chata jela z River"))
     + chartCard("dc_min", "Nejnižší napětí každého dne", `V · <span style="color:var(--s1)">●</span> noc se zátěží (chata na solární baterii) · <span style="color:var(--muted)">○</span> chata na River – baterie v klidu, nesrovnatelné · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
     + chartCard("dc_prod", detLong() ? "Výroba po měsících" : "Výroba po dnech", "kWh")
@@ -1884,6 +1884,7 @@ function detBat(body){
         <b>Odběr z baterie</b> = co bere měnič (zásuvka za ním) + jeho ztráty (~12 %) + vlastní spotřeba ${nf(cfg.menic_vlastni_W ?? 6)} W. Regulátor sám odběr nevidí – měří jen svůj proud do baterie.<br>
         <b>Do / z baterie</b> = výkon z regulátoru − odběr. Kladné: baterie se nabíjí; záporné: vybíjí.<br>
         <b>Napětí</b>: regulátor měří na svých svorkách, Victron na svých. Při nabíjení je regulátor výš, při odběru Victron níž – rozdíl je úbytek na kabelech a spojích (malý = v pořádku, viz Kabely a spoje).<br>
+        <b>Kdy je baterie „prázdná“:</b> 0 # by byla úplně vybitá – tam se nikdy nejde. Měnič vypne při ~11,6 V pod zátěží (zhruba 10–20 #). Pro životnost AGM je rozumná spodní hranice <b>50 #</b>: pravidelné vybíjení níž ji rychle stárne. Prakticky tedy: pod 50 # už baterii nepoužívat, pod ~30 # (a 12,0 V) hrozí poškození.<br>
         <b>Nabití #</b> se počítá z ampérhodin: kolik do baterie přiteklo z regulátoru (s účinností nabíjení ~90 %) a kolik odteklo do měniče (zásuvka 220 V + ztráty + vlastní spotřeba + desulfátor). 100 # = baterie skutečně plná (Float aspoň 30 min); když plná nebyla, nejlepší stav za posledních 7 dní. Při každém plném nabití se srovná. # = podíl kapacity ${d.hq ? nf(d.hq.cap) : "–"} Ah – odebrané Ah jsou přesné i bez ní.<br>
         <b>Kapacita</b> se testuje sama jednou denně ráno: když byla baterie předchozí den skutečně plná a přes noc z ní ubylo aspoň 20 Ah, porovná se odebrané množství se stavem nabití podle ranního napětí (kapacita = Ah ÷ ubylý podíl). Od 2 úspěšných testů se bere jejich medián, do té doby Zdraví baterie, případně štítek.
         ${(()=>{ const T = Object.keys(d.days||{}).sort().filter(k=>d.days[k].qc).slice(-5).reverse(); return T.length ? "<br>Poslední testy: " + T.map(k=>{ const q = d.days[k].qc; return `${dayLabel(k)} ${q.ok ? `<b>${q.cap} Ah</b> (−${nf(q.ah,0)} Ah, ráno ${nf(q.v,2)} V ≈ ${q.soc} %)` : (q.why||"nepoužito")}`; }).join(" · ") : ""; })()}<br>
@@ -1892,6 +1893,8 @@ function detBat(body){
       </div>`);
   const hrs = detHours(), dhrs = Math.max(hrs, 30*24);
   dotChart($("dc_min"), dailyPts(dhrs).map(p=>({...p, k: dkey(p.t)})), "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
+  if(detLong()){ const hd = Object.keys(d.days||{}).sort().filter(k=>d.days[k].hq_min!=null && k >= dkey(Date.now()/1000 - hrs*3600)).map(k=>({t:new Date(k+"T12:00").getTime()/1000, h:d.days[k].hq_min}));
+    hd.length >= 2 ? lineChart($("dc_hmin"), hd, "h", css("--s3"), {unit:"#",dec:0,hours:hrs,gap:4*86400,zero:true,refs:[[50,"--serious"]]}) : empty($("dc_hmin"), "Zatím málo dní – počítá se od 16. 10. 2026."); }
   if(detLong()) monthlyBars($("dc_prod"), hrs);
   else barChart($("dc_prod"), Object.keys(d.days||{}).sort().filter(k=>k>=dkey(Date.now()/1000-29*86400)).map(k=>({k, v:d.days[k].solar_kwh??0})), "v", css("--s2"), {unit:"kWh",dec:1,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
   if(detLong()) return;
@@ -1904,7 +1907,7 @@ function detBat(body){
   lineChart($("dc_v"), pts.map(p=>({...p, ivx: p.ivs!=null ? p.iv : null})), "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,dayMin:true,k2:{key:"ivx",color:css("--s2"),name:"měnič"}});
   const WR = wiring(d), off = WR ? WR.off : 0, lim = cfg.kabely_ubytek_V ?? 0.35;
   lineChart($("dc_vd"), pts.map(p=>({t:p.t, dv: p.ivs!=null && p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv-off).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:hrs,gap:3*3600,refs:[[0,"--muted"],[lim,"--crit"]]});
-  if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands});
+  if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands,refs:[[50,"--serious"],[100,"--muted"]]});
   else empty($("dc_hash"), "Spočítá se po prvních hodinách dat.");
   lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
 }
