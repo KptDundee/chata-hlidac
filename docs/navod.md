@@ -187,7 +187,7 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 ## 8. Hodinky
 
 - **Komplikace** „Chata – napětí baterie“: dlouze podrž ciferník → Upravit → místo komplikace. *V?* = data starší než hodina, *V!* = kritické napětí.
-- **Dlaždice** „Chata“: napětí (barevně), nabití podle regulátoru, panely, odběr, předpověď. Ťuknutím se obnoví.
+- **Dlaždice** „Chata“: napětí (barevně), nabití #, panely, odběr, předpověď. **Ťuknutím se změří hned** (hodinky 1.8): hodinky probudí Flip, ten změří a spustí hlídače; dlaždice ukazuje „⏳ měří se…“ a za 2–3 min má nová data. Když Flip spí nebo je bez internetu, nic se nestane – data přijdou s dalším pravidelným během.
   - Když chatu napájí **River** (některá ze zásuvek River 2 / 3 / 6 bere víc než 3 W), místo předpovědi ukáže: „🔋 River malý · 45 W / od 22:10 · 0,42 kWh“. Jakmile půjdou data z EcoFlow, ukáže místo toho % a do kdy River vydrží. Odběr 🏠 = celá chata (solár + River).
   - Projeví se do 10 minut od dalšího běhu hlídače – jen když Flip posílá data ze zásuvek (Flip na Wi‑Fi chaty).
 - V aplikaci Chata na hodinkách musí být zadané **téma ntfy** (stejné jako v aplikaci ntfy).
@@ -233,6 +233,9 @@ V aplikaci Tapo dej každé zásuvce jméno začínající číslem v závorce, 
 
 ### Výpadky dat (3.59, Flip 1.3.4)
 Když Flip nemůže odeslat (výpadek internetu), uloží zprávy do fronty a pošle je, až se spojení obnoví – v grafech se díra dodatečně zaplní. Data regulátoru se doplňují z historie Solar Guardianu. Trvalé díry zůstanou jen, když Flip neměří vůbec (vybitý, vypnutý) nebo zamrzne Wi‑Fi modul regulátoru.
+
+### Flip spouští hlídače (3.83, Flip 1.3.10)
+V Nastavení Flipu vyplň **GitHub token** (stejný jako na webu u ⚡ Načíst, stačí vložit). Flip pak po každém měření (~10 min) spustí hlídače sám, takže web i hodinky mají data stará jen 2–3 min. Prázdné pole = jako dřív (hlídač podle svého rozvrhu). Když token vyprší, v Deníku Flipu je chyba „GitHub“ – zadej nový.
 
 ### ⚡ Načíst (3.60, Flip 1.3.5)
 Spustí hlídače a zároveň probudí Flip – ten změří a odešle hned. Za 1–3 minuty jsou na stránce čerstvá data. Když Flip hluboce spí nebo je bez internetu, může odpovědět až při svém dalším pravidelném měření (do 10 min).

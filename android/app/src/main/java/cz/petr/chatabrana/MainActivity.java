@@ -28,7 +28,7 @@ import java.util.Locale;
 
 /** Jednoduchá obrazovka: nastavení, start/stop, stav a log. */
 public class MainActivity extends Activity {
-    private EditText topic, mac, key, email, pass, ips;
+    private EditText topic, ghtok, mac, key, email, pass, ips;
     private TextView status, log;
     private final Handler h = new Handler(Looper.getMainLooper());
 
@@ -50,6 +50,7 @@ public class MainActivity extends Activity {
 
         section(l, "Hlídač (ntfy)");
         topic = field(l, "ntfy téma (stejné jako NTFY_TOPIC na GitHubu)", Prefs.NTFY_TOPIC, false);
+        ghtok = field(l, "GitHub token (stejný jako na webu u ⚡ Načíst) – Flip pak po každém měření spustí hlídače", Prefs.GH_TOKEN, true);
         section(l, "Měnič Victron (Bluetooth)");
         mac = field(l, "MAC adresa, např. AA:BB:CC:DD:EE:FF", Prefs.VICTRON_MAC, false);
         key = field(l, "Šifrovací klíč (32 znaků z VictronConnect)", Prefs.VICTRON_KEY, true);
@@ -116,6 +117,7 @@ public class MainActivity extends Activity {
     private void save() {
         Prefs.get(this).edit()
                 .putString(Prefs.NTFY_TOPIC, topic.getText().toString().trim())
+                .putString(Prefs.GH_TOKEN, ghtok.getText().toString().trim())
                 .putString(Prefs.VICTRON_MAC, Prefs.normMac(mac.getText().toString()))
                 .putString(Prefs.VICTRON_KEY, key.getText().toString().trim())
                 .putString(Prefs.TAPO_EMAIL, email.getText().toString().trim())

@@ -100,8 +100,9 @@ public class GatewayService extends Service {
                         if (!ln.contains("\"event\":\"message\"")) continue;
                         if (SystemClock.elapsedRealtime() - lastWake < 60_000) continue;
                         lastWake = SystemClock.elapsedRealtime();
-                        Prefs.log(this, "Probuzení z aplikace – měřím hned");
-                        tick();
+                        boolean fromWatch = ln.contains("\"message\":\"hodinky\"");
+                        Prefs.log(this, fromWatch ? "Probuzení z hodinek – měřím a spouštím hlídače" : "Probuzení z aplikace – měřím hned");
+                        tick(fromWatch);                // z webu hlídače už spustil web, z hodinek ho spustí Flip
                     }
                 } catch (Exception e) {
                     SystemClock.sleep(30_000);              // bez internetu: zkusit znovu za chvíli
@@ -115,7 +116,9 @@ public class GatewayService extends Service {
         t.start();
     }
 
-    private void tick() {
+    private void tick() { tick(true); }
+
+    private void tick(boolean dispatch) {
         PowerManager pm = getSystemService(PowerManager.class);
         PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "chatabrana:tick");
         wl.acquire(4 * 60_000L);      // hledání zásuvek + historie + opakované odeslání se do 2 min nemusí vejít
@@ -124,7 +127,7 @@ public class GatewayService extends Service {
                 if (SystemClock.elapsedRealtime() - namesAt > 3600_000L) { collector.forgetNames(); namesAt = SystemClock.elapsedRealtime(); }
                 // první běh po startu: chvíli počkat, ať se stihne chytit měnič
                 if (Prefs.get(this).getLong(Prefs.LAST_SENT, 0) == 0) SystemClock.sleep(20_000);
-                String res = collector.runOnce();
+                String res = collector.runOnce(dispatch);
                 String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
                 getSystemService(NotificationManager.class).notify(NOTIF_ID, notification(time + " · " + res));
                 // 1.3.9: zpět jako do 1.3.6 – sken se restartuje jen po 25 min (restart po každém měření v 1.3.7

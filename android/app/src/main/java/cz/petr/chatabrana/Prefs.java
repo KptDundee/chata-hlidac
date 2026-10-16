@@ -12,6 +12,7 @@ import java.util.Locale;
 /** Nastavení a krátký log – vše jen v tomhle telefonu. */
 public final class Prefs {
     public static final String NTFY_TOPIC = "ntfy_topic";
+    public static final String GH_TOKEN = "gh_token";            // GitHub token: Flip po každém měření spustí hlídače
     public static final String VICTRON_MAC = "victron_mac";
     public static final String VICTRON_KEY = "victron_key";
     public static final String TAPO_EMAIL = "tapo_email";

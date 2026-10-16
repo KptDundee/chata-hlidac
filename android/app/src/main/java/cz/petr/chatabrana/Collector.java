@@ -38,7 +38,10 @@ public final class Collector {
     }
 
     /** @return krátký popis výsledku do notifikace */
-    public String runOnce() {
+    public String runOnce() { return runOnce(true); }
+
+    /** @param dispatch po odeslání spustit hlídače na GitHubu (když je zadaný token) */
+    public String runOnce(boolean dispatch) {
         try {
             JSONObject o = new JSONObject();
             o.put("ver", 1);
@@ -180,6 +183,7 @@ public final class Collector {
             }
             Prefs.get(ctx).edit().putLong(Prefs.LAST_SENT, System.currentTimeMillis()).apply();
             Prefs.log(ctx, "Odesláno: " + sum + (sentOld > 0 ? " (+ " + sentOld + " z fronty)" : ""));
+            if (dispatch) dispatchWatcher();
             return sum.toString() + (sentOld > 0 ? " · +" + sentOld + " z fronty" : "");
         } catch (Exception e) {
             String m = "Chyba: " + e.getMessage();
@@ -439,6 +443,27 @@ public final class Collector {
 
     /** Po hodině se znovu načtou názvy zásuvek (kdyby se přejmenovaly). */
     public void forgetNames() { names.clear(); models.clear(); }
+
+    /** Spustí hlídače na GitHubu hned (GitHub plánovaná spuštění zdržuje na 30–45 min). Bez tokenu nic. */
+    private void dispatchWatcher() {
+        String tok = Prefs.s(ctx, Prefs.GH_TOKEN);
+        if (tok.isEmpty()) return;
+        try {
+            HttpURLConnection c = (HttpURLConnection) new URL("https://api.github.com/repos/KptDundee/chata-hlidac/actions/workflows/hlidac.yml/dispatches").openConnection();
+            c.setConnectTimeout(15000);
+            c.setReadTimeout(15000);
+            c.setRequestMethod("POST");
+            c.setDoOutput(true);
+            c.setRequestProperty("Authorization", "Bearer " + tok);
+            c.setRequestProperty("Accept", "application/vnd.github+json");
+            try (OutputStream o = c.getOutputStream()) { o.write("{\"ref\":\"main\",\"inputs\":{\"test\":false,\"wake\":false}}".getBytes(StandardCharsets.UTF_8)); }
+            int code = c.getResponseCode();
+            c.disconnect();
+            if (code != 204) Prefs.log(ctx, "Spuštění hlídače: GitHub odpověděl " + code + (code == 401 || code == 403 ? " – zkontroluj token" : ""));
+        } catch (Exception e) {
+            Prefs.log(ctx, "Spuštění hlídače: " + e.getMessage());
+        }
+    }
 
     /** Fronta neodeslaných zpráv (max ~1 den) – po obnovení internetu se pošlou, hlídač je zařadí podle "ts". */
     private synchronized int queue(String msg) {

@@ -73,10 +73,40 @@ final class Data {
         }
     }
 
+    /** Ťuknutí na dlaždici: požádá Flip o měření hned (ntfy <téma>-wake); Flip pak spustí hlídače.
+     *  Nejvýš jednou za 2 min. Čerstvá data dorazí zhruba za 2–3 min. */
+    static void wake(Context c) {
+        String topic = topic(c);
+        long now = System.currentTimeMillis();
+        if (topic.isEmpty() || now - prefs(c).getLong("wake_t", 0) < 120_000) return;
+        prefs(c).edit().putLong("wake_t", now).apply();
+        HttpURLConnection con = null;
+        try {
+            con = (HttpURLConnection) new URL("https://ntfy.sh/" + topic + "-wake").openConnection();
+            con.setConnectTimeout(8000);
+            con.setReadTimeout(8000);
+            con.setRequestMethod("POST");
+            con.setDoOutput(true);
+            con.setRequestProperty("Priority", "1");
+            try (java.io.OutputStream o = con.getOutputStream()) { o.write("hodinky".getBytes(StandardCharsets.UTF_8)); }
+            con.getResponseCode();
+        } catch (Exception ignored) {
+        } finally {
+            if (con != null) con.disconnect();
+        }
+    }
+
+    /** Čeká se na data po ťuknutí? (do 5 min, dokud nepřijde novější souhrn) */
+    static boolean waiting(Context c, JSONObject d) {
+        long w = prefs(c).getLong("wake_t", 0);
+        return System.currentTimeMillis() - w < 5 * 60_000 && (d == null || d.optLong("t", 0) * 1000 < w);
+    }
+
     /** Čerstvá data, když to jde (nejvýš jednou za minutu), jinak uložená. */
     static JSONObject fresh(Context c) {
         long last = prefs(c).getLong("fetched", 0);
-        if (System.currentTimeMillis() - last > 60_000) {
+        long gap = System.currentTimeMillis() - prefs(c).getLong("wake_t", 0) < 5 * 60_000 ? 20_000 : 60_000;   // po ťuknutí častěji
+        if (System.currentTimeMillis() - last > gap) {
             JSONObject d = fetch(c);
             if (d != null) return d;
         }

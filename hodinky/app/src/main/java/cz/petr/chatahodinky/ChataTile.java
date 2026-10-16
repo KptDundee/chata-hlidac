@@ -18,7 +18,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import org.json.JSONObject;
 
-/** Dlaždice: napětí, nabití, panely, odběr chaty, předpověď. Ťuknutím se obnoví. */
+/** Dlaždice: napětí, nabití #, panely, odběr chaty, předpověď. Ťuknutím se změří hned (přes Flip) a obnoví. */
 public class ChataTile extends TileService {
     private static final String RES_VER = "1";
     private static final int GREY = 0xFFAAAAAA, WHITE = 0xFFFFFFFF;
@@ -29,6 +29,8 @@ public class ChataTile extends TileService {
         return CallbackToFutureAdapter.getFuture(completer -> {
             new Thread(() -> {
                 try {
+                    // ťuknutí na dlaždici = změřit hned (Flip změří a spustí hlídače), dlaždice se pak obnovuje po minutě
+                    if ("refresh".equals(req.getCurrentState().getLastClickableId())) Data.wake(this);
                     completer.set(tile(Data.fresh(this)));
                 } catch (Exception e) {
                     completer.setException(e);
@@ -76,7 +78,7 @@ public class ChataTile extends TileService {
                 col.addContent(text(fc, 13, lvl >= 1 ? Data.color(lvl) : WHITE, false, 2));
             }
             col.addContent(space(4));
-            col.addContent(text(Data.ageText(d), 11, GREY, false, 1));
+            col.addContent(text(Data.waiting(this, d) ? "⏳ měří se…" : Data.ageText(d), 11, GREY, false, 1));
         }
         LayoutElementBuilders.Box root = new LayoutElementBuilders.Box.Builder()
                 .setWidth(DimensionBuilders.expand())
@@ -93,7 +95,7 @@ public class ChataTile extends TileService {
                 .build();
         return new TileBuilders.Tile.Builder()
                 .setResourcesVersion(RES_VER)
-                .setFreshnessIntervalMillis(10 * 60 * 1000L)
+                .setFreshnessIntervalMillis(Data.waiting(this, d) ? 60 * 1000L : 10 * 60 * 1000L)
                 .setTileTimeline(TimelineBuilders.Timeline.fromLayoutElement(root))
                 .build();
     }
