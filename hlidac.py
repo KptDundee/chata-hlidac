@@ -29,7 +29,7 @@ DEFAULTS = {
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
-    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20,
+    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20,
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
@@ -1379,6 +1379,7 @@ def main():
                          ("Připomínka EcoFlow", lambda: ecoflow_reminder(data, st, now, topic)),
                          ("Nabití #", lambda: hash_soc(data, st, now, cfg)),
                          ("Test kapacity", lambda: capacity_check(data, st, now, cfg)),
+                         ("Upozornění #", lambda: hash_alert(data, st, now, topic, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
@@ -1678,7 +1679,10 @@ def watch_publish(data, v, st, now, topic, cfg):
         fc = f"🔋 River {rs['soc']} % · ~{hh}\ndo {rel_day(rs['until'], now)} {datetime.fromtimestamp(rs['until'], TZ).strftime('%H:%M')}"
         if rs["soc"] <= (cfg["river_vymenit_pod"] or 15):
             lvl = max(lvl, 1)
-    body = {"t": int(now.timestamp()), "v": round(bv, 2), "soc": v.get("bat_soc"),
+    hq = data.get("hq") or {}
+    if hq.get("pct") is not None:            # na dlaždici hodinek nabití # (z Ah) místo % regulátoru (z napětí)
+        st_txt = f"{hq['pct']} #" + (f" · {st_txt}" if st_txt else "")
+    body = {"t": int(now.timestamp()), "v": round(bv, 2), "soc": None if hq.get("pct") is not None else v.get("bat_soc"),
             "pv": round(v["pv_w"]) if v.get("pv_w") is not None else None,
             "w": (round((inv.get("mw") or 0) + (inv.get("rw") or 0)) if fresh and (inv.get("mw") is not None or inv.get("rw") is not None) else None),   # celá chata: solár + River
             "st": st_txt, "fc": fc, "lvl": lvl, "day": v.get("day_kwh"),
@@ -2500,6 +2504,27 @@ def ocv_soc(v):
         if v <= v1:
             return s0 + (s1 - s0) * (v - v0) / (v1 - v0)
     return 100
+
+
+def hash_alert(data, st, now, topic, cfg):
+    """Upozornění, když nabití # klesne pod hranice (výchozí 50 a 30) – každá jednou, znovu až po nabití nad 60 #."""
+    hq = data.get("hq")
+    if not hq or hq.get("pct") is None:
+        return
+    pct = hq["pct"]
+    lims = sorted({int(float(x)) for x in str(cfg.get("hash_upozornit") or "50, 30").replace(";", ",").split(",") if x.strip()}, reverse=True)
+    sent = st.setdefault("hash_sent", [])
+    if pct >= 60 and sent:
+        st["hash_sent"] = []
+        return
+    for lim in lims:
+        if pct < lim and lim not in sent:
+            ntfy(topic, f"🔋 Solární baterie pod {lim} #",
+                 f"Nabití podle ampérhodin {pct} # (−{fmt(-hq['ah'], 0)} Ah od plného nabití, kapacita {hq['cap']} Ah). "
+                 + ("Pod 50 # baterie rychle stárne – omez odběr nebo přepni chatu na River." if lim >= 50 else
+                    "Hrozí poškození baterie – přepni chatu na River / odpoj spotřebiče."), 4 if lim < 50 else 3, "battery")
+            sent.append(lim)
+            break
 
 
 def capacity_check(data, st, now, cfg):

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.79", FLIP_VER = "1.3.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.80", FLIP_VER = "1.3.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -684,7 +684,8 @@ function xLabels(svg,t0,t1,x){
   for(let t=d.getTime()/1000;t<=t1;t+=stepH*3600){const dt=new Date(t*1000);const lab=stepH>=24?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):dt.getHours()===0?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):dt.getHours()+":00";s+=`<text x="${x(t)}" y="${H-6}" text-anchor="middle">${lab}</text>`;}
   svg.insertAdjacentHTML("beforeend",s);
 }
-function refLines(svg,y,refs){let s="";for(const[v,c]of refs||[])s+=`<line x1="${M.l}" x2="${W-M.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(${c})" stroke-width="1.5" stroke-dasharray="5 4"/>`;svg.insertAdjacentHTML("beforeend",s);}
+function refLines(svg,y,refs){let s="";for(const[v,c,lab]of refs||[]){s+=`<line x1="${M.l}" x2="${W-M.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(${c})" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  if(lab) s+=`<text x="${W-M.r-4}" y="${y(v)-5}" text-anchor="end" style="fill:var(${c});font-weight:700;font-size:13px">${lab}</text>`;}svg.insertAdjacentHTML("beforeend",s);}
 const tip=$("tip");
 /* ťuknutí mimo graf nebo posun stránky hodnotu schová */
 function hideAllTips(){ hideTip(); document.querySelectorAll("svg .ch, svg .cd").forEach(e=>e.setAttribute("opacity",0)); }
@@ -1894,7 +1895,7 @@ function detBat(body){
   const hrs = detHours(), dhrs = Math.max(hrs, 30*24);
   dotChart($("dc_min"), dailyPts(dhrs).map(p=>({...p, k: dkey(p.t)})), "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   if(detLong()){ const hd = Object.keys(d.days||{}).sort().filter(k=>d.days[k].hq_min!=null && k >= dkey(Date.now()/1000 - hrs*3600)).map(k=>({t:new Date(k+"T12:00").getTime()/1000, h:d.days[k].hq_min}));
-    hd.length >= 2 ? lineChart($("dc_hmin"), hd, "h", css("--s3"), {unit:"#",dec:0,hours:hrs,gap:4*86400,zero:true,refs:[[50,"--serious"]]}) : empty($("dc_hmin"), "Zatím málo dní – počítá se od 16. 10. 2026."); }
+    hd.length >= 2 ? lineChart($("dc_hmin"), hd, "h", css("--s3"), {unit:"#",dec:0,hours:hrs,gap:4*86400,zero:true,refs:[[50,"--serious","50 #"]]}) : empty($("dc_hmin"), "Zatím málo dní – počítá se od 16. 10. 2026."); }
   if(detLong()) monthlyBars($("dc_prod"), hrs);
   else barChart($("dc_prod"), Object.keys(d.days||{}).sort().filter(k=>k>=dkey(Date.now()/1000-29*86400)).map(k=>({k, v:d.days[k].solar_kwh??0})), "v", css("--s2"), {unit:"kWh",dec:1,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
   if(detLong()) return;
@@ -1907,7 +1908,7 @@ function detBat(body){
   lineChart($("dc_v"), pts.map(p=>({...p, ivx: p.ivs!=null ? p.iv : null})), "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,dayMin:true,k2:{key:"ivx",color:css("--s2"),name:"měnič"}});
   const WR = wiring(d), off = WR ? WR.off : 0, lim = cfg.kabely_ubytek_V ?? 0.35;
   lineChart($("dc_vd"), pts.map(p=>({t:p.t, dv: p.ivs!=null && p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv-off).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:hrs,gap:3*3600,refs:[[0,"--muted"],[lim,"--crit"]]});
-  if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands,refs:[[50,"--serious"],[100,"--muted"]]});
+  if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands,refs:[[50,"--serious","50 #"],[100,"--muted"]]});
   else empty($("dc_hash"), "Spočítá se po prvních hodinách dat.");
   lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
 }

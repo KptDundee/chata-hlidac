@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.80 – 16. 10. 2026
+- **Upozornění na nabití #:** pod **50 #** (baterie rychle stárne – omez odběr / přepni na River) a pod **30 #** (hrozí poškození); každé jednou, znovu až po nabití nad 60 #. Nastavení `hash_upozornit`.
+- Graf Nabití #: čárkovaná hranice s popiskem „50 #“
+- Hodinky (dlaždice): místo % regulátoru nabití **#** („86 # · nabíjí“); komplikace dál ukazuje napětí
+
 ## 3.79 – 16. 10. 2026
 - Nabití #: **100 # = přechod regulátoru do Float**, i když tam vydrží jen chvíli (dřív aspoň 30 min) – je to nejlepší stav, jaký máme. Platí i pro test kapacity.
 
