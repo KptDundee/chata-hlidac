@@ -1700,14 +1700,32 @@ def overload_check(v, st, now, topic, cfg, data, rise, set_):
     data["extra_w"] = round(extra)
     lim = cfg.get("odber_z_baterie_A") or 2.0
     navic_min = cfg.get("odber_navic_W") or 40
-    hit = net < -lim and extra >= navic_min and not st.get("ra_on")
+    # nabíjení River ze soláru (zásuvka 8 za měničem, NEMĚŘÍ) – když je zapnutá nebo ji automatika právě vypnula
+    # (Flip povel provede až při dalším měření), je „navíc“ nejspíš ona → automatika to řeší sama, nepoplašit
+    rip = str(cfg.get("river_auto_ip") or "").strip()
+    rp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == rip), None)
+    river_on = bool(st.get("ra_on")) or bool(rp and rp.get("on") == 1 and not rp.get("off"))
+    just_off = now.timestamp() - st.get("ra_off_ts", 0) < 20 * 60
+    hit = net < -lim and extra >= navic_min and not ((river_on or just_off) and cfg.get("river_auto"))
     fr_txt = f"lednice {fmt(fr_w)} W" if fr_ok else f"lednice neměřená – počítám ~{fmt(fr_w)} W"
+    mip = str(cfg.get("zasuvka_menic") or inv.get("mip") or "")
+    skip = {mip, rip, str(cfg.get("zasuvka_lednice") or "")} | set(ips(cfg.get("zasuvky_river")))
+    import re as _re
+    others = [f"{_re.sub(r'^\s*(\([^)]*\)\s*)+', '', str(p.get('n') or p.get('ip')))} {fmt(p['w'])} W"
+              for p in inv.get("tp", []) if str(p.get("ip")) not in skip and (p.get("w") or 0) >= 3]
+    hint = ""
+    if river_on and not cfg.get("river_auto"):
+        hint = "\nZásuvka nabíjení River je zapnutá (neměří) – nejspíš je to ona."
+    elif rp and rp.get("on") == 1:
+        hint = "\nZásuvka nabíjení River je zapnutá (neměří)."
     if hit:
         log("ev", f"Odběr navíc: měnič {fmt(inv['mw'])} W = {fr_txt} + běžně {fmt(base)} W + navíc {fmt(extra)} W (baterie {fmt(net, 1)} A)")
     if hit and now.timestamp() - st.get("ovl_ts", 0) > 3600:
         ntfy(topic, f"⚡ Odběr navíc ~{fmt(extra)} W – bere se z baterie",
              f"Za měničem teď {fmt(inv['mw'])} W = {fr_txt} + světla/kamery/wifi běžně ~{fmt(base)} W + navíc ~{fmt(extra)} W "
-             f"(nabíjení zařízení?). Panely dají {fmt(v.get('pv_w'))} W, baterie se vybíjí ~{fmt(-net, 1)} A ({fmt(bv, 2)} V).", 4, "zap,warning")
+             f"(nabíjení zařízení?). Panely dají {fmt(v.get('pv_w'))} W, baterie se vybíjí ~{fmt(-net, 1)} A ({fmt(bv, 2)} V).\n"
+             f"Měřené zásuvky teď: {', '.join(others) if others else 'nic dalšího nebere'} (měřeno {datetime.fromtimestamp(inv['t'], TZ).strftime('%H:%M')})."
+             + hint, 4, "zap,warning")
         st["ovl_ts"] = int(now.timestamp())
 
 

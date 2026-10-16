@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.60", FLIP_VER = "1.3.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.61", FLIP_VER = "1.3.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1068,7 +1068,8 @@ function homeData(d){
   const onv = Object.keys(d.days||{}).sort().slice(-8).map(k=>d.days[k].on).filter(x=>x!=null).sort((x,y)=>x-y);
   const onMed = onv.length ? onv[Math.floor(onv.length/2)] : null;
   const frW = fr && fr.w!=null && !fr.err && !fr.off ? fr.w : (cfg.lednice_max_W ?? 80);   // neměřená lednice = počítat naplno, ne 0 W
-  const extraW = invF && inv.mw!=null && onMed!=null ? Math.max(0, inv.mw - frW - onMed - (riverW||0)) : null;
+  const rvpOn = rvp && rvp.on===1 && !rvp.off && riverW==null;      // nabíjení River zapnuté, ale zásuvka neměří → „navíc“ neznámé
+  const extraW = invF && inv.mw!=null && onMed!=null && !rvpOn ? Math.max(0, inv.mw - frW - onMed - (riverW||0)) : null;
   const frTxt = fr && fr.w!=null && !fr.err && !fr.off ? `lednice ${nf(frW)} W` : `lednice neměřená (~${nf(frW)} W)`;
   const brk = invF && inv.mw!=null && onMed!=null ? `Za měničem ${nf(inv.mw)} W: ${frTxt}, světla/kamery/wifi ~${nf(onMed)} W${riverW>2?`, River ${nf(riverW)} W`:""}` : "";
   // měnič vypnutý (zásuvka za ním nedostupná, Flip přitom posílá) → solární baterie nedává nic (chata třeba na River)

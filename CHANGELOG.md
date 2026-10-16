@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.61 – 16. 10. 2026
+- **Odběr navíc a nabíjení River:** zásuvka 8 (nabíjení River ze soláru) je za měničem a neměří – když je zapnutá, celé nabíjení se jevilo jako „odběr navíc“. Když ji ovládá automatika (zapnutá nebo právě vypnutá – Flip povel provede až při dalším měření), upozornění se neposílá; automatika ji při vybíjení vypne sama. Bez automatiky upozornění přijde s poznámkou, že je zapnutá zásuvka nabíjení River.
+- Upozornění na odběr navíc vypíše i **měřené zásuvky** v tu chvíli a čas měření
+
 ## 3.60 – 16. 10. 2026
 - **Nouzové spuštění Flipu z aplikace:** tlačítko ⚡ Načíst teď kromě hlídače probudí i Flip – změří a odešle hned, nečeká na svůj 10min budík. Hlídač počká na jeho data (nejvýš ~2 min) a teprve pak je zpracuje.
 - **Flip 1.3.5:** drží trvalé spojení na ntfy téma `<téma>-wake`; po zprávě změří hned (nejvýš 1× za minutu). Bez internetu se spojení obnovuje každých 30 s. Obsahuje i frontu z 1.3.4.
