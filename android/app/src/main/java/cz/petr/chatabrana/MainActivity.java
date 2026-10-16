@@ -65,6 +65,12 @@ public class MainActivity extends Activity {
         now.setOnClickListener(v -> { save(); GatewayService.start(this, true); toast("Odesílám… (do 30 s)"); });
         Button batt = button(l, "Povolit běh na pozadí (baterie: Neomezeno)");
         batt.setOnClickListener(v -> askBatteryExemption());
+        Button loc = button(l, "Poloha: Povolit vždy (otevře nastavení aplikace)");
+        loc.setOnClickListener(v -> {
+            // Android nedovolí aplikaci „vždy“ zapnout sama – otevře se nastavení: Oprávnění → Poloha → Povolit vždy
+            startActivity(new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.fromParts("package", getPackageName(), null)));
+        });
         Button test = button(l, "Test Bluetooth (15 s)");
         test.setOnClickListener(v -> {
             save();
@@ -89,6 +95,9 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        if (Prefs.get(this).getBoolean(Prefs.RUNNING, false)) {
+            try { GatewayService.refreshForeground(this); } catch (Exception ignored) { }
+        }
         refresh();
         h.postDelayed(tickUi, 5000);
     }
@@ -110,8 +119,13 @@ public class MainActivity extends Activity {
         boolean exempt = pm.isIgnoringBatteryOptimizations(getPackageName());
         status.setText((run ? "▶ Běží" : "■ Zastaveno")
                 + (last > 0 ? " · naposledy odesláno " + new SimpleDateFormat("d.M. HH:mm", Locale.getDefault()).format(new Date(last)) : "")
-                + (exempt ? "" : "\n⚠ Běh na pozadí není povolený – klepni na tlačítko níže"));
+                + (exempt ? "" : "\n⚠ Běh na pozadí není povolený – klepni na tlačítko níže")
+                + (bgLoc() ? "\n✓ Poloha: Povolit vždy" : "\n⚠ Poloha není „Povolit vždy“ – Victron se zhasnutým displejem nemusí jít. Klepni na „Poloha: Povolit vždy“"));
         log.setText(Prefs.log(this));
+    }
+
+    private boolean bgLoc() {
+        return checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
     private void save() {

@@ -13,6 +13,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- služba typu „poloha“: Android pak doručuje vysílání Bluetooth i po odchodu z aplikace (bez toho jen s „Povolit vždy“) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- přesné budíky po 10 min (Android 13+: USE_EXACT_ALARM, starší: SCHEDULE_EXACT_ALARM) -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
@@ -36,7 +38,7 @@
         <service
             android:name=".GatewayService"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
+            android:foregroundServiceType="connectedDevice|location" />
 
         <receiver android:name=".AlarmReceiver" android:exported="true">
             <intent-filter>

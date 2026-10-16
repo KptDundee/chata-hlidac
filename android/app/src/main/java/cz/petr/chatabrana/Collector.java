@@ -53,7 +53,9 @@ public final class Collector {
             if (ble.samples() == 0) {                    // ani tak nic → zkusit bez filtru (jako Test Bluetooth) a zapsat proč
                 android.os.PowerManager pm = ctx.getSystemService(android.os.PowerManager.class);
                 String r = ble.burstOpen(15_000);
-                Prefs.log(ctx, "Victron – záložní hledání (" + (pm != null && pm.isInteractive() ? "displej svítí" : "displej zhasnutý") + "): " + r);
+                boolean bg = ctx.checkSelfPermission(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+                Prefs.log(ctx, "Victron – záložní hledání (" + (pm != null && pm.isInteractive() ? "displej svítí" : "displej zhasnutý")
+                        + ", poloha " + (bg ? "vždy" : "jen při používání") + "): " + r);
             }
             BleListener.Snapshot s = ble.takeSnapshot();
             if (s.avgVa != null) {

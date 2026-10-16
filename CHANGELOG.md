@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.86 – 17. 10. 2026
+- **Flip 1.3.11 – Victron po zavření aplikace:** výsledky Bluetooth skenu Android doručuje jen aplikaci, která smí polohu. Služba Flipu byla jen typu „připojené zařízení“ – s polohou „jen při používání“ o ni přišla, jakmile se aplikace zavřela (proto po instalaci Victron jednou šel a pak už ne). Teď je služba i typu **„poloha“** (z otevřené aplikace se to obnoví vždy při jejím otevření). Když to Android z pozadí nedovolí, zapíše to do Deníku.
+- V aplikaci Flipu stav **„✓ Poloha: Povolit vždy“** / „⚠ Poloha není Povolit vždy“ a tlačítko, které otevře nastavení aplikace (Oprávnění → Poloha → Povolit vždy). Řádek „Victron – záložní hledání“ v Deníku uvádí i stav polohy.
+
 ## 3.85 – 16. 10. 2026
 - Dlaždice Solární baterie: napětí a nabití # **pod sebou** (vedle sebe se pletly).
 

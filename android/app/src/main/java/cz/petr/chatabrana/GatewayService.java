@@ -46,6 +46,12 @@ public class GatewayService extends Service {
         if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i); else c.startService(i);
     }
 
+    /** Z otevřené aplikace: obnovit službu s polohou (bez měření). */
+    public static void refreshForeground(Context c) {
+        Intent i = new Intent(c, GatewayService.class).setAction("fg");
+        if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i); else c.startService(i);
+    }
+
     public static void stop(Context c) {
         c.startService(new Intent(c, GatewayService.class).setAction(ACTION_STOP));
     }
@@ -58,6 +64,30 @@ public class GatewayService extends Service {
         nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Chata brána", NotificationManager.IMPORTANCE_LOW));
     }
 
+    private int fgType = -1;
+
+    /**
+     * Služba typu „připojené zařízení“ + „poloha“. Výsledky Bluetooth skenu Android doručuje jen aplikaci,
+     * která smí polohu – bez typu „poloha“ (a bez „Povolit vždy“) o ni služba přijde, jakmile se aplikace zavře:
+     * proto po instalaci (aplikace otevřená) Victron jde a pak přestane. Z pozadí (budík) Android typ „poloha“
+     * nemusí povolit → pak jen „připojené zařízení“ a záznam do Deníku.
+     */
+    private void startFg(Notification n) {
+        int dev = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE;
+        int loc = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                ? ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION : 0;
+        int want = dev | loc;                       // vždy zkusit s polohou (když se dřív nepovedlo z pozadí, teď třeba z aplikace)
+        try {
+            startForeground(NOTIF_ID, n, want);
+            fgType = want;
+        } catch (Exception e) {
+            if (want == dev) throw e;
+            if (fgType != dev) Prefs.log(this, "Služba bez polohy (Android nedovolil z pozadí) – Victron půjde jen s polohou „Povolit vždy“ nebo po otevření aplikace");
+            startForeground(NOTIF_ID, n, dev);
+            fgType = dev;
+        }
+    }
+
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && ACTION_STOP.equals(intent.getAction())) {
             Prefs.get(this).edit().putBoolean(Prefs.RUNNING, false).apply();
@@ -68,9 +98,14 @@ public class GatewayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+        if (intent != null && "fg".equals(intent.getAction()) && fgType >= 0) {
+            // aplikace otevřená → teď Android dovolí službě typ „poloha“ (Victron i po zhasnutí displeje)
+            if (Build.VERSION.SDK_INT >= 29) startFg(notification("Běží"));
+            return START_STICKY;
+        }
         Prefs.get(this).edit().putBoolean(Prefs.RUNNING, true).apply();
         Notification n = notification("Spouštím…");
-        if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
+        if (Build.VERSION.SDK_INT >= 29) startFg(n);
         else startForeground(NOTIF_ID, n);
         ble.ensureRunning(intent != null && intent.getBooleanExtra("restart", false));
         scheduleAlarm(this);
