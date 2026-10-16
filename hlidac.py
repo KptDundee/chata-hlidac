@@ -1367,6 +1367,7 @@ def main():
                          ("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_, data)),
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
                          ("River napájí chatu", lambda: river_supply(data, st, now, topic, cfg, rise, set_)),
+                         ("Připomínka EcoFlow", lambda: ecoflow_reminder(data, st, now, topic)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
@@ -2390,6 +2391,18 @@ def read_ecoflow(data, st, now, topic, cfg):
               + ("" if r["online"] else " (offline)"))
         check_river(r, st, topic, cfg)
     return rivers
+
+
+def ecoflow_reminder(data, st, now, topic):
+    """Jednorázová připomínka (přání 16. 10. 2026): až poběží EcoFlow, vrátit se k ovládání nabíjení River
+    a k optimalizaci běhu generátoru (viz docs/napady.md)."""
+    if st.get("ef_remind") or not data.get("rivers") or now.timestamp() - (data.get("rivers_t") or 0) > 3600:
+        return
+    ntfy(topic, "🔔 Připomínka: EcoFlow funguje",
+         "Data z EcoFlow už chodí. Domluvili jsme se, že se pak vrátíme k ovládání nabíjení River a k optimalizaci "
+         "nabíjení z generátoru (aby všechny River dobily najednou a generátor běžel co nejkratší dobu). "
+         "Napiš o tom Claudovi – podrobnosti jsou v docs/napady.md.", 3, "bell")
+    st["ef_remind"] = int(now.timestamp())
 
 
 def river_supply(data, st, now, topic, cfg, rise, set_):

@@ -236,3 +236,6 @@ Když Flip nemůže odeslat (výpadek internetu), uloží zprávy do fronty a po
 
 ### ⚡ Načíst (3.60, Flip 1.3.5)
 Spustí hlídače a zároveň probudí Flip – ten změří a odešle hned. Za 1–3 minuty jsou na stránce čerstvá data. Když Flip hluboce spí nebo je bez internetu, může odpovědět až při svém dalším pravidelném měření (do 10 min).
+
+### Okno River (3.65)
+Dlaždice River v řádku Teď má záložky pro tři River a generátor – co dělají právě teď. Rozkliknutím: časová osa „Co se dělo“ (kdy která River napájela chatu nebo jen spotřebič, kdy běžel generátor), výkon každé River, generátor, běhy generátoru a čísla. Nabití % a nabíjení každé River se objeví, až poběží EcoFlow.
