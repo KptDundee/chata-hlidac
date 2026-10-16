@@ -113,6 +113,36 @@ public final class BleListener {
 
     public synchronized int samples() { return n; }
 
+    private volatile int openSeen;
+    private final ScanCallback openCb = new ScanCallback() {
+        @Override public void onScanResult(int type, ScanResult r) { openSeen++; handle(r); }
+    };
+
+    /**
+     * Záložní hledání BEZ filtru (jako tlačítko „Test Bluetooth“), když filtrovaný poslech nic nechytil.
+     * @return krátký popis do Deníku: kolik vysílání bylo vidět, jestli Victron
+     */
+    @SuppressLint("MissingPermission")
+    public String burstOpen(long ms) {
+        BluetoothLeScanner sc;
+        int before;
+        synchronized (this) {
+            stop();
+            BluetoothManager bm = (BluetoothManager) ctx.getSystemService(Context.BLUETOOTH_SERVICE);
+            BluetoothAdapter a = bm == null ? null : bm.getAdapter();
+            if (a == null || !a.isEnabled() || key == null) return "Bluetooth nejde";
+            sc = a.getBluetoothLeScanner();
+            if (sc == null) return "sken nejde";
+            openSeen = 0; before = n;
+            try { sc.startScan(null, new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(), openCb); }
+            catch (Exception e) { ensureRunning(true); return "nejde spustit: " + e.getMessage(); }
+        }
+        SystemClock.sleep(ms);
+        synchronized (this) { try { sc.stopScan(openCb); } catch (Exception ignored) {} }
+        ensureRunning(true);
+        synchronized (this) { return "bez filtru: vysílání v okolí " + openSeen + ", Victron " + (n > before ? "ANO (" + (n - before) + "×)" : "ne"); }
+    }
+
     public synchronized void ensureRunning(boolean force) {
         String m = Prefs.normMac(Prefs.s(ctx, Prefs.VICTRON_MAC));
         String k = Prefs.s(ctx, Prefs.VICTRON_KEY).replaceAll("[^0-9a-fA-F]", "");

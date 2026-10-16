@@ -47,6 +47,11 @@ public final class Collector {
 
             // 1) měnič Victron (Bluetooth)
             if (ble.samples() == 0) ble.burst(40_000);   // trvalý poslech nic nechytil → 40 s intenzivně
+            if (ble.samples() == 0) {                    // ani tak nic → zkusit bez filtru (jako Test Bluetooth) a zapsat proč
+                android.os.PowerManager pm = ctx.getSystemService(android.os.PowerManager.class);
+                String r = ble.burstOpen(15_000);
+                Prefs.log(ctx, "Victron – záložní hledání (" + (pm != null && pm.isInteractive() ? "displej svítí" : "displej zhasnutý") + "): " + r);
+            }
             BleListener.Snapshot s = ble.takeSnapshot();
             if (s.avgVa != null) {
                 o.put("w", round(s.avgVa, 1));
@@ -364,9 +369,9 @@ public final class Collector {
             JSONObject r = new JSONObject(t.call("set_device_info", "{\"device_on\":" + on + "}"));
             if (r.optInt("error_code", -1) == 0) {
                 Prefs.get(ctx).edit().putLong("cmd_done", id).apply();
-                Prefs.log(ctx, "Zásuvka " + ip + " " + (on ? "ZAPNUTA" : "VYPNUTA") + " (" + last.optString("why", "povel") + ")");
+                Prefs.log(ctx, "Zásuvka " + label(ip) + " " + (on ? "ZAPNUTA" : "VYPNUTA") + " (" + last.optString("why", "povel") + ")");
             } else {
-                Prefs.log(ctx, "Povel pro " + ip + " selhal: " + r);
+                Prefs.log(ctx, "Povel pro zásuvku " + label(ip) + " selhal: " + r);
             }
         } catch (Exception e) {
             Prefs.log(ctx, "Povely: " + e.getMessage());
@@ -418,11 +423,18 @@ public final class Collector {
     }
 
     /** Do záznamu jen změny stavu zásuvky. */
+    /** Zásuvka v Deníku podle našeho čísla „(N) jméno“, IP jen když číslo neznáme. */
+    private String label(String ip) {
+        String nm = names.get(ip), id = TapoScan.idFromName(nm);
+        if (id != null) return "(" + id + ") " + nm.replaceFirst("^\\s*(\\([^)]*\\)\\s*)+", "");
+        return "na ." + ip.substring(ip.lastIndexOf('.') + 1) + " (číslo neznámé)";
+    }
+
     private void note(String ip, String state, String msg) {
         String prev = lastState.put(ip, state);
         if (state.equals(prev)) return;
-        if (msg != null) Prefs.log(ctx, "Zásuvka " + ip + ": " + msg);
-        else if (prev != null) Prefs.log(ctx, "Zásuvka " + ip + ": zase dostupná");
+        if (msg != null) Prefs.log(ctx, "Zásuvka " + label(ip) + ": " + msg);
+        else if (prev != null) Prefs.log(ctx, "Zásuvka " + label(ip) + ": zase dostupná");
     }
 
     /** Po hodině se znovu načtou názvy zásuvek (kdyby se přejmenovaly). */

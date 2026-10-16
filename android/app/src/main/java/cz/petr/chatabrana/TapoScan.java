@@ -94,7 +94,12 @@ public final class TapoScan {
                         o.put("nick", nick);
                         o.put("model", info.optString("model", ""));
                         found.put(id, o);
-                    } catch (Exception e) { if (errs.size() < 3) errs.add(ip + ": " + e.getMessage()); }
+                    } catch (Exception e) {
+                        String m = String.valueOf(e.getMessage());
+                        String oct = ip.substring(ip.lastIndexOf('.') + 1);
+                        if (errs.size() < 3) errs.add(m.contains("401") ? "zásuvka na ." + oct + " odmítá přihlášení (401) – číslo nejde zjistit, v aplikaci Tapo zapni „Kompatibilita s třetími stranami“"
+                                                                     : "." + oct + ": " + m);
+                    }
                 });
             }
         }
