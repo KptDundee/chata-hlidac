@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.71 – 16. 10. 2026
+- **Flip 1.3.8 – Victron na pozadí:** Deník ukazoval „žádné vysílání Victron“ i při 40s intenzivním hledání – Flip nedostal ani jedno vysílání, ačkoli VictronConnect na obou telefonech na stejném místě měnič vidí. Bluetooth sken bez příznaku `neverForLocation` Android považuje za zjišťování polohy; služba Flipu (typ „připojené zařízení“) právo na polohu v pozadí nemá → výsledky se potichu zahazovaly, když aplikace nebyla na obrazovce. Přidán příznak `neverForLocation` k oprávnění BLUETOOTH_SCAN.
+
 ## 3.70 – 16. 10. 2026
 - Hlavička kratší, tři řádky bez slova „před“: „Regulátor 2 min“, „Victron 1 h 7 min“, „Flip 3 min · 54 % ⚡“. Baterie Flipu: nabíjí = zelená s ⚡, nenabíjí = bílá, 20 % a méně = červená.
 
