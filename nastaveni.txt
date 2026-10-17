@@ -132,5 +132,6 @@ lednice_max_W = 80
 # Kabely a spoje (regulátor → baterie → měnič)
 kabely_ubytek_V = 0.35          # okamžité upozornění, když regulátor ukazuje o tolik víc než měnič (bez rozdílu kalibrace)
 kabely_odpor_mOhm = 20          # jednou denně upozornit, když odpor cesty za 24 h vyjde vyšší (v pořádku do ~10 mΩ)
+oprava_spoju = 2026-10-14 18:00   # kdy se naposledy opravovaly spoje / pojistka – starší měření kabelů, přechody do Float a testy kapacity se neberou
 desulfator_W = 0.25             # stálý odběr desulfátoru přímo z baterie (JCP-2-ABC: max 0,02 A)
 hash_upozornit = 50, 30         # upozornit, když nabití # (z ampérhodin) klesne pod tyto hodnoty (znovu až po nabití nad 60 #)

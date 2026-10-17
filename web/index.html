@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.88", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.89", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -953,7 +953,8 @@ $("tileclose").addEventListener("click",()=>{TILE=null;$("tilem").classList.add(
 
 /* ---------- Kabely a spoje: rozdíl napětí regulátor × měnič ---------- */
 function wiring(d){
-  const cut = Date.now()/1000 - 3*86400, idle = d.cfg?.menic_vlastni_W ?? 6;
+  const fix = (Date.parse(String(d.cfg?.oprava_spoju || "").trim().replace(" ","T")) || 0) / 1000;   // starší měření = před opravou spojů
+  const cut = Math.max(Date.now()/1000 - 3*86400, fix), idle = d.cfg?.menic_vlastni_W ?? 6;
   // jen měření regulátoru a Victronu ze stejné chvíle (ivs = hlídač je spároval, v3.54)
   const rows = (d.points||[]).filter(p=>p.t>=cut && p.ivs!=null && p.bat_v>5 && p.iv>5 && Math.abs(p.bat_v-p.iv)<2).map(p=>{
     const lw = p.lw ?? p.mw;
@@ -1362,7 +1363,7 @@ function tileWire(d, h){
 }
 function tileHealth(d, h){
   const t = {k:"health", icon:"❤️", label:"Zdraví baterie"};
-  if(!HEALTH) return {...t, cls:"na", v:"–", st:"Zatím bez měření", a:""};
+  if(!HEALTH) return {...t, cls:"na", v:"–", st:"Zatím neznámo – čeká na testy kapacity", a:""};
   const cls = HEALTH.zone==="dobrá" || HEALTH.zone==="opotřebovaná" ? "ok" : HEALTH.zone==="slabá" ? "warn" : "bad";
   const st = {dobrá:"Dobrá", opotřebovaná:"Opotřebovaná – slouží", slabá:"Slabá – plánuj náhradu", vyměnit:"Doporučuju výměnu"}[HEALTH.zone];
   return {...t, cls, v:`${Math.round(HEALTH.cur)}<small>Ah</small>`, st, a:"", bar:HEALTH.pct};
@@ -2191,32 +2192,37 @@ function renderCap(d, days){
   const rows = days.map(k=>{ const x=d.days[k], ok=x.h && x.h.ve>=12.10, n=ok?x.h.cap||null:null, c=(x.c&&x.c.cap)||null;
     return n ? {k, t:new Date(k).getTime(), v:n, n, c, h:x.h, ch:x.c} : null; }).filter(Boolean);
   const pct = v => Math.round(v/nom*100);
-  if(!rows.length){
-    $("hverdict").innerHTML=`<p class="sub">Zatím žádné měření. Odhad se počítá z nocí (pokles napětí při známém odběru) a ze dnů, kdy se baterie nabije do plna. První hodnoty přibudou z historie a z dalších nocí.</p>`;
-    $("c_cap").innerHTML=""; $("hzones").textContent=""; $("hlist").innerHTML=""; $("sum_health").textContent="zatím bez měření"; $("hadv").innerHTML=""; HEALTH=null; return;
-  }
+  // VERDIKT jen z testů kapacity z ampérhodin (od plného nabití / dvoubodový), po opravě spojů, s odběrem z Victronu.
+  // Noční odhad z poklesu napětí (rows) je jen orientační – kolísal mezi ~20 a ~125 Ah, verdikt z něj nejde.
+  const FIX = Date.parse(String(d.cfg?.oprava_spoju || "2026-10-14 18:00").trim().replace(" ","T")) || 0;
+  const allT = Object.keys(d.days||{}).sort().map(k=>({k, q:d.days[k].qc})).filter(x=>x.q && x.q.m && (x.q.te||x.q.t||0)*1000 >= FIX);
+  const tests = allT.filter(x=>x.q.ok);
   const now = Date.now(), D = 864e5;
-  const recent = rows.filter(q=>q.t>=now-14*D), recentV = med(recent.map(q=>q.v));
-  const cur = recentV ?? med(rows.slice(-10).map(q=>q.v));
-  const curN = recentV!=null ? recent.length : Math.min(10, rows.length);
-  const z = zoneOf(pct(cur));
-  HEALTH = {cur, pct:pct(cur), zone:z[1], c:z[2], nom};
-  // srovnání: stejné období loni, jinak začátek sledování
-  const ly = rows.filter(q=>q.t>=now-379*D && q.t<=now-351*D);
-  let cmp = "";
-  const fmtChange = (old, label) => { const ch = Math.round((cur/old-1)*100);
-    const word = Math.abs(ch)<=5 ? "beze změny (rozdíl je v rámci přesnosti)" : ch<0 ? `ubylo ${-ch} %` : `přibylo ${ch} % (spíš šum nebo teplo)`;
-    return `${label} ~${Math.round(old)} Ah → teď ~${Math.round(cur)} Ah: <b>${word}</b>`; };
-  if(ly.length>=3) cmp = fmtChange(med(ly.map(q=>q.v)), "Loni ve stejnou dobu");
-  else if(rows.length>=20 && rows[0].t < now-60*D){ const first=rows.filter(q=>q.t<rows[0].t+30*D);
-    cmp = fmtChange(med(first.map(q=>q.v)), `Na začátku sledování (${new Date(rows[0].t).toLocaleDateString("cs-CZ",{month:"long",year:"numeric"})})`) + `<br><span class="sub">Pozor: v zimě vychází AGM vždy o 10–20 % hůř (chlad), skutečné srovnání ukáže až stejná roční doba.</span>`; }
-  $("sum_health").innerHTML = `<b style="color:var(${z[2]})">● ${z[1]}</b> ~${Math.round(cur)} Ah`;
-  const advice = {dobrá:"Baterie je v pořádku, nic není potřeba.", opotřebovaná:"Baterie stárne, ale slouží. Hlídej, jestli vydrží každou noc až do dalšího rána; vybíjení pod 12,0 V jí zkracuje život.", slabá:"Kapacita je znatelně menší – v zimě nemusí vydržet do dalšího rána. Je čas plánovat náhradu.", vyměnit:"Baterie má méně než polovinu kapacity – doporučuju výměnu."}[z[1]];
-  $("hverdict").innerHTML = `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;color:var(${z[2]})">● ${z[1][0].toUpperCase()+z[1].slice(1)}</span>
-    <span style="font-size:18px;font-weight:600">~${Math.round(cur)} Ah <span class="sub" style="font-size:14px">= ${pct(cur)} % z ${nom} Ah</span></span></div>
-    ${deepTxt(d, days)}`;
-  $("hadv").innerHTML = `<div style="margin-top:8px">${advice}</div>
-    <div class="sub" style="margin-top:6px">${recentV!=null?`Posledních 14 dní: ${curN} ${curN===1?"měření":curN<5?"měření":"měření"}`:`Poslední měření: ${new Date(rows[rows.length-1].t).toLocaleDateString("cs-CZ")}`}${cmp?`<br>${cmp}`:""}</div>`;
+  const dl = t => new Date(t).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"});
+  const tLine = x => { const q=x.q, two=q.m==="2b";
+    const how = two ? `večer ${nf(q.ve,2)} V (~${q.soce} %) → ráno ${nf(q.v,2)} V (~${q.soc} %), mezi tím ${nf(q.ah,1)} Ah` : `od plného nabití ${nf(q.ah,1)} Ah, ráno ${nf(q.v,2)} V (~${q.soc} %)`;
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${dl(x.k)}</b> · <span class="sub">${two?"dvoubodový":"od plného nabití"}</span><br>${q.ah!=null?how:""}${q.ok?` → <b>~${q.cap} Ah</b>`:`${q.ah!=null?" → ":""}<span class="sub">nepoužito: ${q.why||"nevyšel"}</span>`}</div>`; };
+  const fixTxt = FIX ? new Date(FIX).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}) : "";
+  if(tests.length >= 2){
+    const cs = tests.map(x=>x.q.cap).sort((a,b)=>a-b), h2 = cs.length>>1;
+    const cur = cs.length%2 ? cs[h2] : (cs[h2-1]+cs[h2])/2, z = zoneOf(pct(cur));
+    HEALTH = {cur, pct:pct(cur), zone:z[1], c:z[2], nom};
+    $("sum_health").innerHTML = `<b style="color:var(${z[2]})">● ${z[1]}</b> ~${Math.round(cur)} Ah`;
+    const advice = {dobrá:"Baterie je v pořádku, nic není potřeba.", opotřebovaná:"Baterie stárne, ale slouží. Hlídej, jestli vydrží každou noc až do dalšího rána; vybíjení pod 12,0 V jí zkracuje život.", slabá:"Kapacita je znatelně menší – v zimě nemusí vydržet do dalšího rána. Je čas plánovat náhradu.", vyměnit:"Baterie má méně než polovinu kapacity – doporučuju výměnu."}[z[1]];
+    $("hverdict").innerHTML = `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;color:var(${z[2]})">● ${z[1][0].toUpperCase()+z[1].slice(1)}</span>
+      <span style="font-size:18px;font-weight:600">~${Math.round(cur)} Ah <span class="sub" style="font-size:14px">= ${pct(cur)} % z ${nom} Ah · medián ${tests.length} testů</span></span></div>${deepTxt(d, days)}`;
+    $("hadv").innerHTML = `<div style="margin-top:8px">${advice}</div>`;
+  } else {
+    HEALTH = null;
+    $("sum_health").innerHTML = `zatím neznámo · testy ${tests.length}/2`;
+    $("hverdict").innerHTML = `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;color:var(--text2)">● Zatím neznámo</span>
+      <span style="font-size:15px" class="sub">úspěšné testy kapacity: ${tests.length} z potřebných 2</span></div>${deepTxt(d, days)}`;
+    $("hadv").innerHTML = `<div style="margin-top:8px">Kapacitu určí až <b>testy z ampérhodin</b> (s odběrem z Victronu): po plném nabití, nebo dvoubodově večer → ráno (v zimě, kdy baterie plná nebývá). Počítají se jen dny po opravě spojů${fixTxt?` (${fixTxt})`:""} – dřív špatný spoj zkresloval napětí. Test se dělá každé ráno sám.</div>`;
+  }
+  $("hadv").innerHTML += `<div style="margin-top:10px"><b>Testy kapacity</b>${allT.length ? allT.slice(-8).reverse().map(tLine).join("") : `<div class="sub">zatím žádný (první ráno po nabití nebo po noci s odběrem)</div>`}</div>`;
+  if(!rows.length){
+    $("c_cap").innerHTML=""; $("hzones").textContent=""; $("hlist").innerHTML=""; return;
+  }
   // graf: medián po týdnech (krátká historie) nebo měsících
   const span = rows[rows.length-1].t - rows[0].t, monthly = span > 120*D;
   const key = q => { const x=new Date(q.t); if(monthly) return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`;
@@ -2238,14 +2244,13 @@ function renderCap(d, days){
     if(i%Math.ceil(pts.length/6)===0||i===pts.length-1) dots += `<text x="${cx}" y="${H-6}" text-anchor="middle">${monthly?new Date(p.k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"}):dayLabel(p.k)}</text>`; });
   svg.insertAdjacentHTML("beforeend", `<path d="${line}" fill="none" stroke="var(--text2)" stroke-width="2" opacity=".5"/>`+dots);
   hover(svg, pts, p=>`${monthly?new Date(p.k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"}):"týden od "+new Date(p.k).toLocaleDateString("cs-CZ")}<br><b>~${Math.round(p.v)} Ah · ${pct(p.v)} % · ${zoneOf(pct(p.v))[1]}</b><br>${p.n} nocí${p.n<3?"<br>málo měření – jen orientační":""}`);
-  $("hzones").innerHTML = `Jeden bod = medián za ${monthly?"měsíc":"týden"} (slabší bod = méně než 3 měření). Pásma podle zbývající kapacity: <b style="color:var(--good)">dobrá</b> ≥ 80 % · <b style="color:var(--warn)">opotřebovaná</b> 60–80 % · <b style="color:var(--serious)">slabá</b> 45–60 % · <b style="color:var(--crit)">vyměnit</b> &lt; 45 %.`;
+  $("hzones").innerHTML = `<b>Orientační odhad z nocí</b> (pokles napětí při odběru) – na verdikt nemá vliv, kolísá příliš (povrchový náboj po nabíjení, odhad odběru bez Victronu). Jeden bod = medián za ${monthly?"měsíc":"týden"} (slabší bod = méně než 3 měření). Pásma podle zbývající kapacity: <b style="color:var(--good)">dobrá</b> ≥ 80 % · <b style="color:var(--warn)">opotřebovaná</b> 60–80 % · <b style="color:var(--serious)">slabá</b> 45–60 % · <b style="color:var(--crit)">vyměnit</b> &lt; 45 %.`;
   // poslední měření slovy
-  const dl = t => new Date(t).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"});
   const items = rows.slice(-10).reverse().map(q=>{ const parts=[];
     if(q.n) parts.push(`naměřená noc: napětí kleslo z ${nf(q.h.vs,2)} na ${nf(q.h.ve,2)} V při odběru ${nf(q.h.ah)} Ah → <b>~${q.n} Ah</b>`);
     if(q.c) parts.push(`<span class="sub">nabíjení (jen orientačně): to ráno ~${q.ch.soc} %, do Float se vešlo ${nf(q.ch.ah)} Ah → ~${q.c} Ah</span>`);
     return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b style="color:var(${zoneOf(pct(q.v))[2]})">●</b> <b>${dl(q.t)}</b> · ${parts.join("<br>&nbsp;&nbsp;&nbsp;")}</div>`; }).join("");
-  $("hlist").innerHTML = items + `<p class="sub" style="margin-top:8px">Verdikt se počítá jen z nocí, kdy baterie zůstala nad 12,1 V – při hlubším vybití už napětí pod zátěží neodpovídá stavu nabití. Odhad z nabíjení je jen orientační: regulátor přejde do Float po době Boostu, ne když je baterie opravdu plná, takže kapacitu podhodnocuje (u starší baterie víc). Jednotlivá měření kolísají klidně o ±15 % (teplota, různý odběr, nepřesné ranní napětí) – proto rozhoduje medián, ne jedna noc. Zimní hodnoty bývají nižší kvůli chladu; skutečný úbytek kapacity poznáš srovnáním stejné roční doby. Upozornění přijde samo, když se baterie znatelně zhorší.</p>`;
+  $("hlist").innerHTML = items + `<p class="sub" style="margin-top:8px">Noční odhad se počítá jen z nocí, kdy baterie zůstala nad 12,1 V – při hlubším vybití už napětí pod zátěží neodpovídá stavu nabití. Odhad z nabíjení je jen orientační: regulátor přejde do Float po době Boostu, ne když je baterie opravdu plná, takže kapacitu podhodnocuje (u starší baterie víc). Jednotlivá měření kolísají klidně o ±15 % (teplota, různý odběr, nepřesné ranní napětí) – proto rozhoduje medián, ne jedna noc. Zimní hodnoty bývají nižší kvůli chladu; skutečný úbytek kapacity poznáš srovnáním stejné roční doby. Upozornění přijde samo, když se baterie znatelně zhorší.</p>`;
 }
 function dotChart(el, dd, key, color, o){
   const p=dd.filter(q=>q[key]!=null); if(!p.length) return empty(el,"Zatím žádné celé dny.");

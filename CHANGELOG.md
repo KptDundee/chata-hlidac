@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.89 – 17. 10. 2026
+- **Oprava spojů (pojistka) 14. 10.** – nové nastavení `oprava_spoju = 2026-10-14 18:00`: starší data se neberou pro **kontrolu kabelů** (odpor, úbytek), **přechody do Float** (špatný spoj mohl regulátor přepnout do Float dřív, než byla baterie plná – nepočítají se jako „plná“ pro # ani test kapacity) a **testy kapacity**.
+- **Zdraví baterie – verdikt jen z testů kapacity z ampérhodin** (s odběrem z Victronu, ne odhad), od 2 úspěšných testů medián; do té doby „Zatím neznámo“. Noční odhad z poklesu napětí (kolísal mezi ~20 a ~125 Ah) zůstává jen jako orientační graf a na verdikt nemá vliv.
+- **Nový dvoubodový test kapacity** (pro zimu, kdy baterie do plna nedojde): večer 2 h po západu a ráno před sluncem nabití z klidového napětí, mezi tím spočítané Ah; kapacita = Ah ÷ rozdíl nabití (aspoň 12 Ah a 12 %). Méně přesný než test od plného nabití – rozhoduje medián. Seznam testů (i neúspěšných s důvodem) v okně Zdraví baterie.
+
 ## 3.88 – 17. 10. 2026
 - Detail solární baterie: v tabulkách **Dnes / Včera** řádek **Nejnižší / nejvyšší nabití #** (nad % regulátoru, které je teď označené „(regulátor)“); v **Nejnižší stav za období** i nejnižší # s datem (# se počítá od poloviny října – v nadpisu „# od …“). Tabulka po dnech má sloupec **Min #**. Hlídač ukládá i nejvyšší # dne (`hq_max`), dopočte se z bodů za posledních 14 dní.
 
