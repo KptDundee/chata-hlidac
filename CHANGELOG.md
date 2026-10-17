@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.94 – 17. 10. 2026
+- Dlaždice „Zítra“ přejmenována na **„Zítra a počasí“**.
+
 ## 3.93 – 17. 10. 2026
 - Zdraví baterie: do 5 testů kapacity je verdikt označený **„Předběžné“** s rozpětím (test od Floatu kapacitu spíš podhodnotí) – o výměně rozhodovat až po týdnu testů.
 

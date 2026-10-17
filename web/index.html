@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.93", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.94", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1238,7 +1238,7 @@ function tileNight(d, h){
   return {...t, cls:"na", v:"–", st:"Předpověď dnes večer", a:""};
 }
 function tileTomorrow(d, h){
-  const t = {k:"wx", icon:"☀️", label:"Zítra"};
+  const t = {k:"wx", icon:"☀️", label:"Zítra a počasí"};
   const w = d.wxo; if(!w || !w.preds) return {...t, cls:"na", v:"–", st:"Bez předpovědi", a:""};
   const tom = new Date(); tom.setDate(tom.getDate()+1); const tk = tom.toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
   const p = w.preds.find(x=>x.d===tk) || w.preds[1]; if(!p) return {...t, cls:"na", v:"–", st:"Bez předpovědi", a:""};
