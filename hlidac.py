@@ -1078,12 +1078,8 @@ def eff_cap(data, cfg):
     if len(qc) >= 2:                       # testy kapacity z Ah (plné nabití → noc → ráno) mají přednost
         m = qc[len(qc) // 2] if len(qc) % 2 else (qc[len(qc) // 2 - 1] + qc[len(qc) // 2]) / 2
         return max(40, min(300, m))
-    v = sorted(d["h"]["cap"] for k, d in sorted(data.get("days", {}).items())[-30:]
-               if d.get("h") and d["h"].get("cap") and d["h"].get("ve", 0) >= 12.10)[-14:]
-    if len(v) < 5:
-        return nom
-    v.sort()
-    return max(40, min(nom, v[len(v) // 2]))
+    # noční odhad z poklesu napětí (d["h"]) se nepoužívá – kolísal mezi ~20 a ~125 Ah (3.90); do 2 testů štítek
+    return nom
 
 
 def health_baseline(data):
@@ -2544,7 +2540,7 @@ def hash_soc(data, st, now, cfg):
     ts = now.timestamp()
     kind = "full" if full_t and ts - full_t <= 3 * 86400 else "best"
     nqc = sum(1 for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok"))
-    capsrc = "testy z Ah" if nqc >= 2 else "zdraví baterie" if cap != (cfg["kapacita_Ah"] or 200) else "štítek"
+    capsrc = "testy z Ah" if cap != (cfg["kapacita_Ah"] or 200) else "štítek – zatím bez 2 testů"
     data["hq"] = {"capsrc": capsrc, "nqc": nqc, "ah": round(last["hq"], 1), "cap": round(cap), "kind": kind,
                   "ref_t": int(full_t if kind == "full" else last["t"]), "pct": round(max(0, 100 + last["hq"] / cap * 100)),
                   "full_t": int(full_t) if full_t else None, "fl_since": int(fl_since) if fl_since else None}

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.90 – 17. 10. 2026
+- **Oprava # (ráno ~0 #):** kapacita pro # a předpovědi se brala z nočního odhadu z poklesu napětí (ten kolísal až k ~20 Ah) – s tak malou kapacitou vycházelo ráno skoro 0 #, i když baterie prázdná nebyla. Noční odhad se už nepoužívá: do 2 úspěšných testů kapacity se počítá se štítkem (200 Ah), pak s mediánem testů. Zdroj kapacity je u grafu Nabití #.
+
 ## 3.89 – 17. 10. 2026
 - **Oprava spojů (pojistka) 14. 10.** – nové nastavení `oprava_spoju = 2026-10-14 18:00`: starší data se neberou pro **kontrolu kabelů** (odpor, úbytek), **přechody do Float** (špatný spoj mohl regulátor přepnout do Float dřív, než byla baterie plná – nepočítají se jako „plná“ pro # ani test kapacity) a **testy kapacity**.
 - **Zdraví baterie – verdikt jen z testů kapacity z ampérhodin** (s odběrem z Victronu, ne odhad), od 2 úspěšných testů medián; do té doby „Zatím neznámo“. Noční odhad z poklesu napětí (kolísal mezi ~20 a ~125 Ah) zůstává jen jako orientační graf a na verdikt nemá vliv.
