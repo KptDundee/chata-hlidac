@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.94", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.95", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -320,7 +320,6 @@ details.sec>.in{margin-top:8px}
   <section class="charts">
     <div class="card chart"><h2>Napětí baterie</h2><div class="cs" id="vlim">V · čárkovaně limity upozornění</div><div id="c_v"></div></div>
     <div class="card chart"><h2>Výkon panelů</h2><div class="cs">W · pozadí: <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--warn);opacity:.5;vertical-align:-1px"></i> Boost (nabíjí)</span> <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--good);opacity:.5;vertical-align:-1px"></i> Float (nabito – panely škrtí)</span></div><div id="c_pv"></div></div>
-    <div class="card chart hide unused" id="c_ac_card"><h2>Odběr z měniče</h2><div class="cs">W · průměr za 10 min (lednice, nabíječky…)</div><div id="c_ac"></div></div>
     <div class="card chart" id="prodCard"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 id="prodh">Výroba po dnech</h2>
       <div class="seg" id="prodseg" style="font-size:13px"><button data-m="d" aria-pressed="true">Dny</button><button data-m="m" aria-pressed="false">Měsíce</button><button data-m="y" aria-pressed="false">Roky</button></div></div>
       <div class="cs" id="prodcs">kWh · posledních 30 dní</div><div id="c_day"></div></div>
@@ -624,9 +623,7 @@ function render(){
   const win = pts.filter(p=>p.t>=from);
   lineChart($("c_v"), win, "bat_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
   lineChart($("c_pv"), win, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,modes:true});
-  const hasAc = pts.some(p=>p.ac_w!=null);
-  $("c_ac_card").classList.toggle("hide", !hasAc);
-  if(hasAc) lineChart($("c_ac"), win, "ac_w", css("--s1"), {unit:"W",dec:0,zero:true,area:true});
+
   const inv = d.inverter, fresh = inv && Date.now()/1000 - inv.t < 1800;
   $("load").classList.toggle("hide", !inv);
   if(inv){

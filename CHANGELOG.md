@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.95 – 17. 10. 2026
+- Smazán nepoužitý graf „Odběr z měniče“ (Victron, VA) – ukazoval totéž co zásuvka za měničem; napětí z Victronu zůstává v grafu napětí a v úbytku na kabelech, alarmy měniče chodí jako upozornění.
+
 ## 3.94 – 17. 10. 2026
 - Dlaždice „Zítra“ přejmenována na **„Zítra a počasí“**.
 
