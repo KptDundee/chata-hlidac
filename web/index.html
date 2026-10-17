@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.91", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.92", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2200,7 +2200,7 @@ function renderCap(d, days){
   const now = Date.now(), D = 864e5;
   const dl = t => new Date(t).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"});
   const tLine = x => { const q=x.q, two=q.m==="2b";
-    const how = two ? `večer ${nf(q.ve,2)} V (~${q.soce} %) → ráno ${nf(q.v,2)} V (~${q.soc} %), mezi tím ${nf(q.ah,1)} Ah` : `od plného nabití ${nf(q.ah,1)} Ah, ráno ${nf(q.v,2)} V (~${q.soc} %)`;
+    const how = two ? `večer ${nf(q.ve,2)} V (~${q.soce} %) → ráno ${nf(q.v,2)} V (~${q.soc} %), mezi tím ${nf(q.ah,1)} Ah` : `od Float${q.tf?` (${dTxt(dkey(q.tf))} ${hmT(q.tf)})`:""} ubylo ${nf(q.ah,1)} Ah, ráno ${nf(q.v,2)} V (~${q.soc} %)`;
     return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${dl(x.k)}</b> · <span class="sub">${two?"dvoubodový":"od plného nabití"}</span><br>${q.ah!=null?how:""}${q.ok?` → <b>~${q.cap} Ah</b>`:`${q.ah!=null?" → ":""}<span class="sub">nepoužito: ${q.why||"nevyšel"}</span>`}</div>`; };
   const fixTxt = FIX ? new Date(FIX).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}) : "";
   if(tests.length >= 2){
@@ -2217,7 +2217,7 @@ function renderCap(d, days){
     $("sum_health").innerHTML = `zatím neznámo · testy ${tests.length}/2`;
     $("hverdict").innerHTML = `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;color:var(--text2)">● Zatím neznámo</span>
       <span style="font-size:15px" class="sub">úspěšné testy kapacity: ${tests.length} z potřebných 2</span></div>${deepTxt(d, days)}`;
-    $("hadv").innerHTML = `<div style="margin-top:8px">Kapacitu určí až <b>testy z ampérhodin</b> (s odběrem z Victronu): po plném nabití, nebo dvoubodově večer → ráno (v zimě, kdy baterie plná nebývá). Počítají se jen dny po opravě spojů${fixTxt?` (${fixTxt})`:""} – dřív špatný spoj zkresloval napětí. Test se dělá každé ráno sám.</div>`;
+    $("hadv").innerHTML = `<div style="margin-top:8px">Kapacitu určí až <b>testy z ampérhodin</b> (s odběrem měniče ze zásuvky 220 V): po plném nabití, nebo dvoubodově večer → ráno (v zimě, kdy baterie plná nebývá). Počítají se jen dny po opravě spojů${fixTxt?` (${fixTxt})`:""} – dřív špatný spoj zkresloval napětí. Test se dělá každé ráno sám.</div>`;
   }
   $("hadv").innerHTML += `<div style="margin-top:10px"><b>Testy kapacity</b>${allT.length ? allT.slice(-8).reverse().map(tLine).join("") : `<div class="sub">zatím žádný (první ráno po nabití nebo po noci s odběrem)</div>`}</div>`;
   if(!rows.length){

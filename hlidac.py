@@ -2604,53 +2604,63 @@ def hash_alert(data, st, now, topic, cfg):
 
 
 def capacity_check(data, st, now, cfg):
-    """Jednou denně (hodinu po východu) test kapacity – jen z dat po opravě spojů a s odběrem z Victronu (ne odhad).
-    1) od plného nabití: baterie byla plná (Float) během posledních 30 h, od té doby odebráno ≥ 20 Ah;
-       kapacita = odebrané Ah ÷ (100 % − nabití ráno).
-    2) dvoubodový (když 1 nejde – v zimě baterie často plná nebude): večer (2 h po západu, ustálené napětí)
-       a ráno před sluncem nabití z napětí, mezi nimi spočítané Ah; kapacita = Ah ÷ rozdíl nabití. Méně přesný.
+    """Testy kapacity pro každé ráno po opravě spojů, pro které máme body (14 dní) – přepočítá se při každém běhu
+    (dny bez dat se nemění). Jen s odběrem měniče (zásuvka 220 V za měničem) aspoň v 80 % bodů.
+    1) od plného nabití: předchozí přechod do Float (≤ 30 h před východem) → ráno; kapacita = Ah ÷ (100 % − nabití ráno).
+    2) dvoubodový (když 1 nejde – v zimě baterie často plná nebude): večer 2–3 h po západu a ráno před sluncem
+       nabití z klidového napětí, mezi tím spočítané Ah; kapacita = Ah ÷ rozdíl nabití. Méně přesný.
     Nabití z napětí: AGM klidové napětí, opraveno o pokles odběrem (~10 mV/A). Výsledek days[k]["qc"]
     (m = "full" / "2b"); eff_cap bere medián úspěšných testů."""
-    rise, _ = sun_times(cfg["sirka"], cfg["delka"], now.date())
-    if not rise or now < rise + timedelta(hours=1):
-        return
-    k = now.strftime("%Y-%m-%d")
-    day = data["days"].setdefault(k, {})
-    if "m" in (day.get("qc") or {}):                # hotovo (test starší verze bez „m“ se dnes zopakuje)
-        return
     fts = fix_ts(cfg)
     idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
     pts = [p for p in data.get("points", []) if p.get("q") is not None and p.get("bat_v")]
+    if not pts:
+        return
+    # začátky Float (po opravě spojů)
+    fl, prev = [], None
+    for p in data.get("points", []):
+        s_ = p.get("status")
+        if s_ == 1 and prev != 1 and p["t"] >= fts:
+            fl.append(p["t"])
+        if s_ is not None:
+            prev = s_
 
     def rest(p):                                    # klidové napětí a nabití z bodu
         i_load = ((p.get("mw") or 0) / 0.88 + idle) / p["bat_v"]
         v = p["bat_v"] + 0.01 * i_load
         return round(v, 2), ocv_soc(v)
 
-    def covered(a, b):                              # odběr z Victronu (ne odhad) aspoň v 80 % bodů
+    def covered(a, b):                              # známý odběr měniče aspoň v 80 % bodů
         w = [p for p in pts if a <= p["t"] <= b]
         return len(w) >= 6 and sum(1 for p in w if p.get("mw") is not None) >= 0.8 * len(w)
 
-    mor = [p for p in pts if rise.timestamp() - 2 * 3600 <= p["t"] <= rise.timestamp() + 900
-           and (p.get("pv_w") or 0) < 5 and (p.get("mw") or 0) < 120 and not p.get("rc")]
-    res = {"ok": False, "m": "full"}
-    full_t = st.get("hq_full_t") or 0
-    why = []
-    if not mor:
-        why.append("chybí ranní měření")
-    else:
+    d0 = datetime.fromtimestamp(max(fts, pts[0]["t"]), TZ).date()
+    date = d0
+    while date <= now.date():
+        rise, _ = sun_times(cfg["sirka"], cfg["delka"], date)
+        date_k = date.strftime("%Y-%m-%d")
+        date = date + timedelta(days=1)
+        if not rise or now < rise + timedelta(hours=1):
+            continue
+        r_ts = rise.timestamp()
+        mor = [p for p in pts if r_ts - 2 * 3600 <= p["t"] <= r_ts + 900
+               and (p.get("pv_w") or 0) < 5 and (p.get("mw") or 0) < 120 and not p.get("rc")]
+        if not mor:
+            continue                                # pro tohle ráno body nemáme (nebo už vypadly) – nechat, co je
         pm = min(mor, key=lambda x: x["bat_v"])
         vm, sm = rest(pm)
+        res, why = {"ok": False, "m": "full"}, []
         # 1) od plného nabití
-        if not full_t or full_t < fts or rise.timestamp() - full_t > 30 * 3600:
-            why.append("baterie nebyla plně nabitá")
+        full_t = max((f for f in fl if f < pm["t"]), default=0)
+        if not full_t or r_ts - full_t > 30 * 3600:
+            why.append("předtím nebyla plně nabitá (Float)")
         elif not covered(full_t, pm["t"]):
-            why.append("chybí odběr z Victronu")
+            why.append("chybí odběr měniče")
         else:
             ah = -pm["q"]
-            res.update({"ah": round(ah, 1), "v": vm, "soc": round(sm), "t": pm["t"]})
+            res.update({"ah": round(ah, 1), "v": vm, "soc": round(sm), "t": pm["t"], "tf": int(full_t)})
             if ah < 20 or sm > 85:
-                why.append("od plného nabití vybitá málo")
+                why.append(f"od plného nabití vybitá málo ({ah:.0f} Ah)")
             else:
                 cap = ah / (1 - sm / 100)
                 res.update({"cap": round(cap), "ok": 40 <= cap <= 300})
@@ -2658,14 +2668,14 @@ def capacity_check(data, st, now, cfg):
                     why.append("nesmyslný výsledek")
         # 2) dvoubodový: večer → ráno
         if not res["ok"]:
-            _, set_y = sun_times(cfg["sirka"], cfg["delka"], now.date() - timedelta(days=1))
+            _, set_y = sun_times(cfg["sirka"], cfg["delka"], rise.date() - timedelta(days=1))
             eve = [p for p in pts if set_y and set_y.timestamp() + 2 * 3600 <= p["t"] <= set_y.timestamp() + 3 * 3600
                    and p["t"] >= fts and (p.get("pv_w") or 0) < 5 and (p.get("mw") or 0) < 120 and not p.get("rc")
                    and p.get("qr") is not None]
             if not eve:
                 why.append("chybí večerní měření")
             elif pm.get("qr") is None or not covered(eve[0]["t"], pm["t"]):
-                why.append("chybí odběr z Victronu přes noc")
+                why.append("chybí odběr měniče přes noc")
             else:
                 pe = eve[0]
                 ve, se = rest(pe)
@@ -2682,11 +2692,13 @@ def capacity_check(data, st, now, cfg):
                         why.append("nesmyslný výsledek")
                 if r2["ok"] or "ah" not in res:
                     res = r2
-    if not res["ok"]:
-        res["why"] = " · ".join(why) or "nevyšel"
-    res.setdefault("t", int(now.timestamp()))
-    day["qc"] = res
-    print("Test kapacity:", res)
+        if not res["ok"]:
+            res["why"] = " · ".join(why) or "nevyšel"
+        res.setdefault("t", int(pm["t"]))
+        day = data["days"].setdefault(date_k, {})
+        if day.get("qc") != res:
+            day["qc"] = res
+            print("Test kapacity", date_k, res)
 
 
 def ecoflow_reminder(data, st, now, topic):

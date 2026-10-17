@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.92 – 17. 10. 2026
+- **Testy kapacity pro každé ráno po opravě spojů** (ne jen dnešní): hlídač při každém běhu projde všechna rána, pro která má body (14 dní) – např. Float 15. 10. → ráno 16. 10. a Float 16. 10. → ráno 17. 10. Oprava chyby: dnešní test bral jako „předchozí plné nabití“ až dnešní odpolední Float (po ránu) a nevyšel. Odběr se bere ze zásuvky 220 V za měničem (ne z Victronu). V seznamu testů je i čas Floatu, od kterého se počítalo.
+
 ## 3.91 – 17. 10. 2026
 - **Nabití 1446 %** na dlaždici Solární baterie: regulátor (Solar Guardian) poslal nesmyslnou hodnotu. Nabití % mimo 0–100 se teď zahodí (při čtení, při doplňování historie i z už uložených bodů a dnů) a web ho neukáže („–“).
 
