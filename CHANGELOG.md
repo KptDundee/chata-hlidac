@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.88 – 17. 10. 2026
+- Detail solární baterie: v tabulkách **Dnes / Včera** řádek **Nejnižší / nejvyšší nabití #** (nad % regulátoru, které je teď označené „(regulátor)“); v **Nejnižší stav za období** i nejnižší # s datem (# se počítá od poloviny října – v nadpisu „# od …“). Tabulka po dnech má sloupec **Min #**. Hlídač ukládá i nejvyšší # dne (`hq_max`), dopočte se z bodů za posledních 14 dní.
+
 ## 3.87 – 17. 10. 2026
 - **Oprava výroby „Dnes“:** v 5 ráno ukazovala 0,89 kWh, i když ještě nesvítilo. Denní počítadlo regulátoru se nenuluje o půlnoci, takže po půlnoci ještě hlásí starou hodnotu a hlídač ji připsal k novému dni. Teď: před východem slunce je výroba 0; potom se počítá od poslední hodnoty před východem (a když se počítadlo vynuluje, od nuly). Stejně se znovu přepočítá celá historie výroby ze Solar Guardianu (dny po slunečném dni mohly mít výrobu přičtenou z předchozího dne).
 

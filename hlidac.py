@@ -2513,14 +2513,16 @@ def hash_soc(data, st, now, cfg):
     full_t = ftimes[-1] if ftimes else 0
     st["hq_full_t"] = full_t
     cap = eff_cap(data, cfg)
-    # nejnižší # každého dne (přepočet z bodů; body se drží 14 dní)
-    mins = {}
+    # nejnižší / nejvyšší # každého dne (přepočet z bodů; body se drží 14 dní)
+    mins, maxs = {}, {}
     for p in pts:
         k_ = datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d")
         v_ = round(max(0, 100 + p["hq"] / cap * 100))
         mins[k_] = min(mins.get(k_, 999), v_)
+        maxs[k_] = max(maxs.get(k_, -1), v_)
     for k_, v_ in mins.items():
         data["days"].setdefault(k_, {})["hq_min"] = v_
+        data["days"][k_]["hq_max"] = maxs[k_]
     last = pts[-1]
     ts = now.timestamp()
     kind = "full" if full_t and ts - full_t <= 3 * 86400 else "best"

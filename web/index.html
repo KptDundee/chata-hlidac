@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.87", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.88", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -330,7 +330,7 @@ details.sec>.in{margin-top:8px}
   <details class="sec" id="s_log"><summary><span class="st">📋 Deník</span><span class="ss" id="logsum"></span></summary><div class="in"><div class="card" id="logbody" style="font-size:14px;line-height:1.5"></div></div></details>
 
   <details class="sec" id="s_tbl"><summary><span class="st">📅 Tabulka po dnech</span><span class="ss" id="sum_tbl"></span></summary><div class="in"><div class="card">
-    <table><thead><tr><th>Den</th><th>Výroba kWh</th><th>Min V</th><th>Max V</th><th>Min SOC %</th></tr></thead><tbody id="tbl"></tbody></table>
+    <table><thead><tr><th>Den</th><th>Výroba kWh</th><th>Min V</th><th>Max V</th><th>Min #</th><th>Min SOC %</th></tr></thead><tbody id="tbl"></tbody></table>
   </div></div></details>
 
   </div>
@@ -658,7 +658,7 @@ function render(){
   try{ renderWire(d); }catch(e){ console.error(e); }
   try{ renderHome(d); }catch(e){ console.error("home", e); }
   dotChart($("c_min"), dd, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
-  $("tbl").innerHTML = days.slice().reverse().slice(0,60).map(k=>{const x=d.days[k];return `<tr><td>${new Date(k).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}</td><td>${nf(x.solar_kwh,2)}</td><td>${nf(x.min_v,2)}</td><td>${nf(x.max_v,2)}</td><td>${x.soc_min!=null&&x.soc_min<999?nf(x.soc_min):"–"}</td></tr>`}).join("") || `<tr><td colspan="5">Zatím žádné dny</td></tr>`;
+  $("tbl").innerHTML = days.slice().reverse().slice(0,60).map(k=>{const x=d.days[k];return `<tr><td>${new Date(k).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}</td><td>${nf(x.solar_kwh,2)}</td><td>${nf(x.min_v,2)}</td><td>${nf(x.max_v,2)}</td><td>${x.hq_min!=null?nf(x.hq_min):"–"}</td><td>${x.soc_min!=null&&x.soc_min<999?nf(x.soc_min):"–"}</td></tr>`}).join("") || `<tr><td colspan="6">Zatím žádné dny</td></tr>`;
 }
 
 /* ---------- grafy (čisté SVG) ---------- */
@@ -1831,7 +1831,8 @@ function detBat(body){
   const mode = {0:"nenabíjí",1:"Float (udržovací)",2:"Boost (nabíjí)",3:"vyrovnávací"}[h.status] || "–";
   const td = h.td || {}, yd = (d.days||{})[dkey(h.now - 86400)] || {};
   const sgn = (x, dec=0) => `${x>0?"+":x<0?"−":""}${nf(Math.abs(x),dec)}`;
-  const V = x => x!=null ? `${nf(x,2)} V` : "–", P = x => x!=null && x<999 && x>=0 ? `${nf(x)} %` : "–";
+  const V = x => x!=null ? `${nf(x,2)} V` : "–", P = x => x!=null && x<999 && x>=0 ? `${nf(x)} %` : "–", H = x => x!=null && x<999 && x>=0 ? `<b>${nf(x)} #</b>` : "–";
+  const hq0 = Object.keys(d.days||{}).sort().find(k => (d.days[k]||{}).hq_min!=null);     // od kdy se # počítá
   const ext = (key, n, fn, f) => { const e = dayExt(key, n, fn); return e ? `${f(e.v)} <span class="sub">${dTxt(e.k)}</span>` : "–"; };
   const odb = h.loadB==null ? "–" : h.menicOff ? "0 W (měnič vypnutý)" : `${nf(h.loadB)} W <span class="sub">(měnič ${nf(h.inv.mw)} W + ztráty)</span>`;
   const sec = (t, rows) => `<div class="card"><h2 style="margin:0 0 4px">${t}</h2>${rows.join("")}</div>`;
@@ -1864,19 +1865,18 @@ function detBat(body){
       rowI("Výroba", `${nf(h.prod,2)} kWh`),
       rowI("Odběr ze solární baterie", h.dcWh!=null ? kWh(h.dcWh) : "–"),
       rowI(`Nejnižší / nejvyšší napětí${td.mn==="r"?" <span class=\"sub\">(noc na River)</span>":""}`, `${V(td.min_v)} / ${V(td.max_v)}`),
-      rowI("Nejnižší / nejvyšší nabití", `${P(td.soc_min)} / ${P(td.soc_max)}`),
+      rowI("Nejnižší / nejvyšší nabití #", `${H(td.hq_min)} / ${H(td.hq_max)}`),
+      rowI("Nejnižší / nejvyšší nabití % <span class=\"sub\">(regulátor)</span>", `${P(td.soc_min)} / ${P(td.soc_max)}`),
     ])
     + sec("Včera", [
       rowI("Výroba", yd.solar_kwh!=null ? `${nf(yd.solar_kwh,2)} kWh` : "–"),
       rowI(`Nejnižší / nejvyšší napětí${yd.mn==="r"?" <span class=\"sub\">(noc na River)</span>":""}`, `${V(yd.min_v)} / ${V(yd.max_v)}`),
-      rowI("Nejnižší / nejvyšší nabití", `${P(yd.soc_min)} / ${P(yd.soc_max)}`),
+      rowI("Nejnižší / nejvyšší nabití #", `${H(yd.hq_min)} / ${H(yd.hq_max)}`),
+      rowI("Nejnižší / nejvyšší nabití % <span class=\"sub\">(regulátor)</span>", `${P(yd.soc_min)} / ${P(yd.soc_max)}`),
     ])
-    + sec(`Nejnižší stav za období <span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500">napětí jen z nocí se zátěží</span>`, [
-      rowI("7 dní", `${ext("min_v",7,"min",V)} · ${ext("soc_min",7,"min",P)}`),
-      rowI("30 dní", `${ext("min_v",30,"min",V)} · ${ext("soc_min",30,"min",P)}`),
-      rowI("Rok", `${ext("min_v",365,"min",V)} · ${ext("soc_min",365,"min",P)}`),
-      rowI("Celá historie", `${ext("min_v",36500,"min",V)} · ${ext("soc_min",36500,"min",P)}`),
-    ])
+    + sec(`Nejnižší stav za období <span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500">napětí jen z nocí se zátěží${hq0 ? ` · # od ${dayLabel(hq0)}` : ""}</span>`,
+      [["7 dní",7],["30 dní",30],["Rok",365],["Celá historie",36500]].map(([t,n]) =>
+        rowI(t, `${ext("min_v",n,"min",V)}${hq0 ? ` · ${ext("hq_min",n,"min",H)}` : ""} · ${ext("soc_min",n,"min",P)}`)))
     + `<div class="card"><h2 style="margin:0 0 6px">Výklad</h2>
         <div class="advice">${s.a}</div>
         ${$("invsync").classList.contains("hide") ? "" : `<div class="sub" style="margin-top:8px">${$("invsync").innerHTML}</div>`}
