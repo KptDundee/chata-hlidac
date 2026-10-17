@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.95", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.96", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1961,12 +1961,38 @@ function detToday(body){
     <div class="sub" style="font-size:12.5px;margin-top:2px">${L.bal==null ? "Chybí data ze zásuvky za měničem." : dayPhase(d).ph!=="evening" ? `Zatím baterii od dnešní půlnoci ${L.bal>=0?"přibylo":"ubylo"} – konečný výsledek bude dnes po západu slunce (dnešní večer ještě spotřebuje).` : L.bal>=0 ? "Baterii dnes energie přibylo – výroba pokryla spotřebu i ztráty." : "Baterii dnes energie ubylo – výroba nepokryla spotřebu se ztrátami."}${L.river>0.02 ? ` Z River dnes odebráno ${n2(L.river)} kWh (do bilance solární baterie se nepočítá).` : ""} Spotřeba je od dnešní půlnoci; ztráty jsou odhad (vlastní spotřebu měniče lze upravit v Nastavení).</div>
   </div>` + segHtml()
   + chartCard("dt_prod", "Výroba", "kWh za hodinu (Dnes) / po dnech")
+  + chartCard("dt_pc", "Výroba vs. spotřeba ze solární baterie", `kWh za ${detLong()?"měsíc":"den"} · <span style="color:var(--s2)">■</span> výroba (regulátor do baterie) · <span style="color:var(--s1)">■</span> odběr z baterie (zásuvka za měničem + ztráty měniče) · výroba pod odběrem = baterie ten den ubývala · ve Float regulátor výrobu přiškrtí, panely by daly víc`)
   + chartCard("dt_cons", "Odběr za měničem", "W · lednice, světla, kamery, wifi, nabíjení River"));
   const hrs = detHours(), pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), D = d.days || {};
   if(DETR==="d") barChart($("dt_prod"), hourly(pts,"pv_w"), "v", css("--s2"), {unit:"kWh",dec:2,label:x=>x+":00",tip:q=>`${q.k}:00–${q.k+1}:00<br><b>${nf(q.v,2)} kWh</b>`});
   else if(detLong()) monthlyBars($("dt_prod"), hrs);
   else barChart($("dt_prod"), Object.keys(D).sort().slice(-Math.round(hrs/24)-1).map(k=>({k, v:D[k].solar_kwh})), "v", css("--s2"), {unit:"kWh",dec:2});
   lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
+  prodVsUse($("dt_pc"), Math.max(hrs, 14*24));
+}
+/* výroba vs. odběr ze solární baterie po dnech (nebo měsících) – stejná strana baterie: regulátor → baterie → měnič */
+function prodVsUse(el, hrs){
+  const D = DATA.days || {}, U = useModel(DATA), idle = DATA.cfg?.menic_vlastni_W ?? 6, long = hrs > 62*24;
+  const from = dkey(Date.now()/1000 - hrs*3600), agg = {};
+  for(const k of Object.keys(D).sort()){ if(k < from) continue; const x = D[k], ac = (x.tp||{})[U.mip];
+    if(x.solar_kwh==null && ac==null) continue;
+    const g = long ? k.slice(0,7) : k, o = agg[g] ||= {k:g, p:0, u:0, nu:0};
+    o.p += x.solar_kwh || 0;
+    if(ac!=null){ o.u += ac/0.88/1000 + (ac > 5 ? idle*24/1000 : 0); o.nu++; } }
+  const rows = Object.values(agg).map(o=>({...o, u: o.nu ? o.u : null}));
+  if(!rows.length) return empty(el, "Zatím žádné celé dny.");
+  const hi = Math.max(...rows.map(r=>Math.max(r.p, r.u||0)))*1.15 || 1, {svg,y} = frame(el, 0, hi, hi<3?1:0);
+  const n = Math.max(rows.length, 7), bw = (W-M.l-M.r)/n, w = Math.max(1.5, Math.min(12, bw/2-2));
+  const bar = (x, v, c) => { if(!v || v<=0) return ""; const top=y(v), h=y(0)-top, r=Math.min(3,w/2,h);
+    return `<path d="M${x},${y(0)}V${top+r}Q${x},${top} ${x+r},${top}H${x+w-r}Q${x+w},${top} ${x+w},${top+r}V${y(0)}Z" fill="${c}"/>`; };
+  let s = "";
+  rows.forEach((q,i)=>{ const cx = M.l+bw*i+bw/2;
+    s += bar(cx-w-1, q.p, css("--s2")) + bar(cx+1, q.u, css("--s1"));
+    s += `<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    if(i%Math.ceil(rows.length/6)===0 || i===rows.length-1) s += `<text x="${cx}" y="${H-6}" text-anchor="middle">${long ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"}) : dayLabel(q.k)}</text>`; });
+  svg.insertAdjacentHTML("beforeend", s);
+  hover(svg, rows, q=>{ const b = q.u!=null ? q.p - q.u : null;
+    return `${long ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"}) : dTxt(q.k)}<br>výroba <b>${nf(q.p,2)} kWh</b><br>odběr z baterie <b>${q.u!=null?nf(q.u,2)+" kWh":"–"}</b>${b!=null?`<br><span style="color:var(${b>=0?"--good":"--crit"})">${b>=0?"přebytek":"chybělo"} ${nf(Math.abs(b),2)} kWh</span>`:""}`; });
 }
 /* ---------- rozbor nocí: proč je ranní minimum nižší (posledních 5 nocí vs předtím) ---------- */
 function nightRows(d){
