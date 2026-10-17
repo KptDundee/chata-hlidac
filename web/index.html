@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.96", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.97", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1942,7 +1942,11 @@ function detToday(body){
   const n2 = x => x==null ? "–" : nf(x,2);
   const line = (k, v, o={}) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:${o.sum?"7px 0 9px":"4px 0"};${o.sum?"border-top:1px solid var(--line);font-weight:700;":""}${o.sub?"color:var(--text2);font-size:13.5px;padding-left:12px;":""}"><span>${k}</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap;${o.col?`color:var(${o.col})`:""}">${v}</span></div>`;
   const hd = t => `<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:12px 0 2px">${t}</div>`;
-  body.insertAdjacentHTML("beforeend", `<div class="card">
+  body.insertAdjacentHTML("beforeend", segHtml()
+  + chartCard("dt_prod", "Výroba", "kWh za hodinu (Dnes) / po dnech")
+  + chartCard("dt_pc", "Výroba vs. spotřeba ze solární baterie", `kWh za ${detLong()?"měsíc":"den"} · <span style="color:var(--s2)">■</span> výroba (regulátor do baterie) · <span style="color:var(--s1)">■</span> odběr z baterie (zásuvka za měničem + ztráty měniče) · výroba pod odběrem = baterie ten den ubývala · ve Float regulátor výrobu přiškrtí, panely by daly víc`)
+  + chartCard("dt_cons", "Odběr za měničem", "W · lednice, světla, kamery, wifi, nabíjení River")
+  + `<div class="card" id="dt_txt">
     ${hd("Výroba")}
     ${line("☀️ Panely vyrobily (podle regulátoru)", `<b>${n2(L.prod)} kWh</b>`)}
     ${line("měsíc · celkem", last.month_kwh!=null ? `${nf(last.month_kwh,1)} · ${nf(last.total_kwh,0)} kWh` : "–", {sub:true})}
@@ -1959,10 +1963,7 @@ function detToday(body){
     ${hd(dayPhase(d).ph==="evening" ? "Bilance dneška" : "Bilance od dnešní půlnoci – dnešek ještě běží")}
     ${line("Výroba − nabíjení − odběr z baterie", L.bal!=null ? `<b>${L.bal>=0?"+":"−"}${n2(Math.abs(L.bal))} kWh</b>` : "–", {sum:true, col: L.bal==null ? null : L.bal>=0 ? "--good" : "--crit"})}
     <div class="sub" style="font-size:12.5px;margin-top:2px">${L.bal==null ? "Chybí data ze zásuvky za měničem." : dayPhase(d).ph!=="evening" ? `Zatím baterii od dnešní půlnoci ${L.bal>=0?"přibylo":"ubylo"} – konečný výsledek bude dnes po západu slunce (dnešní večer ještě spotřebuje).` : L.bal>=0 ? "Baterii dnes energie přibylo – výroba pokryla spotřebu i ztráty." : "Baterii dnes energie ubylo – výroba nepokryla spotřebu se ztrátami."}${L.river>0.02 ? ` Z River dnes odebráno ${n2(L.river)} kWh (do bilance solární baterie se nepočítá).` : ""} Spotřeba je od dnešní půlnoci; ztráty jsou odhad (vlastní spotřebu měniče lze upravit v Nastavení).</div>
-  </div>` + segHtml()
-  + chartCard("dt_prod", "Výroba", "kWh za hodinu (Dnes) / po dnech")
-  + chartCard("dt_pc", "Výroba vs. spotřeba ze solární baterie", `kWh za ${detLong()?"měsíc":"den"} · <span style="color:var(--s2)">■</span> výroba (regulátor do baterie) · <span style="color:var(--s1)">■</span> odběr z baterie (zásuvka za měničem + ztráty měniče) · výroba pod odběrem = baterie ten den ubývala · ve Float regulátor výrobu přiškrtí, panely by daly víc`)
-  + chartCard("dt_cons", "Odběr za měničem", "W · lednice, světla, kamery, wifi, nabíjení River"));
+  </div>`);
   const hrs = detHours(), pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), D = d.days || {};
   if(DETR==="d") barChart($("dt_prod"), hourly(pts,"pv_w"), "v", css("--s2"), {unit:"kWh",dec:2,label:x=>x+":00",tip:q=>`${q.k}:00–${q.k+1}:00<br><b>${nf(q.v,2)} kWh</b>`});
   else if(detLong()) monthlyBars($("dt_prod"), hrs);
@@ -2153,7 +2154,7 @@ function openDet(k){
   closeDetMove(); DET_K = k;
   $("dett").textContent = c.title ? c.title() : c.t; $("dets").textContent = c.s;
   const body = $("detbody"); body.innerHTML = "";
-  if(c.build){ c.build(body); if(k==="today"){ moveIn(body, "prodCard"); moveIn(body, "s_tbl"); } }
+  if(c.build){ c.build(body); if(k==="today"){ moveIn(body, "prodCard"); const tx = $("dt_txt"); if(tx) body.appendChild(tx); moveIn(body, "s_tbl"); } }
   if(k === "all") body.insertAdjacentHTML("beforeend", `<div class="sub" style="margin-bottom:14px"><span class="unusedtag">NEPOUŽITO</span> = je jen tady, na dlaždicích zatím není.</div>`);
   for(const id of c.ids||[]){
     if(id === "riverInfo"){ body.insertAdjacentHTML("beforeend", `<div class="card" id="riverInfo">${$("rauto").innerHTML || "Automatika nabíjení River je vypnutá v nastavení."}</div>`); continue; }
