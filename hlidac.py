@@ -256,8 +256,29 @@ def night_row(k, ser, data, lat, lon, idle):
     return row
 
 
+def day_yield(vals, rise, base0=None):
+    """Výroba dne z počítadla regulátoru. Regulátor ho nenuluje o půlnoci (ráno ještě ukazuje včerejšek),
+    takže: výroba = hodnota − základ; základ = poslední hodnota před východem slunce (nebo konec předchozího dne);
+    když počítadlo spadne pod základ (vynulování), základ = 0. Před východem výroba 0.
+    vals = [(t, kWh)] seřazené; vrací (kWh, poslední hodnota)."""
+    base, prod, last = base0, 0.0, base0
+    for t, r in vals:
+        if rise is not None and t < rise:
+            base = r
+        else:
+            if base is None:
+                base = 0.0
+            elif r < base - 0.01:
+                base = 0.0
+            prod = max(prod, r - base)
+        last = r
+    return round(prod, 2), last
+
+
 def import_history(token, data, st, now, cfg, budget_s=90):
     """Postupně (po měsících, odzadu) doplní denní výrobu, min/max napětí a noční napětí ze Solar Guardianu."""
+    if not st.get("hist_v8"):              # 3.87: výroba dne až od vynulování počítadla (ne včerejšek po půlnoci) → projít znovu
+        st.update({"hist_v6": False, "hist_v8": True})
     if not st.get("hist_v7"):              # 3.47: min/max dne jen ze vzorků (bez okamžitých propadů regulátoru) → projít znovu
         st.update({"hist_v6": False, "hist_v7": True, "minmax_over": True})
     if not st.get("hist_v6"):              # nová verze importu (+ plná, nejnižší napětí, špička proudu) → projít znovu
@@ -293,17 +314,24 @@ def import_history(token, data, st, now, cfg, budget_s=90):
                     dk = datetime.fromtimestamp(ms / 1000, TZ).strftime("%Y-%m-%d")
                     dd = daily.setdefault(dk, {})
                     if key == "day_kwh":
-                        dd["solar_kwh"] = max(dd.get("solar_kwh", 0), val)
+                        dd.setdefault("dk", []).append((ms / 1000, val))
                     elif key == "bat_v" and val > 5:
                         if val < dd.get("min_v", 99):
                             dd["min_t"] = int(ms / 1000)
                         dd["min_v"] = min(dd.get("min_v", 99), val)
                         dd["max_v"] = max(dd.get("max_v", 0), val)
                     got += 1
+            last_r = None
+            for dk in sorted(daily):
+                dd = daily[dk]
+                if dd.get("dk"):
+                    dt_ = datetime.strptime(dk, "%Y-%m-%d").date()
+                    rs_ = sun_times(cfg["sirka"], cfg["delka"], dt_)[0]
+                    dd["solar_kwh"], last_r = day_yield(sorted(dd["dk"]), rs_.timestamp() if rs_ else None, last_r)
             for dk, dd in daily.items():
                 day = data["days"].setdefault(dk, {})
-                if "solar_kwh" in dd:
-                    day["solar_kwh"] = round(max(day.get("solar_kwh", 0), dd["solar_kwh"]), 2)
+                if "solar_kwh" in dd and dk != now.strftime("%Y-%m-%d"):     # dnešek počítá record() průběžně
+                    day["solar_kwh"] = dd["solar_kwh"]
                 over = st.get("minmax_over") and dk != now.strftime("%Y-%m-%d")
                 if "min_v" in dd:
                     if over or dd["min_v"] < day.get("min_v", 99):
@@ -735,7 +763,7 @@ def save_data(passphrase, data):
     json.dump({"v": 1, "salt": b(salt), "iv": b(iv), "ct": b(ct)}, open(DATA_FILE, "w"))
 
 
-def record(data, v, now):
+def record(data, v, now, cfg=None):
     """Uloží bod historie a denní souhrn."""
     ts = int(now.timestamp())
     p = {"t": ts}
@@ -746,9 +774,23 @@ def record(data, v, now):
     cutoff = ts - KEEP_DETAIL_DAYS * 86400
     data["points"] = [x for x in data["points"] if x["t"] >= cutoff]
     day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
-    # Regulátor denní počítadla v noci nuluje (po setmění) → držet maximum / minimum za kalendářní den
+    # Výroba: počítadlo regulátoru se nenuluje o půlnoci (ráno ukazuje ještě včerejšek) → viz day_yield:
+    # před východem 0, pak hodnota − základ (poslední hodnota před východem; po vynulování 0). dkr = poslední hodnota, dkb = základ
     if v.get("day_kwh") is not None:
-        day["solar_kwh"] = round(max(day.get("solar_kwh", 0), v["day_kwh"]), 2)
+        raw = v["day_kwh"]
+        rise = sun_times(cfg["sirka"], cfg["delka"], now.date())[0] if cfg else None
+        if rise is not None and now < rise:
+            day["solar_kwh"] = 0.0
+            day.pop("dkb", None)
+        else:
+            if "dkb" not in day:
+                prev = data["days"].get((now.date() - timedelta(days=1)).isoformat()) or {}
+                day["dkb"] = day.get("dkr", prev.get("dkr", 0.0))
+                day["solar_kwh"] = 0.0
+            if raw < day["dkb"] - 0.01:
+                day["dkb"] = 0.0
+            day["solar_kwh"] = round(max(day.get("solar_kwh", 0), raw - day["dkb"]), 2)
+        day["dkr"] = raw
     # min / max dne jen z naměřených bodů (po ~10 min) – stejná data jako graf napětí.
     # Vlastní min/max regulátoru chytá i okamžité propady (rozběh lednice…) a nuluje se až po setmění → jen pro informaci
     if v.get("min_v"):
@@ -1244,7 +1286,7 @@ def main():
             st["bf14"] = True
         except Exception as e:
             print("Doplnění bodů:", e)
-        record(data, v, now)
+        record(data, v, now, cfg)
         if inv and now.timestamp() - inv["t"] < 1200:
             pt = data["points"][-1]
             if inv.get("w") is not None:
