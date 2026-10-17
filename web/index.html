@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.90", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.91", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1158,7 +1158,7 @@ function tileSolar(d, h){
   const hqc = d.hq ? (R.stale ? "--muted" : d.hq.pct < 30 ? "--crit" : d.hq.pct < 50 ? "--warn" : "--text") : "";
   const hqv = d.hq ? `<div style="white-space:nowrap;color:var(${hqc})">${nf(d.hq.pct)}<small>#</small></div>` : "";   // nabití # stejně velké jako V, pod ním
   const v = (R.stale ? `<div style="color:var(--muted);white-space:nowrap">${nf(h.bv,2)}<small>V</small></div>` : `<div style="white-space:nowrap">${nf(h.bv,2)}<small>V</small></div>`) + hqv;
-  const soc = h.last.bat_soc;
+  const soc = h.last.bat_soc!=null && h.last.bat_soc>=0 && h.last.bat_soc<=100 ? h.last.bat_soc : null;   // regulátor občas pošle nesmysl (1446 %)
   const odb = h.loadB==null ? "–" : h.menicOff ? "0 W · měnič vyp." : `${nf(h.loadB)} W`;
   return {...t, label:`${t.label}${bang}`, cls: ac ? (h.bv!=null && h.bv < CRIT_V || R.stale ? "bad" : "warn") : "ok",
     v, st: R.stale ? ac : `<span style="color:var(${F.c})">${F.t}</span>`,
@@ -1832,7 +1832,7 @@ function detBat(body){
   const mode = {0:"nenabíjí",1:"Float (udržovací)",2:"Boost (nabíjí)",3:"vyrovnávací"}[h.status] || "–";
   const td = h.td || {}, yd = (d.days||{})[dkey(h.now - 86400)] || {};
   const sgn = (x, dec=0) => `${x>0?"+":x<0?"−":""}${nf(Math.abs(x),dec)}`;
-  const V = x => x!=null ? `${nf(x,2)} V` : "–", P = x => x!=null && x<999 && x>=0 ? `${nf(x)} %` : "–", H = x => x!=null && x<999 && x>=0 ? `<b>${nf(x)} #</b>` : "–";
+  const V = x => x!=null ? `${nf(x,2)} V` : "–", P = x => x!=null && x<=100 && x>=0 ? `${nf(x)} %` : "–", H = x => x!=null && x<999 && x>=0 ? `<b>${nf(x)} #</b>` : "–";
   const hq0 = Object.keys(d.days||{}).sort().find(k => (d.days[k]||{}).hq_min!=null);     // od kdy se # počítá
   const ext = (key, n, fn, f) => { const e = dayExt(key, n, fn); return e ? `${f(e.v)} <span class="sub">${dTxt(e.k)}</span>` : "–"; };
   const odb = h.loadB==null ? "–" : h.menicOff ? "0 W (měnič vypnutý)" : `${nf(h.loadB)} W <span class="sub">(měnič ${nf(h.inv.mw)} W + ztráty)</span>`;

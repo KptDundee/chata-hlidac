@@ -388,7 +388,7 @@ def backfill_points(token, data, now, hours=3):
     ser = {}
     for key in ("bat_v", "bat_a", "pv_w", "status", "bat_soc"):
         for ms, val in history(token, POINTS[key][0], start, end):
-            if val is None:
+            if val is None or key == "bat_soc" and not 0 <= val <= 100:
                 continue
             ser.setdefault(int(ms / 1000) // 60 * 60, {})[key] = round(int(val) if key == "status" else val, 2)
     have = sorted(p["t"] for p in data["points"])
@@ -699,6 +699,9 @@ def read_values(token):
             out[k] = float(i.get("value"))
         except (TypeError, ValueError):
             out[k] = None
+        if k == "bat_soc" and out[k] is not None and not 0 <= out[k] <= 100:
+            print("Regulátor: nesmyslné nabití", out[k], "% – nepoužito")     # 17. 10. 2026 poslal 1446 %
+            out[k] = None
         newest = max(newest, int(i.get("time") or 0))
     out["age_min"] = (time.time() * 1000 - newest) / 60000 if newest else None
     return out
@@ -773,6 +776,23 @@ def save_data(passphrase, data):
     ct = AESGCM(_key(passphrase, salt)).encrypt(iv, json.dumps(data, separators=(",", ":")).encode(), None)
     b = lambda x: base64.b64encode(x).decode()
     json.dump({"v": 1, "salt": b(salt), "iv": b(iv), "ct": b(ct)}, open(DATA_FILE, "w"))
+
+
+def clean_soc(data):
+    """Nabití % od regulátoru mimo 0–100 (17. 10. 2026 přišlo 1446 %) z uložených bodů a dnů vyhodit."""
+    bad = lambda x: x is not None and not 0 <= x <= 100
+    for p in data.get("points", []):
+        if bad(p.get("bat_soc")):
+            p.pop("bat_soc")
+    for k, d in data.get("days", {}).items():
+        if bad(d.get("soc_max")) or bad(d.get("soc_min")) and d.get("soc_min") != 999:
+            vals = [p["bat_soc"] for p in data.get("points", []) if p.get("bat_soc") is not None
+                    and datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d") == k]
+            if vals:
+                d["soc_min"], d["soc_max"] = min(vals), max(vals)
+            else:
+                d.pop("soc_min", None)
+                d.pop("soc_max", None)
 
 
 def record(data, v, now, cfg=None):
@@ -1298,6 +1318,7 @@ def main():
         except Exception as e:
             print("Doplnění bodů:", e)
         record(data, v, now, cfg)
+        clean_soc(data)
         if inv and now.timestamp() - inv["t"] < 1200:
             pt = data["points"][-1]
             if inv.get("w") is not None:

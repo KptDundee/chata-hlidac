@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.91 – 17. 10. 2026
+- **Nabití 1446 %** na dlaždici Solární baterie: regulátor (Solar Guardian) poslal nesmyslnou hodnotu. Nabití % mimo 0–100 se teď zahodí (při čtení, při doplňování historie i z už uložených bodů a dnů) a web ho neukáže („–“).
+
 ## 3.90 – 17. 10. 2026
 - **Oprava # (ráno ~0 #):** kapacita pro # a předpovědi se brala z nočního odhadu z poklesu napětí (ten kolísal až k ~20 Ah) – s tak malou kapacitou vycházelo ráno skoro 0 #, i když baterie prázdná nebyla. Noční odhad se už nepoužívá: do 2 úspěšných testů kapacity se počítá se štítkem (200 Ah), pak s mediánem testů. Zdroj kapacity je u grafu Nabití #.
 
