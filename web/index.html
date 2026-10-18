@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.98", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.99", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2546,13 +2546,13 @@ function openZoom(card){
   let z = $("zoom"); if(!z){ z = document.createElement("div"); z.id = "zoom"; z.className = "hide"; document.body.appendChild(z); }
   const ph = document.createComment("zoom"); card.parentNode.insertBefore(ph, card);
   ZOOM = {card, ph}; z.appendChild(card); z.classList.remove("hide"); hideTip();
-  try{ const r = z.requestFullscreen ? z.requestFullscreen({navigationUI:"hide"}) : null;
-    Promise.resolve(r).then(()=>screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape")).catch(()=>{}); }catch(_){}
+  // bez režimu celé obrazovky prohlížeče (Chrome pak pokaždé ukazuje hlášku „Pokud chcete ukončit…“);
+  // otočit na šířku jde jen tam, kde to prohlížeč dovolí (jinak stačí otočit telefon)
+  try{ screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape").catch(()=>{}); }catch(_){}
 }
 function closeZoom(){
   if(!ZOOM) return; const {card, ph} = ZOOM; ZOOM = null;
   try{ if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); }catch(_){}
-  try{ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }catch(_){}
   if(ph.parentNode) ph.parentNode.replaceChild(card, ph); else card.remove();
   $("zoom").classList.add("hide"); hideTip();
 }
@@ -2561,7 +2561,6 @@ document.addEventListener("click", e=>{
   const card = h.closest(".card.chart"); if(!card) return;
   e.stopPropagation(); if(ZOOM) closeZoom(); else openZoom(card);
 }, true);
-document.addEventListener("fullscreenchange", ()=>{ if(!document.fullscreenElement && ZOOM) closeZoom(); });
 /* Zpět (gesto / tlačítko telefonu): otevřené okno (detail, zásuvka, kabely, nastavení) se zavře místo odchodu z aplikace.
    Každé otevření okna přidá záznam do historie; zavření křížkem ho zase odebere. */
 (()=>{
