@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.00 – 18. 10. 2026
+- Oprava: v grafu přes celou obrazovku se po ťuknutí neukazovala hodnota (bublina byla schovaná pod oknem grafu).
+
 ## 3.99 – 18. 10. 2026
 - Graf přes celou obrazovku bez režimu celé obrazovky Chrome – odpadla otravná hláška „Pokud chcete ukončit režim celé obrazovky…“. Graf dál vyplní celé okno; na šířku otoč telefon.
 
