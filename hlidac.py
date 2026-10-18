@@ -2618,11 +2618,11 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     room = (100 - hq["pct"]) / 100 * cap                                   # kolik se ještě vejde
     idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
     mws = [p["mw"] for p in data.get("points", []) if p.get("mw") is not None and p["t"] >= ts - 3 * 3600]
-    load_a = ((sum(mws) / len(mws) if mws else inv.get("mw") or 0) / 0.88 + idle) / 12.4
+    load_a = ((sum(mws) / len(mws) if mws else inv.get("mw") or 0) / 0.88 + idle) / 12.4 * 1.15   # s rezervou: odběr +15 %
     today = now.strftime("%Y-%m-%d")
     pred = next((p for p in ((data.get("wxo") or {}).get("preds") or []) if p.get("d") == today), None)
     made = (data["days"].get(today) or {}).get("solar_kwh") or 0
-    rem_kwh = max(0.0, (pred["kwh"] if pred else 0) - made)
+    rem_kwh = max(0.0, (pred["kwh"] if pred else 0) - made) * 0.7     # s rezervou: předpověď výroby se často přecení
     import math
     steps, t = [], ts
     while t < end.timestamp():
@@ -2670,7 +2670,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         ntfy(topic, f"⚠️ Dnes ~{te} solární baterie dojde – přepni chatu na River",
              f"Chata jede ze solární baterie ({hq['pct']} #, odběr ~{res['load_w']} W). Podle předpovědi zbývá dnes vyrobit "
              f"~{fmt(rem_kwh, 1)} kWh – nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\n"
-             "Než odjedeš, přepni chatu na River. (Čas je odhad ±1–2 h podle počasí.)", 4, "warning,sunny")
+             "Než odjedeš, přepni chatu na River. Počítáno s rezervou (výroba −30 %, odběr +15 %) – raději zbytečně přepnout, "
+             "než aby přes den došla energie.", 4, "warning,sunny")
         st["do_sent"] = day
 
 
