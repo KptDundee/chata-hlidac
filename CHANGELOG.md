@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.02 – 18. 10. 2026
+- Priority upozornění sjednocené (v ntfy lze každé dát jiný zvuk): **Nejvyšší** = teď jednej, **Vysoká** = důležité, **Výchozí** = doporučení, **Malá** = jen informace. „Baterie nabitá (Float)“ a „Regulátor zase posílá data“ přesunuté do Malé. Přehled v návodu.
+
 ## 4.01 – 18. 10. 2026
 - **Naléhavé „⚠️ TEĎ přepni chatu na River“:** od 22:00 (nastavení `nutne_river_v`) do rána – když chata jede ze solární baterie a předpověď říká, že baterie v noci klesne pod 12,0 V. Nejvyšší priorita, opakuje se po ~5 min, dokud neťukneš v notifikaci na **„Přepínám“**, chata nepřejde na River (zásuvka měniče ≤ 3 W a River dodává – pak přijde „✓ Chata jede z River“) nebo nevyjde slunce. Jednou za noc. Po potvrzení může dorazit ještě jedno už naplánované připomenutí.
 - Večerní předpověď (hodinu po západu) teď jasně: „🌙 Solární baterie do rána nevydrží – přepni chatu na River“.

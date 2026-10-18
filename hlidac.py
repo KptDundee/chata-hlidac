@@ -730,6 +730,12 @@ def flush_log(data):
     data["log"] = [x for x in lg if x.get("t2", x["t"]) >= cut][-600:]
 
 
+# Priority (4.02) – v aplikaci ntfy má každá vlastní zvuk (Android: Kategorie oznámení):
+#   5 Nejvyšší = TEĎ jednej (přepni na River, měnič se vypíná, odpoj spotřebiče, pojistka, Flip skoro vybitý)
+#   4 Vysoká   = důležité, vyřeš brzy (nevydrží do rána, alarm měniče, data nechodí, odběr navíc, vyměň River…)
+#   3 Výchozí  = doporučení / informace s radou (kabely, kapacita, sezóna, panely, pod 50 #…)
+#   2 Malá     = jen pro informaci (nabito / Float, zase posílá, nabíjení River zapnuto, souhrn dne bez chyb)
+#   1 Nejnižší = data pro hodinky a probouzení Flipu (jiná témata)
 def ntfy(topic, title, msg, prio=3, tags="", note=None, actions=None, delay=None):
     body = {"topic": topic, "title": title, "message": msg, "priority": prio}
     if tags:
@@ -2952,7 +2958,7 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
         vv = f"\nNapětí teď podle Victronu: {fmt(inv.get('v'), 2)} V." if flip_ok and inv.get("v") is not None else ""
         ntfy(topic, "📡 Regulátor neposílá data", f"Poslední údaje {since} (před {v['age_min'] or 0:.0f} min). {why}{vv}", 4, "warning")
     if not stale and st.get("stale"):
-        ntfy(topic, "📡 Regulátor zase posílá data", f"Údaje z regulátoru jsou zase aktuální.\n{line}", 3, "white_check_mark")
+        ntfy(topic, "📡 Regulátor zase posílá data", f"Údaje z regulátoru jsou zase aktuální.\n{line}", 2, "white_check_mark")
     st["stale"] = stale
     if stale or bv is None:
         return
@@ -2960,7 +2966,7 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
     # Baterie na 100 % (fáze Float, 2 kontroly po sobě)
     st["float_n"] = min(st.get("float_n", 0) + 1, 2) if status == 1 else 0
     if cfg["nabito"] and st["float_n"] >= 2 and not st.get("full_sent"):
-        ntfy(topic, "🔋 Baterie nabitá (Float)", f"Regulátor přešel do Float – baterie je plná. Můžeš zapojit náročnější spotřebič.\n{line}", 4, "battery,sunny")
+        ntfy(topic, "🔋 Baterie nabitá (Float)", f"Regulátor přešel do Float – baterie je plná. Můžeš zapojit náročnější spotřebič.\n{line}", 2, "battery,sunny")
         st["full_sent"] = True
     if status != 1 and bv < 13.2:  # další „nabito“ až po vybití pod Boost Recovery 13,2 V
         st["full_sent"] = False

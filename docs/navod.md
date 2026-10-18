@@ -246,6 +246,14 @@ Spustí hlídače a zároveň probudí Flip – ten změří a odešle hned. Za 
 ### Okno River (3.65)
 Dlaždice River v řádku Teď má záložky pro tři River a generátor – co dělají právě teď. Rozkliknutím: časová osa „Co se dělo“ (kdy která River napájela chatu nebo jen spotřebič, kdy běžel generátor), výkon každé River, generátor, běhy generátoru a čísla. Nabití % a nabíjení každé River se objeví, až poběží EcoFlow.
 
+### Zvuky upozornění podle důležitosti (4.02)
+Nastavení telefonu → Aplikace → ntfy → Oznámení → Kategorie oznámení → u tématu chaty ťukni na **název** kategorie (ne na přepínač) → Zvuk.
+- **Nejvyšší** – TEĎ jednej: přepni na River, měnič se vypíná, odpoj spotřebiče, proud u pojistky, Flip skoro vybitý → výrazný zvuk + přepsat Nerušit.
+- **Vysoká** – důležité: baterie nevydrží do rána, alarm měniče, data nechodí, odběr navíc, vyměň River, River nabitá (vypni generátor), velký úbytek na kabelech, panely nevyrábí, pod 30 #.
+- **Výchozí** – doporučení: kabely (odpor), kapacita baterie, letní / zimní provoz, panely, pod 50 #, souhrn dne s chybou.
+- **Malá** – jen informace: baterie nabitá (Float), regulátor / brána zase posílá, panely zase vyrábí, nabíjení River zapnuto / vypnuto, generátor doběhl, souhrn dne bez chyb → tichý.
+- **Nejnižší** – nepoužívá se pro upozornění.
+
 ### Naléhavě: přepni na River (4.01)
 Když baterie do rána nevydrží (předpověď: pod 12,0 V) a chata ve 22:00 pořád jede ze solární baterie, přijde **„⚠️ TEĎ přepni chatu na River“** s nejvyšší prioritou a opakuje se po ~5 min. Skončí, když ťukneš na **„Přepínám“** v notifikaci, když chata přejde na River (sám to pozná ze zásuvek) nebo ráno. Čas se mění v Nastavení (`nutne_river_v`, „vypnuto“ = nikdy). Aby notifikace zazvonila i v režimu Nerušit: aplikace ntfy → téma → nastavení → povolit přepsání režimu Nerušit pro nejvyšší prioritu.
 
