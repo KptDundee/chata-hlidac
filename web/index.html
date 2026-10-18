@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.16", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.17", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -628,7 +628,7 @@ function render(){
   $("vlim").textContent = `V · čárkovaně ${nf(WARN_V,1)} V (slábne) a ${nf(CRIT_V,1)} V (alarm)`;
   const from = Date.now()/1000 - HOURS*3600;
   const win = pts.filter(p=>p.t>=from);
-  lineChart($("c_v"), win, "bat_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
+  lineChart($("c_v"), win, "bat_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,modes:true});
   lineChart($("c_pv"), win, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,modes:true});
 
   const inv = d.inverter, fresh = inv && Date.now()/1000 - inv.t < 1800;
@@ -698,6 +698,34 @@ addEventListener("scroll", hideAllTips, {passive:true, capture:true});
 function showTip(ev,html){tip.innerHTML=html;tip.style.opacity=1;const r=tip.getBoundingClientRect();let px=ev.clientX+12,py=ev.clientY-r.height-12;if(px+r.width>innerWidth-8)px=ev.clientX-r.width-12;if(py<8)py=ev.clientY+16;tip.style.left=px+"px";tip.style.top=py+"px";}
 function hideTip(){tip.style.opacity=0;}
 
+/* východ / západ slunce (NOAA, jako hlídač) → [t_východ, t_západ] v sekundách; null při polárním dni/noci */
+function sunRS(day, lat, lon){
+  const rad=Math.PI/180, deg=180/Math.PI, n=Math.floor((Date.UTC(day.getFullYear(),day.getMonth(),day.getDate())-Date.UTC(day.getFullYear(),0,0))/864e5), out=[];
+  for(const rising of [true,false]){
+    const t=n+((rising?6:18)-lon/15)/24, M=0.9856*t-3.289;
+    const L=((M+1.916*Math.sin(M*rad)+0.020*Math.sin(2*M*rad)+282.634)%360+360)%360;
+    let RA=((Math.atan(0.91764*Math.tan(L*rad))*deg)%360+360)%360; RA=(RA+Math.floor(L/90)*90-Math.floor(RA/90)*90)/15;
+    const sd=0.39782*Math.sin(L*rad), cd=Math.cos(Math.asin(sd)), ch=(Math.cos(90.833*rad)-sd*Math.sin(lat*rad))/(cd*Math.cos(lat*rad));
+    if(Math.abs(ch)>1) return null;
+    const H=(rising?360-Math.acos(ch)*deg:Math.acos(ch)*deg)/15, UT=((H+RA-0.06571*t-6.622-lon/15)%24+24)%24;
+    out.push(Date.UTC(day.getFullYear(),day.getMonth(),day.getDate())/1000+UT*3600);
+  }
+  return out;
+}
+/* svislé čáry pro orientaci: půlnoc (plná, slabá) a východ / západ slunce (tečkovaně, žlutá) – do 16 dní */
+function dayLines(svg,t0,t1,x){
+  if(t1-t0 > 16*86400) return;
+  const lat=+(DATA&&DATA.cfg&&DATA.cfg.sirka)||49.8, lon=+(DATA&&DATA.cfg&&DATA.cfg.delka)||15.0, many=t1-t0>4*86400;
+  let s=""; const d=new Date(t0*1000); d.setHours(0,0,0,0);
+  for(; d.getTime()/1000<=t1+86400; d.setDate(d.getDate()+1)){
+    const m=d.getTime()/1000;
+    if(m>t0 && m<t1) s+=`<line x1="${x(m)}" x2="${x(m)}" y1="${M.t}" y2="${H-M.b}" stroke="var(--text2)" stroke-width="1" opacity=".35"/>`;
+    if(many) continue;
+    const rs=sunRS(d,lat,lon); if(!rs) continue;
+    for(const [i,t] of rs.entries()) if(t>t0 && t<t1) s+=`<line x1="${x(t)}" x2="${x(t)}" y1="${M.t}" y2="${H-M.b}" stroke="var(--s4)" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/><text x="${x(t)}" y="${M.t+9}" text-anchor="middle" style="font-size:9px;fill:var(--s4)">${i?"☾":"☀"}</text>`;
+  }
+  svg.insertAdjacentHTML("beforeend", s);
+}
 function lineChart(el, pts, key, color, o){
   const p=pts.filter(q=>q[key]!=null); if(p.length<2) return empty(el);
   const k2=o.k2, p2=k2?pts.filter(q=>q[k2.key]!=null):[];
@@ -710,9 +738,10 @@ function lineChart(el, pts, key, color, o){
   const {svg,y}=frame(el,lo,hi,(hi-lo)<1&&o.dec>1?2:o.dec>0?1:0);
   const t0=Date.now()/1000-(o.hours||HOURS)*3600, t1=Date.now()/1000;
   const x=t=>M.l+(W-M.l-M.r)*(t-t0)/(t1-t0);
-  xLabels(svg,t0,t1,x); refLines(svg,y,o.refs);
+  xLabels(svg,t0,t1,x); refLines(svg,y,o.refs); dayLines(svg,t0,t1,x);
   if(o.modes){   // barevné pozadí podle režimu nabíjení regulátoru
-    const all=(o.modePts||pts).filter(q=>q.status!=null && q.t>=t0-600); let b="", cur=null, start=null, prevT=null;
+    const src=o.modePts||(pts.some(q=>q.status!=null)?pts:(DATA&&DATA.points)||[]);
+    const all=src.filter(q=>q.status!=null && q.t>=t0-600); let b="", cur=null, start=null, prevT=null;
     const col={1:"--good",2:"--warn",3:"--s1"};
     const flush=end=>{ if(cur!=null && col[cur]) b+=`<rect x="${Math.max(M.l,x(start))}" y="${M.t}" width="${Math.max(1,Math.min(W-M.r,x(end))-Math.max(M.l,x(start)))}" height="${H-M.t-M.b}" fill="var(${col[cur]})" opacity=".13"/>`; };
     for(const q of all){ if(cur===null){cur=q.status;start=q.t;} else if(q.status!==cur || q.t-prevT>2400){ flush(Math.min(q.t, prevT+600)); cur=q.status; start=q.t; } prevT=q.t; }
@@ -935,15 +964,15 @@ function renderTile(){
   } else if(TILE==="soc"){
     $("tilet").textContent = "Nabití a napětí"; $("tiles2").textContent = `teď ${nf(last.bat_soc)} % podle regulátoru · ${nf(last.bat_v,2)} V`;
     $("tile1h").textContent = "Nabití podle regulátoru"; $("tile1c").textContent = "% · orientačně (počítá z napětí, i při nabíjení)";
-    lineChart($("c_tile1"), pts, "bat_soc", css("--s1"), {unit:"%",dec:0,zero:true,area:true,hours:hrs});
+    lineChart($("c_tile1"), pts, "bat_soc", css("--s1"), {unit:"%",dec:0,zero:true,area:true,hours:hrs,modes:true});
     $("tile2h").textContent = "Napětí baterie"; $("tile2c").textContent = "V · čárkovaně hranice upozornění";
-    lineChart($("c_tile2"), pts, "bat_v", css("--s3"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
+    lineChart($("c_tile2"), pts, "bat_v", css("--s3"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],modes:true});
   } else if(TILE==="pv"){
     $("tilet").textContent = "Panely"; $("tiles2").textContent = `teď ${nf(last.pv_w)} W` + (last.bat_a!=null ? ` · z regulátoru ${nf(last.bat_a,1)} A` : "");
     $("tile1h").textContent = "Výkon panelů a režim nabíjení"; $("tile1c").innerHTML = `W · pozadí: <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--warn);opacity:.5;vertical-align:-1px"></i> Boost (nabíjí)</span> <span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--good);opacity:.5;vertical-align:-1px"></i> Float (nabito – panely škrtí)</span>`;
     lineChart($("c_tile1"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
     $("tile2h").textContent = "Proud z regulátoru do baterie"; $("tile2c").textContent = `A · čárkovaně pojistka ${nf(DATA.cfg?.pojistka_A ?? 30)} A`;
-    lineChart($("c_tile2"), pts, "bat_a", css("--s1"), {unit:"A",dec:1,zero:true,area:true,hours:hrs,refs:[[DATA.cfg?.pojistka_A ?? 30,"--crit"]]});
+    lineChart($("c_tile2"), pts, "bat_a", css("--s1"), {unit:"A",dec:1,zero:true,area:true,hours:hrs,modes:true,refs:[[DATA.cfg?.pojistka_A ?? 30,"--crit"]]});
   } else if(TILE==="prod"){
     const cum = cumulate(pts, "pv_w", 1/1000);
     $("tilet").textContent = "Výroba"; $("tiles2").textContent = `${per} ~${nf(cum.length?cum[cum.length-1].c:0,2)} kWh (z výkonu panelů)`;
@@ -958,7 +987,7 @@ function renderTile(){
     const cum = cumulate(pts, "mw", 1/1000);
     $("tilet").textContent = "Spotřeba chaty"; $("tiles2").textContent = `${per} ~${nf(cum.length?cum[cum.length-1].c:0,2)} kWh za měničem (vč. případného nabíjení River)`;
     $("tile1h").textContent = "Odběr za měničem"; $("tile1c").textContent = "W · zásuvka „220V měnič“ (lednice, světla, kamery, wifi, nabíjení River)";
-    lineChart($("c_tile1"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
+    lineChart($("c_tile1"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
     $("tile2h").textContent = "Jak spotřeba přibývala"; $("tile2c").textContent = "kWh od půlnoci";
     lineChart($("c_tile2"), cum, "c", css("--s1"), {unit:"kWh",dec:2,zero:true,area:true,hours:hrs});
   }
@@ -1880,8 +1909,7 @@ function detBat(body){
     (ac ? `<div class="card" style="border-left:4px solid var(--crit)"><b>⚠ ${ac}</b></div>` : "")
     + segHtml()
     + (detLong() ? chartCard("dc_hmin", "Nejnižší nabití # každého dne", "# · čárkovaně 50 # = doporučená spodní hranice pro AGM") :
-        chartCard("dc_hash", "Nabití #", d.hq ? `# · spočítané z Ah, 100 # = ${d.hq.kind==="full" ? "skutečně plná" : "nejlepší stav za 2 dny"} · kapacita ${nf(d.hq.cap)} Ah (${d.hq.capsrc||"zdraví baterie"}) · čárkovaně 50 # = doporučená spodní hranice` : "spočítá se po prvních hodinách dat")
-      + chartCard("dc_bal", "Do baterie (+) / z baterie (−)", `W · <span style="color:var(--s2)">■ nahoru: panely do baterie</span> · <span style="color:var(--s1)">■ dolů: odběr chaty</span> (i se ztrátami) · čára = výsledek (pod nulou červeně) · pozadí: oranžová Boost, zelená Float, šedá = River`)
+        chartCard("dc_bal", "Do baterie (+) / z baterie (−)", `W · <span style="color:var(--s2)">■ nahoru: panely do baterie</span> · <span style="color:var(--s1)">■ dolů: odběr chaty</span> (i se ztrátami) · čára = výsledek (pod nulou červeně) · pozadí: oranžová Boost, zelená Float, šedá = River`).replace(/<\/div>$/, `<h2 style="margin:14px 0 2px;font-size:15px">Nabití # – kam to vede</h2><div class="cs">${d.hq ? `# · spočítané z Ah, 100 # = ${d.hq.kind==="full" ? "skutečně plná" : "nejlepší stav za 2 dny"} · kapacita ${nf(d.hq.cap)} Ah (${d.hq.capsrc||"zdraví baterie"}) · čárkovaně 50 # = doporučená spodní hranice` : "spočítá se po prvních hodinách dat"}</div><div id="dc_hash"></div></div>`)
       + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
       + chartCard("dc_v", "Napětí baterie", `V · <span style="color:var(--s1)">━ regulátor</span> · <span style="color:var(--s2)">╍ měnič (Victron)</span> · <span style="color:var(--crit)">○ nejnižší bod dne</span> · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
       + chartCard("dc_vd", "Úbytek napětí na kabelech", `V · regulátor − měnič, jen měření ze stejné chvíle, bez stálého rozdílu kalibrace přístrojů · roste s proudem, v klidu ~0 · červeně ${nf(cfg.kabely_ubytek_V ?? 0.35,2)} V = upozornění`)
@@ -1952,17 +1980,17 @@ function detBat(body){
     for(let i=1;i<ok.length;i++){ const dt = ok[i].t-ok[i-1].t; if(dt>=2400) continue; const m = (ok[i].b+ok[i-1].b)/2*dt/3600; wh += m; if(m>0) inn += m; else out -= m; }
     const cap = d.hq ? d.hq.cap : null, hp = cap ? pts.filter(p=>p.hq!=null) : [], H0 = hp.length ? Math.max(0,Math.round(100+hp[0].hq/cap*100)) : null, H1 = hp.length ? Math.max(0,Math.round(100+hp[hp.length-1].hq/cap*100)) : null;
     const card = $("dc_bal").parentElement, cs = card.querySelector(".cs");
-    if(ok.length > 1) cs.insertAdjacentHTML("beforebegin", `<div style="font-size:14px;margin:2px 0 4px">${DETR==="d"?"Dnes":"Za období"}: do baterie ${nf(inn/1000,2)} kWh, z baterie ${nf(out/1000,2)} kWh → <b style="color:var(${wh>=0?"--good":"--crit"})">baterie ${wh>=0?"+":"−"}${nf(Math.abs(wh)/1000,2)} kWh</b>${H0!=null?` · nabití ${H0} # → ${H1} # <span class="sub">(graf Nabití # výše)</span>`:""}</div>`);
+    if(ok.length > 1) cs.insertAdjacentHTML("beforebegin", `<div style="font-size:14px;margin:2px 0 4px">${DETR==="d"?"Dnes":"Za období"}: do baterie ${nf(inn/1000,2)} kWh, z baterie ${nf(out/1000,2)} kWh → <b style="color:var(${wh>=0?"--good":"--crit"})">baterie ${wh>=0?"+":"−"}${nf(Math.abs(wh)/1000,2)} kWh</b>${H0!=null?` · nabití ${H0} # → ${H1} #`:""}</div>`);
   }
   lineChart($("dc_bal"), lp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]],neg:css("--crit"),bands,
     lines:[{key:"rg", color:css("--s2"), name:"panely do baterie"}, {key:"ld", color:css("--s1"), name:"odběr chaty", neg:true}]});
   lineChart($("dc_pv"), pts, "pv_w", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
-  lineChart($("dc_v"), pts.map(p=>({...p, ivx: p.ivs!=null ? p.iv : null})), "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,dayMin:true,k2:{key:"ivx",color:css("--s2"),name:"měnič"}});
+  lineChart($("dc_v"), pts.map(p=>({...p, ivx: p.ivs!=null ? p.iv : null})), "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,dayMin:true,modes:true,k2:{key:"ivx",color:css("--s2"),name:"měnič"}});
   const WR = wiring(d), off = WR ? WR.off : 0, lim = cfg.kabely_ubytek_V ?? 0.35;
-  lineChart($("dc_vd"), pts.map(p=>({t:p.t, dv: p.ivs!=null && p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv-off).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:hrs,gap:3*3600,refs:[[0,"--muted"],[lim,"--crit"]]});
-  if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands,refs:[[50,"--serious","50 #"],[100,"--muted"]]});
+  lineChart($("dc_vd"), pts.map(p=>({t:p.t, dv: p.ivs!=null && p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv-off).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:hrs,gap:3*3600,refs:[[0,"--muted"],[lim,"--crit"]],modes:true});
+  if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands,modes:true,refs:[[50,"--serious","50 #"],[100,"--muted"]]});
   else empty($("dc_hash"), "Spočítá se po prvních hodinách dat.");
-  lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
+  lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,modes:true});
 }
 function detNight(body){
   const d = DATA, h = homeData(d), nt = tileNight(d, h), f = d.forecast;
@@ -1985,7 +2013,7 @@ function detNight(body){
   + chartCard("dn_min", "Nejnižší napětí každého dne", "V · posledních 30 dní (obvykle to ráno před nabíjením)")
   + nightAnalysisHtml(d));
   const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
-  lineChart($("dn_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:48,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
+  lineChart($("dn_v"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:48,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,modes:true});
   const days = Object.keys(d.days||{}).sort().slice(-30).map(k=>({k,...d.days[k]}));
   dotChart($("dn_min"), days, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
 }
@@ -2020,7 +2048,7 @@ function detToday(body){
   if(DETR==="d") barChart($("dt_prod"), hourly(pts,"pv_w"), "v", css("--s2"), {unit:"kWh",dec:2,label:x=>x+":00",tip:q=>`${q.k}:00–${q.k+1}:00<br><b>${nf(q.v,2)} kWh</b>`});
   else if(detLong()) monthlyBars($("dt_prod"), hrs);
   else barChart($("dt_prod"), Object.keys(D).sort().slice(-Math.round(hrs/24)-1).map(k=>({k, v:D[k].solar_kwh})), "v", css("--s2"), {unit:"kWh",dec:2});
-  lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
+  lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
   prodVsUse($("dt_pc"), Math.max(hrs, 14*24));
 }
 /* výroba vs. odběr ze solární baterie po dnech (nebo měsících) – stejná strana baterie: regulátor → baterie → měnič */
@@ -2175,7 +2203,7 @@ function detPastNight(body){
         return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${nightLbl(k)}</span>
           <span style="font-variant-numeric:tabular-nums">${nf(x.p,2)} → <b>${x.a!=null?nf(x.a,2):"čeká"}</b>${df!=null?` <span style="color:var(${Math.abs(df)<=0.1?"--good":"--warn"})">(${df>0?"+":"−"}${nf(Math.abs(df),2)})</span>`:""}</span></div>`; }).join("") || '<span class="sub">Zatím žádná zaznamenaná noc.</span>'}</div></div>
   <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se předpověď učí:</b> každý večer hodinu po západu si hlídač zapíše, jaké napětí čeká příští ráno. To příští ráno pak změří skutečnost (nejnižší napětí před začátkem nabíjení). Z posledních až 10 nocí vezme medián rozdílu a o tolik opraví další předpovědi (nejvýš ±0,4 V). Když předpověď sedí, oprava je ~0. Kapacita baterie a noční odběr se navíc učí zvlášť (Zdraví baterie, měřený odběr).</div>`);
-  lineChart($("dp_v"), n.pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:(Date.now()/1000-n.start)/3600+0.5,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15});
+  lineChart($("dp_v"), n.pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:(Date.now()/1000-n.start)/3600+0.5,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,modes:true});
 }
 function detYesterday(body){
   const d = DATA, h = homeData(d), yk = dkey(h.now - 86400), D = (d.days||{})[yk] || {}, w = d.wxo || {};
