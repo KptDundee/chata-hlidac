@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.17", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.18", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -64,7 +64,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--s1);outline-off
 .chart svg{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y}
 .card.chart h2{cursor:zoom-in}
 .card.chart h2::after{content:"⤢";float:right;font-size:17px;line-height:1;color:var(--text2);padding:2px 0 4px 10px}
-#zoom{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:8px 12px}
+#zoom{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:8px 12px;overflow-y:auto}
 #zoom .card.chart{width:min(100%, calc((100dvh - 96px) * 2.6));margin:0;border:0;padding:6px 10px}
 #zoom .card.chart h2{cursor:zoom-out}
 #zoom .card.chart h2::after{content:"✕";font-size:20px}
@@ -1909,7 +1909,7 @@ function detBat(body){
     (ac ? `<div class="card" style="border-left:4px solid var(--crit)"><b>⚠ ${ac}</b></div>` : "")
     + segHtml()
     + (detLong() ? chartCard("dc_hmin", "Nejnižší nabití # každého dne", "# · čárkovaně 50 # = doporučená spodní hranice pro AGM") :
-        chartCard("dc_bal", "Do baterie (+) / z baterie (−)", `W · <span style="color:var(--s2)">■ nahoru: panely do baterie</span> · <span style="color:var(--s1)">■ dolů: odběr chaty</span> (i se ztrátami) · čára = výsledek (pod nulou červeně) · pozadí: oranžová Boost, zelená Float, šedá = River`).replace(/<\/div>$/, `<h2 style="margin:14px 0 2px;font-size:15px">Nabití # – kam to vede</h2><div class="cs">${d.hq ? `# · spočítané z Ah, 100 # = ${d.hq.kind==="full" ? "skutečně plná" : "nejlepší stav za 2 dny"} · kapacita ${nf(d.hq.cap)} Ah (${d.hq.capsrc||"zdraví baterie"}) · čárkovaně 50 # = doporučená spodní hranice` : "spočítá se po prvních hodinách dat"}</div><div id="dc_hash"></div></div>`)
+        `<div class="card" style="padding:0;margin-bottom:12px">${chartCard("dc_bal", "Do baterie (+) / z baterie (−)", `W · <span style="color:var(--s2)">■ nahoru: panely do baterie</span> · <span style="color:var(--s1)">■ dolů: odběr chaty</span> (i se ztrátami) · čára = výsledek (pod nulou červeně) · pozadí: oranžová Boost, zelená Float, šedá = River`).replace('class="card chart"', 'class="card chart" style="border:0;margin:0;background:none"')}${chartCard("dc_hash", "Nabití # – kam to vede", d.hq ? `# · spočítané z Ah, 100 # = ${d.hq.kind==="full" ? "skutečně plná" : "nejlepší stav za 2 dny"} · kapacita ${nf(d.hq.cap)} Ah (${d.hq.capsrc||"zdraví baterie"}) · čárkovaně 50 # = doporučená spodní hranice` : "spočítá se po prvních hodinách dat").replace('class="card chart"', 'class="card chart" style="border:0;margin:0;background:none"')}</div>`
       + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
       + chartCard("dc_v", "Napětí baterie", `V · <span style="color:var(--s1)">━ regulátor</span> · <span style="color:var(--s2)">╍ měnič (Victron)</span> · <span style="color:var(--crit)">○ nejnižší bod dne</span> · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
       + chartCard("dc_vd", "Úbytek napětí na kabelech", `V · regulátor − měnič, jen měření ze stejné chvíle, bez stálého rozdílu kalibrace přístrojů · roste s proudem, v klidu ~0 · červeně ${nf(cfg.kabely_ubytek_V ?? 0.35,2)} V = upozornění`)

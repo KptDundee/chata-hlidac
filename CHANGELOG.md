@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.18 – 18. 10. 2026
+- Graf přes celou obrazovku: bilance a Nabití # (jedna karta) se zvětšují **každý zvlášť** – ťukni na nadpis toho, který chceš. Zvětšené okno se dá posouvat, kdyby bylo vyšší než obrazovka.
+
 ## 4.17 – 18. 10. 2026
 - Detail Solární baterie: **Nabití #** je teď v jedné kartě **pod grafem bilance** („Nabití # – kam to vede“, stejná časová osa) – samostatný graf # nahoře zmizel.
 - **Pozadí podle režimu regulátoru** (oranžová Boost, zelená Float) ve všech grafech solární baterie: napětí, proud, odběr, úbytek na kabelech, #, nabití %, noc.
