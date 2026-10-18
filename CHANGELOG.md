@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.11 – 18. 10. 2026
+- Detail Solární baterie: **Výhled do 22:00** jako přehledný rozpis – v baterii nad alarmem (Ah), ještě vyrobí (+Ah), spotřebuje (−Ah), bilance. Řádky s dlouhou hodnotou (např. Nabití #) jsou pod popiskem přes celou šířku – texty se už nepřekrývají.
+
 ## 4.10 – 18. 10. 2026
 - Detail Solární baterie → Teď: řádek **Výhled do 22:00** s rozpisem (z kolika #, kolik ještě dnes vyrobí, odběr), ať je vidět, z čeho „dojde ~…“ vychází.
 

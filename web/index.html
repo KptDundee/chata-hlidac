@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.10", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.11", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1160,6 +1160,19 @@ function dayFcRow(d, h){
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
   return [`do ${e}`, f.ok ? `<span style="color:var(--good)">vydrží ✓</span>` : `<b style="color:var(--crit)">dojde ~${hmT(f.t_empty)}</b>`];
 }
+/* rozpis výhledu dne – co je v baterii, co přibude, co se spotřebuje */
+function dayFcBlock(f){
+  const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}), L = (a,b,c="") => `<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0"><span style="color:var(--text2)">${a}</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap;${c}">${b}</span></div>`;
+  const sum = f.ah!=null ? f.ah + f.prod_ah - f.cons_ah : null;
+  return `<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font-size:14px;color:var(--text2)">Výhled do ${e}</span>${f.ok ? `<b style="color:var(--good)">vydrží ✓</b>` : `<b style="color:var(--crit)">dojde ~${hmT(f.t_empty)}</b>`}</div>
+    ${f.ah!=null ? `<div style="font-size:13.5px;margin-top:4px">
+      ${L(`V baterii nad alarmem (${f.pct} # − ${f.alarm} #, kapacita ${f.cap} Ah)`, `${nf(f.ah,1)} Ah`)}
+      ${L(`Ještě vyrobí ~${nf(f.rem_kwh,2)} kWh (předpověď ×${nf(f.ratio,1)} podle dneška, −20 %)`, `+${nf(f.prod_ah,1)} Ah`, "color:var(--good)")}
+      ${L(`Spotřebuje ~${f.load_w} W × ${nf(f.hrs,1)} h (+15 %)`, `−${nf(f.cons_ah,1)} Ah`, "color:var(--crit)")}
+      ${L("Bilance do "+e, `${sum>=0?"+":"−"}${nf(Math.abs(sum),1)} Ah`, `font-weight:700;color:var(${sum>=0?"--good":"--crit"})`)}
+    </div>` : ""}</div>`;
+}
 function tileSolar(d, h){
   const t = {k:"bat", icon:"🔆", label:"Solární baterie"};
   if(h.bv==null) return {...t, cls:"na", v:"–", st:"Bez dat z regulátoru"};
@@ -1817,7 +1830,9 @@ const segHtml = () => `<div class="seg" id="detseg" style="margin-bottom:12px"><
 const detLong = () => DETR==="y" || DETR==="all";
 const detHours = () => { if(DETR==="y") return 365*24; if(DETR==="all"){ const ks=Object.keys(DATA.days||{}).sort(); return ks.length ? Math.max(24*30,(Date.now()-new Date(ks[0]).getTime())/3600e3+24) : 24*365; }
   if(DETR!=="d") return +DETR; const m=new Date(); m.setHours(0,0,0,0); return Math.max(3,(Date.now()-m.getTime())/3600e3); };
-const rowI = (k, v) => `<div class="row" style="padding:8px 0"><div class="t"><span style="font-size:14px;color:var(--text2)">${k}</span></div><div style="font-weight:600;text-align:right;font-variant-numeric:tabular-nums">${v}</div></div>`;
+const rowI = (k, v) => String(v).replace(/<[^>]+>/g,"").length > 26
+  ? `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="font-size:14px;color:var(--text2)">${k}</div><div style="font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums">${v}</div></div>`
+  : `<div class="row" style="padding:8px 0"><div class="t"><span style="font-size:14px;color:var(--text2)">${k}</span></div><div style="font-weight:600;text-align:right;font-variant-numeric:tabular-nums;flex:none;max-width:60%">${v}</div></div>`;
 function dailyPts(hrs){
   const D = DATA.days || {}, from = Date.now()/1000 - hrs*3600;
   return Object.keys(D).sort().map(k=>({t:new Date(k+"T12:00").getTime()/1000, ...D[k]})).filter(p=>p.t>=from);
@@ -1864,8 +1879,7 @@ function detBat(body){
       rowI("Napětí", `<span style="font-size:20px">${V(h.bv)}</span>`),
       rowI("Nabití (podle regulátoru)", P(last.bat_soc)),
       ...(d.hq ? [rowI("Nabití # (spočítané z Ah)", `<b>${nf(d.hq.pct)} #</b> <span class="sub">(${d.hq.ah < 0 ? `−${nf(-d.hq.ah,1)} Ah od ` : "plná · "}${d.hq.kind==="full" ? `plného nabití ${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)}` : "nejlepšího stavu za 2 dny (plné nabití zatím nebylo)"})</span>`)] : []),
-      ...(d.day_fc && h.now - d.day_fc.t < 1800 ? [rowI(`Výhled do ${new Date(d.day_fc.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}`,
-        `${d.day_fc.ok ? `<b style="color:var(--good)">vydrží ✓</b>` : `<b style="color:var(--crit)">dojde ~${hmT(d.day_fc.t_empty)}</b>`}<br><span class="sub">z ${d.day_fc.pct} # (alarm 12,0 V ≈ 20 #, kapacita ${nf(d.hq?.cap)} Ah) · dnes ještě vyrobí ~${nf(d.day_fc.rem_kwh,2)} kWh${d.day_fc.ratio!=null?` (předpověď ×${nf(d.day_fc.ratio,1)} podle dnešní výroby, −20 %)`:""} · odběr ~${d.day_fc.load_w} W (+15 %)</span>`)] : []),
+      ...(d.day_fc && h.now - d.day_fc.t < 1800 ? [dayFcBlock(d.day_fc)] : []),
       rowI("Panely", h.pv!=null ? `${nf(h.pv)} W` : "–"),
       rowI("Odběr z baterie", odb),
       rowI("Do baterie (+) / z baterie (−)", balW!=null ? `<span style="color:var(${balW<=-15?"--crit":balW>=15?"--good":"--text"})">${sgn(balW)} W (${sgn(h.netB,1)} A)</span>` : "–"),

@@ -2649,7 +2649,10 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
             t_empty = t
             break
     res = {"ok": t_empty is None, "t_empty": int(t_empty) if t_empty else None, "t": int(ts), "end": int(end.timestamp()),
-           "load_w": round(load_a * 12.4), "rem_kwh": round(rem_kwh, 2), "pct": hq["pct"], "ratio": round(ratio, 2)}
+           "load_w": round(load_a * 12.4), "rem_kwh": round(rem_kwh, 2), "pct": hq["pct"], "ratio": round(ratio, 2),
+           "ah": round(ah, 1), "alarm": round(alarm), "cap": round(cap),
+           "prod_ah": round(rem_kwh * 1000 / 13.0 * 0.9, 1), "cons_ah": round(load_a * (end.timestamp() - ts) / 3600, 1),
+           "hrs": round((end.timestamp() - ts) / 3600, 1)}
     data["day_fc"] = res
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu)
