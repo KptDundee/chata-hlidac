@@ -29,7 +29,8 @@ DEFAULTS = {
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
-    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00",
+    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
+    "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
@@ -1462,6 +1463,7 @@ def main():
                          ("Nabití #", lambda: hash_soc(data, st, now, cfg)),
                          ("Test kapacity", lambda: capacity_check(data, st, now, cfg)),
                          ("Upozornění #", lambda: hash_alert(data, st, now, topic, cfg)),
+                         ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
@@ -2588,6 +2590,88 @@ def ocv_soc(v):
         if v <= v1:
             return s0 + (s1 - s0) * (v - v0) / (v1 - v0)
     return 100
+
+
+WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
+
+
+def day_outlook(data, st, now, topic, cfg, rise, set_):
+    """Výhled dne (přání 18. 10. 2026): když chata jede ze solární baterie – vydrží do den_do (22:00)?
+    Teď v baterii (# nad alarmem 12,0 V) + zbývající výroba podle předpovědi − odběr (průměr 3 h), po 10 min.
+    data["day_fc"] = {ok, t_empty, t} pro web. Upozornění (Vysoká): v čas z rozvrhu den_kontrola (po dnech)
+    a kdykoli během dne, když se výhled zhorší (ráno vydrželo, teď ne). Noc řeší jiná upozornění."""
+    ts = now.timestamp()
+    try:
+        hh, mm = (int(x) for x in str(cfg.get("den_do") or "22:00").split(":")[:2])
+    except ValueError:
+        hh, mm = 22, 0
+    end = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    inv = data.get("inverter") or {}
+    on_solar = inv and ts - inv.get("t", 0) < 1800 and (inv.get("mw") or 0) > 3
+    hq = data.get("hq") or {}
+    if not on_solar or now >= end or hq.get("pct") is None or (rise and now < rise - timedelta(hours=3)):
+        data.pop("day_fc", None)
+        return
+    cap = hq.get("cap") or eff_cap(data, cfg)
+    alarm = ocv_soc((cfg.get("baterie_kriticka_V") or 12.0) + 0.05)      # 12,0 V pod malou zátěží ≈ klid ~12,05 V
+    ah = (hq["pct"] - alarm) / 100 * cap                                   # Ah nad alarmem
+    room = (100 - hq["pct"]) / 100 * cap                                   # kolik se ještě vejde
+    idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
+    mws = [p["mw"] for p in data.get("points", []) if p.get("mw") is not None and p["t"] >= ts - 3 * 3600]
+    load_a = ((sum(mws) / len(mws) if mws else inv.get("mw") or 0) / 0.88 + idle) / 12.4
+    today = now.strftime("%Y-%m-%d")
+    pred = next((p for p in ((data.get("wxo") or {}).get("preds") or []) if p.get("d") == today), None)
+    made = (data["days"].get(today) or {}).get("solar_kwh") or 0
+    rem_kwh = max(0.0, (pred["kwh"] if pred else 0) - made)
+    import math
+    steps, t = [], ts
+    while t < end.timestamp():
+        steps.append(t)
+        t += 600
+    w = []                                                                 # tvar výroby: sinus mezi východem a západem
+    for t in steps:
+        x = (t - rise.timestamp()) / (set_.timestamp() - rise.timestamp()) if rise and set_ else -1
+        w.append(math.sin(math.pi * x) if 0 < x < 1 else 0.0)
+    wsum = sum(w) or 1
+    t_empty, lvl = None, ah
+    for t, wi in zip(steps, w):
+        prod_a_h = rem_kwh * 1000 * wi / wsum / 13.0 * 0.9                 # Ah do baterie v tomhle kroku
+        lvl = min(lvl + prod_a_h, ah + room) - load_a * 600 / 3600
+        if lvl <= 0:
+            t_empty = t
+            break
+    res = {"ok": t_empty is None, "t_empty": int(t_empty) if t_empty else None, "t": int(ts), "end": int(end.timestamp()),
+           "load_w": round(load_a * 12.4), "rem_kwh": round(rem_kwh, 2), "pct": hq["pct"]}
+    data["day_fc"] = res
+    day = now.strftime("%Y-%m-%d")
+    # čas kontroly podle rozvrhu (dnešní den v týdnu)
+    sched = {}
+    for part in str(cfg.get("den_kontrola") or "").split(","):
+        bits = part.strip().split()
+        if len(bits) == 2 and bits[0].lower()[:2] in WD and ":" in bits[1]:
+            sched[bits[0].lower()[:2]] = bits[1]
+    tk = sched.get(WD[now.weekday()])
+    due = False
+    if tk:
+        try:
+            h2, m2 = (int(x) for x in tk.split(":")[:2])
+            tchk = now.replace(hour=h2, minute=m2, second=0, microsecond=0)
+            due = now >= tchk and st.get("do_chk") != day
+        except ValueError:
+            pass
+    worse = st.get("do_ok_day") == day and not res["ok"]                  # dnes už vycházelo, teď ne
+    if due:
+        st["do_chk"] = day
+    if res["ok"]:
+        st["do_ok_day"] = day
+        return
+    if (due or worse) and st.get("do_sent") != day:
+        te = datetime.fromtimestamp(res["t_empty"], TZ).strftime("%H:%M")
+        ntfy(topic, f"⚠️ Dnes ~{te} solární baterie dojde – přepni chatu na River",
+             f"Chata jede ze solární baterie ({hq['pct']} #, odběr ~{res['load_w']} W). Podle předpovědi zbývá dnes vyrobit "
+             f"~{fmt(rem_kwh, 1)} kWh – nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\n"
+             "Než odjedeš, přepni chatu na River. (Čas je odhad ±1–2 h podle počasí.)", 4, "warning,sunny")
+        st["do_sent"] = day
 
 
 def hash_alert(data, st, now, topic, cfg):

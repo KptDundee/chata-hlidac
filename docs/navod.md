@@ -254,6 +254,9 @@ Nastavení telefonu → Aplikace → ntfy → Oznámení → Kategorie oznámen�
 - **Malá** – jen informace: baterie nabitá (Float), regulátor / brána zase posílá, panely zase vyrábí, nabíjení River zapnuto / vypnuto, generátor doběhl, souhrn dne bez chyb → tichý.
 - **Nejnižší** – nepoužívá se pro upozornění.
 
+### Výhled dne – vydrží chata na soláru do večera? (4.05)
+Jen když chata jede ze solární baterie. Na dlaždici Solární baterie: **„do 22:00: vydrží ✓“** nebo **„dojde ~14:30“** (odhad ±1–2 h – počasí se plete). Upozornění „⚠️ Dnes ~14:30 solární baterie dojde – přepni chatu na River“ přijde ráno v čas z rozvrhu (Nastavení → *Výhled dne – kontrola před odjezdem*, např. `út 5:30, čt 5:30, po 7:00…`, den bez času = nekontrolovat) a během dne, když se výhled zhorší. Noc řeší zvlášť večerní upozornění a naléhavé ve 22:00.
+
 ### Naléhavě: přepni na River (4.01)
 Když baterie do rána nevydrží (předpověď: pod 12,0 V) a chata ve 22:00 pořád jede ze solární baterie, přijde **„⚠️ TEĎ přepni chatu na River“** s nejvyšší prioritou a opakuje se po ~5 min. Skončí, když ťukneš na **„Přepínám“** v notifikaci, když chata přejde na River (sám to pozná ze zásuvek) nebo ráno. Čas se mění v Nastavení (`nutne_river_v`, „vypnuto“ = nikdy). Aby notifikace zazvonila i v režimu Nerušit: aplikace ntfy → téma → nastavení → povolit přepsání režimu Nerušit pro nejvyšší prioritu.
 

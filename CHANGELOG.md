@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.05 – 18. 10. 2026
+- **Výhled dne – vydrží chata na soláru do večera?** Když chata jede ze solární baterie, hlídač po každém měření spočítá: co je v baterii nad alarmem 12,0 V (z #) + výroba, kterou podle předpovědi ještě dnes dají panely − odběr chaty (průměr 3 h). Na dlaždici Solární baterie řádek **„do 22:00: vydrží ✓ / dojde ~14:30“**.
+- Upozornění **„⚠️ Dnes ~14:30 solární baterie dojde – přepni chatu na River“** (Vysoká): v čas z **týdenního rozvrhu** `den_kontrola` (výchozí út a čt 5:30, ostatní dny 7:00, víkend 8:00 – před odjezdem) a během dne kdykoli, když se výhled zhorší (dřív vycházelo, teď ne). Jednou za den, jen když chata jede ze soláru. Noc dál řeší večerní a 22:00 upozornění. Do kolika vydržet: `den_do` (22:00).
+
 ## 4.04 – 18. 10. 2026
 - Vráceno: „⛽ Generátor doběhl“ je zase **Malá** priorita (generátor už je vypnutý, jen informace). Akci vyžaduje stav „River nabitá, generátor běží naprázdno“ – to hlásí „⛽ … nabitá na 100 %“ (Vysoká), funguje až s daty z EcoFlow.
 
