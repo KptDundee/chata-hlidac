@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.04 – 18. 10. 2026
+- Vráceno: „⛽ Generátor doběhl“ je zase **Malá** priorita (generátor už je vypnutý, jen informace). Akci vyžaduje stav „River nabitá, generátor běží naprázdno“ – to hlásí „⛽ … nabitá na 100 %“ (Vysoká), funguje až s daty z EcoFlow.
+
 ## 4.03 – 18. 10. 2026
 - „⛽ Generátor doběhl“ je **Vysoká** priorita s pokynem: zavři přívod paliva a vypni hlavní vypínač.
 

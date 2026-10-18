@@ -2897,7 +2897,7 @@ def gen_sessions(data, st, now, topic, cfg):
         msg = (f"Běžel ~{fmt(dur, 1)} h, dodal {fmt((rec.get('wh') or 0) / 1000, 2)} kWh." if rec.get("wh") else f"Běžel ~{fmt(dur, 1)} h.") + \
               ("\n" + "\n".join(rv_txt) if rv_txt else "") + eff
         log("ev", "Generátor: konec – " + msg.replace("\n", " · "))
-        ntfy(topic, "⛽ Generátor doběhl – zavři palivo a vypni ho", msg + "\nDojdi zavřít přívod paliva a vypnout hlavní vypínač generátoru.", 4, "fuelpump,warning")
+        ntfy(topic, "⛽ Generátor doběhl", msg, 2, "fuelpump")
 
 
 def check_river(r, st, topic, cfg):

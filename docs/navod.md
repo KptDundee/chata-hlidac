@@ -249,9 +249,9 @@ Dlaždice River v řádku Teď má záložky pro tři River a generátor – co 
 ### Zvuky upozornění podle důležitosti (4.02)
 Nastavení telefonu → Aplikace → ntfy → Oznámení → Kategorie oznámení → u tématu chaty ťukni na **název** kategorie (ne na přepínač) → Zvuk.
 - **Nejvyšší** – TEĎ jednej: přepni na River, měnič se vypíná, odpoj spotřebiče, proud u pojistky, Flip skoro vybitý → výrazný zvuk + přepsat Nerušit.
-- **Vysoká** – důležité: baterie nevydrží do rána, alarm měniče, data nechodí, odběr navíc, vyměň River, River nabitá (vypni generátor), generátor doběhl (zavři palivo, vypni vypínač), velký úbytek na kabelech, panely nevyrábí, pod 30 #.
+- **Vysoká** – důležité: baterie nevydrží do rána, alarm měniče, data nechodí, odběr navíc, vyměň River, River nabitá – generátor běží naprázdno, vypni ho (až s EcoFlow), velký úbytek na kabelech, panely nevyrábí, pod 30 #.
 - **Výchozí** – doporučení: kabely (odpor), kapacita baterie, letní / zimní provoz, panely, pod 50 #, souhrn dne s chybou.
-- **Malá** – jen informace: baterie nabitá (Float), regulátor / brána zase posílá, panely zase vyrábí, nabíjení River zapnuto / vypnuto, souhrn dne bez chyb → tichý.
+- **Malá** – jen informace: baterie nabitá (Float), regulátor / brána zase posílá, panely zase vyrábí, nabíjení River zapnuto / vypnuto, generátor doběhl, souhrn dne bez chyb → tichý.
 - **Nejnižší** – nepoužívá se pro upozornění.
 
 ### Naléhavě: přepni na River (4.01)
