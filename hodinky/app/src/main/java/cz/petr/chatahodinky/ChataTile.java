@@ -57,6 +57,29 @@ public class ChataTile extends TileService {
             col.addContent(space(6));
             col.addContent(text("Zatím žádná data", 15, WHITE, false, 2));
             col.addContent(text("ťukni pro načtení", 12, GREY, false, 1));
+        } else if (!d.isNull("rv") && d.optJSONObject("rv") != null) {
+            // chata jede z River: jde o chatu – River (nabití, výdrž, odběr), solár jen malým řádkem
+            JSONObject r = d.optJSONObject("rv");
+            boolean old = Data.ageMin(d) > 60;
+            boolean hasS = !r.isNull("s");
+            int rc = !hasS ? WHITE : r.optInt("s") <= 15 ? Data.color(2) : r.has("ok") && !r.isNull("ok") && !r.optBoolean("ok") ? Data.color(1) : Data.color(0);
+            col.addContent(text("🔋 " + r.optString("n", "River"), 13, WHITE, false, 1));
+            int nowW = r.isNull("now") ? r.optInt("w") : r.optInt("now");
+            col.addContent(text(hasS ? r.optInt("s") + " %" : nowW + " W", 34, old ? GREY : rc, true, 1));
+            if (hasS && !r.isNull("u")) {
+                String until = new java.text.SimpleDateFormat("HH:mm", Data.CS).format(new java.util.Date(r.optLong("u") * 1000));
+                col.addContent(text("vydrží do ~" + until + (r.has("ok") && !r.isNull("ok") ? (r.optBoolean("ok") ? " ✓" : " ✗") : ""), 15, rc, false, 1));
+            } else {
+                col.addContent(text("% až z EcoFlow", 12, GREY, false, 1));
+            }
+            StringBuilder l3 = new StringBuilder("🏠 ").append(nowW).append(" W");
+            if (!r.isNull("t0")) l3.append(" · od ").append(new java.text.SimpleDateFormat("HH:mm", Data.CS).format(new java.util.Date(r.optLong("t0") * 1000)));
+            if (!r.isNull("wh")) l3.append(String.format(Data.CS, " · %.2f kWh", r.optDouble("wh") / 1000));
+            col.addContent(text(l3.toString(), 13, WHITE, false, 1));
+            col.addContent(space(4));
+            col.addContent(text("☀ solár " + Data.volt(d.optDouble("v")) + " V" + (d.isNull("hq") ? "" : " · " + d.optInt("hq") + " #"), 12, GREY, false, 1));
+            col.addContent(space(4));
+            col.addContent(text(Data.waiting(this, d) ? "⏳ měří se…" : Data.ageText(d), 11, GREY, false, 1));
         } else {
             int lvl = d.optInt("lvl", 0);
             boolean old = Data.ageMin(d) > 60;

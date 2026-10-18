@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.21 – 18. 10. 2026
+- **Hodinky 1.9 – dlaždice při chatě na River:** jde o chatu, ne o solár. Nahoře která River napájí, velké číslo **% nabití River** (s EcoFlow; do té doby odběr ve W a „% až z EcoFlow“), **vydrží do ~HH:MM ✓/✗** (do rána), řádek 🏠 odběr · od kdy · kWh, malým řádkem solár (V a #). Barva podle toho, jestli River vydrží do rána. Hlídač posílá hodinkám i od kdy River napájí, kolik dodala a jestli vydrží do rána.
+
 ## 4.20 – 18. 10. 2026
 - Dlaždice Solární baterie: když chata jede z River (měnič vypnutý), místo „V klidu“ **„Odpojená – chata jede z River“**; při nabíjení ze slunce „Nabíjí se · … · chata na River“.
 

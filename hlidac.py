@@ -1763,6 +1763,11 @@ def watch_publish(data, v, st, now, topic, cfg):
         fc = f"🔋 River {rs['soc']} % · ~{hh}\ndo {rel_day(rs['until'], now)} {datetime.fromtimestamp(rs['until'], TZ).strftime('%H:%M')}"
         if rs["soc"] <= (cfg["river_vymenit_pod"] or 15):
             lvl = max(lvl, 1)
+    rv_ok = None                            # River vydrží do rána (jen s EcoFlow – známe % a výdrž)
+    if rs and rs.get("until"):
+        r_, s_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+        mor = r_ if r_ and now < r_ else sun_times(cfg["sirka"], cfg["delka"], now.date() + timedelta(days=1))[0]
+        rv_ok = bool(mor and rs["until"] >= mor.timestamp())
     hq = data.get("hq") or {}               # nabití # (z Ah): hodinky 1.7+ ho ukazují jako samostatný výrazný řádek
     body = {"t": int(now.timestamp()), "v": round(bv, 2), "soc": None if hq.get("pct") is not None else v.get("bat_soc"),
             "pv": round(v["pv_w"]) if v.get("pv_w") is not None else None,
@@ -1770,7 +1775,8 @@ def watch_publish(data, v, st, now, topic, cfg):
             "st": st_txt, "fc": fc, "lvl": lvl, "day": v.get("day_kwh"), "hq": hq.get("pct"),
             "ra": bool((data.get("river_auto") or {}).get("on")), "vmin": cfg["odpojeni_V"] or 11.6,
             "lat": cfg["sirka"], "lon": cfg["delka"],
-            "rv": ({"s": rs.get("soc"), "h": rs.get("h"), "w": rs["w"], "u": rs.get("until"), "n": rs["name"]} if rs else None)}           # poloha chaty – hodinky z ní počítají východ / západ slunce
+            "rv": ({"s": rs.get("soc"), "h": rs.get("h"), "w": rs["w"], "u": rs.get("until"), "n": rs["name"],
+                    "now": rs.get("now"), "t0": rs.get("t0"), "wh": rs.get("wh"), "ok": rv_ok} if rs else None)}           # poloha chaty – hodinky z ní počítají východ / západ slunce
     try:
         req = urllib.request.Request(f"https://ntfy.sh/{topic}-hodinky", data=json.dumps(body).encode(),
                                      headers={"Title": "chata", "Priority": "1"}, method="POST")
