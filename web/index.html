@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.21", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.22", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1833,7 +1833,8 @@ function alertItems(d, h){
 }
 function renderHome(d){
   const h = homeData(d);
-  $("h_src").innerHTML = [tileSolar(d, h), tileRivers(d, h)].map(tileHtml).join("");
+  // chata jede z River → River první (jde o chatu), po přepojení na solár zase solární baterie první
+  $("h_src").innerHTML = (h.rvOn ? [tileRivers(d, h), tileSolar(d, h)] : [tileSolar(d, h), tileRivers(d, h)]).map(tileHtml).join("");
   $("h_day").innerHTML = [tileProdSolar(d, h), tileProdGen(d, h)].map(tileHtml).join("");
   $("h_use").innerHTML = [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)].map(tileHtml).join("");
   $("h_dev").innerHTML = tileHtml(tileDevices(d, h));
