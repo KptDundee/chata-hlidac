@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 3.98 – 18. 10. 2026
+- **Graf přes celou obrazovku:** ťuknutí na **nadpis grafu** (vpravo ⤢) zobrazí jen ten graf na celou obrazovku a otočí ho na šířku; hodnoty po ťuknutí do grafu fungují dál. Zavře se ✕ v nadpisu nebo gestem zpět. (Ťuknutí přímo do grafu dál ukazuje hodnoty.)
+
 ## 3.97 – 17. 10. 2026
 - Detail **Solár** standardně: nahoře přepínač období a grafy, pod nimi rozpis výroby, spotřeby, ztrát a bilance.
 

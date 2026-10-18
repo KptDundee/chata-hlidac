@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "3.97", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "3.98", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -62,6 +62,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--s1);outline-off
 .chart h2{font-size:15px;margin:0;font-weight:600}
 .chart .cs{color:var(--text2);font-size:12px;margin:2px 0 8px}
 .chart svg{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y}
+.card.chart h2{cursor:zoom-in}
+.card.chart h2::after{content:"⤢";float:right;font-size:17px;line-height:1;color:var(--text2);padding:2px 0 4px 10px}
+#zoom{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:8px 12px}
+#zoom .card.chart{width:min(100%, calc((100dvh - 96px) * 2.6));margin:0;border:0;padding:6px 10px}
+#zoom .card.chart h2{cursor:zoom-out}
+#zoom .card.chart h2::after{content:"✕";font-size:20px}
+#zoom .zx{position:absolute;top:8px;right:12px;font-size:22px;background:none;border:0;color:var(--text);padding:6px 10px}
 .chart text{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
 .tip{position:fixed;pointer-events:none;background:var(--text);color:var(--surface);padding:6px 9px;border-radius:8px;font-size:12px;line-height:1.35;white-space:nowrap;z-index:40;opacity:0;transition:opacity .1s;font-variant-numeric:tabular-nums}
 .tip b{font-weight:650}
@@ -2531,11 +2538,36 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden&&PW)refres
 setInterval(()=>{if(PW&&!document.hidden)refresh();},5*60*1000);
 setInterval(()=>{if(DATA)render();},60*1000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>DATA&&render());
+/* Graf přes celou obrazovku (3.98): ťuknutí na nadpis grafu (⤢) → jen ten graf, na celou obrazovku a na šířku.
+   Přesune se samotná karta grafu (hodnoty po ťuknutí dál fungují), zavřením (✕ / zpět) se vrátí na své místo. */
+let ZOOM = null;
+function openZoom(card){
+  if(ZOOM) return;
+  let z = $("zoom"); if(!z){ z = document.createElement("div"); z.id = "zoom"; z.className = "hide"; document.body.appendChild(z); }
+  const ph = document.createComment("zoom"); card.parentNode.insertBefore(ph, card);
+  ZOOM = {card, ph}; z.appendChild(card); z.classList.remove("hide"); hideTip();
+  try{ const r = z.requestFullscreen ? z.requestFullscreen({navigationUI:"hide"}) : null;
+    Promise.resolve(r).then(()=>screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape")).catch(()=>{}); }catch(_){}
+}
+function closeZoom(){
+  if(!ZOOM) return; const {card, ph} = ZOOM; ZOOM = null;
+  try{ if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); }catch(_){}
+  try{ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }catch(_){}
+  if(ph.parentNode) ph.parentNode.replaceChild(card, ph); else card.remove();
+  $("zoom").classList.add("hide"); hideTip();
+}
+document.addEventListener("click", e=>{
+  const h = e.target.closest(".card.chart > h2, .card.chart > div > h2"); if(!h) return;
+  const card = h.closest(".card.chart"); if(!card) return;
+  e.stopPropagation(); if(ZOOM) closeZoom(); else openZoom(card);
+}, true);
+document.addEventListener("fullscreenchange", ()=>{ if(!document.fullscreenElement && ZOOM) closeZoom(); });
 /* Zpět (gesto / tlačítko telefonu): otevřené okno (detail, zásuvka, kabely, nastavení) se zavře místo odchodu z aplikace.
    Každé otevření okna přidá záznam do historie; zavření křížkem ho zase odebere. */
 (()=>{
-  const LAY = ["detm","plugm","wirem","set"], open = new Set(); let skip = 0;
-  const closeOf = id => ({detm:()=>$("detclose").click(), plugm:()=>$("plugclose").click(), wirem:()=>$("wireclose").click(), set:()=>closeSettings()})[id];
+  if(!$("zoom")){ const z = document.createElement("div"); z.id = "zoom"; z.className = "hide"; document.body.appendChild(z); }
+  const LAY = ["detm","plugm","wirem","set","zoom"], open = new Set(); let skip = 0;
+  const closeOf = id => ({detm:()=>$("detclose").click(), plugm:()=>$("plugclose").click(), wirem:()=>$("wireclose").click(), set:()=>closeSettings(), zoom:()=>closeZoom()})[id];
   const mo = new MutationObserver(()=>{ for(const id of LAY){ const vis = !$(id).classList.contains("hide");
     if(vis && !open.has(id)){ open.add(id); history.pushState({lay:id}, ""); }
     else if(!vis && open.has(id)){ open.delete(id); if(history.state && history.state.lay===id){ skip++; history.back(); } } } });
