@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.14", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.15", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -924,12 +924,14 @@ function renderTile(){
       rg: p.bat_a!=null && p.bat_v ? Math.round(Math.max(0,p.bat_a)*p.bat_v) : null, ld: p.mw!=null ? Math.round(p.mw/0.88+idle) : null}));
     const ok = bp.filter(p=>p.b!=null);
     const sumWh = f=>{let s=0;for(let i=1;i<ok.length;i++){const dt=ok[i].t-ok[i-1].t;if(dt<2400)s+=(f(ok[i].b)+f(ok[i-1].b))/2*dt/3600;}return s;};
-    $("tilet").textContent = "Bilance baterie"; $("tiles2").textContent = `${per}: do baterie ~${nf(sumWh(x=>Math.max(0,x))/1000,2)} kWh, z baterie ~${nf(-sumWh(x=>Math.min(0,x))/1000,2)} kWh`;
+    const cap = DATA.hq ? DATA.hq.cap : null, hp = cap ? pts.filter(p=>p.hq!=null).map(p=>({t:p.t, h:Math.max(0,Math.round(100+p.hq/cap*100))})) : [];
+    const net = sumWh(x=>x)/1000, hTxt = hp.length>1 ? ` · nabití ${hp[0].h} # → ${hp[hp.length-1].h} #` : "";
+    $("tilet").textContent = "Bilance baterie"; $("tiles2").innerHTML = `${per}: do baterie ~${nf(sumWh(x=>Math.max(0,x))/1000,2)} kWh, z baterie ~${nf(-sumWh(x=>Math.min(0,x))/1000,2)} kWh → <b style="color:var(${net>=0?"--good":"--crit"})">baterie ${net>=0?"+":"−"}${nf(Math.abs(net),2)} kWh</b>${hTxt}`;
     $("tile1h").textContent = "Do baterie (+) / z baterie (−)"; $("tile1c").innerHTML = `W · <span style="color:var(--s2)">■ nahoru: panely do baterie</span> · <span style="color:var(--s1)">■ dolů: odběr chaty</span> · čára = výsledek · pozadí: oranžová Boost, zelená Float`;
     lineChart($("c_tile1"), bp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]],neg:css("--crit"),
       lines:[{key:"rg", color:css("--s2"), name:"panely do baterie"}, {key:"ld", color:css("--s1"), name:"odběr chaty", neg:true}]});
-    $("tile2h").textContent = "Napětí baterie"; $("tile2c").textContent = "V";
-    lineChart($("c_tile2"), pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
+    $("tile2h").textContent = "Nabití # – kam to vede"; $("tile2c").textContent = "# · stejná časová osa jako graf nad tím: stoupá = baterie se nabíjí, klesá = vybíjí · čárkovaně 50 #";
+    hp.length>1 ? lineChart($("c_tile2"), hp, "h", css("--s3"), {unit:"#",dec:0,hours:hrs,zero:true,refs:[[50,"--serious","50 #"],[100,"--muted"]]}) : empty($("c_tile2"), "Nabití # zatím není spočítané.");
   } else if(TILE==="soc"){
     $("tilet").textContent = "Nabití a napětí"; $("tiles2").textContent = `teď ${nf(last.bat_soc)} % podle regulátoru · ${nf(last.bat_v,2)} V`;
     $("tile1h").textContent = "Nabití podle regulátoru"; $("tile1c").textContent = "% · orientačně (počítá z napětí, i při nabíjení)";
