@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.16 – 18. 10. 2026
+- Detail **Solární baterie**, graf Do baterie / z baterie: nad grafem souhrn „Dnes: do baterie … , z baterie … → baterie +/− X kWh · nabití A # → B #“ (graf Nabití # je hned nad ním). (4.15 to dalo jen do staré dlaždice Bilance v Podrobnostech.)
+
 ## 4.15 – 18. 10. 2026
 - Dlaždice **Bilance** – kam to vede: nahoře souhrn s výsledkem „→ baterie +/− X kWh · nabití A # → B #“; pod grafem bilance (místo napětí) graf **Nabití #** se stejnou časovou osou – stoupá = nabíjí, klesá = vybíjí. Do grafu bilance se # nepřidává (jiná jednotka, byl by v tom zmatek).
 
