@@ -2622,16 +2622,24 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     today = now.strftime("%Y-%m-%d")
     pred = next((p for p in ((data.get("wxo") or {}).get("preds") or []) if p.get("d") == today), None)
     made = (data["days"].get(today) or {}).get("solar_kwh") or 0
-    rem_kwh = max(0.0, (pred["kwh"] if pred else 0) - made) * 0.7     # s rezervou: předpověď výroby se často přecení
     import math
+    # podíl dne (podle tvaru výroby – sinus mezi východem a západem), který už proběhl
+    def frac(t):
+        if not rise or not set_:
+            return 1.0
+        x = min(1.0, max(0.0, (t - rise.timestamp()) / (set_.timestamp() - rise.timestamp())))
+        return (1 - math.cos(math.pi * x)) / 2
+    f_done = frac(ts)
+    fc_kwh = pred["kwh"] if pred else 0
+    # zbývající výroba: podle předpovědi, opravené tím, jak dnes skutečně vyrábí (dnes víc než předpověď → víc)
+    ratio = made / (fc_kwh * f_done) if fc_kwh > 0 and f_done > 0.15 else 1.0
+    ratio = max(0.3, min(3.0, ratio))
+    rem_kwh = fc_kwh * ratio * (1 - f_done) * 0.8                          # s rezervou −20 %
     steps, t = [], ts
     while t < end.timestamp():
         steps.append(t)
         t += 600
-    w = []                                                                 # tvar výroby: sinus mezi východem a západem
-    for t in steps:
-        x = (t - rise.timestamp()) / (set_.timestamp() - rise.timestamp()) if rise and set_ else -1
-        w.append(math.sin(math.pi * x) if 0 < x < 1 else 0.0)
+    w = [max(0.0, frac(t + 600) - frac(t)) for t in steps]
     wsum = sum(w) or 1
     t_empty, lvl = None, ah
     for t, wi in zip(steps, w):
@@ -2641,7 +2649,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
             t_empty = t
             break
     res = {"ok": t_empty is None, "t_empty": int(t_empty) if t_empty else None, "t": int(ts), "end": int(end.timestamp()),
-           "load_w": round(load_a * 12.4), "rem_kwh": round(rem_kwh, 2), "pct": hq["pct"]}
+           "load_w": round(load_a * 12.4), "rem_kwh": round(rem_kwh, 2), "pct": hq["pct"], "ratio": round(ratio, 2)}
     data["day_fc"] = res
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu)
@@ -2668,9 +2676,9 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     if (due or worse) and st.get("do_sent") != day:
         te = datetime.fromtimestamp(res["t_empty"], TZ).strftime("%H:%M")
         ntfy(topic, f"⚠️ Dnes ~{te} solární baterie dojde – přepni chatu na River",
-             f"Chata jede ze solární baterie ({hq['pct']} #, odběr ~{res['load_w']} W). Podle předpovědi zbývá dnes vyrobit "
-             f"~{fmt(rem_kwh, 1)} kWh – nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\n"
-             "Než odjedeš, přepni chatu na River. Počítáno s rezervou (výroba −30 %, odběr +15 %) – raději zbytečně přepnout, "
+             f"Chata jede ze solární baterie ({hq['pct']} #, odběr ~{res['load_w']} W). Dnes ještě vyrobí ~{fmt(rem_kwh, 1)} kWh "
+             f"(předpověď opravená podle dnešní výroby) – nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\n"
+             "Než odjedeš, přepni chatu na River. Počítáno s rezervou (výroba −20 %, odběr +15 %) – raději zbytečně přepnout, "
              "než aby přes den došla energie.", 4, "warning,sunny")
         st["do_sent"] = day
 
