@@ -36,7 +36,7 @@ vecerni_souhrn_hodina = 22
 # --- Předpověď do rána ---
 # po západu slunce spočítá z kapacity a noční spotřeby, jestli baterie vydrží do rána
 predpoved_noc = zapnuto
-den_kontrola = po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00   # výhled dne: kdy ráno zkontrolovat, jestli chata na soláru vydrží do večera (před odjezdem); den bez času = nekontrolovat
+den_kontrola = po 8:00, út 5:45, st 8:00, čt 5:45, pá 8:00, so 9:00, ne 9:00   # výhled dne: kdy ráno zkontrolovat, jestli chata na soláru vydrží do večera (před odjezdem); den bez času = nekontrolovat
 den_do = 22:00                 # výhled dne: do kolika má chata na soláru vydržet
 nutne_river_v = 22:00          # od kdy naléhavě opakovat „TEĎ přepni chatu na River“ (po 5 min), když baterie do rána nevydrží a chata jede ze soláru; vypnuto = nikdy
 # od kdy ráno panely reálně nabíjí (minut po východu slunce)
@@ -86,7 +86,7 @@ river_auto_pv_on = 150
 river_auto_pv_off = 100
 river_auto_v_off = 12.5
 # vypnout hned, jakmile napětí spadne pod tuto hodnotu (baterie se přestala nabíjet a začala vybíjet)
-river_auto_v_drzet = 13.0
+river_auto_v_drzet = 13
 # nabíjet River už v Boostu, když regulátor drží nabíjecí napětí (baterie dostává plnou dávku)
 river_auto_boost = vypnuto
 # nabíjecí napětí Boostu podle nastavení regulátoru (bez teplotní kompenzace)
