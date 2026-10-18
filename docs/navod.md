@@ -246,6 +246,9 @@ Spustí hlídače a zároveň probudí Flip – ten změří a odešle hned. Za 
 ### Okno River (3.65)
 Dlaždice River v řádku Teď má záložky pro tři River a generátor – co dělají právě teď. Rozkliknutím: časová osa „Co se dělo“ (kdy která River napájela chatu nebo jen spotřebič, kdy běžel generátor), výkon každé River, generátor, běhy generátoru a čísla. Nabití % a nabíjení každé River se objeví, až poběží EcoFlow.
 
+### Naléhavě: přepni na River (4.01)
+Když baterie do rána nevydrží (předpověď: pod 12,0 V) a chata ve 22:00 pořád jede ze solární baterie, přijde **„⚠️ TEĎ přepni chatu na River“** s nejvyšší prioritou a opakuje se po ~5 min. Skončí, když ťukneš na **„Přepínám“** v notifikaci, když chata přejde na River (sám to pozná ze zásuvek) nebo ráno. Čas se mění v Nastavení (`nutne_river_v`, „vypnuto“ = nikdy). Aby notifikace zazvonila i v režimu Nerušit: aplikace ntfy → téma → nastavení → povolit přepsání režimu Nerušit pro nejvyšší prioritu.
+
 ### Zdraví baterie a test kapacity (3.89)
 Verdikt (dobrá / opotřebovaná / slabá / vyměnit) se počítá **jen z testů kapacity z ampérhodin** – hlídač je dělá sám každé ráno: buď od plného nabití (Float), nebo **dvoubodově** večer → ráno (když baterie plná nebyla). Potřebuje odběr z Victronu (Flip). Do 2 úspěšných testů je verdikt „Zatím neznámo“. Seznam testů s výsledkem nebo důvodem, proč nevyšel, je v okně Zdraví baterie. Noční odhad z poklesu napětí je jen orientační graf. Data před opravou spojů (nastavení `oprava_spoju`) se nepočítají – po další opravě spojů tam zapiš nové datum a čas.
 
