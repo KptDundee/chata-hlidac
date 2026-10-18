@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.19", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.20", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1191,8 +1191,11 @@ function batFlow(h){           // stav: nabíjí / vybíjí / nabito / v klidu
   if(h.netB!=null && h.netB <= -0.3) return {t:"Vybíjí se", c:"--serious"};
   if(h.status===1) return {t:"Nabito · Float", c:"--good"};                       // plná – regulátor jen udržuje
   if(h.status===2 && h.bv >= 14.1) return {t:"Dobíjí se · Boost", c:"--good"};    // napětí drží, proud klesá – skoro plná
-  if(h.netB!=null && h.netB >= 0.3) return {t:`Nabíjí se${mode?` · ${mode}`:""}`, c:"--good"};
+  if(h.netB!=null && h.netB >= 0.3) return {t:`Nabíjí se${mode?` · ${mode}`:""}${h.rvOn||h.menicOff?" · chata na River":""}`, c:"--good"};
+  if(h.netB==null && (h.rvOn || h.menicOff))       // měnič vypnutý: z baterie nic neodtéká, nabíjí jen regulátor
+    return (h.a||0) >= 0.3 ? {t:`Nabíjí se${mode?` · ${mode}`:""} · chata na River`, c:"--good"} : {t:"Odpojená – chata jede z River", c:"--text2"};
   if(h.netB==null) return {t: mode ? `Regulátor: ${mode}` : "Bez údaje o odběru", c:"--text2"};
+  if(h.rvOn || h.menicOff) return {t:"Odpojená – chata jede z River", c:"--text2"};
   return {t:"V klidu", c:"--text2"};
 }
 /* výhled dne (4.05): chata na soláru – vydrží do 22:00? (počítá hlídač, data.day_fc) */
