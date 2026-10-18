@@ -2643,24 +2643,29 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     ratio = made / (fc_kwh * f_done) if fc_kwh > 0 and f_done > 0.15 else 1.0
     ratio = max(0.3, min(3.0, ratio))
     rem_kwh = fc_kwh * ratio * (1 - f_done) * 0.8                          # s rezervou −20 %
+    rise2 = sun_times(cfg["sirka"], cfg["delka"], now.date() + timedelta(days=1))[0]
+    end2 = rise2.timestamp() + 3600 if rise2 else end.timestamp()     # do rána = do hodiny po zítřejším východu
     steps, t = [], ts
-    while t < end.timestamp():
+    while t < end2:
         steps.append(t)
         t += 600
     w = [max(0.0, frac(t + 600) - frac(t)) for t in steps]
     wsum = sum(w) or 1
-    t_empty, lvl = None, ah
+    t_empty, t_empty_n, lvl = None, None, ah
     for t, wi in zip(steps, w):
         prod_a_h = rem_kwh * 1000 * wi / wsum / 13.0 * 0.9                 # Ah do baterie v tomhle kroku
         lvl = min(lvl + prod_a_h, ah + room) - load_a * 600 / 3600
         if lvl <= 0:
-            t_empty = t
+            t_empty_n = t
+            if t < end.timestamp():
+                t_empty = t
             break
     res = {"ok": t_empty is None, "t_empty": int(t_empty) if t_empty else None, "t": int(ts), "end": int(end.timestamp()),
            "load_w": round(load_a * 12.4), "rem_kwh": round(rem_kwh, 2), "pct": hq["pct"], "ratio": round(ratio, 2),
            "ah": round(ah, 1), "alarm": round(alarm), "cap": round(cap),
            "prod_ah": round(rem_kwh * 1000 / 13.0 * 0.9, 1), "cons_ah": round(load_a * (end.timestamp() - ts) / 3600, 1),
-           "hrs": round((end.timestamp() - ts) / 3600, 1), "src": "solar" if on_solar else "river"}
+           "hrs": round((end.timestamp() - ts) / 3600, 1), "src": "solar" if on_solar else "river",
+           "night_ok": t_empty_n is None, "t_empty_n": int(t_empty_n) if t_empty_n else None}
     data["day_fc"] = res
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu)

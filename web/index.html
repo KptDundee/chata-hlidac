@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.18", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.19", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1215,6 +1215,14 @@ function dayFcBlock(f){
       ${L("Bilance do "+e, `${sum>=0?"+":"−"}${nf(Math.abs(sum),1)} Ah`, `font-weight:700;color:var(${sum>=0?"--good":"--crit"})`)}
     </div>` : ""}</div>`;
 }
+/* do rána (4.19): přes den z výhledu dne (stejný výpočet, pokračuje přes noc), v noci z noční předpovědi */
+function nightRow(d, h){
+  const f = d.day_fc;
+  if(f && h.now - f.t <= 1800 && f.night_ok != null)
+    return [f.src==="river" ? "na soláru do rána" : "do rána", f.night_ok ? `<span style="color:var(--good)">ano ✓</span>` : `<b style="color:var(${f.src==="river"?"--text2":"--crit"})">ne</b>`];
+  const n = d.forecast; if(!n || !n.until || h.invF && !(h.inv.mw > 3)) return null;   // noc: jen když chata jede ze soláru
+  return ["do rána", n.t_crit ? `<b style="color:var(--crit)">ne</b>` : `<span style="color:var(--good)">ano ✓</span>`];
+}
 function tileSolar(d, h){
   const t = {k:"bat", icon:"🔆", label:"Solární baterie"};
   if(h.bv==null) return {...t, cls:"na", v:"–", st:"Bez dat z regulátoru"};
@@ -1228,7 +1236,7 @@ function tileSolar(d, h){
   return {...t, label:`${t.label}${bang}`, cls: ac ? (h.bv!=null && h.bv < CRIT_V || R.stale ? "bad" : "warn") : "ok",
     v, st: R.stale ? ac : `<span style="color:var(${F.c})">${F.t}</span>`,
     rows:[["nabití", soc!=null ? `${nf(soc)} %` : "–"], ["☀ panely", h.pv!=null ? `${nf(h.pv)} W` : "–"], ["🏠 odběr", odb],
-      ...(dayFcRow(d, h) ? [dayFcRow(d, h)] : [])]};
+      ...(dayFcRow(d, h) ? [dayFcRow(d, h)] : []), ...(nightRow(d, h) ? [nightRow(d, h)] : [])]};
 }
 /* ---------- čas dne: kdy je „teď“ noc, den, večer ---------- */
 function dayPhase(d){

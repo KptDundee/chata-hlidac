@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.19 – 18. 10. 2026
+- Dlaždice Solární baterie: pod „do 22:00“ řádek **„do rána: ano ✓ / ne“** (do hodiny po zítřejším východu). Přes den stejný opatrný výpočet jako výhled dne (pokračuje přes noc bez výroby), v noci noční předpověď (pod 12,0 V = ne). Při chatě na River „na soláru do rána“.
+
 ## 4.18 – 18. 10. 2026
 - Graf přes celou obrazovku: bilance a Nabití # (jedna karta) se zvětšují **každý zvlášť** – ťukni na nadpis toho, který chceš. Zvětšené okno se dá posouvat, kdyby bylo vyšší než obrazovka.
 
