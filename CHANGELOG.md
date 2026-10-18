@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.13 – 18. 10. 2026
+- Graf **Do baterie (+) / z baterie (−)** (detail baterie i dlaždice Bilance): k bilanci přibyly čárkovaně **panely do baterie** (oranžová) a **odběr chaty** (modrá, i se ztrátami měniče) – je vidět, jestli bilance klesla kvůli slunci nebo kvůli odběru. Ťuknutím všechny tři hodnoty.
+
 ## 4.12 – 18. 10. 2026
 - **Ráno v čas z rozvrhu i nabídka soláru:** když chata jede z River a solární baterie by s dnešní výrobou (s rezervou) vydržela do 22:00, přijde „☀️ Dnes můžeš chatu přepnout na solární baterii – večer zase přepoj na River“ (Výchozí). Večerní „Zítra můžeš…“ zůstává. Na dlaždici při River řádek „na soláru do 22:00: vydržela by ✓ / nestačila by“.
 
