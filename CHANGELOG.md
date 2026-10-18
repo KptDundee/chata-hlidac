@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.03 – 18. 10. 2026
+- „⛽ Generátor doběhl“ je **Vysoká** priorita s pokynem: zavři přívod paliva a vypni hlavní vypínač.
+
 ## 4.02 – 18. 10. 2026
 - Priority upozornění sjednocené (v ntfy lze každé dát jiný zvuk): **Nejvyšší** = teď jednej, **Vysoká** = důležité, **Výchozí** = doporučení, **Malá** = jen informace. „Baterie nabitá (Float)“ a „Regulátor zase posílá data“ přesunuté do Malé. Přehled v návodu.
 
