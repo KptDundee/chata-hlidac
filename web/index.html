@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.11", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.12", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1158,6 +1158,7 @@ function batFlow(h){           // stav: nabíjí / vybíjí / nabito / v klidu
 function dayFcRow(d, h){
   const f = d.day_fc; if(!f || h.now - f.t > 1800) return null;
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
+  if(f.src==="river") return [`na soláru do ${e}`, f.ok ? `<span style="color:var(--good)">vydržela by ✓</span>` : `<span style="color:var(--text2)">nestačila by</span>`];
   return [`do ${e}`, f.ok ? `<span style="color:var(--good)">vydrží ✓</span>` : `<b style="color:var(--crit)">dojde ~${hmT(f.t_empty)}</b>`];
 }
 /* rozpis výhledu dne – co je v baterii, co přibude, co se spotřebuje */
@@ -1165,7 +1166,7 @@ function dayFcBlock(f){
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}), L = (a,b,c="") => `<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0"><span style="color:var(--text2)">${a}</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap;${c}">${b}</span></div>`;
   const sum = f.ah!=null ? f.ah + f.prod_ah - f.cons_ah : null;
   return `<div style="padding:8px 0;border-bottom:1px solid var(--line)">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font-size:14px;color:var(--text2)">Výhled do ${e}</span>${f.ok ? `<b style="color:var(--good)">vydrží ✓</b>` : `<b style="color:var(--crit)">dojde ~${hmT(f.t_empty)}</b>`}</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font-size:14px;color:var(--text2)">${f.src==="river" ? `Kdyby chata jela ze soláru – do ${e}` : `Výhled do ${e}`}</span>${f.ok ? `<b style="color:var(--good)">${f.src==="river"?"vydržela by ✓":"vydrží ✓"}</b>` : f.src==="river" ? `<b style="color:var(--text2)">došla by ~${hmT(f.t_empty)}</b>` : `<b style="color:var(--crit)">dojde ~${hmT(f.t_empty)}</b>`}</div>
     ${f.ah!=null ? `<div style="font-size:13.5px;margin-top:4px">
       ${L(`V baterii nad alarmem (${f.pct} # − ${f.alarm} #, kapacita ${f.cap} Ah)`, `${nf(f.ah,1)} Ah`)}
       ${L(`Ještě vyrobí ~${nf(f.rem_kwh,2)} kWh (předpověď ×${nf(f.ratio,1)} podle dneška, −20 %)`, `+${nf(f.prod_ah,1)} Ah`, "color:var(--good)")}

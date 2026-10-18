@@ -2607,9 +2607,12 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         hh, mm = 22, 0
     end = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
     inv = data.get("inverter") or {}
-    on_solar = inv and ts - inv.get("t", 0) < 1800 and (inv.get("mw") or 0) > 3
+    fresh = inv and ts - inv.get("t", 0) < 1800
+    rids = ips(cfg.get("zasuvky_river"))
+    on_solar = fresh and (inv.get("mw") or 0) > 3
+    on_river = fresh and not on_solar and any(str(p.get("ip")) in rids and (p.get("w") or 0) > 3 for p in inv.get("tp", []))
     hq = data.get("hq") or {}
-    if not on_solar or now >= end or hq.get("pct") is None or (rise and now < rise - timedelta(hours=3)):
+    if not (on_solar or on_river) or now >= end or hq.get("pct") is None or (rise and now < rise - timedelta(hours=3)):
         data.pop("day_fc", None)
         return
     cap = hq.get("cap") or eff_cap(data, cfg)
@@ -2617,8 +2620,13 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     ah = (hq["pct"] - alarm) / 100 * cap                                   # Ah nad alarmem
     room = (100 - hq["pct"]) / 100 * cap                                   # kolik se ještě vejde
     idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
-    mws = [p["mw"] for p in data.get("points", []) if p.get("mw") is not None and p["t"] >= ts - 3 * 3600]
-    load_a = ((sum(mws) / len(mws) if mws else inv.get("mw") or 0) / 0.88 + idle) / 12.4 * 1.15   # s rezervou: odběr +15 %
+    if on_solar:
+        mws = [p["mw"] for p in data.get("points", []) if p.get("mw") is not None and p["t"] >= ts - 3 * 3600]
+        now_w = inv.get("mw") or 0
+    else:                                   # chata na River: stejný odběr by šel přes měnič ze solární baterie
+        mws = [sum((p["tp"].get(i) or 0) for i in rids) for p in data.get("points", []) if p.get("tp") and p["t"] >= ts - 3 * 3600]
+        now_w = inv.get("rw") or 0
+    load_a = ((sum(mws) / len(mws) if mws else now_w) / 0.88 + idle) / 12.4 * 1.15   # s rezervou: odběr +15 %
     today = now.strftime("%Y-%m-%d")
     pred = next((p for p in ((data.get("wxo") or {}).get("preds") or []) if p.get("d") == today), None)
     made = (data["days"].get(today) or {}).get("solar_kwh") or 0
@@ -2652,7 +2660,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "load_w": round(load_a * 12.4), "rem_kwh": round(rem_kwh, 2), "pct": hq["pct"], "ratio": round(ratio, 2),
            "ah": round(ah, 1), "alarm": round(alarm), "cap": round(cap),
            "prod_ah": round(rem_kwh * 1000 / 13.0 * 0.9, 1), "cons_ah": round(load_a * (end.timestamp() - ts) / 3600, 1),
-           "hrs": round((end.timestamp() - ts) / 3600, 1)}
+           "hrs": round((end.timestamp() - ts) / 3600, 1), "src": "solar" if on_solar else "river"}
     data["day_fc"] = res
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu)
@@ -2670,9 +2678,16 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
             due = now >= tchk and st.get("do_chk") != day
         except ValueError:
             pass
-    worse = st.get("do_ok_day") == day and not res["ok"]                  # dnes už vycházelo, teď ne
     if due:
         st["do_chk"] = day
+    if on_river:                            # chata jede z River: v čas z rozvrhu nabídnout solár, když vydrží do večera
+        if due and res["ok"] and st.get("do_conn") != day:
+            ntfy(topic, "☀️ Dnes můžeš chatu přepnout na solární baterii",
+                 f"Solární baterie ({hq['pct']} #) s dnešní výrobou podle předpovědi (~{fmt(rem_kwh, 1)} kWh, s rezervou) "
+                 f"vydrží chatu (~{res['load_w']} W) do {hh}:{mm:02d}.\nVečer zase přepoj na River.", 3, "sunny,battery")
+            st["do_conn"] = day
+        return
+    worse = st.get("do_ok_day") == day and not res["ok"]                  # dnes už vycházelo, teď ne
     if res["ok"]:
         st["do_ok_day"] = day
         return
