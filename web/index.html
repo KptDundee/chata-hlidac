@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.07", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.08", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2471,6 +2471,14 @@ async function openSettings(){
   }catch(e){ $("setbody").innerHTML=`<div class="card"><b>Nastavení nejde načíst</b><p class="sub">${e.message}</p><button id="tokreset">Zadat token znovu</button></div>`; $("tokreset").onclick=()=>{store.del("ghtok");openSettings();}; return; }
   renderSettings();
 }
+/* výběr času: hodina + minuta jako dva rozbalovací seznamy (type="time" na některých telefonech nejde otevřít) */
+const SELST = `font:inherit;font-size:16px;padding:8px 6px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)`;
+function timeSel(attr, val){
+  const m = /(\d{1,2}):(\d{2})/.exec(String(val||"")) || [0,"7","00"], H = +m[1], Mi = +m[2];
+  const mins = [...new Set([0,5,10,15,20,25,30,35,40,45,50,55,Mi])].sort((a,b)=>a-b);
+  return `<span style="display:inline-flex;align-items:center;gap:4px" ${attr}><select data-hh style="${SELST}">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===H?"selected":""}>${h}</option>`).join("")}</select>:<select data-mm style="${SELST}">${mins.map(x=>`<option value="${x}" ${x===Mi?"selected":""}>${String(x).padStart(2,"0")}</option>`).join("")}</select></span>`;
+}
+const timeOf = el => `${el.querySelector("[data-hh]").value}:${String(el.querySelector("[data-mm]").value).padStart(2,"0")}`;
 function renderSettings(){
   const v = SET.vals; let html="";
   for(const [title, items] of SETTINGS){
@@ -2484,7 +2492,7 @@ function renderSettings(){
         html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="text" data-k="${k}" data-t="txt" value="${String(val)}" style="width:110px"></div></div>`;
       } else if(type==="time" || type==="timeopt"){
         const on = type==="time" || !isOff(val), tv = /\d{1,2}:\d{2}/.test(String(val)) ? String(val).trim().padStart(5,"0") : "22:00";
-        html += `<div class="row ${on?"":"off"}" id="r_${k}"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="time" data-k="${k}" data-t="time" value="${tv}" style="width:110px;font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)"></div>${type==="timeopt"?`<label class="sw" title="Zapnout / vypnout"><input type="checkbox" data-opt="${k}" ${on?"checked":""}><i></i></label>`:""}</div>`;
+        html += `<div class="row ${on?"":"off"}" id="r_${k}"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num">${timeSel(`data-k="${k}" data-t="time"`, tv)}</div>${type==="timeopt"?`<label class="sw" title="Zapnout / vypnout"><input type="checkbox" data-opt="${k}" ${on?"checked":""}><i></i></label>`:""}</div>`;
       } else if(type==="week"){
         const DN = [["po","pondělí"],["út","úterý"],["st","středa"],["čt","čtvrtek"],["pá","pátek"],["so","sobota"],["ne","neděle"]], cur = {};
         for(const part of String(val).split(",")){ const b = part.trim().split(/\s+/); if(b.length===2 && /\d{1,2}:\d{2}/.test(b[1])) cur[b[0].toLowerCase().slice(0,2)] = b[1].padStart(5,"0"); }
@@ -2493,7 +2501,7 @@ function renderSettings(){
           <div style="padding:6px 0 4px">${DN.map(([d,n])=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-top:1px solid var(--line)">
             <label class="sw"><input type="checkbox" data-wd="${d}" ${cur[d]?"checked":""}><i></i></label>
             <span style="flex:1">${n}</span>
-            <input type="time" data-wt="${d}" value="${cur[d]||"07:00"}" style="font:inherit;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)"></div>`).join("")}</div></details>`;
+            ${timeSel(`data-wt="${d}"`, cur[d]||"7:00")}</div>`).join("")}</div></details>`;
       } else if(type==="sw"){
         html += `<label class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><span class="sw"><input type="checkbox" data-k="${k}" data-t="sw" ${isOn(val)?"checked":""}><i></i></span></label>`;
       } else if(type==="opt"){
@@ -2517,10 +2525,10 @@ function collectSettings(){
     if(el.dataset.t==="txt"){ out[k] = el.value.replace(/[^0-9.,; ]/g,"").trim(); continue; }
     if(el.dataset.t==="sel"){ out[k] = el.value; continue; }
     if(el.dataset.t==="time"){ const o = $("setbody").querySelector(`[data-opt="${k}"]`);
-      out[k] = o && !o.checked ? "vypnuto" : (el.value || "22:00").replace(/^0(\d):/,"$1:"); continue; }
+      out[k] = o && !o.checked ? "vypnuto" : timeOf(el); continue; }
     if(el.dataset.t==="week"){ const parts = [];
-      for(const cb of el.querySelectorAll("[data-wd]")){ const d = cb.dataset.wd, t = el.querySelector(`[data-wt="${d}"]`).value;
-        if(cb.checked && t) parts.push(`${d} ${t.replace(/^0(\d):/,"$1:")}`); }
+      for(const cb of el.querySelectorAll("[data-wd]")){ const d = cb.dataset.wd, t = timeOf(el.querySelector(`[data-wt="${d}"]`));
+        if(cb.checked) parts.push(`${d} ${t}`); }
       out[k] = parts.join(", ") || "vypnuto"; continue; }
     const opt = $("setbody").querySelector(`[data-opt="${k}"]`);
     if(opt && !opt.checked){ out[k]="vypnuto"; continue; }

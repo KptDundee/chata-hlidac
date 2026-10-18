@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.08 – 18. 10. 2026
+- Nastavení: čas se vybírá ze dvou rozbalovacích seznamů (hodina : minuta po 5 min) – políčko „čas“ prohlížeče na telefonu nešlo otevřít. Zkontrolována všechna pole Nastavení.
+
 ## 4.07 – 18. 10. 2026
 - Nastavení: **Kontrola před odjezdem** má po rozkliknutí řádek pro každý den (přepínač + čas); „Vydržet do“ a „Naléhavě: přepni na River“ mají výběr času (a vypínač). Oprava: čas se dřív při ukládání poškodil (dvojtečka a písmena se mazaly).
 
