@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.14 – 18. 10. 2026
+- Graf bilance přehledněji: místo dvou čárkovaných čar **plochy** – panely do baterie jako světle oranžová plocha **nahoru**, odběr chaty jako světle modrá plocha **dolů**, výsledek (bilance) zůstává jako plná čára.
+
 ## 4.13 – 18. 10. 2026
 - Graf **Do baterie (+) / z baterie (−)** (detail baterie i dlaždice Bilance): k bilanci přibyly čárkovaně **panely do baterie** (oranžová) a **odběr chaty** (modrá, i se ztrátami měniče) – je vidět, jestli bilance klesla kvůli slunci nebo kvůli odběru. Ťuknutím všechny tři hodnoty.
 
