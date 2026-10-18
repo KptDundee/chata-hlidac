@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.06", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.07", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2371,9 +2371,9 @@ const SETTINGS = [
     ["nabito","Baterie nabitá na 100 %","Můžeš zapojit náročnější spotřebič","","", "sw"],
     ["panely_nevyrabi","Panely nevyrábí přes den","Sníh, stín nebo vypadlý kabel","","", "sw"],
     ["predpoved_noc","Předpověď do příštího rána","Každý večer upozorní, když baterie nevydrží do příštího rána","","", "sw"],
-    ["den_kontrola","Výhled dne – kontrola před odjezdem","Kdy ráno zkontrolovat, jestli chata na soláru vydrží do večera (po dnech, např. „út 5:30, čt 5:30, po 7:00…“)","",0,"txt"],
-    ["den_do","Výhled dne – vydržet do","Do kolika má chata na soláru vydržet (pak řeší noc jiná upozornění)","",0,"txt"],
-    ["nutne_river_v","Naléhavě: přepni na River","Od tohoto času (např. 22:00) opakovat po 5 min, dokud chata nejede z River / nepotvrdíš; „vypnuto“ = nikdy","",0,"txt"],
+    ["den_kontrola","Výhled dne – kontrola před odjezdem","Kdy ráno zkontrolovat, jestli chata na soláru vydrží do večera – pro každý den zvlášť (vypnutý den = nekontrolovat)","",0,"week"],
+    ["den_do","Výhled dne – vydržet do","Do kolika má chata na soláru vydržet (pak řeší noc jiná upozornění)","",0,"time"],
+    ["nutne_river_v","Naléhavě: přepni na River","Od tohoto času opakovat po 5 min, dokud chata nejede z River / nepotvrdíš","",0,"timeopt"],
     ["vecerni_souhrn_hodina","Večerní souhrn (každý večer)","Hodina, kdy každý večer přijde přehled dneška","h",1,"opt"],
   ]],
   ["Napětí baterie", [
@@ -2482,6 +2482,18 @@ function renderSettings(){
         html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><select data-k="${k}" data-t="sel" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)">${opts}</select></div></div>`;
       } else if(type==="txt"){
         html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="text" data-k="${k}" data-t="txt" value="${String(val)}" style="width:110px"></div></div>`;
+      } else if(type==="time" || type==="timeopt"){
+        const on = type==="time" || !isOff(val), tv = /\d{1,2}:\d{2}/.test(String(val)) ? String(val).trim().padStart(5,"0") : "22:00";
+        html += `<div class="row ${on?"":"off"}" id="r_${k}"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="time" data-k="${k}" data-t="time" value="${tv}" style="width:110px;font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)"></div>${type==="timeopt"?`<label class="sw" title="Zapnout / vypnout"><input type="checkbox" data-opt="${k}" ${on?"checked":""}><i></i></label>`:""}</div>`;
+      } else if(type==="week"){
+        const DN = [["po","pondělí"],["út","úterý"],["st","středa"],["čt","čtvrtek"],["pá","pátek"],["so","sobota"],["ne","neděle"]], cur = {};
+        for(const part of String(val).split(",")){ const b = part.trim().split(/\s+/); if(b.length===2 && /\d{1,2}:\d{2}/.test(b[1])) cur[b[0].toLowerCase().slice(0,2)] = b[1].padStart(5,"0"); }
+        const sum = DN.filter(([d])=>cur[d]).map(([d])=>`${d} ${cur[d].replace(/^0/,"")}`).join(" · ") || "vypnuto";
+        html += `<details class="row" data-k="${k}" data-t="week" style="display:block"><summary style="cursor:pointer;list-style:none"><div class="t"><b>${label} ›</b><span>${help}</span><span style="color:var(--text);margin-top:4px">${sum}</span></div></summary>
+          <div style="padding:6px 0 4px">${DN.map(([d,n])=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-top:1px solid var(--line)">
+            <label class="sw"><input type="checkbox" data-wd="${d}" ${cur[d]?"checked":""}><i></i></label>
+            <span style="flex:1">${n}</span>
+            <input type="time" data-wt="${d}" value="${cur[d]||"07:00"}" style="font:inherit;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)"></div>`).join("")}</div></details>`;
       } else if(type==="sw"){
         html += `<label class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><span class="sw"><input type="checkbox" data-k="${k}" data-t="sw" ${isOn(val)?"checked":""}><i></i></span></label>`;
       } else if(type==="opt"){
@@ -2504,6 +2516,12 @@ function collectSettings(){
     if(el.dataset.t==="sw"){ out[k] = el.checked ? "zapnuto" : "vypnuto"; continue; }
     if(el.dataset.t==="txt"){ out[k] = el.value.replace(/[^0-9.,; ]/g,"").trim(); continue; }
     if(el.dataset.t==="sel"){ out[k] = el.value; continue; }
+    if(el.dataset.t==="time"){ const o = $("setbody").querySelector(`[data-opt="${k}"]`);
+      out[k] = o && !o.checked ? "vypnuto" : (el.value || "22:00").replace(/^0(\d):/,"$1:"); continue; }
+    if(el.dataset.t==="week"){ const parts = [];
+      for(const cb of el.querySelectorAll("[data-wd]")){ const d = cb.dataset.wd, t = el.querySelector(`[data-wt="${d}"]`).value;
+        if(cb.checked && t) parts.push(`${d} ${t.replace(/^0(\d):/,"$1:")}`); }
+      out[k] = parts.join(", ") || "vypnuto"; continue; }
     const opt = $("setbody").querySelector(`[data-opt="${k}"]`);
     if(opt && !opt.checked){ out[k]="vypnuto"; continue; }
     const n = parseFloat(String(el.value).replace(",","."));

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.07 – 18. 10. 2026
+- Nastavení: **Kontrola před odjezdem** má po rozkliknutí řádek pro každý den (přepínač + čas); „Vydržet do“ a „Naléhavě: přepni na River“ mají výběr času (a vypínač). Oprava: čas se dřív při ukládání poškodil (dvojtečka a písmena se mazaly).
+
 ## 4.06 – 18. 10. 2026
 - Výhled dne počítá **s rezervou**: výroba podle předpovědi −30 %, odběr +15 % – rozhodující je ranní kontrola; raději zbytečně přepnout na River, než aby přes den došla energie.
 
