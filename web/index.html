@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.33", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.35", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2196,6 +2196,13 @@ function detGen(body){
     return `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px">
       <b>${relDay(r.t0)} ${hmT(r.t0)}–${r.run?"běží":hmT(r.t1)}</b>${r.src==="hist"?' <span class="sub">(z historie zásuvky)</span>':r.kor?' <span class="sub">(opraveno podle zásuvky)</span>':""}<span style="font-variant-numeric:tabular-nums">${r.wh?`${nf(r.wh/1000,2)} kWh dodal`:"–"}</span></div>
       <div class="sub" style="font-size:13px">${durTxt((r.t1-r.t0)/60)}${S.txt?` · ${S.txt} (+${nf(S.got/1000,2)} kWh)`:""}${S.eff?` · účinnost ~${S.eff} %`:""}</div></div>`; }).join("");
+  // 4.35: grafy nahoře – výkon generátoru (zásuvka generátoru) a kolik dodal po dnech
+  const U = useModel(d), pts = d.points || [], dayTp = k => ((d.days||{})[k]||{}).tp || {};
+  const dd = []; for(let i=13;i>=0;i--) dd.push(dkey(Date.now()/1000 - i*86400));
+  body.insertAdjacentHTML("beforeend", chartCard("dg_w", "Výkon generátoru", "W · zásuvka generátoru · 48 h")
+    + chartCard("dg_d", "Dodal po dnech", "kWh za den · zásuvka generátoru · 14 dní"));
+  lineChart($("dg_w"), pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})), "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
+  barChart($("dg_d"), dd.map(k=>({k, v:(dayTp(k)[U.gen]||0)/1000})), "v", css("--s7"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
   body.insertAdjacentHTML("beforeend", `<div class="card">${rows || '<span class="sub">Zatím žádný zaznamenaný běh generátoru.</span>'}</div>
   <div class="sub" style="margin:0 4px 12px;line-height:1.5">Dodáno = energie přes zásuvku Tapo generátoru. Nabito = změna % River × kapacita (${cap} Wh). Účinnost = nabito ÷ dodáno (ztráty nabíječky River a odběr během nabíjení).</div>`);
 }
