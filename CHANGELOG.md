@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.37 – 19. 10. 2026
+- **Výroba a spotřeba po dnech / měsících** (graf „Výroba po dnech“ – detail Solár i Grafy): u každého dne výroba a vedle ní spotřeba chaty **celkem** – ze soláru (i se ztrátami měniče) a z River. Po ťuknutí: „výroba pokryla spotřebu“ nebo „chybělo X kWh“.
+- Zrušen graf „Výroba vs. spotřeba ze solární baterie“ (počítal jen spotřebu ze soláru – ve dny na River ukazoval falešný přebytek).
+
 ## 4.36 – 19. 10. 2026
 - Dlaždice EcoFlow: River, u které je napsáno „nabíjí se z generátoru / ze soláru“, má zelený pruh a tečku (dřív šedé – počítal se jen výstup přes její zásuvku).
 
