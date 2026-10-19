@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.28 – 19. 10. 2026
+- Zvětšení prsty opravdu opraveno: Chrome posílal pohyb prstu jen původnímu (už překreslenému) grafu, takže reagovalo jen první nepatrné zvětšení. Teď plynule, oba prsty v grafu.
+- Graf si dotyk bere celý (prohlížeč při mírném svislém pohybu začal posouvat stránku a druhý prst ignoroval); posun stránky prstem přes graf dělá graf sám, i s doběhem. Při posouvání se neukazuje hodnota.
+
 ## 4.27 – 19. 10. 2026
 - Oprava zvětšení prsty: po prvním překreslení grafu přestal reagovat pohyb prstů (dotyk zůstal na starém, vyměněném grafu). Pohyb teď sleduje celá stránka.
 
