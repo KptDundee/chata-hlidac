@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.33 – 19. 10. 2026 (Flip 1.4.1)
+- Flip 1.4.1: zprávy, které čekaly ve frontě pro ntfy (ntfy je odmítal), pošle taky přes GitHub – hlídač jimi doplní mezeru v grafech.
+
 ## 4.32 – 19. 10. 2026 (Flip 1.4.0)
 - **Data z Flipu jdou rovnou na GitHub** se spuštěním hlídače (parametr `flip`), ne přes ntfy. ntfy.sh od 12:21 odmítal zprávy z chaty (HTTP 429 – limit). ntfy zůstává na upozornění, probouzení Flipu a jako záloha, když GitHub nejde.
 - Flip posílá s nejnovější zprávou i starší (každou 3×, kdyby GitHub čekající běh zrušil); hlídač je spáruje podle času, dvakrát nic nezapočítá. Poslední dvě zprávy si hlídač pamatuje pro běhy bez dat z Flipu.

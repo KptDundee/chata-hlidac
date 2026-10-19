@@ -453,7 +453,12 @@ public final class Collector {
         String tok = Prefs.s(ctx, Prefs.GH_TOKEN);
         if (tok.isEmpty()) return -1;
         try {
-            JSONArray buf = new JSONArray(Prefs.get(ctx).getString("ghbuf", "[]"));
+            JSONArray buf = new JSONArray();
+            // 1.4.1: zprávy, které čekaly ve frontě pro ntfy (ntfy je odmítal), pošlou se taky – přes GitHub
+            JSONArray ob = new JSONArray(Prefs.get(ctx).getString("outbox", "[]"));
+            for (int i = 0; i < ob.length(); i++) buf.put(new JSONObject().put("m", ob.getString(i)).put("n", 0));
+            JSONArray old = new JSONArray(Prefs.get(ctx).getString("ghbuf", "[]"));
+            for (int i = 0; i < old.length(); i++) buf.put(old.getJSONObject(i));
             buf.put(new JSONObject().put("m", msg).put("n", 0));
             long cut = System.currentTimeMillis() / 1000 - 24 * 3600;
             JSONArray keep = new JSONArray();                       // starší než den pryč, nejvýš 150 zpráv
@@ -486,7 +491,7 @@ public final class Collector {
             String err = code == 204 ? "" : errText(c);
             c.disconnect();
             if (code != 204) {
-                Prefs.get(ctx).edit().putString("ghbuf", buf.toString()).apply();
+                Prefs.get(ctx).edit().putString("ghbuf", buf.toString()).putString("outbox", "[]").apply();
                 Prefs.log(ctx, "GitHub odpověděl " + code + (code == 401 || code == 403 ? " – zkontroluj token (Actions: Read and write)" : "") + " " + err + " – zkusím ntfy");
                 return -1;
             }
@@ -496,7 +501,7 @@ public final class Collector {
                 if (used.contains(i)) b.put("n", b.optInt("n") + 1);
                 if (b.optInt("n") < 3) rest.put(b);
             }
-            Prefs.get(ctx).edit().putString("ghbuf", rest.toString()).apply();
+            Prefs.get(ctx).edit().putString("ghbuf", rest.toString()).putString("outbox", "[]").apply();
             return arr.length();
         } catch (Exception e) {
             Prefs.log(ctx, "GitHub: " + e.getMessage() + " – zkusím ntfy");
