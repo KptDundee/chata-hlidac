@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.25", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.26", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1209,7 +1209,8 @@ function batFlow(h){           // stav: nabíjí / vybíjí / nabito / v klidu
 function dayFcRow(d, h){
   const f = d.day_fc; if(!f || h.now - f.t > 1800) return null;
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
-  if(f.src==="river") return [`na soláru do ${e}`, f.ok ? `<span style="color:var(--good)">ano ✓</span>` : `<b style="color:var(--text2)">ne</b>`];   // krátké „ano/ne“ jako u „do rána“, ať se popisek nezkracuje
+  if(f.src==="river")   // chata na River (4.26): jeden jasný řádek – můžu přepnout na solár? (rozpis v detailu)
+    return ["přepnout na solár?", f.ok && f.night_ok ? `<b style="color:var(--good)">ano ✓</b>` : f.ok ? `<b style="color:var(--good)">do ${e}</b>` : `<b style="color:var(--text2)">ne</b>`, 1];
   return [`do ${e}`, f.ok ? `<span style="color:var(--good)">vydrží ✓</span>` : `<b style="color:var(--crit)">dojde ~${hmT(f.t_empty)}</b>`];
 }
 /* rozpis výhledu dne – co je v baterii, co přibude, co se spotřebuje */
@@ -1228,8 +1229,9 @@ function dayFcBlock(f){
 /* do rána (4.19): přes den z výhledu dne (stejný výpočet, pokračuje přes noc), v noci z noční předpovědi */
 function nightRow(d, h){
   const f = d.day_fc;
+  if(f && h.now - f.t <= 1800 && f.src==="river") return null;   // na River to řeší řádek „přepnout na solár?“
   if(f && h.now - f.t <= 1800 && f.night_ok != null)
-    return [f.src==="river" ? "na soláru do rána" : "do rána", f.night_ok ? `<span style="color:var(--good)">ano ✓</span>` : `<b style="color:var(${f.src==="river"?"--text2":"--crit"})">ne</b>`];
+    return ["do rána", f.night_ok ? `<span style="color:var(--good)">ano ✓</span>` : `<b style="color:var(${f.src==="river"?"--text2":"--crit"})">ne</b>`];
   const n = d.forecast; if(!n || !n.until || h.invF && !(h.inv.mw > 3)) return null;   // noc: jen když chata jede ze soláru
   return ["do rána", n.t_crit ? `<b style="color:var(--crit)">ne</b>` : `<span style="color:var(--good)">ano ✓</span>`];
 }
@@ -1480,7 +1482,7 @@ const SEV = {bad:0, warn:1, ok:2, na:3};
 function tileHtml(x){
   return `<div class="ht ${x.cls}${x.wide?" wide":""}" data-det="${x.k}" role="button"><span class="go">›</span>
     <div class="l"><span>${x.icon}</span>${x.label}</div>${x.top||""}${x.v!==""?`<div class="v">${x.v}</div>`:""}
-    <div class="st">${x.st||""}</div>${x.a?`<div class="a">${x.a}</div>`:""}${x.rows?`<div class="rows">${x.rows.map(r=>`<div><span>${r[0]}</span><span>${r[1]}</span></div>`).join("")}</div>`:""}${x.bar!=null?`<div class="bar"><div style="width:${Math.max(0,Math.min(100,x.bar))}%"></div></div>`:""}</div>`;
+    <div class="st">${x.st||""}</div>${x.a?`<div class="a">${x.a}</div>`:""}${x.rows?`<div class="rows">${x.rows.map(r=>`<div><span${r[2]?' style="white-space:normal"':""}>${r[0]}</span><span>${r[1]}</span></div>`).join("")}</div>`:""}${x.bar!=null?`<div class="bar"><div style="width:${Math.max(0,Math.min(100,x.bar))}%"></div></div>`:""}</div>`;
 }
 /* ---------- pevná struktura hlavní stránky (v3.33): lišta k řešení · Teď (baterie, River) · Dnes (spotřeba, výroba) · Výhled · Uplynulé · Dlouhodobě ---------- */
 let RVSEL = (()=>{ try{ return localStorage.getItem("rvsel"); }catch(e){ return null; } })();
@@ -2410,7 +2412,16 @@ function hover(svg,p,html){
 $("range").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;HOURS=+b.dataset.h;store.set("range",HOURS);for(const x of $("range").children)x.setAttribute("aria-pressed",x===b);render();});
 const sr=+store.get("range"); if(sr){HOURS=sr;for(const x of $("range").children)x.setAttribute("aria-pressed",+x.dataset.h===sr);}
 
+/* nová verze webu (4.26): při obnovení dat se podívá, jestli na serveru není novější stránka – pak ji sama načte
+   (aplikace z plochy nemá tlačítko „obnovit stránku“) */
+let VERCHK = 0;
+async function checkWebVer(){
+  if(Date.now() - VERCHK < 5*60*1000) return; VERCHK = Date.now();
+  try{ const t = await (await fetch("./index.html?v="+Date.now(), {cache:"no-store"})).text(), m = t.match(/WEB_VER = "([\d.]+)"/);
+       if(m && m[1] !== WEB_VER && !ZOOM && $("set").classList.contains("hide")) location.reload(); }catch(_){}
+}
 async function refresh(){
+  checkWebVer();
   try{DATA=await load(PW);render();}
   catch(e){if(e.message==="nodata"){$("upd").textContent="Data zatím nejsou – počkej na první běh hlídače.";}}
 }
