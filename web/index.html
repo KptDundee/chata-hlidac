@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.28", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.29", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1245,10 +1245,11 @@ function tileSolar(d, h){
   const hqv = d.hq ? `<div style="white-space:nowrap;color:var(${hqc})">${nf(d.hq.pct)}<small>#</small></div>` : "";   // nabití # stejně velké jako V, pod ním
   const v = (R.stale ? `<div style="color:var(--muted);white-space:nowrap">${nf(h.bv,2)}<small>V</small></div>` : `<div style="white-space:nowrap">${nf(h.bv,2)}<small>V</small></div>`) + hqv;
   const soc = h.last.bat_soc!=null && h.last.bat_soc>=0 && h.last.bat_soc<=100 ? h.last.bat_soc : null;   // regulátor občas pošle nesmysl (1446 %)
-  const odb = h.loadB==null ? "–" : h.menicOff ? "0 W · měnič vyp." : `${nf(h.loadB)} W`;
+  const odb = h.loadB==null ? "–" : `${nf(h.loadB)} W`;
+  const off = h.menicOff || h.rvOn;   // 4.29: chata na River → řádek odběru pryč (nic neodebírá, „chata na River“ je v textu nad tím)
   return {...t, label:`${t.label}${bang}`, cls: ac ? (h.bv!=null && h.bv < CRIT_V || R.stale ? "bad" : "warn") : "ok",
     v, st: R.stale ? ac : `<span style="color:var(${F.c})">${F.t}</span>`,
-    rows:[["nabití", soc!=null ? `${nf(soc)} %` : "–"], ["☀ panely", h.pv!=null ? `${nf(h.pv)} W` : "–"], ["🏠 odběr", odb],
+    rows:[["nabití", soc!=null ? `${nf(soc)} %` : "–"], ["☀ panely", h.pv!=null ? `${nf(h.pv)} W` : "–"], ...(off ? [] : [["🏠 odběr", odb]]),
       ...(dayFcRow(d, h) ? [dayFcRow(d, h)] : []), ...(nightRow(d, h) ? [nightRow(d, h)] : [])]};
 }
 /* ---------- čas dne: kdy je „teď“ noc, den, večer ---------- */

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.29 – 19. 10. 2026
+- Dlaždice Solární baterie: když chata jede z River, řádek „🏠 odběr 0 W · měnič vyp.“ (zkrácený na „o…“) zmizel – že chata jede z River, je napsané nad ním.
+
 ## 4.28 – 19. 10. 2026
 - Zvětšení prsty opravdu opraveno: Chrome posílal pohyb prstu jen původnímu (už překreslenému) grafu, takže reagovalo jen první nepatrné zvětšení. Teď plynule, oba prsty v grafu.
 - Graf si dotyk bere celý (prohlížeč při mírném svislém pohybu začal posouvat stránku a druhý prst ignoroval); posun stránky prstem přes graf dělá graf sám, i s doběhem. Při posouvání se neukazuje hodnota.
