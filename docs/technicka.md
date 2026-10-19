@@ -116,7 +116,7 @@ Od východu + 30 min do západu: čistý proud = `bat_a` − (odběr měniče / 
 ---
 
 ### Web – grafy (`lineChart`, `pinch`)
-Každý čárový graf má zvětšení prsty (`pinch`, od 4.25 všude, `touch-action: pan-y` → svislý posun stránky zůstává). Výřez času je v `el._zw` a `lineChart` ho použije i při obnovení dat; `el._lc` drží poslední data a volby. Dvojité ťuknutí výřez zruší.
+Každý čárový graf má zvětšení prsty (`pinch`, od 4.25 všude, `touch-action: pan-y` → svislý posun stránky zůstává). Výřez času je v `el._zw` a `lineChart` ho použije i při obnovení dat; `el._lc` drží poslední data a volby. Dvojité ťuknutí výřez zruší. `touchmove`/`touchend` se během gesta poslouchají na `document` – překreslení vymění svg a dotyk by jinak chodil na odstraněný prvek.
 
 ## 4. Data (`data.enc`)
 

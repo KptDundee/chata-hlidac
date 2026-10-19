@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.27 – 19. 10. 2026
+- Oprava zvětšení prsty: po prvním překreslení grafu přestal reagovat pohyb prstů (dotyk zůstal na starém, vyměněném grafu). Pohyb teď sleduje celá stránka.
+
 ## 4.26 – 19. 10. 2026
 - Dlaždice Solární baterie, když chata jede z River: místo dvou řádků jeden **„přepnout na solár?“** – **ano ✓** (vydrží do rána), **do 22:00** (přes den ano, večer zpět na River), **ne**. Rozpis v detailu.
 - Web se po vydání nové verze **sám načte znovu** (zkontroluje při obnovení dat, nejvýš jednou za 5 min); service worker už nebere starou kopii z mezipaměti prohlížeče.
