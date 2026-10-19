@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.36 – 19. 10. 2026
+- Dlaždice EcoFlow: River, u které je napsáno „nabíjí se z generátoru / ze soláru“, má zelený pruh a tečku (dřív šedé – počítal se jen výstup přes její zásuvku).
+
 ## 4.35 – 19. 10. 2026
 - Detail Generátor: nahoře grafy – výkon generátoru (W, zásuvka generátoru, 48 h) a kolik dodal po dnech (kWh, 14 dní); pod nimi seznam běhů.
 
