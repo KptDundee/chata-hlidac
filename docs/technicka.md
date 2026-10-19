@@ -115,6 +115,9 @@ Od východu + 30 min do západu: čistý proud = `bat_a` − (odběr měniče / 
 
 ---
 
+### Výhled dne – nabídka soláru (`day_outlook`)
+Chata na River: „Dnes můžeš přepnout na solár“ se pošle, když `res.ok` a je po dnešním čase z `den_kontrola` (`due` nebo `after`) a před `den_do`; jednou za den (`st.do_conn`). Od 4.30 i během dne, ne jen v čase kontroly.
+
 ### Web – grafy (`lineChart`, `pinch`)
 Každý čárový graf má zvětšení prsty (`pinch`, od 4.25 všude). Výřez času je v `el._zw` a `lineChart` ho použije i při obnovení dat; `el._lc` drží poslední data a volby. Dvojité ťuknutí výřez zruší. Graf má `touch-action: none` (svislý posun stránky jedním prstem dělá `pinch` sám, s doběhem). `touchmove`/`touchend` se poslouchají přímo na prvku, kterého se prst dotkl (Chrome je posílá i odstraněnému prvku, z něj ale neprobublají), a na `document` (prst mimo graf); stejná událost se zpracuje jednou.
 

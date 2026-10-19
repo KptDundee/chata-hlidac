@@ -2682,17 +2682,21 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
             sched[bits[0].lower()[:2]] = bits[1]
     tk = sched.get(WD[now.weekday()])
     due = False
+    after = False                           # už je po dnešním čase kontroly (pro nabídku soláru během dne)
     if tk:
         try:
             h2, m2 = (int(x) for x in tk.split(":")[:2])
             tchk = now.replace(hour=h2, minute=m2, second=0, microsecond=0)
             due = now >= tchk and st.get("do_chk") != day
+            after = now >= tchk
         except ValueError:
             pass
     if due:
         st["do_chk"] = day
     if on_river:                            # chata jede z River: v čas z rozvrhu nabídnout solár, když vydrží do večera
-        if due and res["ok"] and st.get("do_conn") != day:
+        # 4.30: nejen v čas z rozvrhu – i během dne, jakmile to poprvé vyjde (baterie se nabíjí, do večera ubývá hodin);
+        # jednou za den, jen do konce výhledu (den_do)
+        if (due or after) and res["ok"] and st.get("do_conn") != day and now.timestamp() < res["end"]:
             ntfy(topic, "☀️ Dnes můžeš chatu přepnout na solární baterii",
                  f"Solární baterie ({hq['pct']} #) s dnešní výrobou podle předpovědi (~{fmt(rem_kwh, 1)} kWh, s rezervou) "
                  f"vydrží chatu (~{res['load_w']} W) do {hh}:{mm:02d}.\nVečer zase přepoj na River.", 3, "sunny,battery")
