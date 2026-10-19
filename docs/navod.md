@@ -185,6 +185,9 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 
 ---
 
+### Flip posílá data přes GitHub (Flip 1.4.0)
+Flip od 1.4.0 posílá naměřená data přímo s tokenem na GitHub (stejný token jako pro spouštění hlídače, musí mít **Actions: Read and write**). V záznamu Flipu je pak „Odesláno (GitHub): …“. Když GitHub nejde, pošle data postaru přes ntfy. Bez tokenu to funguje jen přes ntfy, a to má limit na počet zpráv (19. 10. odmítal – HTTP 429).
+
 ### Záložní spouštění hlídače (cron-job.org, od 4.31)
 Hlídač normálně spouští Flip po každém měření. Když na chatě vypadne internet, zbývá jen plán GitHubu, který umí běhy na desítky minut vynechat (19. 10. 12:22–12:57). Proto ho navíc každých 10 min spouští **cron-job.org** (zdarma):
 - GitHub token jen pro tento repozitář, oprávnění **Actions: Read and write**, platnost 1 rok (pak vyměnit).

@@ -171,6 +171,14 @@ public final class Collector {
             String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
             if (topic.isEmpty()) return "Chybí ntfy téma v nastavení";
             String url = "https://ntfy.sh/" + topic + "-menic";
+            // 1.4: data jdou rovnou na GitHub se spuštěním hlídače (ntfy.sh odmítal zprávy z chaty – HTTP 429).
+            // ntfy jen jako záloha, když GitHub nejde (bez tokenu, bez internetu).
+            int gh = sendGitHub(o.toString());
+            if (gh >= 0) {
+                Prefs.get(ctx).edit().putLong(Prefs.LAST_SENT, System.currentTimeMillis()).apply();
+                Prefs.log(ctx, "Odesláno (GitHub): " + sum + (gh > 1 ? " (+ " + (gh - 1) + " starších)" : ""));
+                return sum.toString() + " · GitHub";
+            }
             int sentOld = flushOutbox(url);
             try {
                 post(url, o.toString());
@@ -264,7 +272,7 @@ public final class Collector {
      */
     private void sendPlugHistories(String email, String pass, JSONArray plugs, Map<String, String> idIp) {
         String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
-        if (topic.isEmpty()) return;
+        if (topic.isEmpty() || histBackoff()) return;
         java.text.SimpleDateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US);
         String today = df.format(new java.util.Date());
         for (int k = 0; k < plugs.length(); k++) {
@@ -303,6 +311,8 @@ public final class Collector {
                 }
             } catch (Exception e) {
                 Prefs.log(ctx, "Historie zásuvky (" + id + "): " + e.getMessage());
+                histFailed();
+                return;                                  // ntfy nejde → další zásuvky zkusit až za hodinu
             }
         }
     }
@@ -387,7 +397,7 @@ public final class Collector {
     /** Najde zásuvku za měničem (název obsahuje „měnič“, „220“ …) a pošle hodinovou spotřebu za posledních 30 dní. */
     private void sendPlugHistory(String email, String pass) {
         String today = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new java.util.Date());
-        if (today.equals(Prefs.get(ctx).getString("hist_sent", ""))) return;
+        if (today.equals(Prefs.get(ctx).getString("hist_sent", "")) || histBackoff()) return;
         String ip = null;
         for (Map.Entry<String, String> e : names.entrySet()) {
             if (e.getValue().toLowerCase(Locale.ROOT).matches(".*(m[eě]ni[cč]|inverter|220|230).*")) { ip = e.getKey(); break; }
@@ -425,7 +435,82 @@ public final class Collector {
             Prefs.get(ctx).edit().putString("hist_sent", today).apply();
         } catch (Exception e) {
             Prefs.log(ctx, "Historie zásuvky: " + e.getMessage());
+            histFailed();
         }
+    }
+
+    /** Historie zásuvek přes ntfy: po chybě (např. 429) další pokus nejdřív za hodinu, ne v každém kole. */
+    private boolean histBackoff() { return System.currentTimeMillis() - Prefs.get(ctx).getLong("hist_fail", 0) < 3600_000L; }
+    private void histFailed() { Prefs.get(ctx).edit().putLong("hist_fail", System.currentTimeMillis()).apply(); }
+
+    /**
+     * Data na GitHub: spuštění hlídače s daty v parametru „flip“ (pole zpráv). Posílá se vždy nejnovější zpráva
+     * a k ní co nejvíc starších z vyrovnávací paměti (od nejstarších) – každá zpráva jde 3× (kdyby GitHub čekající
+     * běh zrušil, přijde znovu v dalším). Hlídač zprávy pozná podle "ts", dvakrát je nezapočítá.
+     * @return počet poslaných zpráv, -1 = nejde (bez tokenu / chyba) → záloha přes ntfy
+     */
+    private synchronized int sendGitHub(String msg) {
+        String tok = Prefs.s(ctx, Prefs.GH_TOKEN);
+        if (tok.isEmpty()) return -1;
+        try {
+            JSONArray buf = new JSONArray(Prefs.get(ctx).getString("ghbuf", "[]"));
+            buf.put(new JSONObject().put("m", msg).put("n", 0));
+            long cut = System.currentTimeMillis() / 1000 - 24 * 3600;
+            JSONArray keep = new JSONArray();                       // starší než den pryč, nejvýš 150 zpráv
+            for (int i = Math.max(0, buf.length() - 150); i < buf.length(); i++) {
+                JSONObject b = buf.getJSONObject(i);
+                if (new JSONObject(b.getString("m")).optLong("ts", 0) >= cut) keep.put(b);
+            }
+            buf = keep;
+            JSONArray arr = new JSONArray();
+            java.util.List<Integer> used = new java.util.ArrayList<>();
+            int size = msg.length();
+            arr.put(msg); used.add(buf.length() - 1);
+            for (int i = 0; i < buf.length() - 1; i++) {             // starší, od nejstarších, do ~40 000 znaků
+                String m = buf.getJSONObject(i).getString("m");
+                if (size + m.length() > 40000) break;
+                arr.put(m); used.add(i); size += m.length();
+            }
+            JSONObject body = new JSONObject().put("ref", "main").put("inputs",
+                    new JSONObject().put("test", "false").put("wake", "false").put("flip", arr.toString()));
+            HttpURLConnection c = (HttpURLConnection) new URL("https://api.github.com/repos/KptDundee/chata-hlidac/actions/workflows/hlidac.yml/dispatches").openConnection();
+            c.setConnectTimeout(15000);
+            c.setReadTimeout(20000);
+            c.setRequestMethod("POST");
+            c.setDoOutput(true);
+            c.setRequestProperty("Authorization", "Bearer " + tok);
+            c.setRequestProperty("Accept", "application/vnd.github+json");
+            c.setRequestProperty("Content-Type", "application/json");
+            try (OutputStream o = c.getOutputStream()) { o.write(body.toString().getBytes(StandardCharsets.UTF_8)); }
+            int code = c.getResponseCode();
+            String err = code == 204 ? "" : errText(c);
+            c.disconnect();
+            if (code != 204) {
+                Prefs.get(ctx).edit().putString("ghbuf", buf.toString()).apply();
+                Prefs.log(ctx, "GitHub odpověděl " + code + (code == 401 || code == 403 ? " – zkontroluj token (Actions: Read and write)" : "") + " " + err + " – zkusím ntfy");
+                return -1;
+            }
+            JSONArray rest = new JSONArray();
+            for (int i = 0; i < buf.length(); i++) {
+                JSONObject b = buf.getJSONObject(i);
+                if (used.contains(i)) b.put("n", b.optInt("n") + 1);
+                if (b.optInt("n") < 3) rest.put(b);
+            }
+            Prefs.get(ctx).edit().putString("ghbuf", rest.toString()).apply();
+            return arr.length();
+        } catch (Exception e) {
+            Prefs.log(ctx, "GitHub: " + e.getMessage() + " – zkusím ntfy");
+            return -1;
+        }
+    }
+
+    /** Text chybové odpovědi (pro záznam – ať je vidět, proč server odmítl). */
+    private static String errText(HttpURLConnection c) {
+        try (java.io.InputStream in = c.getErrorStream()) {
+            if (in == null) return "";
+            byte[] b = new byte[300]; int n = in.read(b);
+            return n > 0 ? "(" + new String(b, 0, n, StandardCharsets.UTF_8).replaceAll("\\s+", " ").trim() + ")" : "";
+        } catch (Exception e) { return ""; }
     }
 
     /** Do záznamu jen změny stavu zásuvky. */
@@ -507,8 +592,9 @@ public final class Collector {
         c.setRequestProperty("Priority", "1");
         try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); }
         int code = c.getResponseCode();
+        String err = code >= 300 ? errText(c) : "";
         c.disconnect();
-        if (code >= 300) throw new Exception("ntfy HTTP " + code);
+        if (code >= 300) throw new Exception("ntfy HTTP " + code + (err.isEmpty() ? "" : " " + err));
     }
 
     /** Verze aplikace (versionName z build.gradle) – hlídač ji ukáže na webu. */

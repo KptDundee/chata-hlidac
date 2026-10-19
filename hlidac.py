@@ -1288,7 +1288,8 @@ def main():
         data["ver"] = None
     rivers = read_ecoflow(data, st, now, topic, cfg)
     if os.environ.get("WAKE") == "1":
-        wake_flip(topic)
+        # Flip 1.4+ posílá data přes GitHub (sám spustí další běh) → nečekat na ntfy, jen ho probudit
+        wake_flip(topic, 0 if now.timestamp() - (st.get("flip_gh") or 0) < 3600 else 110)
     inv = read_inverter(data, topic, now, cfg)
     read_plug_history(data, topic)
     try:
@@ -2227,7 +2228,8 @@ def wake_flip(topic, wait_s=110):
                 return
         except Exception:
             pass
-    print("Flip na probuzení neodpověděl (starší verze, spí nebo bez internetu)")
+    if wait_s:
+        print("Flip na probuzení neodpověděl (starší verze, spí nebo bez internetu)")
 
 
 def read_inverter(data, topic, now, cfg=None):
@@ -2236,11 +2238,11 @@ def read_inverter(data, topic, now, cfg=None):
     Formát zprávy: JSON {"w": průměr VA, "max": max VA, "v": napětí baterie, "st": stav, "al": alarm}.
     """
     url = f"https://ntfy.sh/{topic}-menic/json?poll=1&since=12h"
+    lines = []
     try:
         lines = urllib.request.urlopen(url, timeout=20).read().decode().strip().splitlines()
     except Exception as e:
         print("Měnič (ntfy):", e)
-        return None
     msgs = []
     for ln in lines:
         try:
@@ -2249,6 +2251,24 @@ def read_inverter(data, topic, now, cfg=None):
                 msgs.append(m)
         except ValueError:
             pass
+    # Flip 1.4+: data přímo ve spuštění z GitHubu (parametr „flip“ = pole zpráv); ntfy jen záloha.
+    # Poslední dvě zprávy si hlídač pamatuje (běhy bez dat z Flipu – plán, cron-job.org – pak mají z čeho brát).
+    st = data.setdefault("state", {})
+    gh = []
+    raw = os.environ.get("FLIP_DATA", "").strip()
+    if raw:
+        try:
+            for s_ in json.loads(raw):
+                b_ = json.loads(s_)
+                gh.append({"event": "message", "time": int(b_.get("ts") or time.time()), "message": s_})
+            st["flip_gh"] = int(now.timestamp())
+            print(f"Flip přes GitHub: {len(gh)} zpráv")
+        except (ValueError, TypeError) as e:
+            print("Data z Flipu (GitHub):", e)
+    seen = {}
+    for m in msgs + (st.get("flip_last") or []) + gh:
+        seen.setdefault(m.get("message"), m)            # stejná zpráva z více cest jen jednou
+    msgs = [m for m in seen.values() if now.timestamp() - int(m.get("time") or 0) < 12 * 3600]
     if not msgs:
         return None
 
@@ -2258,6 +2278,7 @@ def read_inverter(data, topic, now, cfg=None):
         except (ValueError, AttributeError, TypeError):
             return int(m.get("time") or 0)
     msgs.sort(key=_mt)                     # podle času měření (zprávy z fronty Flipu chodí opožděně)
+    st["flip_last"] = [{"event": "message", "time": m.get("time"), "message": m.get("message")} for m in msgs[-2:]]
     last = msgs[-1]
     inv = inv_from_msg(last, now, cfg)
     if inv is None:

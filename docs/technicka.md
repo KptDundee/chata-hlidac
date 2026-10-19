@@ -115,6 +115,9 @@ Od východu + 30 min do západu: čistý proud = `bat_a` − (odběr měniče / 
 
 ---
 
+### Data z Flipu (od Flip 1.4.0)
+Flip po měření spustí workflow `hlidac.yml` s `inputs.flip` = JSON pole zpráv (nejnovější + starší z `ghbuf`, do ~40 000 znaků; každá zpráva se pošle 3×, starší než den pryč). Hlídač (`read_inverter`) je čte z `FLIP_DATA`, spojí se zprávami z ntfy `<topic>-menic` (záloha) a s `state.flip_last` (poslední 2), duplicity podle textu zprávy. `state.flip_gh` = kdy naposledy přišla data přes GitHub (pak `wake_flip` nečeká na ntfy). Bez tokenu / při chybě GitHubu Flip posílá postaru do ntfy (+ fronta `outbox`).
+
 ### Výhled dne – nabídka soláru (`day_outlook`)
 Chata na River: „Dnes můžeš přepnout na solár“ se pošle, když `res.ok` a je po dnešním čase z `den_kontrola` (`due` nebo `after`) a před `den_do`; jednou za den (`st.do_conn`). Od 4.30 i během dne, ne jen v čase kontroly.
 

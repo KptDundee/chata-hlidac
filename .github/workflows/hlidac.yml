@@ -13,6 +13,10 @@ on:
         description: "Probudit Flip (změřit hned)"
         type: boolean
         default: false
+      flip:
+        description: "Data z Flipu (1.4+: pole zpráv JSON; jinak prázdné)"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -46,6 +50,7 @@ jobs:
           ECOFLOW_DEBUG: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test && '1' || '0' }}
           WAKE: ${{ github.event_name == 'workflow_dispatch' && inputs.wake && '1' || '0' }}
+          FLIP_DATA: ${{ github.event_name == 'workflow_dispatch' && inputs.flip || '' }}
         run: python3 hlidac.py
 
       - name: Odblokovat zaseknuté nasazení stránky
