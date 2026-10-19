@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.37", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.38", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1652,7 +1652,10 @@ function detUse(body, src="a"){
     ? stackBars(el, dd.map(q=>({k:q.k, v:{s:q.s[id]||0, r:q.r[id]||0}})), SRC, {})
     : barChart(el, dd.filter(q=>q[src][id]!=null).map(q=>({k:q.k, v:(q[src][id]||0)/1000})), "v", col, {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
   const srcCap = src==="a" ? ` · <span style="color:var(--s2)">■</span> ze soláru · <span style="color:var(--s1)">■</span> z River` : "";
-  let html = segHtml()
+  // 4.38: výroba a spotřeba chaty celkem po dnech – pokryla výroba spotřebu? (stejný graf jako v detailu Solár)
+  const pu = src==="a" ? chartCard("u_pu", long ? "Výroba a spotřeba po měsících" : "Výroba a spotřeba po dnech",
+    `kWh · <span style="color:var(--s2)">■</span> výroba · spotřeba celkem: <span style="color:var(--s3)">■</span> ze soláru (i se ztrátami měniče) <span style="color:var(--s1)">■</span> z River · ťukni na den`) : "";
+  let html = segHtml() + pu
     + chartCard("u_sum", `Odběr chaty ${SRCN[src]}`, long ? `kWh za den${srcCap}` : `W${src==="a" ? " · 220 V + River · šedé pozadí = chata na River" : src==="s" ? " · zásuvka 220 V za měničem" : " · zásuvky na výstupu River"}`);
   if(src!=="r") html += chartCard("u_220", "220 V – zásuvka za měničem", long ? `kWh za den · v bublině i se ztrátami měniče` : `W · <span style="color:var(--s2)">━ změřeno na zásuvce</span> · <span style="color:var(--s1)">╍ vzato z baterie (+12 % ztráty měniče, +${nf(U.idle,1)} W měnič a desulfátor)</span>`);
   for(const x of U.devs) html += chartCard("u_d"+x.id, x.name, `${long ? "kWh za den" + srcCap : "W"}${only}${x.hist ? "" : " · historie od 14. 10."}`);
@@ -1678,6 +1681,7 @@ function detUse(body, src="a"){
     <b>Historie:</b> 220 V, lednice a Wi‑Fi zpětně${mig?` (stará jména přiřazena: ${mig})`:""}; ostatní zásuvky od 14. 10. 2026. Podrobný průběh po 10 min jen 14 dní, pak součty po dnech.<br>
     <b>Nabíjení River ze soláru</b> (zásuvka 8) neměří – když běží, schová se v „ostatní“.</div></div>`;
   body.insertAdjacentHTML("beforeend", html);
+  if(src==="a") prodUse($("u_pu"), long ? "m" : "d");
   if(long){
     bars($("u_sum"), "_sum");
     if(src!=="r") barChart($("u_220"), dd.map(q=>({k:q.k, v:(q.s._sum||0)/1000})), "v", css("--s2"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b> změřeno<br>z baterie ~${nf(q.v/0.88 + U.idle*24/1000,2)} kWh`});

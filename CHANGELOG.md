@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.38 – 19. 10. 2026
+- Graf „Výroba a spotřeba po dnech“ i v detailu **Chata celkem** (první graf; při rozsahu rok / celkem po měsících). V detailu Solár zůstává.
+
 ## 4.37 – 19. 10. 2026
 - **Výroba a spotřeba po dnech / měsících** (graf „Výroba po dnech“ – detail Solár i Grafy): u každého dne výroba a vedle ní spotřeba chaty **celkem** – ze soláru (i se ztrátami měniče) a z River. Po ťuknutí: „výroba pokryla spotřebu“ nebo „chybělo X kWh“.
 - Zrušen graf „Výroba vs. spotřeba ze solární baterie“ (počítal jen spotřebu ze soláru – ve dny na River ukazoval falešný přebytek).
