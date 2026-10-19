@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.34 – 19. 10. 2026
+- Generátor: energie běhu = počítadlo zásuvky generátoru minus to, co dnes dodaly už ukončené běhy. Dřív se počítalo až od chvíle, kdy hlídač běh poprvé uviděl – když začal v mezeře (Flip nemohl posílat), web ukazoval méně (0,29 kWh místo 1,3 kWh). Opraví i právě běžící běh.
+
 ## 4.33 – 19. 10. 2026 (Flip 1.4.1)
 - Flip 1.4.1: zprávy, které čekaly ve frontě pro ntfy (ntfy je odmítal), pošle taky přes GitHub – hlídač jimi doplní mezeru v grafech.
 

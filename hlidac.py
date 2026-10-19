@@ -2989,11 +2989,20 @@ def gen_sessions(data, st, now, topic, cfg):
             print("Generátor – zpětně:", e)
     cur = st.get("gen_cur")
     day_wh = lambda: ((data.get("days", {}).get(now.strftime("%Y-%m-%d")) or {}).get("tp") or {}).get(gip)
+    # 4.34: výchozí stav počítadla = co dnes dodaly už UKONČENÉ běhy. Dřív se brala hodnota počítadla v chvíli, kdy
+    # hlídač běh poprvé uviděl – když běh začal v mezeře (Flip nemohl posílat), energie z té doby se ztratila
+    # (19. 10.: web 0,29 kWh, zásuvka 1,3 kWh). Zásuvka generátoru měří jen generátor, takže zbytek patří tomuto běhu.
+    d0 = now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    prev_today = lambda: sum(r.get("wh") or 0 for r in log_ if (r.get("t0") or 0) >= d0)
+    if cur and not cur.get("w0fix") and cur.get("d") == now.strftime("%Y-%m-%d") and cur.get("src") == "tapo":
+        cur["w0"] = min(cur.get("w0") or 0.0, prev_today())
+        cur["w0fix"] = True
     if active:
         if not cur:
             t0 = int(g.get("since") or ts) if gen_on else ts       # Flip ví, kdy se zásuvka objevila
-            cur = {"t0": min(t0, ts), "src": "tapo" if gen_on else "river", "rv": {}, "wh": 0.0,
-                   "d": now.strftime("%Y-%m-%d"), "w0": day_wh()}
+            dw0 = day_wh()
+            cur = {"t0": min(t0, ts), "src": "tapo" if gen_on else "river", "rv": {}, "wh": 0.0, "w0fix": True,
+                   "d": now.strftime("%Y-%m-%d"), "w0": min(dw0, prev_today()) if dw0 is not None else None}
             log("ev", "Generátor: začátek nabíjení" + (f" ({fmt(g.get('w'))} W)" if gen_on else ""))
         # energie z generátoru: přírůstek denního počítadla zásuvky (přes půlnoc se počítá znovu od nuly)
         dw = day_wh()
@@ -3011,7 +3020,7 @@ def gen_sessions(data, st, now, topic, cfg):
         cur["t1"] = ts
         cur["w"] = g.get("w") if gen_on else None
         st["gen_cur"] = cur
-        data["gen_cur"] = {k: v for k, v in cur.items() if k not in ("w0", "wh_prev", "d")}
+        data["gen_cur"] = {k: v for k, v in cur.items() if k not in ("w0", "wh_prev", "d", "w0fix")}
         return
     if cur and not fresh and ts - cur.get("t1", ts) < 3600:
         return                                         # Flip chvíli mlčí – běh ještě neukončovat
@@ -3027,7 +3036,7 @@ def gen_sessions(data, st, now, topic, cfg):
             cur["wh"] = round(cur.get("wh_prev", 0.0) + max(0.0, dw - (cur.get("w0") or 0.0)), 1)
     if cur:                                            # běh skončil → uložit a poslat souhrn
         cur["rv"] = {k: v for k, v in cur["rv"].items() if v.get("chg")}
-        rec = {k: v for k, v in cur.items() if k not in ("w0", "wh_prev", "d", "w")}
+        rec = {k: v for k, v in cur.items() if k not in ("w0", "wh_prev", "d", "w", "w0fix")}
         log_.append(rec)
         del log_[:-60]
         st["gen_cur"] = None
