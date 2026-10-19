@@ -185,6 +185,12 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 
 ---
 
+### Záložní spouštění hlídače (cron-job.org, od 4.31)
+Hlídač normálně spouští Flip po každém měření. Když na chatě vypadne internet, zbývá jen plán GitHubu, který umí běhy na desítky minut vynechat (19. 10. 12:22–12:57). Proto ho navíc každých 10 min spouští **cron-job.org** (zdarma):
+- GitHub token jen pro tento repozitář, oprávnění **Actions: Read and write**, platnost 1 rok (pak vyměnit).
+- Úloha: `POST https://api.github.com/repos/KptDundee/chata-hlidac/actions/workflows/hlidac.yml/dispatches`, hlavičky `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`, `Content-Type: application/json`, tělo `{"ref":"main","inputs":{"test":"false","wake":"false"}}`, každých 10 min. Úspěch = odpověď 204.
+- Když token vyprší, cron-job.org pošle e-mail o chybách (401).
+
 ## 8. Hodinky
 
 - **Komplikace** „Chata – napětí baterie“: dlouze podrž ciferník → Upravit → místo komplikace. *V?* = data starší než hodina, *V!* = kritické napětí.

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.31 – 19. 10. 2026
+- Návod: záložní spouštění hlídače každých 10 min přes cron-job.org (GitHub vynechal plánované běhy 12:22–12:57 při výpadku internetu na chatě → upozornění „Regulátor neposílá data“ přišlo pozdě).
+
 ## 4.30 – 19. 10. 2026
 - „☀️ Dnes můžeš chatu přepnout na solární baterii“ přijde i **během dne**, jakmile to poprvé vyjde (baterie se dobíjí a do 22:00 ubývá hodin) – nejen ráno v čas z rozvrhu. Jednou za den, jen do 22:00, jen když chata jede z River a den má v rozvrhu čas.
 
