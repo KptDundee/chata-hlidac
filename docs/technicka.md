@@ -115,6 +115,9 @@ Od východu + 30 min do západu: čistý proud = `bat_a` − (odběr měniče / 
 
 ---
 
+### Web – grafy (`lineChart`, `pinch`)
+Každý čárový graf má zvětšení prsty (`pinch`, od 4.25 všude, `touch-action: pan-y` → svislý posun stránky zůstává). Výřez času je v `el._zw` a `lineChart` ho použije i při obnovení dat; `el._lc` drží poslední data a volby. Dvojité ťuknutí výřez zruší.
+
 ## 4. Data (`data.enc`)
 
 AES-GCM, klíč PBKDF2-SHA256 (200 000 iterací) z `DATA_KEY`. Hlavní klíče:

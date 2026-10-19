@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.24", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.25", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -728,7 +728,9 @@ function dayLines(svg,t0,t1,x){
   svg.insertAdjacentHTML("beforeend", s);
 }
 function lineChart(el, pts, key, color, o){
-  el._lc = {pts, key, color, o};                     // pro zvětšení prsty (graf přes celou obrazovku)
+  if(o._pz) o = {...o, _pz:0};                       // kreslí zvětšení prsty: výřez z pinch()
+  else { el._lc = {pts, key, color, o};              // nová data: zapamatovat (výřez prsty zůstává, dvojí ťuknutí ho zruší)
+         if(el._zw && o.t0==null) o = {...o, t0:el._zw[0], t1:el._zw[1]}; }
   if(o.t0!=null){ const a=o.t0-1200, b=o.t1+1200; pts = pts.filter(q=>q.t>=a && q.t<=b); }   // výřez času: jen body v okně
   const p=pts.filter(q=>q[key]!=null); if(p.length<2) return empty(el);
   const k2=o.k2, p2=k2?pts.filter(q=>q[k2.key]!=null):[];
@@ -793,6 +795,7 @@ function lineChart(el, pts, key, color, o){
     showTip(ev,`${fmtT(best.t)}<br><b>${nf(best[key],o.dec)} ${o.unit}</b>${extra}`);};
   const leave=()=>{ch.setAttribute("opacity",0);cd.setAttribute("opacity",0);hideTip();};
   svg.addEventListener("pointermove",move);svg.addEventListener("pointerdown",move);svg.addEventListener("pointerleave",ev=>{ if(ev.pointerType==="mouse") leave(); });   // na dotyku hodnota zůstane
+  if(!el._pzOn) pinch(el);                           // zvětšení prsty – v každém grafu, i bez celé obrazovky (4.25)
 }
 let PROD = "d";
 function renderVers(d){
@@ -1206,7 +1209,7 @@ function batFlow(h){           // stav: nabíjí / vybíjí / nabito / v klidu
 function dayFcRow(d, h){
   const f = d.day_fc; if(!f || h.now - f.t > 1800) return null;
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
-  if(f.src==="river") return [`na soláru do ${e}`, f.ok ? `<span style="color:var(--good)">vydržela by ✓</span>` : `<span style="color:var(--text2)">nestačila by</span>`];
+  if(f.src==="river") return [`na soláru do ${e}`, f.ok ? `<span style="color:var(--good)">ano ✓</span>` : `<b style="color:var(--text2)">ne</b>`];   // krátké „ano/ne“ jako u „do rána“, ať se popisek nezkracuje
   return [`do ${e}`, f.ok ? `<span style="color:var(--good)">vydrží ✓</span>` : `<b style="color:var(--crit)">dojde ~${hmT(f.t_empty)}</b>`];
 }
 /* rozpis výhledu dne – co je v baterii, co přibude, co se spotřebuje */
@@ -2664,7 +2667,6 @@ function openZoom(card){
   let z = $("zoom"); if(!z){ z = document.createElement("div"); z.id = "zoom"; z.className = "hide"; document.body.appendChild(z); }
   const ph = document.createComment("zoom"); card.parentNode.insertBefore(ph, card);
   ZOOM = {card, ph}; z.appendChild(card); z.classList.remove("hide"); hideTip();
-  for(const el of card.querySelectorAll("div")) if(el._lc) pinch(el);
   // bez režimu celé obrazovky prohlížeče (Chrome pak pokaždé ukazuje hlášku „Pokud chcete ukončit…“);
   // otočit na šířku jde jen tam, kde to prohlížeč dovolí (jinak stačí otočit telefon)
   try{ screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape").catch(()=>{}); }catch(_){}
@@ -2672,35 +2674,36 @@ function openZoom(card){
 function closeZoom(){
   if(!ZOOM) return; const {card, ph} = ZOOM; ZOOM = null;
   try{ if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); }catch(_){}
-  for(const el of card.querySelectorAll("div")) if(el._pz){ el._pz(); const L = el._lc0 || el._lc; if(L) lineChart(el, L.pts, L.key, L.color, L.o); }
   if(ph.parentNode) ph.parentNode.replaceChild(card, ph); else card.remove();
   $("zoom").classList.add("hide"); hideTip();
 }
-/* zvětšení prsty v grafu přes celou obrazovku (4.24): dva prsty od sebe = podrobnější čas (osa x), jeden prst = posun,
-   dvojité ťuknutí = zpět na celé období. Hodnoty po ťuknutí dál fungují. */
+/* zvětšení prsty (4.24, od 4.25 v každém grafu): dva prsty od sebe = podrobnější čas (osa x), jeden prst do strany = posun
+   (jen když je zvětšeno), dvojité ťuknutí = zpět na celé období. Svislé posouvání stránky prstem dál funguje (touch-action: pan-y),
+   hodnoty po ťuknutí taky. Výřez si graf drží i po obnovení dat (el._zw). */
 function pinch(el){
-  const L = el._lc; el._lc0 = L;
-  const now = Date.now()/1000, full = [L.o.t0!=null?L.o.t0:now-(L.o.hours||HOURS)*3600, L.o.t1!=null?L.o.t1:now], FS = full[1]-full[0];
-  let win = [...full], st = null, raf = 0, lastTap = 0;
-  const draw = () => { raf = 0; lineChart(el, L.pts, L.key, L.color, {...L.o, t0:win[0], t1:win[1]}); el._lc = L; };
+  el._pzOn = true; el.style.touchAction = "pan-y";
+  let st = null, raf = 0, lastTap = 0;
+  const full = () => { const o = el._lc.o, now = Date.now()/1000; return [o.t0!=null?o.t0:now-(o.hours||HOURS)*3600, o.t1!=null?o.t1:now]; };
+  const cur = () => el._zw || full();
+  const draw = () => { raf = 0; const L = el._lc; if(!L) return; const w = el._zw || full(); lineChart(el, L.pts, L.key, L.color, {...L.o, t0:w[0], t1:w[1], _pz:1}); };
   const req = () => { if(!raf) raf = requestAnimationFrame(draw); };
   const frac = cx => { const r = el.getBoundingClientRect(); return Math.min(1, Math.max(0, ((cx-r.left)*W/r.width - M.l)/(W-M.l-M.r))); };
-  const setWin = (a, span) => { span = Math.max(1800, Math.min(FS, span)); a = Math.max(full[0], Math.min(full[1]-span, a)); win = [a, a+span]; req(); };
-  const ts = e => { const t = e.touches;
+  const setWin = (a, span) => { const F = full(), FS = F[1]-F[0]; span = Math.max(1800, Math.min(FS, span)); a = Math.max(F[0], Math.min(F[1]-span, a));
+    el._zw = span >= FS-1 ? null : [a, a+span]; req(); };
+  const ts = e => { if(!el._lc) return; const t = e.touches;
     if(t.length===2){ const d = Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY), c = frac((t[0].clientX+t[1].clientX)/2);
-      st = {m:2, d, c, w:[...win]}; e.preventDefault(); }
-    else if(t.length===1){ st = {m:1, x:t[0].clientX, y:t[0].clientY, w:[...win], moved:false};
-      const n = Date.now(); if(n-lastTap < 300){ win = [...full]; req(); st = null; } lastTap = n; } };
+      st = {m:2, d, c, w:[...cur()]}; e.preventDefault(); hideTip(); }
+    else if(t.length===1){ st = {m:1, x:t[0].clientX, y:t[0].clientY, w:[...cur()], moved:false};
+      const n = Date.now(); if(n-lastTap < 300 && el._zw){ el._zw = null; req(); st = null; e.preventDefault(); } lastTap = n; } };
   const tm = e => { if(!st) return; const t = e.touches;
     if(st.m===2 && t.length===2){ const d = Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY), span0 = st.w[1]-st.w[0];
-      const span = span0 * st.d / Math.max(10, d), tc = st.w[0] + st.c*span0; setWin(tc - st.c*Math.max(1800, Math.min(FS, span)), span); e.preventDefault(); hideTip(); }
+      const span = span0 * st.d / Math.max(10, d), F = full(), cl = Math.max(1800, Math.min(F[1]-F[0], span)), tc = st.w[0] + st.c*span0;
+      setWin(tc - st.c*cl, span); e.preventDefault(); hideTip(); }
     else if(st.m===1 && t.length===1){ const dx = t[0].clientX-st.x, dy = t[0].clientY-st.y;
-      if(!st.moved && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) && win[1]-win[0] < FS-1) st.moved = true;
+      if(!st.moved && el._zw && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) st.moved = true;
       if(st.moved){ const r = el.getBoundingClientRect(), span = st.w[1]-st.w[0]; setWin(st.w[0] - dx/(r.width*(W-M.l-M.r)/W)*span, span); e.preventDefault(); hideTip(); } } };
   const te = e => { if(e.touches.length===0) st = null; };
   el.addEventListener("touchstart", ts, {passive:false}); el.addEventListener("touchmove", tm, {passive:false}); el.addEventListener("touchend", te);
-  el.style.touchAction = "none";
-  el._pz = () => { el.removeEventListener("touchstart", ts); el.removeEventListener("touchmove", tm); el.removeEventListener("touchend", te); el.style.touchAction = ""; el._pz = null; el._lc = L; };
 }
 document.addEventListener("click", e=>{
   const h = e.target.closest(".card.chart > h2, .card.chart > div > h2"); if(!h) return;
