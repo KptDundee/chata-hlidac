@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.22", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.23", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -619,7 +619,8 @@ function render(){
   { const R = regStale(d), u = $("upd");
     const reg = !d.updated ? "Regulátor – zatím žádná data" : `<span${R.stale ? ' style="color:var(--crit);font-weight:700"' : ""}>Regulátor ${agoS(d.updated)}${R.stale ? " ⚠" : ""}</span>`;
     const vo = d.vic_t ? Date.now()/1000 - d.vic_t > 3600 : true;
-    const vic = d.vic_t ? `<span${vo ? ' style="color:var(--warn)"' : ""}>Victron ${agoS(d.vic_t)}</span>` : `<span style="color:var(--muted)">Victron – zatím bez dat</span>`;
+    const hh = homeData(d), off = hh.rvOn || hh.menicOff;            // chata na River: měnič vypnutý – mlčí schválně
+    const vic = off ? `<span style="color:var(--muted)">Victron vypnutý (chata na River)</span>` : d.vic_t ? `<span${vo ? ' style="color:var(--warn)"' : ""}>Victron ${agoS(d.vic_t)}</span>` : `<span style="color:var(--muted)">Victron – zatím bez dat</span>`;
     u.innerHTML = `${reg}<br>${vic}`; u.style.color = ""; u.style.fontWeight = ""; }
   const err = d.state && d.state.err_n;
   const sun = d.sun ? ` · ☀ ${new Date(d.sun[0]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}–${new Date(d.sun[1]*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}` : "";
@@ -1461,7 +1462,7 @@ function tileSystem(d, h){
   if(regAge > (d.cfg?.regulator_offline_min ?? 30)) probs.push(`regulátor mlčí ${ago(d.updated)}`);
   if(d.state && d.state.err_n >= 3) probs.push("cloud nejde číst");
   if(!h.inv || h.now - h.inv.t > 3600) probs.push("Flip (brána) mlčí");
-  else if(h.inv.v==null) warns.push("Victron neposílá");
+  else if(h.inv.v==null && !h.rvOn && !h.menicOff) warns.push("Victron neposílá");   // na River je měnič vypnutý
   const cmp = (a,b) => { const x=String(a).split(".").map(Number), y=String(b).split(".").map(Number); return (x[0]-y[0]) || ((x[1]||0)-(y[1]||0)); };
   if(h.inv && (!h.inv.av || cmp(h.inv.av, FLIP_VER) < 0)) warns.push(`nahraj Flip ${FLIP_VER}`);
   if(d.ver && d.ver !== WEB_VER) warns.push("obnov stránku");
@@ -1823,7 +1824,7 @@ function alertItems(d, h){
   if(RS.stale) A.push({s:2, t:`Regulátor neposílá data (od ${relDay(RS.t)} ${hmT(RS.t)})`, k:"sys"});
   if(!g || h.now - g.t > 1800) A.push({s:2, t:`Flip neposílá data${g?` (od ${relDay(g.t)} ${hmT(g.t)})`:""}`, k:"sys"});
   else if(g.wifi===0) A.push({s:2, t:"Flip není na Wi‑Fi – zásuvky nejdou číst", k:"sys"});
-  if(g && h.now - g.t <= 1800 && d.vic_t && h.now - d.vic_t > 3600) A.push({s:1, t:`Victron neposílá (od ${relDay(d.vic_t)} ${hmT(d.vic_t)})`, k:"sys"});
+  if(g && h.now - g.t <= 1800 && d.vic_t && h.now - d.vic_t > 3600 && !h.rvOn && !h.menicOff) A.push({s:1, t:`Victron neposílá (od ${relDay(d.vic_t)} ${hmT(d.vic_t)})`, k:"sys"});
   if(g && h.now - g.t <= 1800 && ph && ph.b!=null && !ph.c && ph.b <= 50) A.push({s: ph.b <= 20 ? 2 : 1, t:`Flip má ${nf(ph.b)} % a nenabíjí se`, k:"sys"});
   if(!RS.stale && h.bv!=null && h.bv < CRIT_V) A.push({s:2, t:`Solární baterie ${nf(h.bv,2)} V – pod ${nf(CRIT_V,1)} V`, k:"bat"});
   if(!RS.stale && h.extraW!=null && h.net!=null && h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.extraW >= (h.cfg.odber_navic_W ?? 40)) A.push({s:1, t:`Odběr ${nf(h.extraW)} W navíc za měničem`, k:"bat"});

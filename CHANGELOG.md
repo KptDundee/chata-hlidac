@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.23 – 19. 10. 2026
+- Když chata jede z River (měnič vypnutý), už se nehlásí „Victron neposílá“ (lišta nahoře ani Systém); v hlavičce „Victron vypnutý (chata na River)“.
+
 ## 4.22 – 18. 10. 2026
 - Hlavní stránka, řádek Teď: když chatu napájí River, je **dlaždice EcoFlow první** a Solární baterie druhá; po přepojení na solár zase naopak.
 
