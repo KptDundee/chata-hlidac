@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.23", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.24", FLIP_VER = "1.3.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -684,9 +684,9 @@ function xLabels(svg,t0,t1,x){
     for(; d.getTime()/1000 <= t1; d.setMonth(d.getMonth()+step)){ const t=d.getTime()/1000; const lab = years ? String(d.getFullYear()) : d.toLocaleDateString("cs-CZ",{month:"short"})+(d.getMonth()===0?" "+String(d.getFullYear()).slice(2):""); s+=`<text x="${x(t)}" y="${H-6}" text-anchor="middle">${lab}</text>`; }
     svg.insertAdjacentHTML("beforeend",s); return;
   }
-  const span=t1-t0, stepH = span<=86400*1.1?6:span<=172800*1.1?12:span<=7*86400*1.1?24:48;
-  let s=""; const d=new Date(t0*1000); d.setMinutes(0,0,0); d.setHours(Math.ceil(d.getHours()/stepH)*stepH);
-  for(let t=d.getTime()/1000;t<=t1;t+=stepH*3600){const dt=new Date(t*1000);const lab=stepH>=24?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):dt.getHours()===0?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):dt.getHours()+":00";s+=`<text x="${x(t)}" y="${H-6}" text-anchor="middle">${lab}</text>`;}
+  const span=t1-t0, stepH = span<=2.2*3600?0.25:span<=4.5*3600?0.5:span<=9*3600?1:span<=14*3600?2:span<=86400*1.1?6:span<=172800*1.1?12:span<=7*86400*1.1?24:48;
+  let s=""; const st=stepH*3600, first=Math.ceil((t0+new Date(t0*1000).getTimezoneOffset()*-60)/st)*st-new Date(t0*1000).getTimezoneOffset()*-60;
+  for(let t=first;t<=t1;t+=st){const dt=new Date(t*1000);const lab=stepH>=24?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):(dt.getHours()===0&&dt.getMinutes()===0)?dt.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):dt.getHours()+":"+String(dt.getMinutes()).padStart(2,"0");s+=`<text x="${x(t)}" y="${H-6}" text-anchor="middle">${lab}</text>`;}
   svg.insertAdjacentHTML("beforeend",s);
 }
 function refLines(svg,y,refs){let s="";for(const[v,c,lab]of refs||[]){s+=`<line x1="${M.l}" x2="${W-M.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(${c})" stroke-width="1.5" stroke-dasharray="5 4"/>`;
@@ -728,6 +728,8 @@ function dayLines(svg,t0,t1,x){
   svg.insertAdjacentHTML("beforeend", s);
 }
 function lineChart(el, pts, key, color, o){
+  el._lc = {pts, key, color, o};                     // pro zvětšení prsty (graf přes celou obrazovku)
+  if(o.t0!=null){ const a=o.t0-1200, b=o.t1+1200; pts = pts.filter(q=>q.t>=a && q.t<=b); }   // výřez času: jen body v okně
   const p=pts.filter(q=>q[key]!=null); if(p.length<2) return empty(el);
   const k2=o.k2, p2=k2?pts.filter(q=>q[k2.key]!=null):[];
   const LX=(o.lines||[]).map(l=>({...l, p:pts.filter(q=>q[l.key]!=null)}));      // další vrstvy (panely nahoru, odběr dolů) k bilanci
@@ -737,7 +739,8 @@ function lineChart(el, pts, key, color, o){
   for(const[v]of o.refs||[]){lo=Math.min(lo,v);hi=Math.max(hi,v);}
   if(o.zero) lo=0; const pad=(hi-lo)*(o.pad||.1)||1; hi+=pad; if(!o.zero) lo-=pad*.5;
   const {svg,y}=frame(el,lo,hi,(hi-lo)<1&&o.dec>1?2:o.dec>0?1:0);
-  const t0=Date.now()/1000-(o.hours||HOURS)*3600, t1=Date.now()/1000;
+  const t0=o.t0!=null?o.t0:Date.now()/1000-(o.hours||HOURS)*3600, t1=o.t1!=null?o.t1:Date.now()/1000;
+  if(o.t0!=null) svg.style.overflow="hidden";        // výřez: nekreslit mimo graf
   const x=t=>M.l+(W-M.l-M.r)*(t-t0)/(t1-t0);
   xLabels(svg,t0,t1,x); refLines(svg,y,o.refs); dayLines(svg,t0,t1,x);
   if(o.modes){   // barevné pozadí podle režimu nabíjení regulátoru
@@ -2661,6 +2664,7 @@ function openZoom(card){
   let z = $("zoom"); if(!z){ z = document.createElement("div"); z.id = "zoom"; z.className = "hide"; document.body.appendChild(z); }
   const ph = document.createComment("zoom"); card.parentNode.insertBefore(ph, card);
   ZOOM = {card, ph}; z.appendChild(card); z.classList.remove("hide"); hideTip();
+  for(const el of card.querySelectorAll("div")) if(el._lc) pinch(el);
   // bez režimu celé obrazovky prohlížeče (Chrome pak pokaždé ukazuje hlášku „Pokud chcete ukončit…“);
   // otočit na šířku jde jen tam, kde to prohlížeč dovolí (jinak stačí otočit telefon)
   try{ screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape").catch(()=>{}); }catch(_){}
@@ -2668,8 +2672,35 @@ function openZoom(card){
 function closeZoom(){
   if(!ZOOM) return; const {card, ph} = ZOOM; ZOOM = null;
   try{ if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); }catch(_){}
+  for(const el of card.querySelectorAll("div")) if(el._pz){ el._pz(); const L = el._lc0 || el._lc; if(L) lineChart(el, L.pts, L.key, L.color, L.o); }
   if(ph.parentNode) ph.parentNode.replaceChild(card, ph); else card.remove();
   $("zoom").classList.add("hide"); hideTip();
+}
+/* zvětšení prsty v grafu přes celou obrazovku (4.24): dva prsty od sebe = podrobnější čas (osa x), jeden prst = posun,
+   dvojité ťuknutí = zpět na celé období. Hodnoty po ťuknutí dál fungují. */
+function pinch(el){
+  const L = el._lc; el._lc0 = L;
+  const now = Date.now()/1000, full = [L.o.t0!=null?L.o.t0:now-(L.o.hours||HOURS)*3600, L.o.t1!=null?L.o.t1:now], FS = full[1]-full[0];
+  let win = [...full], st = null, raf = 0, lastTap = 0;
+  const draw = () => { raf = 0; lineChart(el, L.pts, L.key, L.color, {...L.o, t0:win[0], t1:win[1]}); el._lc = L; };
+  const req = () => { if(!raf) raf = requestAnimationFrame(draw); };
+  const frac = cx => { const r = el.getBoundingClientRect(); return Math.min(1, Math.max(0, ((cx-r.left)*W/r.width - M.l)/(W-M.l-M.r))); };
+  const setWin = (a, span) => { span = Math.max(1800, Math.min(FS, span)); a = Math.max(full[0], Math.min(full[1]-span, a)); win = [a, a+span]; req(); };
+  const ts = e => { const t = e.touches;
+    if(t.length===2){ const d = Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY), c = frac((t[0].clientX+t[1].clientX)/2);
+      st = {m:2, d, c, w:[...win]}; e.preventDefault(); }
+    else if(t.length===1){ st = {m:1, x:t[0].clientX, y:t[0].clientY, w:[...win], moved:false};
+      const n = Date.now(); if(n-lastTap < 300){ win = [...full]; req(); st = null; } lastTap = n; } };
+  const tm = e => { if(!st) return; const t = e.touches;
+    if(st.m===2 && t.length===2){ const d = Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY), span0 = st.w[1]-st.w[0];
+      const span = span0 * st.d / Math.max(10, d), tc = st.w[0] + st.c*span0; setWin(tc - st.c*Math.max(1800, Math.min(FS, span)), span); e.preventDefault(); hideTip(); }
+    else if(st.m===1 && t.length===1){ const dx = t[0].clientX-st.x, dy = t[0].clientY-st.y;
+      if(!st.moved && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) && win[1]-win[0] < FS-1) st.moved = true;
+      if(st.moved){ const r = el.getBoundingClientRect(), span = st.w[1]-st.w[0]; setWin(st.w[0] - dx/(r.width*(W-M.l-M.r)/W)*span, span); e.preventDefault(); hideTip(); } } };
+  const te = e => { if(e.touches.length===0) st = null; };
+  el.addEventListener("touchstart", ts, {passive:false}); el.addEventListener("touchmove", tm, {passive:false}); el.addEventListener("touchend", te);
+  el.style.touchAction = "none";
+  el._pz = () => { el.removeEventListener("touchstart", ts); el.removeEventListener("touchmove", tm); el.removeEventListener("touchend", te); el.style.touchAction = ""; el._pz = null; el._lc = L; };
 }
 document.addEventListener("click", e=>{
   const h = e.target.closest(".card.chart > h2, .card.chart > div > h2"); if(!h) return;
