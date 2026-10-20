@@ -2675,7 +2675,17 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         ratio = max(ratio, 1.0)
     rem_kwh = fc_kwh * ratio * (1 - f_done) * 0.8                          # s rezervou −20 %
     rise2 = sun_times(cfg["sirka"], cfg["delka"], now.date() + timedelta(days=1))[0]
-    end2 = rise2.timestamp() + 3600 if rise2 else end.timestamp()     # do rána = do hodiny po zítřejším východu
+    # do rána = jako noční předpověď: do zítřejšího východu + nabijeni_od_vychodu_min (dřív +1 h)
+    end2 = rise2.timestamp() + (cfg.get("nabijeni_od_vychodu_min") or 0) * 60 if rise2 else end.timestamp()
+    # 4.40: po západu počítat s NOČNÍM odběrem (medián nocí za poslední 3 dny, chata na soláru) – denní průměr za 3 h
+    # bývá vyšší (lednice v teple, nabíjení) a s +15 % výhled do rána zbytečně shazoval. Noc bez rezervy +15 %,
+    # stejně jako noční předpověď (ta se navíc učí z minulých nocí).
+    nmw = sorted(p["mw"] for p in data.get("points", []) if p.get("mw") is not None and p["mw"] > 3
+                 and p["t"] >= ts - 3 * 86400 and (p.get("pv_w") or 0) < 5
+                 and (datetime.fromtimestamp(p["t"], TZ).hour >= 21 or datetime.fromtimestamp(p["t"], TZ).hour < 5))
+    load_n = ((nmw[len(nmw) // 2] if len(nmw) >= 12 else (cfg.get("noc_spotreba_W") or (sum(mws) / len(mws) if mws else now_w)))
+              / 0.88 + idle) / 12.4
+    set_ts = set_.timestamp() if set_ else end.timestamp()
     steps, t = [], ts
     while t < end2:
         steps.append(t)
@@ -2685,7 +2695,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     t_empty, t_empty_n, lvl = None, None, ah
     for t, wi in zip(steps, w):
         prod_a_h = rem_kwh * 1000 * wi / wsum / 13.0 * 0.9                 # Ah do baterie v tomhle kroku
-        lvl = min(lvl + prod_a_h, ah + room) - load_a * 600 / 3600
+        lvl = min(lvl + prod_a_h, ah + room) - (load_a if t < set_ts else load_n) * 600 / 3600
         if lvl <= 0:
             t_empty_n = t
             if t < end.timestamp():
@@ -2696,7 +2706,9 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "ah": round(ah, 1), "alarm": round(alarm), "cap": round(cap),
            "prod_ah": round(rem_kwh * 1000 / 13.0 * 0.9, 1), "cons_ah": round(load_a * (end.timestamp() - ts) / 3600, 1),
            "hrs": round((end.timestamp() - ts) / 3600, 1), "src": "solar" if on_solar else "river",
-           "night_ok": t_empty_n is None, "t_empty_n": int(t_empty_n) if t_empty_n else None}
+           "night_ok": t_empty_n is None, "t_empty_n": int(t_empty_n) if t_empty_n else None,
+           "load_n_w": round(load_n * 12.4), "night_ah": round(load_n * max(0.0, end2 - max(ts, set_ts)) / 3600, 1),
+           "lvl_end": round(lvl, 1) if t_empty_n is None else None}
     data["day_fc"] = res
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu)

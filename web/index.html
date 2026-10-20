@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.38", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.40", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1228,6 +1228,8 @@ function dayFcBlock(f){
       ${L(`Ještě vyrobí ~${nf(f.rem_kwh,2)} kWh (předpověď ×${nf(f.ratio,1)} podle dneška, −20 %)`, `+${nf(f.prod_ah,1)} Ah`, "color:var(--good)")}
       ${L(`Spotřebuje ~${f.load_w} W × ${nf(f.hrs,1)} h (+15 %)`, `−${nf(f.cons_ah,1)} Ah`, "color:var(--crit)")}
       ${L("Bilance do "+e, `${sum>=0?"+":"−"}${nf(Math.abs(sum),1)} Ah`, `font-weight:700;color:var(${sum>=0?"--good":"--crit"})`)}
+      ${f.load_n_w!=null ? L(`Do rána: noc ~${f.load_n_w} W (medián minulých nocí) → spotřebuje`, `−${nf(f.night_ah,1)} Ah`, "color:var(--crit)") : ""}
+      ${f.load_n_w!=null ? L("Ráno nad alarmem zbude", f.night_ok ? `<b style="color:var(--good)">${nf(f.lvl_end,1)} Ah</b>` : `<b style="color:var(--crit)">došla by ~${hmT(f.t_empty_n)}</b>`) : ""}
     </div>` : ""}</div>`;
 }
 /* do rána (4.19): přes den z výhledu dne (stejný výpočet, pokračuje přes noc), v noci z noční předpovědi */
