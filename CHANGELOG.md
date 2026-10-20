@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.39 – 20. 10. 2026
+- Výhled dne / do rána: když byl regulátor dnes ve Floatu (baterie plná, výrobu přiškrtil), nesnižuje se zbývající výroba podle dnešní (přiškrcené) výroby – oprava ×1 místo nižší.
+
 ## 4.38 – 19. 10. 2026
 - Graf „Výroba a spotřeba po dnech“ i v detailu **Chata celkem** (první graf; při rozsahu rok / celkem po měsících). V detailu Solár zůstává.
 

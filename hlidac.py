@@ -2669,6 +2669,10 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     # zbývající výroba: podle předpovědi, opravené tím, jak dnes skutečně vyrábí (dnes víc než předpověď → víc)
     ratio = made / (fc_kwh * f_done) if fc_kwh > 0 and f_done > 0.15 else 1.0
     ratio = max(0.3, min(3.0, ratio))
+    # 4.39: ve Floatu regulátor výrobu přiškrtí (baterie plná) – nízká dnešní výroba pak není počasím → nesnižovat
+    d0 = now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    if any(p.get("status") == 1 and p["t"] >= d0 for p in data.get("points", [])):
+        ratio = max(ratio, 1.0)
     rem_kwh = fc_kwh * ratio * (1 - f_done) * 0.8                          # s rezervou −20 %
     rise2 = sun_times(cfg["sirka"], cfg["delka"], now.date() + timedelta(days=1))[0]
     end2 = rise2.timestamp() + 3600 if rise2 else end.timestamp()     # do rána = do hodiny po zítřejším východu
