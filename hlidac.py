@@ -1464,6 +1464,7 @@ def main():
                          ("Nabití #", lambda: hash_soc(data, st, now, cfg)),
                          ("Test kapacity", lambda: capacity_check(data, st, now, cfg)),
                          ("Upozornění #", lambda: hash_alert(data, st, now, topic, cfg)),
+                         ("Učení výhledu", lambda: night_learn(data, st, now, cfg)),
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
@@ -2622,6 +2623,34 @@ def ocv_soc(v):
 WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
 
 
+def night_learn(data, st, now, cfg):
+    """4.42: učení výhledu do rána. Při západu slunce si zapíše, kolik Ah chata do rána spotřebuje (noční odběr ×
+    dosavadní oprava), ráno při východu porovná se skutečností z # (body „hq“ = Ah od plné). Oprava = medián poměru
+    skutečnost / předpověď z posledních až 7 nocí (0,6–1,6). Poměr, ne rozdíl – sedí i při delší noci (podzim)."""
+    ts = now.timestamp()
+    pend = st.get("dfl_pend")
+    if pend and ts >= pend["t1"]:
+        st["dfl_pend"] = None
+        pts = [p for p in data.get("points", []) if pend["t0"] - 900 <= p["t"] <= pend["t1"] + 900]
+        a_ = min((p for p in pts if p.get("hq") is not None), key=lambda p: abs(p["t"] - pend["t0"]), default=None)
+        b_ = min((p for p in pts if p.get("hq") is not None), key=lambda p: abs(p["t"] - pend["t1"]), default=None)
+        night = [p for p in pts if pend["t0"] <= p["t"] <= pend["t1"]]
+        solar = night and sum(1 for p in night if (p.get("mw") or 0) > 3) >= 0.8 * len(night)   # celou noc na soláru
+        if a_ and b_ and solar and abs(a_["t"] - pend["t0"]) < 1200 and abs(b_["t"] - pend["t1"]) < 1200 and pend["pred"] > 3:
+            act = round(a_["hq"] - b_["hq"], 1)
+            if act > 1:
+                lg = st.setdefault("dfl_log", [])
+                lg.append({"d": datetime.fromtimestamp(pend["t0"], TZ).strftime("%Y-%m-%d"), "pred": pend["pred"], "predc": pend.get("predc"),
+                           "act": act, "r": round(act / pend["pred"], 2)})
+                del lg[:-10]
+    lg = st.get("dfl_log") or []
+    rs = sorted(x["r"] for x in lg[-7:])
+    med = (rs[len(rs) // 2] + rs[(len(rs) - 1) // 2]) / 2 if rs else 1.0
+    f = max(0.6, min(1.6, med)) if len(rs) >= 2 else 1.0                # aspoň 2 noci, jinak bez opravy
+    data["dfl"] = {"f": round(f, 2), "n": len(rs), "log": lg[-7:]}
+    return f
+
+
 def day_outlook(data, st, now, topic, cfg, rise, set_):
     """Výhled dne (přání 18. 10. 2026): když chata jede ze solární baterie – vydrží do den_do (22:00)?
     Teď v baterii (# nad alarmem 12,0 V) + zbývající výroba podle předpovědi − odběr (průměr 3 h), po 10 min.
@@ -2686,6 +2715,12 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     load_n = ((nmw[len(nmw) // 2] if len(nmw) >= 12 else (cfg.get("noc_spotreba_W") or (sum(mws) / len(mws) if mws else now_w)))
               / 0.88 + idle) / 12.4
     set_ts = set_.timestamp() if set_ else end.timestamp()
+    nf_ = (data.get("dfl") or {}).get("f") or 1.0
+    load_n *= nf_                                                       # oprava podle minulých nocí (night_learn)
+    if on_solar and set_ and ts >= set_ts and not st.get("dfl_pend") and st.get("dfl_day") != now.strftime("%Y-%m-%d") and rise2:
+        st["dfl_day"] = now.strftime("%Y-%m-%d")                         # při západu: zapsat předpověď do rána
+        st["dfl_pend"] = {"t0": int(ts), "t1": int(rise2.timestamp()), "pred": round(load_n / nf_ * (rise2.timestamp() - ts) / 3600, 1),
+                           "predc": round(load_n * (rise2.timestamp() - ts) / 3600, 1)}   # pred = bez opravy (z něj se učí)
     steps, t = [], ts
     while t < end2:
         steps.append(t)
@@ -2708,7 +2743,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "hrs": round((end.timestamp() - ts) / 3600, 1), "src": "solar" if on_solar else "river",
            "night_ok": t_empty_n is None, "t_empty_n": int(t_empty_n) if t_empty_n else None,
            "load_n_w": round(load_n * 12.4), "night_ah": round(load_n * max(0.0, end2 - max(ts, set_ts)) / 3600, 1),
-           "lvl_end": round(lvl, 1) if t_empty_n is None else None}
+           "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_}
     data["day_fc"] = res
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu)
