@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.41 – 20. 10. 2026
+- Dlaždice Solární baterie: u „do rána: ano ✓“ i odhad, kolik # zbude ráno (např. „ráno ~35 #“).
+
 ## 4.40 – 20. 10. 2026
 - Výhled „do rána“ přes den: po západu počítá s **nočním** odběrem (medián nocí za poslední 3 dny, chata na soláru), ne s denním průměrem za 3 h; v noci bez rezervy +15 % a do „východ + nabíjení od východu“ – stejně jako noční předpověď. Dřív byl zbytečně pesimistický.
 - Rozpis výhledu (detail Solární baterie): noční spotřeba a kolik Ah ráno zbude nad alarmem.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.40", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.41", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1237,7 +1237,7 @@ function nightRow(d, h){
   const f = d.day_fc;
   if(f && h.now - f.t <= 1800 && f.src==="river") return null;   // na River to řeší řádek „přepnout na solár?“
   if(f && h.now - f.t <= 1800 && f.night_ok != null)
-    return ["do rána", f.night_ok ? `<span style="color:var(--good)">ano ✓</span>` : `<b style="color:var(${f.src==="river"?"--text2":"--crit"})">ne</b>`];
+    return ["do rána", f.night_ok ? `<span style="color:var(--good)">ano ✓${f.lvl_end!=null && f.cap ? ` <span style="color:var(--text2)">ráno ~${Math.round(f.alarm + f.lvl_end/f.cap*100)} #</span>` : ""}</span>` : `<b style="color:var(${f.src==="river"?"--text2":"--crit"})">ne</b>`];
   const n = d.forecast; if(!n || !n.until || h.invF && !(h.inv.mw > 3)) return null;   // noc: jen když chata jede ze soláru
   return ["do rána", n.t_crit ? `<b style="color:var(--crit)">ne</b>` : `<span style="color:var(--good)">ano ✓</span>`];
 }
