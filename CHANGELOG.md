@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.43 – 20. 10. 2026
+- Noční odběr pro výhled do rána: i z nocí na River (zásuvky River měří stejný odběr chaty), okno 7 nocí – v zimě, kdy noci jedou z River, je pořád z čeho brát.
+- Oprava z učení výhledu jen z nocí za posledních 45 dní – po zimě bez nocí na soláru se stará oprava nepoužije (×1).
+
 ## 4.42 – 20. 10. 2026
 - **Výhled do rána se učí:** při západu slunce si hlídač zapíše, kolik Ah chata do rána spotřebuje, při východu to porovná se skutečností (z #). Oprava noční spotřeby = medián poměru skutečnost / odhad z posledních až 7 nocí (aspoň 2, ×0,6–1,6). Poměr místo rozdílu – sedí i když se noci prodlužují. Jen noci celé na soláru.
 - Rozpis výhledu: oprava a posledních 5 nocí „čekal → bylo“.

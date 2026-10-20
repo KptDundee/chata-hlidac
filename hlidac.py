@@ -2643,7 +2643,9 @@ def night_learn(data, st, now, cfg):
                 lg.append({"d": datetime.fromtimestamp(pend["t0"], TZ).strftime("%Y-%m-%d"), "pred": pend["pred"], "predc": pend.get("predc"),
                            "act": act, "r": round(act / pend["pred"], 2)})
                 del lg[:-10]
-    lg = st.get("dfl_log") or []
+    # jen noci z posledních 45 dní – po zimě na River (bez nocí na soláru) se stará oprava nepoužije
+    cut = (now - timedelta(days=45)).strftime("%Y-%m-%d")
+    lg = [x for x in (st.get("dfl_log") or []) if x["d"] >= cut]
     rs = sorted(x["r"] for x in lg[-7:])
     med = (rs[len(rs) // 2] + rs[(len(rs) - 1) // 2]) / 2 if rs else 1.0
     f = max(0.6, min(1.6, med)) if len(rs) >= 2 else 1.0                # aspoň 2 noci, jinak bez opravy
@@ -2709,9 +2711,16 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     # 4.40: po západu počítat s NOČNÍM odběrem (medián nocí za poslední 3 dny, chata na soláru) – denní průměr za 3 h
     # bývá vyšší (lednice v teple, nabíjení) a s +15 % výhled do rána zbytečně shazoval. Noc bez rezervy +15 %,
     # stejně jako noční předpověď (ta se navíc učí z minulých nocí).
-    nmw = sorted(p["mw"] for p in data.get("points", []) if p.get("mw") is not None and p["mw"] > 3
-                 and p["t"] >= ts - 3 * 86400 and (p.get("pv_w") or 0) < 5
-                 and (datetime.fromtimestamp(p["t"], TZ).hour >= 21 or datetime.fromtimestamp(p["t"], TZ).hour < 5))
+    # 4.43: noci na River se počítají taky – zásuvky River měří stejný odběr chaty (230 V) jako zásuvka za měničem.
+    # Bez toho by v zimě (noci jen na River) nebylo z čeho brát. Okno 7 nocí.
+    def _nw(p):
+        if (p.get("mw") or 0) > 3:
+            return p["mw"]
+        rw_ = sum((p.get("tp") or {}).get(i) or 0 for i in rids)
+        return rw_ if rw_ > 3 else None
+    nmw = sorted(w_ for p in data.get("points", []) if p["t"] >= ts - 7 * 86400 and (p.get("pv_w") or 0) < 5
+                 and (datetime.fromtimestamp(p["t"], TZ).hour >= 21 or datetime.fromtimestamp(p["t"], TZ).hour < 5)
+                 and (w_ := _nw(p)) is not None)
     load_n = ((nmw[len(nmw) // 2] if len(nmw) >= 12 else (cfg.get("noc_spotreba_W") or (sum(mws) / len(mws) if mws else now_w)))
               / 0.88 + idle) / 12.4
     set_ts = set_.timestamp() if set_ else end.timestamp()
