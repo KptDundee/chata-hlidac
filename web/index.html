@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.42", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.44", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -178,6 +178,7 @@ details.sec>.in{margin-top:8px}
 .abar.ok{--ac:var(--good)}.abar.warn{--ac:var(--warn)}.abar.bad{--ac:var(--crit)}
 .abar.warn,.abar.bad{background:color-mix(in srgb,var(--ac) 12%,var(--surface));border-color:color-mix(in srgb,var(--ac) 40%,var(--line))}
 .abar .ab{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.abar.quiet{padding:6px 12px;font-size:13px;font-weight:500}.abar.quiet .dot{width:18px;height:18px;font-size:11px}
 .rtabs{display:flex;gap:6px;margin:6px 0 2px;flex-wrap:wrap}
 .rtabs button{font:inherit;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
 .rtabs button.on{color:var(--text);border-color:var(--good)}
@@ -1240,10 +1241,12 @@ function nightRow(d, h){
   const f = d.day_fc;
   if(f && h.now - f.t <= 1800 && f.src==="river") return null;   // na River to řeší řádek „přepnout na solár?“
   if(f && h.now - f.t <= 1800 && f.night_ok != null)
-    return ["do rána", f.night_ok ? `<span style="color:var(--good)">ano ✓${f.lvl_end!=null && f.cap ? ` <span style="color:var(--text2)">ráno ~${Math.round(f.alarm + f.lvl_end/f.cap*100)} #</span>` : ""}</span>` : `<b style="color:var(${f.src==="river"?"--text2":"--crit"})">ne</b>`];
+    return f.night_ok && f.lvl_end!=null && f.cap ? [["do rána", `<span style="color:var(--good)">ano ✓</span>`], ["ráno zbude", `~${Math.round(f.alarm + f.lvl_end/f.cap*100)} #`]]   // 4.44: dva řádky, ať se vejdou
+      : ["do rána", f.night_ok ? `<span style="color:var(--good)">ano ✓</span>` : `<b style="color:var(${f.src==="river"?"--text2":"--crit"})">ne</b>`];
   const n = d.forecast; if(!n || !n.until || h.invF && !(h.inv.mw > 3)) return null;   // noc: jen když chata jede ze soláru
   return ["do rána", n.t_crit ? `<b style="color:var(--crit)">ne</b>` : `<span style="color:var(--good)">ano ✓</span>`];
 }
+function nightRows2(d, h){ const r = nightRow(d, h); return !r ? [] : Array.isArray(r[0]) ? r : [r]; }
 function tileSolar(d, h){
   const t = {k:"bat", icon:"🔆", label:"Solární baterie"};
   if(h.bv==null) return {...t, cls:"na", v:"–", st:"Bez dat z regulátoru"};
@@ -1258,7 +1261,7 @@ function tileSolar(d, h){
   return {...t, label:`${t.label}${bang}`, cls: ac ? (h.bv!=null && h.bv < CRIT_V || R.stale ? "bad" : "warn") : "ok",
     v, st: R.stale ? ac : `<span style="color:var(${F.c})">${F.t}</span>`,
     rows:[["nabití", soc!=null ? `${nf(soc)} %` : "–"], ["☀ panely", h.pv!=null ? `${nf(h.pv)} W` : "–"], ...(off ? [] : [["🏠 odběr", odb]]),
-      ...(dayFcRow(d, h) ? [dayFcRow(d, h)] : []), ...(nightRow(d, h) ? [nightRow(d, h)] : [])]};
+      ...(dayFcRow(d, h) ? [dayFcRow(d, h)] : []), ...nightRows2(d, h)]};
 }
 /* ---------- čas dne: kdy je „teď“ noc, den, večer ---------- */
 function dayPhase(d){
@@ -1852,7 +1855,9 @@ function alertItems(d, h){
   if(!RS.stale && h.bv!=null && h.bv < CRIT_V) A.push({s:2, t:`Solární baterie ${nf(h.bv,2)} V – pod ${nf(CRIT_V,1)} V`, k:"bat"});
   if(!RS.stale && h.extraW!=null && h.net!=null && h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.extraW >= (h.cfg.odber_navic_W ?? 40)) A.push({s:1, t:`Odběr ${nf(h.extraW)} W navíc za měničem`, k:"bat"});
   const rs = d.river_sup; if(rs && rs.soc <= lim) A.push({s:2, t:`${rs.name} má ${rs.soc} % – vyměň River`, k:"river"});
-  [tileWire(d,h), tilePanels(d,h), tileHealth(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:1, t:`${x.label}: ${x.st}`, k:x.k}));
+  [tileWire(d,h), tilePanels(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:1, t:`${x.label}: ${x.st}`, k:x.k}));
+  // 4.44: zdraví baterie je známá věc (výměna na jaře) – tiché upozornění: samo jen malý řádek, s jinými jako připomínka na konci
+  [tileHealth(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:0, q:true, t:`${x.label}: ${x.st}`, k:x.k}));
   return A.sort((a,b)=>b.s-a.s);
 }
 function renderHome(d){
@@ -1866,8 +1871,10 @@ function renderHome(d){
   $("h_past").innerHTML = [tilePastNight(d,h), tileYesterday(d,h)].map(tileHtml).join("");
   $("h_long").innerHTML = [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)].map(tileHtml).join("");
   const A = alertItems(d, h), el = $("alerts"), top = A[0];
-  el.className = "abar " + (!A.length ? "ok" : top.s >= 2 ? "bad" : "warn");
+  const onlyQ = A.length && A.every(a=>a.q);
+  el.className = "abar " + (!A.length || onlyQ ? "ok" : top.s >= 2 ? "bad" : "warn") + (onlyQ ? " quiet" : "");
   el.innerHTML = !A.length ? `<span class="dot">✓</span><span class="ab">Nic k řešení</span>`
+    : onlyQ ? `<span class="dot">✓</span><span class="ab">Nic naléhavého <span style="font-weight:500;color:var(--text2)">· ${A.map(a=>a.t.replace(/^Zdraví baterie: /,"baterie: ")).join(" · ")}</span></span><span class="go" style="position:static">›</span>`
     : `<span class="dot">${A.length}</span><span class="ab">${top.t}${A.length>1?` <span style="font-weight:500;color:var(--text2)">+ ${A.length-1} další</span>`:""}</span><span class="go" style="position:static">›</span>`;
   ALERTS = A;
 }

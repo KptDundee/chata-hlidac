@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.44 – 21. 10. 2026
+- Dlaždice Solární baterie: „do rána ano ✓“ a „ráno zbude ~N #“ na dvou řádcích (dřív se nevešlo – „do …“).
+- **Zdraví baterie** (výměna na jaře) už neotravuje: když je to jediné upozornění, nahoře jen malý řádek „✓ Nic naléhavého · baterie: …“. Když jsou i jiná upozornění, je na konci seznamu jako připomínka (+ N další). Ostatní upozornění beze změny.
+
 ## 4.43 – 20. 10. 2026
 - Noční odběr pro výhled do rána: i z nocí na River (zásuvky River měří stejný odběr chaty), okno 7 nocí – v zimě, kdy noci jedou z River, je pořád z čeho brát.
 - Oprava z učení výhledu jen z nocí za posledních 45 dní – po zimě bez nocí na soláru se stará oprava nepoužije (×1).
