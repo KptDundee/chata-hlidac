@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.44", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.45", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1034,7 +1034,7 @@ function wiring(d){
 }
 function w_ld(ld, last){ return ld || last; }
 function renderWire(d){
-  const w = wiring(d); WIRE = w;
+  const w = wiring(d); WIRE = w; wireAutoReset(w);
   const c = $("wirecard");
   if(!w){ c.classList.add("hide"); $("wr_s").textContent = "Čeká se na napětí z Victronu (Flip 1.2) – porovná se s regulátorem."; return; }
   const L = w.last, at25 = w.R!=null ? w.R*25 : null;
@@ -1048,6 +1048,8 @@ function renderWire(d){
   } else c.classList.add("hide");
 }
 let WIRE = null;
+/* 4.45: když jsou kabely zase v normě (dost měření), zapsaný postup se smaže – při dalším problému začne návod znovu */
+function wireAutoReset(w){ if(w && w.lvl===0 && w.mo!=null && !w.few && store.get("wire_meas")) store.del("wire_meas"); }
 const WSTEPS = [
  {t:"Příprava", b:`<ul><li><b>Slunečný den kolem poledne</b> – regulátor musí nabíjet (aspoň ~10 A).</li><li><b>Zapni větší odběr</b> přes měnič (např. nabíjení River), ať teče proud i z baterie.</li><li>Multimetr na <b>DC V, rozsah 20 V</b> (u kroku 4 rozsah 200 mV / 2 V).</li><li>Sundej prsteny a hodinky; klíčem nikdy nespoj plus a mínus baterie.</li></ul>
    <div class="tipbox">Měř všechno rychle po sobě – proud se mění se sluncem. Ideálně bez mraků.</div>`},
@@ -1855,7 +1857,8 @@ function alertItems(d, h){
   if(!RS.stale && h.bv!=null && h.bv < CRIT_V) A.push({s:2, t:`Solární baterie ${nf(h.bv,2)} V – pod ${nf(CRIT_V,1)} V`, k:"bat"});
   if(!RS.stale && h.extraW!=null && h.net!=null && h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.extraW >= (h.cfg.odber_navic_W ?? 40)) A.push({s:1, t:`Odběr ${nf(h.extraW)} W navíc za měničem`, k:"bat"});
   const rs = d.river_sup; if(rs && rs.soc <= lim) A.push({s:2, t:`${rs.name} má ${rs.soc} % – vyměň River`, k:"river"});
-  [tileWire(d,h), tilePanels(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:1, t:`${x.label}: ${x.st}`, k:x.k}));
+  [tilePanels(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:1, t:`${x.label}: ${x.st}`, k:x.k}));
+  { const tw = tileWire(d,h); if(tw.cls==="bad"||tw.cls==="warn") A.push({s:1, t:`${tw.cls==="bad"?"Velká":"Zvýšená"} ztráta na kabelech a spojích – proměř (návod)`, k:"wire"}); }   // 4.45: i zvýšená
   // 4.44: zdraví baterie je známá věc (výměna na jaře) – tiché upozornění: samo jen malý řádek, s jinými jako připomínka na konci
   [tileHealth(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:0, q:true, t:`${x.label}: ${x.st}`, k:x.k}));
   return A.sort((a,b)=>b.s-a.s);
@@ -1869,7 +1872,9 @@ function renderHome(d){
   $("h_dev").innerHTML = tileHtml(tileDevices(d, h));
   $("h_now").innerHTML = [tileNight(d,h), tileTomorrow(d,h)].map(tileHtml).join("");
   $("h_past").innerHTML = [tilePastNight(d,h), tileYesterday(d,h)].map(tileHtml).join("");
-  $("h_long").innerHTML = [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)].map(tileHtml).join("");
+  // 4.45: dlaždice Kabely a spoje jen při problému (v normě je dostupná v detailu Zdraví baterie → Kabely a spoje)
+  const tw = tileWire(d,h);
+  $("h_long").innerHTML = [...(tw.cls==="warn"||tw.cls==="bad" ? [tw] : []), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)].map(tileHtml).join("");
   const A = alertItems(d, h), el = $("alerts"), top = A[0];
   const onlyQ = A.length && A.every(a=>a.q);
   el.className = "abar " + (!A.length || onlyQ ? "ok" : top.s >= 2 ? "bad" : "warn") + (onlyQ ? " quiet" : "");

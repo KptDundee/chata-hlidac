@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.45 – 21. 10. 2026
+- Kabely a spoje (spoje opraveny, ztráta v normě): dlaždice na hlavní stránce jen při problému. Při **zvýšené i velké** ztrátě upozornění nahoře + dlaždice s návodem (dřív nahoře jen velká). Zapsaný postup (měření, odškrtnuté kroky) se po návratu do normy smaže – příště návod začne od začátku. V normě je stav dál v detailu Zdraví baterie → Kabely a spoje.
+
 ## 4.44 – 21. 10. 2026
 - Dlaždice Solární baterie: „do rána ano ✓“ a „ráno zbude ~N #“ na dvou řádcích (dřív se nevešlo – „do …“).
 - **Zdraví baterie** (výměna na jaře) už neotravuje: když je to jediné upozornění, nahoře jen malý řádek „✓ Nic naléhavého · baterie: …“. Když jsou i jiná upozornění, je na konci seznamu jako připomínka (+ N další). Ostatní upozornění beze změny.
