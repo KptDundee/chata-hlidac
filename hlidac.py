@@ -580,12 +580,34 @@ def wiring_check(data, st, now, topic, cfg):
     lim_r = cfg.get("kabely_odpor_mOhm") or 20
     t, dv, ir, ii = rows[-1]
     drop = dv - off
-    if ts - t < 1800 and drop >= lim_v and ts - st.get("wire_acute_t", 0) > 6 * 3600:
+    # 4.46: po poplachu vždy další zpráva z dalšího spárovaného měření – potvrdí (trvá, už N. měření) nebo vyvrátí
+    if "wire_acute" not in st and ts - st.get("wire_acute_t", 0) < 6 * 3600:    # poplach z doby před 4.46 (21. 10. 12:01)
+        st["wire_acute"] = {"active": True, "t": int(st["wire_acute_t"]), "last_t": st["wire_acute_t"], "n": 1}
+    wa = st.get("wire_acute")
+    if wa and wa.get("active") and t > wa["last_t"] and ts - t < 1800:
+        wa["last_t"] = t
+        if drop >= lim_v:
+            wa["n"] += 1
+            if wa["n"] <= 4 or wa["n"] % 6 == 0:            # 2., 3., 4. měření, pak zhruba jednou za hodinu
+                ntfy(topic, f"🔥 Úbytek na kabelech trvá – {wa['n']}. měření po sobě",
+                     f"Teď o {fmt(drop, 2)} V při ~{fmt(ir + ii, 0)} A (od {datetime.fromtimestamp(wa['t'], TZ).strftime('%H:%M')}).\n"
+                     "Potvrzeno – zkontroluj pojistku, pouzdro a spoje (nejsou horké / natavené?).", 4, "fire,warning")
+        else:
+            ntfy(topic, "✓ Úbytek na kabelech zase v normě",
+                 f"Další měření: {fmt(drop, 2)} V při ~{fmt(ir + ii, 0)} A (hranice {fmt(lim_v, 2)} V)."
+                 + (" Poplach se nepotvrdil – nejspíš měření regulátoru a měniče z trochu jiné chvíle." if wa["n"] == 1
+                    else f" Vysoký úbytek trval {wa['n']} měření."), 3, "white_check_mark")
+            wa["active"], wa["end_t"] = False, int(ts)
+        wa["drop"], wa["a"] = round(drop, 2), round(ir + ii)
+    elif ts - t < 1800 and drop >= lim_v and ts - st.get("wire_acute_t", 0) > 6 * 3600:
         ntfy(topic, "🔥 Velký úbytek napětí na kabelech",
              f"Regulátor ukazuje o {fmt(drop, 2)} V víc než měnič (při ~{fmt(ir + ii, 0)} A).\n"
-             f"Na cestě regulátor → baterie → měnič je velký odpor – zkontroluj pojistku, pouzdro a spoje (nejsou horké / natavené?).",
-             4, "fire,warning")
+             f"Na cestě regulátor → baterie → měnič je velký odpor – zkontroluj pojistku, pouzdro a spoje (nejsou horké / natavené?).\n"
+             "Z dalšího měření přijde potvrzení, nebo zpráva, že je to v normě.", 4, "fire,warning")
         st["wire_acute_t"] = ts
+        st["wire_acute"] = wa = {"active": True, "t": int(ts), "last_t": t, "n": 1, "drop": round(drop, 2), "a": round(ir + ii)}
+    if wa:
+        data["wire_state"] = {k: wa.get(k) for k in ("active", "t", "n", "drop", "a", "end_t")}
     load = [(r[1] - off) / (r[2] + r[3]) for r in rows if r[0] >= ts - 86400 and r[2] + r[3] >= 8]
     if len(load) >= 4:
         mo = med(load) * 1000

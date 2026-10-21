@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.45", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.46", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -369,8 +369,9 @@ details.sec>.in{margin-top:8px}
 <section class="set hide" id="wirem" aria-label="Kontrola kabelů a spojů">
  <div class="wrap">
   <header><div><h1 style="font-size:19px">🔧 Kontrola kabelů a spojů</h1><div class="sub">Návod krok za krokem – multimetr, 20 minut</div></div><button id="wireclose" title="Zavřít">✕</button></header>
-  <div class="card" id="wm_now"></div>
-  <div class="card" style="margin-top:12px">
+  <div class="card chart"><h2>Úbytek napětí na kabelech</h2><div class="cs" id="wm_chcs">V · regulátor − měnič, jen měření ze stejné chvíle · 3 dny</div><div id="wm_ch"></div></div>
+  <div class="card" id="wm_now" style="margin-top:12px"></div>
+  <div class="card wm_guide" style="margin-top:12px">
     <b style="font-size:15px">Proč se to řeší</b>
     <p class="sub" style="line-height:1.55;margin:6px 0 0">Regulátor i měnič měří napětí <b>na svých svorkách</b>. Když teče proud a někde je špatný spoj (povolená svorka, koroze, držák pojistky, tenký kabel), ztrácí se na něm napětí a mění se v teplo. Regulátor pak vidí <b>víc</b>, než baterie má: myslí si, že je nabitá, přepne do Float a baterii <b>nedobije</b>. Dlouhodobé nedobíjení AGM baterii ničí (sulfatace). Měnič naopak vidí <b>míň</b> a vypne dřív.</p>
     <div class="schem"><svg viewBox="0 0 340 200" role="img" aria-label="Schéma zapojení s měřicími body">
@@ -393,7 +394,8 @@ details.sec>.in{margin-top:8px}
     </svg>
     <div class="sub" style="font-size:12px;margin:2px 4px 0"><b style="color:var(--crit)">červeně</b> plus, šedě mínus · modrá čísla = kde měřit napětí (krok 1–3) · zelená = úbytky po kusech (krok 4)</div></div>
   </div>
-  <div class="card" style="margin-top:12px"><ol class="steps" id="wm_steps"></ol>
+  <div class="card wm_guide" id="wm_none" style="margin-top:12px;display:none"><span class="sub">Teď je to v normě – návod krok za krokem se tu ukáže, až bude úbytek velký (s čistým zápisem).</span></div>
+  <div class="card wm_guide" style="margin-top:12px"><ol class="steps" id="wm_steps"></ol>
     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:4px"><span class="sub" id="wm_prog"></span><button id="wm_reset" style="font-size:13px">Vymazat zápis</button></div></div>
  </div>
 </section>
@@ -1049,7 +1051,8 @@ function renderWire(d){
 }
 let WIRE = null;
 /* 4.45: když jsou kabely zase v normě (dost měření), zapsaný postup se smaže – při dalším problému začne návod znovu */
-function wireAutoReset(w){ if(w && w.lvl===0 && w.mo!=null && !w.few && store.get("wire_meas")) store.del("wire_meas"); }
+/* 4.46: při novém poplachu (jiný čas t) čistý návod – měření a zaškrtnutí z minula pryč */
+function wireAutoReset(w){ const ws = DATA && DATA.wire_state; if(!ws || !ws.active) return; const m = wmGet(); if(m.at !== ws.t) wmSet({at: ws.t}); }
 const WSTEPS = [
  {t:"Příprava", b:`<ul><li><b>Slunečný den kolem poledne</b> – regulátor musí nabíjet (aspoň ~10 A).</li><li><b>Zapni větší odběr</b> přes měnič (např. nabíjení River), ať teče proud i z baterie.</li><li>Multimetr na <b>DC V, rozsah 20 V</b> (u kroku 4 rozsah 200 mV / 2 V).</li><li>Sundej prsteny a hodinky; klíčem nikdy nespoj plus a mínus baterie.</li></ul>
    <div class="tipbox">Měř všechno rychle po sobě – proud se mění se sluncem. Ideálně bez mraků.</div>`},
@@ -1067,7 +1070,12 @@ const WSTEPS = [
 function wmGet(){ try{ return JSON.parse(store.get("wire_meas")||"{}"); }catch(e){ return {}; } }
 function wmSet(o){ store.set("wire_meas", JSON.stringify(o)); }
 function renderWireModal(){
-  const w = WIRE, m = wmGet();
+  const w = WIRE, ws = DATA && DATA.wire_state, prob = !!(ws && ws.active) || !!(w && w.lvl>0);
+  for(const el of document.querySelectorAll("#wirem .wm_guide")) el.style.display = el.id==="wm_none" ? (prob?"none":"") : (prob?"":"none");
+  { const pts = (DATA.points||[]).filter(p=>p.t >= Date.now()/1000 - 72*3600), off = w ? w.off||0 : 0, lim = DATA.cfg?.kabely_ubytek_V ?? 0.35;
+    $("wm_chcs").textContent = `V · regulátor − měnič, jen měření ze stejné chvíle · 3 dny · červeně ${nf(lim,2)} V = upozornění`;
+    lineChart($("wm_ch"), pts.map(p=>({t:p.t, dv: p.ivs!=null && p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv-off).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:72,gap:3*3600,refs:[[0,"--muted"],[lim,"--crit"]],modes:true}); }
+  const m = wmGet();
   const box = $("wm_now");
   if(w){
     const L = w.ld, col = w.lvl===2?"--crit":w.lvl===1?"--warn":"--good", pos = w.mo==null?null:Math.min(100, w.mo/30*100);
@@ -1459,7 +1467,8 @@ function tileWire(d, h){
   const t = {k:"wire", icon:"🔧", label:"Kabely a spoje"};
   const w = WIRE;
   if(!w || w.mo==null) return {...t, cls:"na", v:"–", st: w ? "Málo měření pod zátěží" : "Čeká na data z Victronu", a:""};
-  const v = `${nf(w.R*25,1)}<small>V ztráta</small>`;
+  const v = `${nf(w.R*25,1)}<small>V ztráta</small>`, ws = d.wire_state;
+  if(ws && ws.active) return {...t, cls:"bad", v:`${nf(ws.drop,2)}<small>V</small>`, st:`Velký úbytek${ws.n>1?` – ${ws.n}. měření`:" – čeká na další měření"} · návod`, a:`při ~${nf(ws.a)} A`};
   return {...t, cls: w.lvl===2 ? "bad" : w.lvl===1 ? "warn" : "ok", v, st: w.lvl ? "Proměř spoje (návod)" : "V normě", a:`při 25 A · ${nf(w.mo)} mΩ`};
 }
 function tileHealth(d, h){
@@ -1858,7 +1867,7 @@ function alertItems(d, h){
   if(!RS.stale && h.extraW!=null && h.net!=null && h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.extraW >= (h.cfg.odber_navic_W ?? 40)) A.push({s:1, t:`Odběr ${nf(h.extraW)} W navíc za měničem`, k:"bat"});
   const rs = d.river_sup; if(rs && rs.soc <= lim) A.push({s:2, t:`${rs.name} má ${rs.soc} % – vyměň River`, k:"river"});
   [tilePanels(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:1, t:`${x.label}: ${x.st}`, k:x.k}));
-  { const tw = tileWire(d,h); if(tw.cls==="bad"||tw.cls==="warn") A.push({s:1, t:`${tw.cls==="bad"?"Velká":"Zvýšená"} ztráta na kabelech a spojích – proměř (návod)`, k:"wire"}); }   // 4.45: i zvýšená
+  { const tw = tileWire(d,h); if(tw.cls==="bad"||tw.cls==="warn") A.push({s:1, t:`${tw.cls==="bad"?"Velká":"Zvýšená"} ztráta na kabelech a spojích${d.wire_state&&d.wire_state.active&&d.wire_state.n<2?" (čeká na potvrzení)":""} – návod`, k:"wire"}); }   // 4.45: i zvýšená
   // 4.44: zdraví baterie je známá věc (výměna na jaře) – tiché upozornění: samo jen malý řádek, s jinými jako připomínka na konci
   [tileHealth(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:0, q:true, t:`${x.label}: ${x.st}`, k:x.k}));
   return A.sort((a,b)=>b.s-a.s);
@@ -1872,9 +1881,7 @@ function renderHome(d){
   $("h_dev").innerHTML = tileHtml(tileDevices(d, h));
   $("h_now").innerHTML = [tileNight(d,h), tileTomorrow(d,h)].map(tileHtml).join("");
   $("h_past").innerHTML = [tilePastNight(d,h), tileYesterday(d,h)].map(tileHtml).join("");
-  // 4.45: dlaždice Kabely a spoje jen při problému (v normě je dostupná v detailu Zdraví baterie → Kabely a spoje)
-  const tw = tileWire(d,h);
-  $("h_long").innerHTML = [...(tw.cls==="warn"||tw.cls==="bad" ? [tw] : []), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)].map(tileHtml).join("");
+  $("h_long").innerHTML = [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)].map(tileHtml).join("");   // 4.46: kabely trvale
   const A = alertItems(d, h), el = $("alerts"), top = A[0];
   const onlyQ = A.length && A.every(a=>a.q);
   el.className = "abar " + (!A.length || onlyQ ? "ok" : top.s >= 2 ? "bad" : "warn") + (onlyQ ? " quiet" : "");
