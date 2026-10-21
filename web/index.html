@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.46", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.47", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1030,7 +1030,9 @@ function wiring(d){
   const lastR = last.ir+last.ii>=5 ? (last.dv-off)/(last.ir+last.ii) : null;
   const useR = load.length>=4 ? R : lastR;
   const mo = useR!=null ? useR*1000 : null;
-  const lvl = mo==null ? 0 : mo>=20 ? 2 : mo>=10 ? 1 : 0;
+  // 4.47: stejná hranice jako upozornění hlídače (Nastavení kabely_odpor_mOhm, 20 mΩ). Dřív žlutá už od 10 mΩ –
+  // po opravě spojů (~10 mΩ) pak dlaždice a upozornění nahoře svítily, i když hlídač i měření říkaly „v normě“.
+  const lim = d.cfg?.kabely_odpor_mOhm ?? 20, lvl = mo==null ? 0 : mo>=lim ? 2 : 0;
   const ld = load.length ? load.reduce((a,r)=>!a||r.ir+r.ii>a.ir+a.ii?r:a,null) : null;   // nejvíc zatížené měření
   return {rows, off, n:load.length, R:useR, mo, lvl, last, few:load.length<4, ld: w_ld(ld, last)};
 }

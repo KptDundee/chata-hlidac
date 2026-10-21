@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.47 – 21. 10. 2026
+- Kabely a spoje: web bere stejnou hranici jako upozornění hlídače (Nastavení – odpor kabelů, 20 mΩ). Dřív byla dlaždice žlutá a nahoře upozornění už od 10 mΩ – po opravě spojů (~10 mΩ) svítilo, i když hlídač napsal „v normě“. Teď: pod hranicí zelená a nic nahoře; nad hranicí nebo při nepotvrzeném/potvrzeném poplachu upozornění + návod.
+
 ## 4.46 – 21. 10. 2026
 - Poplach „🔥 Velký úbytek napětí na kabelech“ má vždy pokračování z dalšího spárovaného měření: **potvrzení** („trvá – 2., 3., 4. měření po sobě“, pak asi jednou za hodinu) nebo **vyvrácení** („✓ zase v normě – poplach se nepotvrdil“). Platí i pro dnešní poplach z 12:01.
 - Kabely a spoje: dlaždice zase trvale (zelená = v normě). V okně kontroly nahoře **graf úbytku** (3 dny), pod ním stav; návod jen při problému a při každém novém poplachu s čistým zápisem. Po vyvrácení návod zmizí.
