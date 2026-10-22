@@ -30,7 +30,8 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14,
+    "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
@@ -1386,6 +1387,9 @@ def main():
             plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
             if plugs:
                 pt["tp"] = plugs
+            ths = {x["n"]: x["t"] for x in inv.get("th", []) if x.get("t") is not None and now.timestamp() - x["tm"] < 1800}
+            if ths:
+                pt["th"] = ths                 # 1.5: teploty z teploměrů Xiaomi
             rcp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == str(cfg.get("river_auto_ip") or "")), None)
             if rcp and rcp.get("on") == 1 and not rcp.get("off"):
                 pt["rc"] = 1                   # nabíjení River ze soláru (zásuvka 8, neměří) zapnuté
@@ -2211,6 +2215,10 @@ def inv_from_msg(last, now, cfg=None):
     ph = body.get("ph")
     if isinstance(ph, dict) and ph.get("b") is not None and ph["b"] >= 0:
         inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
+    th = body.get("th")                                   # 1.5: teploměry Xiaomi [{n, t, h, b, age}]
+    if isinstance(th, list):
+        inv["th"] = [{"n": str(x.get("n"))[:30], "t": x.get("t"), "h": x.get("h"), "b": x.get("b"),
+                      "tm": int(inv.get("t") or 0) - int(x.get("age") or 0)} for x in th if isinstance(x, dict) and x.get("n")]
     tp = body.get("tp")
     if isinstance(tp, list):
         inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d") if p.get(k) is not None}
@@ -2680,6 +2688,21 @@ def fridge_check(data, st, now, topic, cfg):
     Každý stav jednou, při návratu do normálu zpráva „zase v pořádku“."""
     if not cfg.get("lednice_hlidat", True):
         return
+    # 1.5: teploměr v lednici – teplota nad lednice_max_C déle než 30 min
+    nm = str(cfg.get("teplomer_lednice") or "").strip()
+    if nm:
+        fz = st.setdefault("fridge_t", {})
+        tp_ = [(p["t"], p["th"][nm]) for p in data.get("points", []) if p["t"] >= now.timestamp() - 3600 and nm in (p.get("th") or {})]
+        lim_c = cfg.get("lednice_max_C") or 8
+        if tp_ and now.timestamp() - tp_[-1][0] < 1800:
+            hot = [x for x in tp_ if x[0] >= now.timestamp() - 1800]
+            if len(hot) >= 2 and all(v > lim_c for _, v in hot) and not fz.get("hot"):
+                ntfy(topic, f"🧊 Lednice má {fmt(hot[-1][1], 1)} °C", f"Teplota v lednici je přes {fmt(lim_c, 0)} °C už půl hodiny. "
+                     "Otevřené dveře, porucha, nebo lednice bez proudu?", 4, "warning")
+                fz["hot"] = True
+            elif fz.get("hot") and tp_[-1][1] <= lim_c - 1:
+                ntfy(topic, f"✓ Lednice zase chladí ({fmt(tp_[-1][1], 1)} °C)", "Teplota v lednici je zpátky v normě.", 2, "white_check_mark")
+                fz["hot"] = False
     fid = str(cfg.get("zasuvka_lednice") or "").strip()
     if not fid:
         return
@@ -2823,7 +2846,10 @@ def cold_factor(data, cfg):
     if not pts:
         return 1.0, None
     t1 = pts[-1]["t"]
-    T = sorted(p["bat_t"] for p in pts if p["t"] >= t1 - 3600 and p.get("bat_t") is not None and -40 < p["bat_t"] < 80)
+    nm = str(cfg.get("teplomer_baterie") or "").strip()      # 1.5: teploměr u baterie (Xiaomi) má přednost před regulátorem
+    T = sorted(p["th"][nm] for p in pts if nm and p["t"] >= t1 - 3600 and nm in (p.get("th") or {}))
+    if not T:
+        T = sorted(p["bat_t"] for p in pts if p["t"] >= t1 - 3600 and p.get("bat_t") is not None and -40 < p["bat_t"] < 80)
     if not T:
         return 1.0, None
     tm = T[len(T) // 2]
@@ -2846,7 +2872,7 @@ def frost_check(data, st, now, topic, cfg):
     fz = st.setdefault("frost", {})
     season = now.strftime("%Y") if now.month >= 7 else str(now.year - 1)
     if T <= lim_t and fz.get("first") != season:
-        ntfy(topic, "❄️ Mráz u solární baterie", f"Teplota baterie podle regulátoru {fmt(T, 1)} °C. Nabitá AGM mráz vydrží, "
+        ntfy(topic, "❄️ Mráz u solární baterie", f"Teplota u baterie {fmt(T, 1)} °C. Nabitá AGM mráz vydrží, "
              f"vybitá může zamrznout – drž ji nabitou (upozorním, když bude pod {lim_h} # a pod {fmt(lim_t, 0)} °C). "
              f"Kapacita je v chladu menší (teď ~×{fmt(f, 2)}), výhledy s tím počítají.", 3, "snowflake")
         fz["first"] = season

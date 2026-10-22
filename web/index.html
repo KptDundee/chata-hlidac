@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.51", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.52", FLIP_VER = "1.5.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1575,6 +1575,16 @@ function tileUseRiver(d, h){
     rows: L.rvT.map(r=>[`${(r.w||0)>2?dot+" ":""}${r.name.replace(/^River\s*/i,"")}`, kWh(r.o||0)])};
 }
 /* ---- spotřebiče: každá zásuvka, která není zdroj (měnič, River, generátor, nabíjení River) ---- */
+/* 4.52: teploměry Xiaomi (přes Flip 1.5) */
+function tileTemps(d, h){
+  const th = (d.inverter && d.inverter.th) || []; if(!th.length) return null;
+  const cfg = d.cfg || {}, lim = cfg.lednice_max_C ?? 8;
+  const rows = th.map(x=>{ const old = h.now - x.tm > 1800, fr = x.n === cfg.teplomer_lednice;
+    const col = old ? "--muted" : fr && x.t > lim ? "--crit" : x.t!=null && x.t <= 0 ? "--s1" : "--text";
+    return [x.n + (x.n === cfg.teplomer_baterie ? " (baterie)" : fr ? " (lednice)" : ""),
+      `<span style="color:var(${col})">${x.t!=null ? nf(x.t,1)+" °C" : "–"}</span>${x.h!=null ? ` · ${nf(x.h)} %` : ""}${x.b!=null && x.b < 20 ? ` · 🪫${x.b} %` : ""}${old ? ` · ${agoS(x.tm)}` : ""}`]; });
+  return {k:"use", icon:"🌡️", label:"Teploty", wide:true, cls:"ok", v:"", st:"teploměry Xiaomi · teplota · vlhkost", rows};
+}
 function tileDevices(d, h){
   const cfg = d.cfg||{}, tpd = (((d.days||{})[dkey(h.now)]||{}).tp)||{}, names = d.plug_names||{};
   const ips = x => String(x||"").split(/[,;\s]+/).filter(Boolean);
@@ -1889,7 +1899,7 @@ function renderHome(d){
   $("h_src").innerHTML = (h.rvOn ? [tileRivers(d, h), tileSolar(d, h)] : [tileSolar(d, h), tileRivers(d, h)]).map(tileHtml).join("");
   $("h_day").innerHTML = [tileProdSolar(d, h), tileProdGen(d, h)].map(tileHtml).join("");
   $("h_use").innerHTML = [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)].map(tileHtml).join("");
-  $("h_dev").innerHTML = tileHtml(tileDevices(d, h));
+  $("h_dev").innerHTML = tileHtml(tileDevices(d, h)) + (tileTemps(d, h) ? tileHtml(tileTemps(d, h)) : "");
   $("h_now").innerHTML = [tileNight(d,h), tileTomorrow(d,h)].map(tileHtml).join("");
   $("h_past").innerHTML = [tilePastNight(d,h), tileYesterday(d,h)].map(tileHtml).join("");
   $("h_long").innerHTML = [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)].map(tileHtml).join("");   // 4.46: kabely trvale
@@ -2600,6 +2610,9 @@ const SETTINGS = [
     ["mraz_C","Mráz = teplota baterie pod","","°C",1,"num"],
     ["mraz_hash","Upozornit při mrazu pod","Nabití solární baterie","#",5,"num"],
     ["plne_nabiti_dni","Připomenout plné nabití po","Kolik dní bez Floatu – AGM nemá dlouho stát nedobitá","dní",1,"num"],
+    ["teplomer_baterie","Teploměr u solární baterie","Jméno teploměru Xiaomi (jak je zadané ve Flipu) – jeho teplota se bere pro mráz a kapacitu v chladu","",0,"txt"],
+    ["teplomer_lednice","Teploměr v lednici","Jméno teploměru Xiaomi v lednici","",0,"txt"],
+    ["lednice_max_C","Lednice teplejší než","Upozornit, když je v lednici tepleji déle než 30 min","°C",1,"num"],
   ]],
   ["Pro pokročilé", [
     ["baterie_slabne_reset_V","Varování „slábne“ znovu až nad","","V",0.05,"num"],

@@ -58,6 +58,19 @@ public final class Collector {
                         + ", poloha " + (bg ? "vždy" : "jen při používání") + "): " + r);
             }
             BleListener.Snapshot s = ble.takeSnapshot();
+            // 1.5: teploměry Xiaomi (poslední hodnoty mladší než hodina)
+            try {
+                JSONArray th = new JSONArray();
+                for (BleListener.Thermo t : ble.thermo()) {
+                    if (t.ageSec < 0 || t.ageSec > 3600 || (t.t == null && t.h == null)) continue;
+                    JSONObject x = new JSONObject().put("n", t.name).put("age", t.ageSec);
+                    if (t.t != null) x.put("t", t.t);
+                    if (t.h != null) x.put("h", t.h);
+                    if (t.b != null) x.put("b", t.b);
+                    th.put(x);
+                }
+                if (th.length() > 0) o.put("th", th);
+            } catch (Exception ignored) { }
             if (s.avgVa != null) {
                 o.put("w", round(s.avgVa, 1));
                 o.put("max", s.maxVa);
@@ -154,6 +167,7 @@ public final class Collector {
                 sum.append(", telefon ").append(pct).append(" %");
             }
 
+            if (o.has("th")) sum.append(", teploměry ").append(o.getJSONArray("th").length());
             o.put("av", appVersion());
             // je Flip na Wi‑Fi? (po restartu routeru se umí přepnout na mobilní data a pak nevidí zásuvky)
             try {

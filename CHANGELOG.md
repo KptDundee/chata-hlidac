@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.52 – 22. 10. 2026 (Flip 1.5.0)
+- **Teploměry Xiaomi** (Mi Temperature and Humidity Monitor 2 / LYWSD03MMC, originální firmware): Flip poslouchá jejich Bluetooth vysílání (MiBeacon, šifrované – klíč „BLE KEY“ z účtu Xiaomi) a posílá teplotu, vlhkost a baterii. Ve Flipu nové pole „Teploměry Xiaomi“: řádky `MAC KLÍČ jméno`.
+- Web: dlaždice **Teploty** (u Spotřebičů). Nastavení: teploměr u solární baterie (jeho teplota má přednost před regulátorem – mráz, kapacita v chladu), teploměr v lednici + upozornění, když je v lednici tepleji než 8 °C déle než 30 min.
+
 ## 4.51 – 22. 10. 2026
 - **Výdrž Flipu:** hlídač si pamatuje baterii Flipu (24 h) a z posledního úseku bez nabíjení spočítá, jak rychle ubývá. Když se nenabíjí a pod 15 % klesne do 12 h → „📱 Flip se nenabíjí – vydrží jen do ~HH:MM“ (jednou za vybíjení). V ranní čas z rozvrhu (před odjezdem), když se vybije do 48 h → „📱 Než odjedeš: Flip se nenabíjí…“. Stupně 50/30/20/10/0 % zůstávají.
 - Web: v hlavičce u Flipu „vydrží do …“, upozornění nahoře i s časem.

@@ -9,6 +9,7 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
+import android.os.ParcelUuid;
 import android.os.SystemClock;
 
 
@@ -33,6 +34,47 @@ public final class BleListener {
     private int victronAds;            // kolik vysílání Victron (jakéhokoli) jsme od posledního odeslání zachytili
     private String otherMac;           // jiné Victron zařízení, které vidíme (pro diagnostiku)
 
+    // 1.5: teploměry Xiaomi (MiBeacon, service data 0xFE95) – MAC → [jméno, klíč] a poslední hodnoty
+    private static final ParcelUuid MI_UUID = ParcelUuid.fromString("0000fe95-0000-1000-8000-00805f9b34fb");
+    private final java.util.Map<String, Object[]> thCfg = new java.util.LinkedHashMap<>();
+    private final java.util.Map<String, double[]> thVal = new java.util.HashMap<>();   // t, h, b, kdy (elapsedRealtime)
+    private String thSig = "";
+
+    public static final class Thermo { public String name, mac; public Double t, h; public Integer b; public long ageSec; }
+
+    /** Načte seznam teploměrů z nastavení (řádky „MAC KLÍČ jméno“). */
+    private void loadThermo() {
+        String raw = Prefs.s(ctx, Prefs.XIAOMI);
+        if (raw.equals(thSig)) return;
+        thSig = raw;
+        thCfg.clear();
+        for (String ln : raw.split("\\n")) {
+            String[] w = ln.trim().split("\\s+", 3);
+            if (w.length < 2) continue;
+            String m = Prefs.normMac(w[0]), k = w[1].replaceAll("[^0-9a-fA-F]", "");
+            if (!BluetoothAdapter.checkBluetoothAddress(m) || k.length() != 32) continue;
+            thCfg.put(m, new Object[]{w.length > 2 ? w[2].trim() : m, XiaomiParser.hex(k)});
+        }
+    }
+
+    /** Poslední hodnoty teploměrů (nemaže se – stáří v ageSec). */
+    public synchronized java.util.List<Thermo> thermo() {
+        java.util.List<Thermo> out = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<String, Object[]> e : thCfg.entrySet()) {
+            double[] v = thVal.get(e.getKey());
+            Thermo t = new Thermo();
+            t.mac = e.getKey(); t.name = (String) e.getValue()[0];
+            if (v != null) {
+                if (!Double.isNaN(v[0])) t.t = v[0];
+                if (!Double.isNaN(v[1])) t.h = v[1];
+                if (!Double.isNaN(v[2])) t.b = (int) v[2];
+                t.ageSec = (SystemClock.elapsedRealtime() - (long) v[3]) / 1000;
+            } else t.ageSec = -1;
+            out.add(t);
+        }
+        return out;
+    }
+
     public BleListener(Context ctx) { this.ctx = ctx.getApplicationContext(); }
 
     public static final class Snapshot {
@@ -50,7 +92,27 @@ public final class BleListener {
     };
 
     private synchronized void handle(ScanResult r) {
-        if (r.getScanRecord() == null || key == null) return;
+        if (r.getScanRecord() == null) return;
+        if (!thCfg.isEmpty() && r.getDevice() != null) {                 // 1.5: teploměr Xiaomi?
+            Object[] c = thCfg.get(r.getDevice().getAddress().toUpperCase(java.util.Locale.ROOT));
+            byte[] sd = c == null ? null : r.getScanRecord().getServiceData(MI_UUID);
+            if (sd != null) {
+                try {
+                    XiaomiParser.Reading x = XiaomiParser.parse(sd, r.getDevice().getAddress(), (byte[]) c[1]);
+                    if (x != null) {
+                        double[] v = thVal.get(r.getDevice().getAddress().toUpperCase(java.util.Locale.ROOT));
+                        if (v == null) v = new double[]{Double.NaN, Double.NaN, Double.NaN, 0};
+                        if (x.temp != null) v[0] = x.temp;
+                        if (x.hum != null) v[1] = x.hum;
+                        if (x.batt != null) v[2] = x.batt;
+                        v[3] = SystemClock.elapsedRealtime();
+                        thVal.put(r.getDevice().getAddress().toUpperCase(java.util.Locale.ROOT), v);
+                    }
+                } catch (Exception ignored) { }
+                return;
+            }
+        }
+        if (key == null) return;
         byte[] d = r.getScanRecord().getManufacturerSpecificData(VictronParser.MANUFACTURER_ID);
         if (d == null) return;
         victronAds++;
@@ -88,6 +150,7 @@ public final class BleListener {
         if (mac != null && BluetoothAdapter.checkBluetoothAddress(mac)) {
             fl.add(new ScanFilter.Builder().setDeviceAddress(mac).build());
         }
+        for (String m : thCfg.keySet()) fl.add(new ScanFilter.Builder().setDeviceAddress(m).build());   // 1.5: teploměry
         return fl;
     }
 
@@ -144,6 +207,9 @@ public final class BleListener {
     }
 
     public synchronized void ensureRunning(boolean force) {
+        String sig0 = thSig;
+        loadThermo();
+        if (!sig0.equals(thSig)) force = true;                   // změnil se seznam teploměrů → nové filtry
         String m = Prefs.normMac(Prefs.s(ctx, Prefs.VICTRON_MAC));
         String k = Prefs.s(ctx, Prefs.VICTRON_KEY).replaceAll("[^0-9a-fA-F]", "");
         if (k.length() < 32) { stop(); lastError = "Chybí šifrovací klíč měniče (32 znaků)"; return; }

@@ -28,7 +28,7 @@ import java.util.Locale;
 
 /** Jednoduchá obrazovka: nastavení, start/stop, stav a log. */
 public class MainActivity extends Activity {
-    private EditText topic, ghtok, mac, key, email, pass, ips;
+    private EditText topic, ghtok, mac, key, email, pass, ips, xiaomi;
     private TextView status, log;
     private final Handler h = new Handler(Looper.getMainLooper());
 
@@ -54,6 +54,11 @@ public class MainActivity extends Activity {
         section(l, "Měnič Victron (Bluetooth)");
         mac = field(l, "MAC adresa, např. AA:BB:CC:DD:EE:FF", Prefs.VICTRON_MAC, false);
         key = field(l, "Šifrovací klíč (32 znaků z VictronConnect)", Prefs.VICTRON_KEY, true);
+        section(l, "Teploměry Xiaomi (Bluetooth)");
+        xiaomi = field(l, "Každý teploměr na řádek: MAC  BLE-KLÍČ  jméno\nnapř. A4:C1:38:11:22:33 e9ea895f…f3a8 Lednice", Prefs.XIAOMI, false);
+        xiaomi.setSingleLine(false);
+        xiaomi.setMinLines(3);
+        xiaomi.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         section(l, "Zásuvky Tapo (místní Wi-Fi)");
         email = field(l, "E-mail účtu Tapo", Prefs.TAPO_EMAIL, false);
         pass = field(l, "Heslo účtu Tapo", Prefs.TAPO_PASSWORD, true);
@@ -137,6 +142,7 @@ public class MainActivity extends Activity {
                 .putString(Prefs.TAPO_EMAIL, email.getText().toString().trim())
                 .putString(Prefs.TAPO_PASSWORD, pass.getText().toString())
                 .putString(Prefs.TAPO_IPS, ips.getText().toString().trim())
+                .putString(Prefs.XIAOMI, xiaomi.getText().toString().trim())
                 .apply();
         mac.setText(Prefs.s(this, Prefs.VICTRON_MAC));   // ukáže upravený tvar
     }
