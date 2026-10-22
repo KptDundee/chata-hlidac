@@ -29,7 +29,8 @@ DEFAULTS = {
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
-    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
+    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
@@ -1210,7 +1211,7 @@ def forecast(data, now, cfg):
     if not pts:
         return None
     v = sum(p["bat_v"] for p in pts) / len(pts) + 0.05   # +0,05 V za pokles pod malou zátěží
-    cap = eff_cap(data, cfg)
+    cap = eff_cap(data, cfg) * cold_factor(data, cfg)[0]                 # 4.48: v chladu menší kapacita
     ac = cfg["noc_spotreba_W"] or 0
     measured = [p.get("mw", p.get("ac_w")) for p in data.get("points", [])
                 if p.get("mw", p.get("ac_w")) is not None and p["t"] >= t_now - 3 * 3600 and (p.get("pv_w") or 0) < 5]
@@ -1486,6 +1487,8 @@ def main():
                          ("Nabití #", lambda: hash_soc(data, st, now, cfg)),
                          ("Test kapacity", lambda: capacity_check(data, st, now, cfg)),
                          ("Upozornění #", lambda: hash_alert(data, st, now, topic, cfg)),
+                         ("Lednice", lambda: fridge_check(data, st, now, topic, cfg)),
+                         ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
                          ("Učení výhledu", lambda: night_learn(data, st, now, cfg)),
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
@@ -2645,6 +2648,117 @@ def ocv_soc(v):
 WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
 
 
+def fridge_check(data, st, now, topic, cfg):
+    """4.48: hlídání lednice (zásuvka zasuvka_lednice, Flip po ~10 min). Kompresor normálně cykluje běží / stojí.
+    • stojí déle než max(lednice_ticho_h, 1,5× nejdelší stání za 7 dní) → porucha / bez proudu → jídlo se kazí
+      (přizpůsobí se zimě: ve studené chatě stojí kompresor déle)
+    • běží déle než max(lednice_bezi_h, 1,5× nejdelší běh za 7 dní) → otevřené dveře / námraza / porucha
+    • zásuvka lednice nedostupná ≥ 1 h, když Flip posílá (ostatní zásuvky jdou) → lednice bez proudu
+    Každý stav jednou, při návratu do normálu zpráva „zase v pořádku“."""
+    if not cfg.get("lednice_hlidat", True):
+        return
+    fid = str(cfg.get("zasuvka_lednice") or "").strip()
+    if not fid:
+        return
+    ts = now.timestamp()
+    on_w = 20                                                   # kompresor běží (~55–80 W), v klidu ~0–2 W
+    pts = [p for p in data.get("points", []) if p["t"] >= ts - 7 * 86400 and p.get("tp")]
+    smp = [(p["t"], p["tp"][fid]) for p in pts if p["tp"].get(fid) is not None]
+    # epizody stání / běhu (mezera v datech > 40 min epizodu ukončí – nevíme, co se dělo)
+    eps, cur = [], None
+    for t, w in smp:
+        on = w > on_w
+        if cur and (on != cur[0] or t - cur[2] > 2400):
+            eps.append(cur); cur = None
+        cur = [on, cur[1], t] if cur else [on, t, t]
+    if cur:
+        eps.append(cur)
+    hist = [e for e in eps[:-1]]                                # hotové epizody (bez právě probíhající)
+    max_off = max((e[2] - e[1] for e in hist if not e[0]), default=0)
+    max_on = max((e[2] - e[1] for e in hist if e[0]), default=0)
+    lim_off = max((cfg.get("lednice_ticho_h") or 3) * 3600, 1.5 * max_off)
+    lim_on = max((cfg.get("lednice_bezi_h") or 2) * 3600, 1.5 * max_on)
+    fs = st.setdefault("fridge", {})
+    state, info = "ok", {}
+    inv = data.get("inverter") or {}
+    flip_ok = inv and ts - inv.get("t", 0) < 1800
+    if flip_ok:
+        fp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == fid), None)
+        others = [p for p in inv.get("tp", []) if str(p.get("ip")) != fid and p.get("w") is not None]
+        if (fp is None or fp.get("off") or fp.get("err") or fp.get("w") is None) and others:
+            fs.setdefault("na_t", int(ts))
+            if ts - fs["na_t"] >= 3600:
+                state, info = "na", {"od": fs["na_t"]}
+        else:
+            fs.pop("na_t", None)
+    if state == "ok" and cur and ts - cur[2] < 1800 and len(smp) >= 6:
+        dur = cur[2] - cur[1]
+        if not cur[0] and dur >= lim_off:
+            state, info = "off", {"od": cur[1], "h": round(dur / 3600, 1), "lim": round(lim_off / 3600, 1)}
+        elif cur[0] and dur >= lim_on:
+            state, info = "on", {"od": cur[1], "h": round(dur / 3600, 1), "lim": round(lim_on / 3600, 1)}
+    prev = fs.get("state", "ok")
+    if state != prev:
+        hm = lambda t: f"{rel_day(t, now)} {datetime.fromtimestamp(t, TZ).strftime('%H:%M')}"
+        if state == "off":
+            ntfy(topic, "🧊 Lednice nechladí?", f"Kompresor lednice neběžel od {hm(info['od'])} (už {fmt(info['h'], 1)} h, "
+                 f"obvykle nejdéle ~{fmt(max_off / 3600, 1)} h). Porucha, vypnutá lednice, nebo je v chatě hodně zima?", 4, "snowflake,warning")
+        elif state == "on":
+            ntfy(topic, "🧊 Lednice běží bez přestávky", f"Kompresor běží od {hm(info['od'])} (už {fmt(info['h'], 1)} h, "
+                 f"obvykle nejdéle ~{fmt(max_on / 3600, 1)} h). Otevřené dveře, námraza, nebo porucha?", 4, "warning")
+        elif state == "na":
+            ntfy(topic, "🧊 Lednice bez proudu?", f"Zásuvka lednice nejde přečíst od {hm(info['od'])}, ostatní zásuvky jdou. "
+                 "Vypadlá / vypnutá zásuvka?", 4, "warning")
+        elif prev in ("off", "on", "na"):
+            ntfy(topic, "✓ Lednice zase normálně běží", "Kompresor zase cykluje (běží / stojí).", 2, "white_check_mark")
+        fs["state"] = state
+    data["fridge"] = {"state": state, **info, "max_off_h": round(max_off / 3600, 1), "max_on_h": round(max_on / 3600, 1),
+                      "now_on": bool(cur and cur[0]) if cur else None, "since": cur[1] if cur else None}
+
+
+def cold_factor(data, cfg):
+    """4.48: AGM má v chladu menší kapacitu – zhruba −0,6 % na °C pod 15 °C (při ~15 °C se kapacita měřila, v říjnu).
+    Teplota z regulátoru (bat_t), medián poslední hodiny. 0 °C → ×0,91, −10 °C → ×0,85 (nejvýš ×0,6)."""
+    pts = data.get("points", [])
+    if not pts:
+        return 1.0, None
+    t1 = pts[-1]["t"]
+    T = sorted(p["bat_t"] for p in pts if p["t"] >= t1 - 3600 and p.get("bat_t") is not None and -40 < p["bat_t"] < 80)
+    if not T:
+        return 1.0, None
+    tm = T[len(T) // 2]
+    return (max(0.6, 1 - 0.006 * (15 - tm)) if tm < 15 else 1.0), tm
+
+
+def frost_check(data, st, now, topic, cfg):
+    """4.48: mráz a solární baterie. Vybitá AGM v mrazu může zamrznout (elektrolyt) a prasknout, plná vydrží mnohem víc.
+    • teplota ≤ mraz_C a nabití # < mraz_hash → upozornění (Vysoká), znovu až po oteplení / nabití
+    • první mráz u baterie v sezóně → informace (Výchozí)"""
+    if not cfg.get("mraz_hlidat", True):
+        return
+    f, T = cold_factor(data, cfg)
+    data["cold"] = {"T": T, "f": round(f, 2)} if T is not None else None
+    if T is None:
+        return
+    lim_t = cfg.get("mraz_C") if cfg.get("mraz_C") is not None else 0
+    lim_h = cfg.get("mraz_hash") or 40
+    pct = (data.get("hq") or {}).get("pct")
+    fz = st.setdefault("frost", {})
+    season = now.strftime("%Y") if now.month >= 7 else str(now.year - 1)
+    if T <= lim_t and fz.get("first") != season:
+        ntfy(topic, "❄️ Mráz u solární baterie", f"Teplota baterie podle regulátoru {fmt(T, 1)} °C. Nabitá AGM mráz vydrží, "
+             f"vybitá může zamrznout – drž ji nabitou (upozorním, když bude pod {lim_h} # a pod {fmt(lim_t, 0)} °C). "
+             f"Kapacita je v chladu menší (teď ~×{fmt(f, 2)}), výhledy s tím počítají.", 3, "snowflake")
+        fz["first"] = season
+    risk = T <= lim_t and pct is not None and pct < lim_h
+    if risk and not fz.get("risk"):
+        ntfy(topic, "❄️⚠️ Vybitá baterie v mrazu", f"Baterie {pct} # při {fmt(T, 1)} °C. Vybitá AGM může v mrazu zamrznout a prasknout. "
+             "Nevybíjej ji dál (chata na River) a dobij ji, jak to půjde.", 4, "snowflake,warning")
+        fz["risk"] = True
+    elif fz.get("risk") and (T > lim_t + 2 or (pct is not None and pct >= lim_h + 10)):
+        fz["risk"] = False
+
+
 def night_learn(data, st, now, cfg):
     """4.42: učení výhledu do rána. Při západu slunce si zapíše, kolik Ah chata do rána spotřebuje (noční odběr ×
     dosavadní oprava), ráno při východu porovná se skutečností z # (body „hq“ = Ah od plné). Oprava = medián poměru
@@ -2695,7 +2809,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     if not (on_solar or on_river) or now >= end or hq.get("pct") is None or (rise and now < rise - timedelta(hours=3)):
         data.pop("day_fc", None)
         return
-    cap = hq.get("cap") or eff_cap(data, cfg)
+    cf, _ = cold_factor(data, cfg)                                        # 4.48: v chladu menší kapacita
+    cap = (hq.get("cap") or eff_cap(data, cfg)) * cf
     alarm = ocv_soc((cfg.get("baterie_kriticka_V") or 12.0) + 0.05)      # 12,0 V pod malou zátěží ≈ klid ~12,05 V
     ah = (hq["pct"] - alarm) / 100 * cap                                   # Ah nad alarmem
     room = (100 - hq["pct"]) / 100 * cap                                   # kolik se ještě vejde
@@ -2774,7 +2889,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "hrs": round((end.timestamp() - ts) / 3600, 1), "src": "solar" if on_solar else "river",
            "night_ok": t_empty_n is None, "t_empty_n": int(t_empty_n) if t_empty_n else None,
            "load_n_w": round(load_n * 12.4), "night_ah": round(load_n * max(0.0, end2 - max(ts, set_ts)) / 3600, 1),
-           "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_}
+           "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_, "cf": round(cf, 2)}
     data["day_fc"] = res
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu)

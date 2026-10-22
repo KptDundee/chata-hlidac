@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.48 – 22. 10. 2026
+- **Hlídání lednice** (zásuvka lednice): upozornění, když kompresor stojí déle než 3 h (nechladí – porucha, vypnutá), běží bez přestávky déle než 2 h (dveře, námraza), nebo zásuvka lednice ≥ 1 h nejde přečíst, když ostatní jdou. Hranice se přizpůsobí posledním 7 dnům (×1,5 nejdelšího běžného stání / běhu) – v zimě ve studené chatě stojí kompresor déle. Po návratu do normálu „✓ Lednice zase normálně běží“. Na webu nahoře.
+- **Mráz u solární baterie** (teplota z regulátoru): první mráz v sezóně – informace; mráz a nabití pod 40 # → upozornění (vybitá AGM může zamrznout). Na webu nahoře.
+- **Kapacita v chladu:** výhled dne / do rána i noční předpověď počítají s menší kapacitou (−0,6 %/°C pod 15 °C; 0 °C ×0,91). V rozpisu výhledu řádek „Kapacita v chladu“.
+- Nastavení: Hlídat lednici, hranice v hodinách; Hlídat mráz, teplota, hranice #.
+
 ## 4.47 – 21. 10. 2026
 - Kabely a spoje: web bere stejnou hranici jako upozornění hlídače (Nastavení – odpor kabelů, 20 mΩ). Dřív byla dlaždice žlutá a nahoře upozornění už od 10 mΩ – po opravě spojů (~10 mΩ) svítilo, i když hlídač napsal „v normě“. Teď: pod hranicí zelená a nic nahoře; nad hranicí nebo při nepotvrzeném/potvrzeném poplachu upozornění + návod.
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.47", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.48", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1242,6 +1242,7 @@ function dayFcBlock(f){
       ${L(`Spotřebuje ~${f.load_w} W × ${nf(f.hrs,1)} h (+15 %)`, `−${nf(f.cons_ah,1)} Ah`, "color:var(--crit)")}
       ${L("Bilance do "+e, `${sum>=0?"+":"−"}${nf(Math.abs(sum),1)} Ah`, `font-weight:700;color:var(${sum>=0?"--good":"--crit"})`)}
       ${f.load_n_w!=null ? L(`Do rána: noc ~${f.load_n_w} W (medián minulých nocí) → spotřebuje`, `−${nf(f.night_ah,1)} Ah`, "color:var(--crit)") : ""}
+      ${f.cf!=null && f.cf < 1 ? L(`Kapacita v chladu (${nf((DATA.cold||{}).T,1)} °C)`, `×${nf(f.cf,2)}`) : ""}
       ${(()=>{ const D = DATA.dfl; if(!D) return ""; const lg = (D.log||[]).slice(-5).reverse();
         return L(`Oprava noční spotřeby podle minulých nocí`, D.n>=2 ? `×${nf(D.f,2)} <span class="sub">(${D.n} nocí)</span>` : `zatím ne <span class="sub">(${D.n} z 2 nocí)</span>`)
           + (lg.length ? `<div class="sub" style="font-size:12.5px;margin:2px 0 4px">${lg.map(x=>`${dTxt(x.d)} → ráno: čekal −${nf(x.predc ?? x.pred,1)} Ah, bylo −${nf(x.act,1)} Ah`).join("<br>")}</div>` : ""); })()}
@@ -1868,6 +1869,9 @@ function alertItems(d, h){
   if(!RS.stale && h.bv!=null && h.bv < CRIT_V) A.push({s:2, t:`Solární baterie ${nf(h.bv,2)} V – pod ${nf(CRIT_V,1)} V`, k:"bat"});
   if(!RS.stale && h.extraW!=null && h.net!=null && h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.extraW >= (h.cfg.odber_navic_W ?? 40)) A.push({s:1, t:`Odběr ${nf(h.extraW)} W navíc za měničem`, k:"bat"});
   const rs = d.river_sup; if(rs && rs.soc <= lim) A.push({s:2, t:`${rs.name} má ${rs.soc} % – vyměň River`, k:"river"});
+  // 4.48: lednice a mráz
+  const fr = d.fridge; if(fr && fr.state!=="ok") A.push({s:2, t: fr.state==="off" ? `Lednice nechladí? Kompresor stojí od ${relDay(fr.od)} ${hmT(fr.od)}` : fr.state==="on" ? `Lednice běží bez přestávky od ${relDay(fr.od)} ${hmT(fr.od)}` : `Lednice bez proudu? Zásuvka nejde přečíst od ${hmT(fr.od)}`, k:"use"});
+  const cl = d.cold, hp = d.hq && d.hq.pct; if(cl && cl.T!=null && cl.T <= (h.cfg.mraz_C ?? 0) && hp!=null && hp < (h.cfg.mraz_hash ?? 40)) A.push({s:2, t:`Vybitá baterie v mrazu: ${hp} # při ${nf(cl.T,1)} °C`, k:"bat"});
   [tilePanels(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:1, t:`${x.label}: ${x.st}`, k:x.k}));
   { const tw = tileWire(d,h); if(tw.cls==="bad"||tw.cls==="warn") A.push({s:1, t:`${tw.cls==="bad"?"Velká":"Zvýšená"} ztráta na kabelech a spojích${d.wire_state&&d.wire_state.active&&d.wire_state.n<2?" (čeká na potvrzení)":""} – návod`, k:"wire"}); }   // 4.45: i zvýšená
   // 4.44: zdraví baterie je známá věc (výměna na jaře) – tiché upozornění: samo jen malý řádek, s jinými jako připomínka na konci
@@ -2583,6 +2587,12 @@ const SETTINGS = [
     ["zasuvka_generator","Zásuvka generátoru","Kolik generátor dodává","",0,"txt"],
     ["zasuvka_lednice","Zásuvka lednice","Pro výpočet ostatního odběru (světla, kamery, wifi)","",0,"txt"],
     ["ostatni_hlidat","Hlídat ostatní odběr","Upozornit, když se odběr přes noc výrazně změní proti předchozím nocím","","", "sw"],
+    ["lednice_hlidat","Hlídat lednici","Kompresor dlouho stojí (nechladí) / běží bez přestávky / zásuvka bez proudu","","", "sw"],
+    ["lednice_ticho_h","Lednice stojí déle než","Aspoň tolik; v zimě se hranice sama prodlouží podle posledních 7 dní","h",0.5,"num"],
+    ["lednice_bezi_h","Lednice běží bez přestávky déle než","Aspoň tolik; přizpůsobí se posledním 7 dnům","h",0.5,"num"],
+    ["mraz_hlidat","Hlídat mráz u solární baterie","Vybitá AGM může v mrazu zamrznout (teplota z regulátoru)","","", "sw"],
+    ["mraz_C","Mráz = teplota baterie pod","","°C",1,"num"],
+    ["mraz_hash","Upozornit při mrazu pod","Nabití solární baterie","#",5,"num"],
   ]],
   ["Pro pokročilé", [
     ["baterie_slabne_reset_V","Varování „slábne“ znovu až nad","","V",0.05,"num"],

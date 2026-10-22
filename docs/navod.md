@@ -108,6 +108,8 @@ Otevřené sekce si telefon pamatuje.
 | 🌥 Panely nevyrábí | Za světla (mimo 45 min po východu / před západem) panely 30 min nedávají ani 5 W | Sníh, stín, odpojený panel, jistič |
 | ☀️ Panely zase vyrábí | Konec předchozího | – |
 | Baterie slábne / kritická / měnič se vypíná | Napětí pod 12,2 / 12,0 / 11,6 V | Omez spotřebu, odpoj nepotřebné |
+| 🧊 Lednice nechladí? / běží bez přestávky / bez proudu | Kompresor stojí / běží neobvykle dlouho (podle posledních 7 dní), nebo zásuvka lednice nejde přečíst | Zkontroluj lednici (zapnutá, dveře, námraza). Když chatu vypínáš celou, vypni v Nastavení „Hlídat lednici“ |
+| ❄️ Mráz u solární baterie / Vybitá baterie v mrazu | Teplota baterie z regulátoru pod 0 °C; při nabití pod 40 # hrozí zamrznutí | Drž baterii nabitou, nevybíjej ji (chata na River) |
 | 🔥 Velký úbytek napětí na kabelech | Jedno spárované měření regulátor − měnič nad hranicí (0,35 V) | Počkej na další zprávu: „trvá – N. měření“ = jdi kontrolovat (návod v Kabely a spoje), „✓ zase v normě“ = nejspíš měření z trochu jiné chvíle |
 | 🌙 Baterie do rána nejspíš nevydrží | Podle odběru a stavu baterie dojde v noci pod alarm | Odpoj něco, ráno počítej s River |
 | ⚡ Nabíjecí proud X A – blízko pojistky | Proud z regulátoru nad 33 A (110 % pojistky 30 A) | Pokud jsou zapojené 2 panely, jeden odpoj |
