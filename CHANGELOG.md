@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.50 – 22. 10. 2026
+- **Zvýšený odběr večer (PC…):** když by baterie do rána nevydržela jen kvůli tomu, že teď chata bere víc než běžně v noci, přijde nejdřív rada „🌙 Aby solár vydržel do rána, sniž odběr do HH:MM“ (běžný noční odběr = medián nocí za 7 dní, s rezervou 10 %). „Nevydrží – přepni na River“ a naléhavé ve 22:00 až když se do té doby odběr nesníží. Dlaždice Noc ukazuje totéž.
+- Noční předpověď bere odběr za **poslední hodinu** (dřív 3 h) – po vypnutí PC se spraví do hodiny.
+- Stav baterie z napětí: při větším odběru se počítá s větším poklesem napětí (~10 mΩ) – dřív pod zátěží vycházel horší.
+
 ## 4.49 – 22. 10. 2026
 - **Plné nabití solární baterie:** když regulátor 14 dní nepřešel do Floatu, jedna klidná připomínka (Výchozí, přes den), další nejdřív za týden. Na webu jen tichý řádek nahoře (jako zdraví baterie). V Zdraví baterie „Naposledy plně nabitá“. Nastavení: Připomenout plné nabití po (dní).
 

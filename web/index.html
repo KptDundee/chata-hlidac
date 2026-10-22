@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.49", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.50", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1330,6 +1330,7 @@ function tileNight(d, h){
   const unit = `<small>V ${rano(morT)}</small>`;
   const t = {k:"night", icon:"🌙", label};
   if(f && f.until && h.now < f.until){       // noc běží (nebo začala večer) – přesná předpověď
+    if(f.ok_base && f.cut_by && h.now < f.cut_by) return {...t, cls:"warn", v:`${hmT(f.cut_by)}<small>snížit do</small>`, st:`${cap1(doRana(morT))} vydrží, když do ${hmT(f.cut_by)} snížíš odběr`, a:`Teď ~${f.now_w} W, běžně v noci ~${f.base_w} W (vypni PC a podobně)`};   // 4.50
     if(f.t_off) return {...t, cls:"bad", v:`${hmT(f.t_off)}<small>${relDay(f.t_off)}</small>`, st:cap1(`${doRana(morT)} nevydrží`), a:`Měnič se vypne ${relDay(f.t_off)} ~${hmT(f.t_off)} – přepni na River`};
     if(f.t_crit) return {...t, cls:"warn", v:`${nf(f.v_until,2)}${unit}`, st:`Vydrží těsně – ${rano(morT)} pod ${nf(CRIT_V,1)} V`, a:`Od ${relDay(f.t_crit)} ~${hmT(f.t_crit)} – omez odběr`};
     return {...t, cls:"ok", v:`${nf(f.v_until,2)}${unit}`, st:cap1(`${doRana(morT)} vydrží`), a: f.corr ? `S opravou ${f.corr>0?"+":"−"}${nf(Math.abs(f.corr),2)} V z minulých nocí` : "Nic nedělej"};

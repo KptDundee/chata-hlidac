@@ -1217,8 +1217,22 @@ def forecast(data, now, cfg):
                 if p.get("mw", p.get("ac_w")) is not None and p["t"] >= t_now - 3 * 3600 and (p.get("pv_w") or 0) < 5]
     if len(measured) >= 6:                       # aspoň hodina změřeného nočního odběru
         ac = sum(measured) / len(measured)
+    # 4.50: odběr za poslední hodinu (≥ 3 měření) – po vypnutí PC se předpověď spraví do hodiny, ne až za 3 h
+    recent = [p.get("mw", p.get("ac_w")) for p in data.get("points", [])
+              if p.get("mw", p.get("ac_w")) is not None and p["t"] >= t_now - 3600 and (p.get("pv_w") or 0) < 5]
+    if len(recent) >= 3:
+        ac = sum(recent) / len(recent)
+    # běžný noční odběr (medián nocí 21–5 h za posledních 7 dní, bez dnešního večera)
+    base = sorted(p["mw"] for p in data.get("points", []) if p.get("mw") is not None and p["mw"] > 3
+                  and t_now - 7 * 86400 <= p["t"] < t_now - 6 * 3600 and (p.get("pv_w") or 0) < 5
+                  and (datetime.fromtimestamp(p["t"], TZ).hour >= 21 or datetime.fromtimestamp(p["t"], TZ).hour < 5))
+    base_w = base[len(base) // 2] if len(base) >= 12 else None
     draw = ac / 0.88 + (cfg["menic_vlastni_W"] or 0)   # W z baterie
     a = draw / 12.2                                                             # A z baterie
+    # 4.50: pod větším odběrem napětí klesne víc (vnitřní odpor + kabely, ~10 mΩ) → stav z napětí by vyšel horší
+    if recent and len(recent) >= 3:
+        i_now = (sum(recent) / len(recent) / 0.88 + (cfg["menic_vlastni_W"] or 0)) / 12.2
+        v += max(0.0, i_now * 0.010 - 0.05)                # +0,05 V už je výš; navíc jen při proudu nad ~5 A
     until = rise + timedelta(minutes=cfg["nabijeni_od_vychodu_min"] or 0)
     hours = (until.timestamp() - t_now) / 3600
     soc_now = soc_from_v(v)
@@ -1241,6 +1255,13 @@ def forecast(data, now, cfg):
             f[key] = int(t_now + ah_left / a * 3600)
         elif f["v_until"] < lim:                  # podle opravy z minulých nocí ráno pod hranicí
             f[key] = f["until"]
+        # 4.50: odběr je teď zvýšený (PC…) – vydržela by, kdyby se do určité doby vrátil na běžný noční?
+        if key == "t_crit" and f.get("t_crit") and base_w and ac > base_w * 1.3 + 15:
+            ab = (base_w / 0.88 + (cfg["menic_vlastni_W"] or 0)) / 12.2
+            ah_left = (soc_now - soc_from_v(lim)) / 100 * cap
+            if ah_left > ab * hours * 1.1 and a > ab:                       # s rezervou 10 %
+                cut = t_now + (ah_left - ab * hours * 1.1) / (a - ab) * 3600
+                f.update(base_w=round(base_w), now_w=round(ac), ok_base=True, cut_by=int(min(cut, until.timestamp())))
     # skutečný noční trend napětí (jen pro kontrolu, z doby po západu)
     night = [p for p in data.get("points", []) if p["t"] >= max(t_now - 3 * 3600, set_.timestamp() if now >= set_ else 0)
              and p.get("bat_v") is not None and (p.get("pv_w") or 0) < 5]
@@ -3397,8 +3418,18 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
         night = now >= from_t or (rise and now < rise)
         if not night:
             st["night_warned"] = False
+            st["night_cut"] = False
         f = st.get("_forecast")
-        if night and f and f.get("t_crit") and not st.get("night_warned"):
+        hold = bool(f and f.get("ok_base") and f.get("cut_by") and now.timestamp() < f["cut_by"] - 600)
+        if night and f and f.get("t_crit") and hold and not st.get("night_cut") and not st.get("night_warned"):
+            # 4.50: nejdřív rada (zvýšený odběr je možná jen chvilkový), „nevydrží“ až když se do té doby nesníží
+            cb = datetime.fromtimestamp(f["cut_by"], TZ).strftime("%H:%M")
+            ntfy(topic, f"🌙 Aby solár vydržel do rána, sniž odběr do {cb}",
+                 f"Teď chata bere ~{f['now_w']} W, běžně v noci ~{f['base_w']} W. Když do {cb} odběr vrátíš na běžný "
+                 f"(vypneš PC a podobně), solární baterie do rána vydrží. Jinak přijde upozornění, že nevydrží – a přepnout na River.\n{line}",
+                 3, "crescent_moon")
+            st["night_cut"] = True
+        if night and f and f.get("t_crit") and not hold and not st.get("night_warned"):
             ntfy(topic, f"🌙 Solární baterie {do_rana(f['until'], now)} nevydrží – přepni chatu na River",
                  f"{forecast_text(f)}.\nPřepoj chatu na River (nebo hned odpoj, co nejde nutně). Pokud chata ve {cfg.get('nutne_river_v') or '22:00'} pořád pojede ze solární baterie, přijde naléhavé opakované upozornění.\n{line}", 4, "crescent_moon,warning")
             st["night_warned"] = True
@@ -3453,6 +3484,8 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
     f = st.get("_forecast") or {}
     if not active and not f.get("t_crit"):
         return                                                     # baterie do rána vydrží → nic
+    if not active and f.get("ok_base") and f.get("cut_by") and ts < f["cut_by"] - 600:
+        return                                                     # 4.50: ještě je čas snížit odběr (rada už odešla)
     if active and ts - st.get("ur_last", 0) < 4 * 60:
         return                                                     # nejvýš jednou za ~5 min
     if not active:
