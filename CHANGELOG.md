@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.49 – 22. 10. 2026
+- **Plné nabití solární baterie:** když regulátor 14 dní nepřešel do Floatu, jedna klidná připomínka (Výchozí, přes den), další nejdřív za týden. Na webu jen tichý řádek nahoře (jako zdraví baterie). V Zdraví baterie „Naposledy plně nabitá“. Nastavení: Připomenout plné nabití po (dní).
+
 ## 4.48 – 22. 10. 2026
 - **Hlídání lednice** (zásuvka lednice): upozornění, když kompresor stojí déle než 3 h (nechladí – porucha, vypnutá), běží bez přestávky déle než 2 h (dveře, námraza), nebo zásuvka lednice ≥ 1 h nejde přečíst, když ostatní jdou. Hranice se přizpůsobí posledním 7 dnům (×1,5 nejdelšího běžného stání / běhu) – v zimě ve studené chatě stojí kompresor déle. Po návratu do normálu „✓ Lednice zase normálně běží“. Na webu nahoře.
 - **Mráz u solární baterie** (teplota z regulátoru): první mráz v sezóně – informace; mráz a nabití pod 40 # → upozornění (vybitá AGM může zamrznout). Na webu nahoře.

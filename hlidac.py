@@ -30,7 +30,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
@@ -1489,6 +1489,7 @@ def main():
                          ("Upozornění #", lambda: hash_alert(data, st, now, topic, cfg)),
                          ("Lednice", lambda: fridge_check(data, st, now, topic, cfg)),
                          ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
+                         ("Plné nabití", lambda: full_charge_check(data, st, now, topic, cfg)),
                          ("Učení výhledu", lambda: night_learn(data, st, now, cfg)),
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
@@ -2714,6 +2715,28 @@ def fridge_check(data, st, now, topic, cfg):
         fs["state"] = state
     data["fridge"] = {"state": state, **info, "max_off_h": round(max_off / 3600, 1), "max_on_h": round(max_on / 3600, 1),
                       "now_on": bool(cur and cur[0]) if cur else None, "since": cur[1] if cur else None}
+
+
+def full_charge_check(data, st, now, topic, cfg):
+    """4.49: AGM nemá dlouho stát nedobitá (sulfatace). Když regulátor plne_nabiti_dni dní nepřešel do Float
+    (= plně nabito), jedna klidná zpráva (Výchozí), pak nejvýš jednou za týden. Jen pro jistotu – v zimě normální."""
+    lim = cfg.get("plne_nabiti_dni") or 14
+    fl = [d_.get("fl") for d_ in data.get("days", {}).values() if d_.get("fl")]
+    last = max(fl) if fl else None
+    data["last_full"] = last
+    if not last or not lim:
+        return
+    days_ = (now.timestamp() - last) / 86400
+    fc = st.setdefault("fullchg", {})
+    if days_ < lim:
+        fc.clear()
+        return
+    if now.timestamp() - fc.get("t", 0) >= 7 * 86400 and 9 <= now.hour < 20:
+        ntfy(topic, f"🔋 Solární baterie {int(days_)} dní bez plného nabití",
+             f"Naposledy plně nabitá (Float) {rel_day(last, now)} {datetime.fromtimestamp(last, TZ).strftime('%-d. %-m.')}. "
+             "AGM baterii dlouhé stání nedobité škodí (sulfatace). Až bude slunečno, nech ji nabít – chata klidně na River. "
+             "Jen připomínka, další nejdřív za týden.", 3, "battery")
+        fc["t"] = now.timestamp()
 
 
 def cold_factor(data, cfg):

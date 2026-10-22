@@ -144,3 +144,4 @@ lednice_bezi_h = 2              # upozornit, když kompresor běží bez přest�
 mraz_hlidat = zapnuto             # mráz u solární baterie (teplota z regulátoru)
 mraz_C = 0                      # pod touto teplotou baterie hlídat nabití
 mraz_hash = 40                  # upozornit, když je při mrazu nabití pod tolik # (vybitá AGM může zamrznout)
+plne_nabiti_dni = 14            # připomenout, když solární baterie tolik dní nebyla plně nabitá (Float) – AGM nemá dlouho stát nedobitá

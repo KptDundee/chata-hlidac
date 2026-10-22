@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.48", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.49", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -310,6 +310,7 @@ details.sec>.in{margin-top:8px}
       <div class="chart"><div id="c_cap" style="margin-top:6px"></div></div>
       <div class="sub" id="hzones" style="margin-top:4px;font-size:12px"></div>
       <div id="hadv"></div>
+      <div id="hfull" class="sub" style="margin-top:4px;font-size:13px"></div>
       <details style="margin-top:4px"><summary>Poslední měření a jak to číst</summary><div id="hlist" style="font-size:13.5px;line-height:1.5"></div></details>
       <div class="wrow" id="wirerow" role="button"><span style="font-size:20px">🔧</span><div><b style="font-size:14.5px">Kabely a spoje</b><div class="sub" id="wr_s"></div></div><span class="go">›</span></div>
     </div></div></details>
@@ -1876,6 +1877,7 @@ function alertItems(d, h){
   { const tw = tileWire(d,h); if(tw.cls==="bad"||tw.cls==="warn") A.push({s:1, t:`${tw.cls==="bad"?"Velká":"Zvýšená"} ztráta na kabelech a spojích${d.wire_state&&d.wire_state.active&&d.wire_state.n<2?" (čeká na potvrzení)":""} – návod`, k:"wire"}); }   // 4.45: i zvýšená
   // 4.44: zdraví baterie je známá věc (výměna na jaře) – tiché upozornění: samo jen malý řádek, s jinými jako připomínka na konci
   [tileHealth(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:0, q:true, t:`${x.label}: ${x.st}`, k:x.k}));
+  { const lf = d.last_full, lim = h.cfg.plne_nabiti_dni ?? 14; if(lf && (h.now - lf)/86400 >= lim) A.push({s:0, q:true, t:`baterie ${Math.floor((h.now-lf)/86400)} dní bez plného nabití`, k:"health"}); }   // 4.49: tiché
   return A.sort((a,b)=>b.s-a.s);
 }
 function renderHome(d){
@@ -2396,6 +2398,7 @@ function renderCap(d, days){
       <span style="font-size:15px" class="sub">úspěšné testy kapacity: ${tests.length} z potřebných 2</span></div>${deepTxt(d, days)}`;
     $("hadv").innerHTML = `<div style="margin-top:8px">Kapacitu určí až <b>testy z ampérhodin</b> (s odběrem měniče ze zásuvky 220 V): po plném nabití, nebo dvoubodově večer → ráno (v zimě, kdy baterie plná nebývá). Počítají se jen dny po opravě spojů${fixTxt?` (${fixTxt})`:""} – dřív špatný spoj zkresloval napětí. Test se dělá každé ráno sám.</div>`;
   }
+  { const lf = DATA.last_full; $("hfull").innerHTML = lf ? `Naposledy plně nabitá (Float): <b>${relDay(lf)} ${hmT(lf)}</b>${(Date.now()/1000-lf)/86400 >= 2 ? ` · před ${Math.floor((Date.now()/1000-lf)/86400)} dny` : ""}` : ""; }
   $("hadv").innerHTML += `<div style="margin-top:10px"><b>Testy kapacity</b>${allT.length ? allT.slice(-8).reverse().map(tLine).join("") : `<div class="sub">zatím žádný (první ráno po nabití nebo po noci s odběrem)</div>`}</div>`;
   if(!rows.length){
     $("c_cap").innerHTML=""; $("hzones").textContent=""; $("hlist").innerHTML=""; return;
@@ -2593,6 +2596,7 @@ const SETTINGS = [
     ["mraz_hlidat","Hlídat mráz u solární baterie","Vybitá AGM může v mrazu zamrznout (teplota z regulátoru)","","", "sw"],
     ["mraz_C","Mráz = teplota baterie pod","","°C",1,"num"],
     ["mraz_hash","Upozornit při mrazu pod","Nabití solární baterie","#",5,"num"],
+    ["plne_nabiti_dni","Připomenout plné nabití po","Kolik dní bez Floatu – AGM nemá dlouho stát nedobitá","dní",1,"num"],
   ]],
   ["Pro pokročilé", [
     ["baterie_slabne_reset_V","Varování „slábne“ znovu až nad","","V",0.05,"num"],
