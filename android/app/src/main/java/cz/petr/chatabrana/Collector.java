@@ -165,6 +165,11 @@ public final class Collector {
                 if (temp != Integer.MIN_VALUE) ph.put("t", temp / 10.0);
                 o.put("ph", ph);
                 sum.append(", telefon ").append(pct).append(" %");
+                // 1.6: řízení nabíjení Flipu zásuvkou (povolení od hlídače + bezpečnost podle teploty, místně)
+                if (!email.isEmpty() && pct >= 0) {
+                    try { flipCharge(email, pass, pct, plugged != 0, temp != Integer.MIN_VALUE ? temp / 10.0 : Double.NaN, plugs, o); }
+                    catch (Exception e) { Prefs.log(ctx, "Nabíjení Flipu: " + e.getMessage()); }
+                }
             }
 
             if (o.has("th")) sum.append(", teploměry ").append(o.getJSONArray("th").length());
@@ -406,6 +411,91 @@ public final class Collector {
         } catch (Exception e) {
             Prefs.log(ctx, "Povely: " + e.getMessage());
         }
+    }
+
+    /**
+     * 1.6: zásuvka s nabíječkou Flipu. Povolení posílá hlídač do ntfy <téma>-fc ({"allow", "ip", "why", "id"}):
+     * na soláru nabíjet jen přes den, když panely dodávají; na River kdykoli. Místně (i bez internetu):
+     * • teplota baterie ≥ 42 °C → vypnout (bezpečnost), zpět až pod 36 °C
+     * • pod 20 % → nabíjet vždy (pokud není horko)
+     * • od 80 % vypnout (telefon má limit 80 %), znovu až pod 75 %
+     * • bez spojení s hlídačem (povolení starší než 3 h) → nabíjet pod 40 %
+     * Při vypnutí se v zásuvce nastaví odpočet „za 3 h zapnout“ – kdyby aplikace spadla, telefon se nevybije.
+     */
+    private void flipCharge(String email, String pass, int pct, boolean charging, double tempC, JSONArray plugs, JSONObject o) throws Exception {
+        android.content.SharedPreferences P = Prefs.get(ctx);
+        String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
+        try {                                                            // povolení od hlídače
+            HttpURLConnection c = (HttpURLConnection) new URL("https://ntfy.sh/" + topic + "-fc/json?poll=1&since=6h").openConnection();
+            c.setConnectTimeout(15000); c.setReadTimeout(15000);
+            String body;
+            try (java.io.InputStream in = c.getInputStream()) {
+                java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[4096]; int n;
+                while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                body = bo.toString("UTF-8");
+            } finally { c.disconnect(); }
+            JSONObject last = null;
+            for (String ln : body.split("\n")) {
+                if (ln.trim().isEmpty()) continue;
+                JSONObject m = new JSONObject(ln);
+                if ("message".equals(m.optString("event"))) try { last = new JSONObject(m.optString("message")); } catch (Exception ignored) {}
+            }
+            if (last != null && last.optLong("id") * 1000 > P.getLong("fc_t", 0)) {
+                P.edit().putBoolean("fc_allow", last.optBoolean("allow", true)).putLong("fc_t", last.optLong("id") * 1000)
+                        .putString("fc_ip", last.optString("ip", "9")).putString("fc_why", last.optString("why", "")).apply();
+            }
+        } catch (Exception e) { /* bez internetu – platí poslední povolení / záloha pod 40 % */ }
+        String id = P.getString("fc_ip", "9");
+        if (id.isEmpty()) return;                                        // řízení vypnuté
+        boolean fresh = System.currentTimeMillis() - P.getLong("fc_t", 0) < 3 * 3600_000L;
+        boolean hot = P.getBoolean("fc_hot", false);
+        if (!Double.isNaN(tempC)) {
+            if (tempC >= 42) hot = true; else if (tempC <= 36) hot = false;
+        }
+        JSONObject cur = null;
+        for (int k = 0; k < plugs.length(); k++) { JSONObject p = plugs.optJSONObject(k); if (p != null && id.equals(p.optString("ip"))) cur = p; }
+        if (cur == null || cur.has("off") || cur.has("err") || !cur.has("on")) {
+            if (!P.getBoolean("fc_miss", false)) Prefs.log(ctx, "Nabíjení Flipu: zásuvka (" + id + ") nenalezena / nejde přečíst");
+            P.edit().putBoolean("fc_miss", true).putBoolean("fc_hot", hot).apply();
+            return;
+        }
+        P.edit().putBoolean("fc_miss", false).apply();
+        boolean isOn = cur.optInt("on", 0) == 1, want;
+        String why;
+        if (hot) { want = false; why = String.format(Locale.US, "baterie Flipu %.1f °C – bezpečnost", tempC); }
+        else if (pct <= 20) { want = true; why = "pod 20 %"; }
+        else if (pct >= 80) { want = false; why = "nabito 80 %"; }
+        else if (pct >= 75 && !isOn) { want = false; why = "nabito (pod 75 % znovu)"; }
+        else if (fresh) { want = P.getBoolean("fc_allow", true); why = P.getString("fc_why", ""); }
+        else { want = pct < 40; why = "bez spojení s hlídačem – nabíjí pod 40 %"; }
+        if (want != isOn) {
+            String ip = plugMap(email, pass).get(id);
+            if (ip == null) ip = id.matches("\\d+") ? null : id;
+            if (ip != null) {
+                TapoKlap t = tapo.get(ip);
+                if (t == null) { t = new TapoKlap(ip, email, pass); tapo.put(ip, t); }
+                JSONObject r = new JSONObject(t.call("set_device_info", "{\"device_on\":" + want + "}"));
+                if (r.optInt("error_code", -1) == 0) {
+                    Prefs.log(ctx, "Nabíjení Flipu " + (want ? "ZAPNUTO" : "VYPNUTO") + " (" + why + ")");
+                    isOn = want;
+                    if (!want) {                                         // pojistka: za 3 h se zásuvka sama zapne
+                        try {
+                            JSONObject cr = new JSONObject(t.call("add_countdown_rule",
+                                    "{\"delay\":10800,\"desired_states\":{\"on\":true},\"enable\":true,\"remain\":10800}"));
+                            if (cr.optInt("error_code", -1) != 0 && !P.getBoolean("fc_cd_log", false)) {
+                                Prefs.log(ctx, "Pojistka (odpočet zapnutí) zásuvka nepřijala: " + cr);
+                                P.edit().putBoolean("fc_cd_log", true).apply();
+                            }
+                        } catch (Exception e) {
+                            if (!P.getBoolean("fc_cd_log", false)) { Prefs.log(ctx, "Pojistka (odpočet): " + e.getMessage()); P.edit().putBoolean("fc_cd_log", true).apply(); }
+                        }
+                    }
+                } else Prefs.log(ctx, "Nabíjení Flipu: zásuvka odmítla " + r);
+            }
+        }
+        P.edit().putBoolean("fc_hot", hot).apply();
+        o.put("fc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("hot", hot ? 1 : 0).put("fresh", fresh ? 1 : 0).put("ip", id));
     }
 
     /** Najde zásuvku za měničem (název obsahuje „měnič“, „220“ …) a pošle hodinovou spotřebu za posledních 30 dní. */

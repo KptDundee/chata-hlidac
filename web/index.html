@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.52", FLIP_VER = "1.5.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.53", FLIP_VER = "1.6.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1575,6 +1575,81 @@ function tileUseRiver(d, h){
     rows: L.rvT.map(r=>[`${(r.w||0)>2?dot+" ":""}${r.name.replace(/^River\s*/i,"")}`, kWh(r.o||0)])};
 }
 /* ---- spotřebiče: každá zásuvka, která není zdroj (měnič, River, generátor, nabíjení River) ---- */
+/* 4.53: Flip (brána) – baterie, nabíjení zásuvkou, teplota, výdrž */
+function tileFlip(d, h){
+  const g = d.inverter, ph = g && g.ph; if(!ph || ph.b==null) return null;
+  const old = h.now - g.t > 1800, ff = d.flip_fc, fc = g.fc, ch = d.flip_chg || {};
+  const hot = ph.t!=null && ph.t >= (d.cfg?.flip_teplota_max_C ?? 40);
+  const cls = old ? "warn" : hot || ph.b <= 20 ? "bad" : (!ph.c && ff && ff.t15 - h.now < 12*3600) ? "warn" : "ok";
+  const rows = [["nabíjení", ph.c ? `<span style="color:var(--good)">nabíjí se ⚡</span>` : "nenabíjí se"]];
+  if(fc) rows.push(["zásuvka", `${fc.on ? "zapnutá" : "vypnutá"}${fc.why ? ` · ${fc.why}` : ""}`, 1]);
+  else if(ch.ip) rows.push(["řízení", "až s Flip 1.6", 1]);
+  if(ph.t!=null) rows.push(["teplota baterie", `<span style="color:var(${hot?"--crit":"--text"})">${nf(ph.t,1)} °C</span>`]);
+  if(ff && !ph.c) rows.push(["vydrží do", `${relDay(ff.t_empty)} ~${hmT(ff.t_empty)} <span class="sub">(−${nf(ff.rate,1)} %/h)</span>`]);
+  return {k:"flip", icon:"📱", label:"Flip (brána)", wide:true, cls, v:`${nf(ph.b)}<small>%</small>`, st: old ? `bez dat ${agoS(g.t)}` : "teď", rows};
+}
+/* 4.53: lednice – kompresor (zásuvka) + teploměr, pokud je */
+function fridgeStats(d, hrs){
+  const fid = String(d.cfg?.zasuvka_lednice ?? "4"), cut = Date.now()/1000 - hrs*3600;
+  const s = (d.points||[]).filter(p=>p.t>=cut && p.tp && p.tp[fid]!=null).map(p=>({t:p.t, w:p.tp[fid]}));
+  if(!s.length) return null;
+  let cyc = 0; for(let i=1;i<s.length;i++) if(s[i].w>20 && s[i-1].w<=20) cyc++;
+  return {n:s.length, duty: Math.round(s.filter(x=>x.w>20).length/s.length*100), cyc, last:s[s.length-1]};
+}
+function tileFridge(d, h){
+  const fr = d.fridge, S = fridgeStats(d, 24); if(!fr && !S) return null;
+  const nm = d.cfg?.teplomer_lednice, th = ((d.inverter||{}).th||[]).find(x=>nm && x.n===nm);
+  const lim = d.cfg?.lednice_max_C ?? 8, bad = fr && fr.state!=="ok", hotT = th && th.t > lim;
+  const tpd = (((d.days||{})[dkey(h.now)]||{}).tp||{})[String(d.cfg?.zasuvka_lednice ?? "4")];
+  const rows = [];
+  if(th) rows.push(["teplota", `<span style="color:var(${hotT?"--crit":"--text"})">${nf(th.t,1)} °C</span>`]);
+  if(S) rows.push(["kompresor teď", S.last.w > 20 ? `běží · ${nf(S.last.w)} W` : "stojí"], ["za 24 h běžel", `${S.duty} % času · ${S.cyc}× rozběh`]);
+  if(tpd!=null) rows.push(["dnes", kWh(tpd)]);
+  const st = !fr ? "" : fr.state==="off" ? `nechladí? stojí od ${hmT(fr.od)}` : fr.state==="on" ? `běží bez přestávky od ${hmT(fr.od)}` : fr.state==="na" ? "zásuvka nejde přečíst" : "cykluje normálně";
+  return {k:"fridge", icon:"🧊", label:"Lednice", wide:true, cls: bad || hotT ? "bad" : "ok", v:"", st, rows};
+}
+function detFlip(body){
+  const d = DATA, g = d.inverter || {}, ph = g.ph || {}, ff = d.flip_fc, ch = d.flip_chg || {}, fc = g.fc;
+  const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
+  body.insertAdjacentHTML("beforeend", chartCard("df_b", "Baterie Flipu", "% · 48 h · šedé pozadí = nabíjí se")
+    + chartCard("df_t", "Teplota baterie Flipu", `°C · 48 h · červeně ${d.cfg?.flip_teplota_max_C ?? 40} °C = upozornění, nad 42 °C Flip nabíjení vypne`)
+    + `<div class="card">
+      ${rowI("Baterie", `${nf(ph.b)} %${ph.c?" · nabíjí se ⚡":""}`)}
+      ${ph.t!=null ? rowI("Teplota baterie", `${nf(ph.t,1)} °C`) : ""}
+      ${ff && !ph.c ? rowI("Vybíjí se", `−${nf(ff.rate,1)} %/h → pod 15 % ${relDay(ff.t15)} ~${hmT(ff.t15)}, vybitý ${relDay(ff.t_empty)} ~${hmT(ff.t_empty)}`) : ""}
+      ${rowI("Zásuvka nabíječky", fc ? `${fc.on?"zapnutá":"vypnutá"}${fc.why?` – ${fc.why}`:""}` : ch.ip ? `(${ch.ip}) – řízení začne s Flip 1.6` : "řízení vypnuté")}
+      ${rowI("Povolení od hlídače", ch.allow==null ? "–" : `${ch.allow ? "nabíjet" : "nenabíjet"} – ${ch.why}`)}
+    </div>
+    <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se nabíjení řídí</b> (Flip 1.6, zásuvka (${ch.ip||d.cfg?.zasuvka_flip||9})): chata na <b>River</b> → nabíjí kdykoli; chata na <b>soláru</b> → jen když panely dodávají (přes den, ≥ 30 W). Vždy: <b>pod 20 %</b> nabíjí, <b>od 80 %</b> vypne (Flip má limit 80 %, znovu pod 75 %), <b>nad 42 °C</b> vypne kvůli bezpečnosti (zpět pod 36 °C). Bez spojení s hlídačem nabíjí pod 40 %. Při každém vypnutí se v zásuvce nastaví odpočet „za 3 h zapnout“ – kdyby aplikace spadla, telefon se nevybije.</div>`);
+  const bands = []; let b0 = null; for(const p of pts){ if(p.pc && b0==null) b0 = p.t; if(!p.pc && b0!=null){ bands.push([b0, p.t]); b0 = null; } } if(b0!=null) bands.push([b0, Date.now()/1000]);
+  lineChart($("df_b"), pts.map(p=>({t:p.t, b:p.pb ?? null})), "b", css("--s1"), {unit:"%",dec:0,zero:true,hours:48,bands,refs:[[20,"--crit"],[80,"--muted"]]});
+  lineChart($("df_t"), pts.map(p=>({t:p.t, c:p.pt ?? null})), "c", css("--s8"), {unit:"°C",dec:1,hours:48,refs:[[d.cfg?.flip_teplota_max_C ?? 40,"--crit"]]});
+}
+function detFridge(body){
+  const d = DATA, fid = String(d.cfg?.zasuvka_lednice ?? "4"), nm = d.cfg?.teplomer_lednice, fr = d.fridge || {};
+  const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
+  const S1 = fridgeStats(d, 24), S7 = fridgeStats(d, 7*24), hasT = nm && pts.some(p=>p.th && p.th[nm]!=null);
+  const D = d.days||{}, dd = Object.keys(D).sort().slice(-14).map(k=>({k, v:(D[k].tp||{})[fid]!=null ? D[k].tp[fid]/1000 : null}));
+  let rec = [];
+  if(S1 && S7 && S7.duty > 0 && S1.duty > S7.duty*1.4 && S1.duty > 40) rec.push(`Za posledních 24 h běžel kompresor ${S1.duty} % času, obvykle (7 dní) ${S7.duty} %. Zkontroluj, jestli dobře těsní dveře, není přeplněná nebo zanesená námrazou a má kolem sebe vzduch.`);
+  if(fr.state==="off") rec.push("Kompresor neobvykle dlouho stojí – zkontroluj, jestli lednice běží (zapnutá, termostat, proud).");
+  if(fr.state==="on") rec.push("Kompresor běží bez přestávky – otevřené dveře, námraza nebo porucha.");
+  if(!nm) rec.push("Tip: s teploměrem Xiaomi v lednici (Nastavení → Teploměr v lednici) uvidíš přímo teplotu a přijde upozornění, když se ohřeje.");
+  body.insertAdjacentHTML("beforeend", (hasT ? chartCard("dl_t", "Teplota v lednici", `°C · 48 h · červeně ${d.cfg?.lednice_max_C ?? 8} °C = upozornění`) : "")
+    + chartCard("dl_w", "Kompresor lednice", "W · 48 h · zásuvka lednice (běží ~55–80 W, stojí ~0 W)")
+    + chartCard("dl_d", "Spotřeba lednice po dnech", "kWh · 14 dní")
+    + `<div class="card">
+      ${S1 ? rowI("Za 24 h", `běžel ${S1.duty} % času · ${S1.cyc}× rozběh`) : ""}
+      ${S7 ? rowI("Obvykle (7 dní)", `${S7.duty} % času · ~${Math.round(S7.cyc/7)}× rozběh za den`) : ""}
+      ${fr.max_off_h!=null ? rowI("Nejdelší stání / běh (7 dní)", `${nf(fr.max_off_h,1)} h / ${nf(fr.max_on_h,1)} h`) : ""}
+      ${rowI("Hlídání", fr.state==="ok" ? "v pořádku" : fr.state ? "⚠️ " + tileFridge(d, homeData(d)).st : "–")}
+    </div>`
+    + (rec.length ? `<div class="card"><b>Doporučení</b><div class="sub" style="margin-top:4px;line-height:1.55">${rec.join("<br>")}</div></div>` : "")
+    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Hlídač upozorní, když kompresor stojí déle než ${d.cfg?.lednice_ticho_h ?? 3} h nebo běží déle než ${d.cfg?.lednice_bezi_h ?? 2} h (hranice se přizpůsobí posledním 7 dnům), když zásuvka lednice nejde přečíst${nm?`, nebo když je v lednici tepleji než ${d.cfg?.lednice_max_C ?? 8} °C déle než 30 min`:""}.</div>`);
+  if(hasT) lineChart($("dl_t"), pts.map(p=>({t:p.t, c:p.th && p.th[nm]!=null ? p.th[nm] : null})), "c", css("--s1"), {unit:"°C",dec:1,hours:48,refs:[[d.cfg?.lednice_max_C ?? 8,"--crit"]]});
+  lineChart($("dl_w"), pts.map(p=>({t:p.t, w:p.tp && p.tp[fid]!=null ? p.tp[fid] : null})), "w", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:48});
+  barChart($("dl_d"), dd.filter(q=>q.v!=null), "v", css("--s1"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
+}
 /* 4.52: teploměry Xiaomi (přes Flip 1.5) */
 function tileTemps(d, h){
   const th = (d.inverter && d.inverter.th) || []; if(!th.length) return null;
@@ -1884,7 +1959,7 @@ function alertItems(d, h){
   if(!RS.stale && h.extraW!=null && h.net!=null && h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.extraW >= (h.cfg.odber_navic_W ?? 40)) A.push({s:1, t:`Odběr ${nf(h.extraW)} W navíc za měničem`, k:"bat"});
   const rs = d.river_sup; if(rs && rs.soc <= lim) A.push({s:2, t:`${rs.name} má ${rs.soc} % – vyměň River`, k:"river"});
   // 4.48: lednice a mráz
-  const fr = d.fridge; if(fr && fr.state!=="ok") A.push({s:2, t: fr.state==="off" ? `Lednice nechladí? Kompresor stojí od ${relDay(fr.od)} ${hmT(fr.od)}` : fr.state==="on" ? `Lednice běží bez přestávky od ${relDay(fr.od)} ${hmT(fr.od)}` : `Lednice bez proudu? Zásuvka nejde přečíst od ${hmT(fr.od)}`, k:"use"});
+  const fr = d.fridge; if(fr && fr.state!=="ok") A.push({s:2, t: fr.state==="off" ? `Lednice nechladí? Kompresor stojí od ${relDay(fr.od)} ${hmT(fr.od)}` : fr.state==="on" ? `Lednice běží bez přestávky od ${relDay(fr.od)} ${hmT(fr.od)}` : `Lednice bez proudu? Zásuvka nejde přečíst od ${hmT(fr.od)}`, k:"fridge"});
   const cl = d.cold, hp = d.hq && d.hq.pct; if(cl && cl.T!=null && cl.T <= (h.cfg.mraz_C ?? 0) && hp!=null && hp < (h.cfg.mraz_hash ?? 40)) A.push({s:2, t:`Vybitá baterie v mrazu: ${hp} # při ${nf(cl.T,1)} °C`, k:"bat"});
   [tilePanels(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:1, t:`${x.label}: ${x.st}`, k:x.k}));
   { const tw = tileWire(d,h); if(tw.cls==="bad"||tw.cls==="warn") A.push({s:1, t:`${tw.cls==="bad"?"Velká":"Zvýšená"} ztráta na kabelech a spojích${d.wire_state&&d.wire_state.active&&d.wire_state.n<2?" (čeká na potvrzení)":""} – návod`, k:"wire"}); }   // 4.45: i zvýšená
@@ -1899,7 +1974,7 @@ function renderHome(d){
   $("h_src").innerHTML = (h.rvOn ? [tileRivers(d, h), tileSolar(d, h)] : [tileSolar(d, h), tileRivers(d, h)]).map(tileHtml).join("");
   $("h_day").innerHTML = [tileProdSolar(d, h), tileProdGen(d, h)].map(tileHtml).join("");
   $("h_use").innerHTML = [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)].map(tileHtml).join("");
-  $("h_dev").innerHTML = tileHtml(tileDevices(d, h)) + (tileTemps(d, h) ? tileHtml(tileTemps(d, h)) : "");
+  $("h_dev").innerHTML = [tileDevices(d, h), tileFlip(d, h), tileFridge(d, h), tileTemps(d, h)].filter(Boolean).map(tileHtml).join("");
   $("h_now").innerHTML = [tileNight(d,h), tileTomorrow(d,h)].map(tileHtml).join("");
   $("h_past").innerHTML = [tilePastNight(d,h), tileYesterday(d,h)].map(tileHtml).join("");
   $("h_long").innerHTML = [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)].map(tileHtml).join("");   // 4.46: kabely trvale
@@ -1933,6 +2008,8 @@ const DET = {
   river: {t:"🔋 EcoFlow", s:"Tři River a generátor – co se s nimi děje teď a dělo v historii", build:detRiver},
   plugs: {t:"🔌 River a zásuvky (původní)", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
   use:   {t:"🏠 Spotřeba celkem", s:"Co bralo a kdy – ze soláru i z River", build:b=>detUse(b,"a")},
+  flip:  {t:"📱 Flip (brána)", s:"Baterie, nabíjení, teplota", build:detFlip},
+  fridge:{t:"🧊 Lednice", s:"Kompresor, teplota, spotřeba", build:detFridge},
   use_s: {t:"🔆 Spotřeba ze soláru", s:"Jen doba, kdy chatu napájela solární baterie", build:b=>detUse(b,"s")},
   use_r: {t:"🔋 Spotřeba z River", s:"Jen doba, kdy chatu (nebo něco) napájela River", build:b=>detUse(b,"r")},
   today: {t:"⚡ Dnes", s:"Výroba a spotřeba", build:detToday},
@@ -2613,6 +2690,9 @@ const SETTINGS = [
     ["teplomer_baterie","Teploměr u solární baterie","Jméno teploměru Xiaomi (jak je zadané ve Flipu) – jeho teplota se bere pro mráz a kapacitu v chladu","",0,"txt"],
     ["teplomer_lednice","Teploměr v lednici","Jméno teploměru Xiaomi v lednici","",0,"txt"],
     ["lednice_max_C","Lednice teplejší než","Upozornit, když je v lednici tepleji déle než 30 min","°C",1,"num"],
+    ["zasuvka_flip","Zásuvka nabíječky Flipu","Číslo zásuvky (prázdné = neřídit)","",0,"txt"],
+    ["flip_nabijeni_rizeni","Řídit nabíjení Flipu","Na soláru jen ze slunce, na River kdykoli; pod 20 % vždy, nad 42 °C nikdy (Flip 1.6)","","", "sw"],
+    ["flip_teplota_max_C","Flip horký nad","Upozornit, když má baterie Flipu víc","°C",1,"num"],
   ]],
   ["Pro pokročilé", [
     ["baterie_slabne_reset_V","Varování „slábne“ znovu až nad","","V",0.05,"num"],

@@ -31,7 +31,8 @@ DEFAULTS = {
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
     "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14,
-    "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
+    "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
+    "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
@@ -1387,6 +1388,14 @@ def main():
             plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
             if plugs:
                 pt["tp"] = plugs
+            ph_ = inv.get("ph") or {}
+            if ph_.get("b") is not None:       # 4.53: baterie Flipu do historie (graf v dlaždici Flip)
+                pt["pb"] = ph_["b"]
+                pt["pc"] = 1 if ph_.get("c") else 0
+                if ph_.get("t") is not None:
+                    pt["pt"] = ph_["t"]
+            if inv.get("fc"):
+                pt["fc"] = inv["fc"].get("on")
             ths = {x["n"]: x["t"] for x in inv.get("th", []) if x.get("t") is not None and now.timestamp() - x["tm"] < 1800}
             if ths:
                 pt["th"] = ths                 # 1.5: teploty z teploměrů Xiaomi
@@ -1516,6 +1525,7 @@ def main():
                          ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
                          ("Plné nabití", lambda: full_charge_check(data, st, now, topic, cfg)),
                          ("Flip – výdrž", lambda: flip_check(data, st, now, topic, cfg)),
+                         ("Flip – nabíjení", lambda: flip_charge_cmd(data, st, now, topic, cfg)),
                          ("Učení výhledu", lambda: night_learn(data, st, now, cfg)),
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
@@ -2215,6 +2225,8 @@ def inv_from_msg(last, now, cfg=None):
     ph = body.get("ph")
     if isinstance(ph, dict) and ph.get("b") is not None and ph["b"] >= 0:
         inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
+    if isinstance(body.get("fc"), dict):                 # 1.6: řízení nabíjení Flipu (stav zásuvky a proč)
+        inv["fc"] = body["fc"]
     th = body.get("th")                                   # 1.5: teploměry Xiaomi [{n, t, h, b, age}]
     if isinstance(th, list):
         inv["th"] = [{"n": str(x.get("n"))[:30], "t": x.get("t"), "h": x.get("h"), "b": x.get("b"),
@@ -2760,6 +2772,51 @@ def fridge_check(data, st, now, topic, cfg):
         fs["state"] = state
     data["fridge"] = {"state": state, **info, "max_off_h": round(max_off / 3600, 1), "max_on_h": round(max_on / 3600, 1),
                       "now_on": bool(cur and cur[0]) if cur else None, "since": cur[1] if cur else None}
+
+
+def flip_charge_cmd(data, st, now, topic, cfg):
+    """4.53: povolení nabíjení Flipu (zásuvka zasuvka_flip) – posílá se do ntfy <téma>-fc, Flip ho čte a zásuvku
+    přepne sám (bezpečnost podle teploty a pod 20 % řeší Flip místně, i bez internetu).
+    Chata na River → nabíjet kdykoli. Chata na soláru → jen když panely dodávají (přes den, panely ≥ 30 W).
+    Posílá se při změně a nejméně jednou za hodinu. Taky upozornění, když je baterie Flipu horká."""
+    ts = now.timestamp()
+    pid = str(cfg.get("zasuvka_flip") or "").strip()
+    if not cfg.get("flip_nabijeni_rizeni", True):
+        pid = ""                                          # řízení vypnuté → Flip nic nepřepíná
+    inv = data.get("inverter") or {}
+    fresh = inv and ts - inv.get("t", 0) < 1800
+    rids = ips(cfg.get("zasuvky_river"))
+    on_solar = fresh and (inv.get("mw") or 0) > 3
+    on_river = fresh and not on_solar and any(str(p.get("ip")) in rids and (p.get("w") or 0) > 3 for p in inv.get("tp", []))
+    last = (data.get("points") or [{}])[-1]
+    pv = last.get("pv_w") or 0
+    if on_solar:
+        allow, why = (pv >= 30), (f"slunce {pv:.0f} W" if pv >= 30 else "chata na soláru – nabíjí jen přes den ze slunce")
+    elif on_river:
+        allow, why = True, "chata na River"
+    else:
+        allow, why = True, "zdroj neznámý"
+    fs = st.setdefault("flip_chg", {})
+    if fs.get("allow") != allow or fs.get("ip") != pid or ts - fs.get("t", 0) >= 3600:
+        body = json.dumps({"allow": allow, "ip": pid, "why": why, "id": int(ts)})
+        try:
+            urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
+                                                          headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
+            fs.update(allow=allow, ip=pid, t=int(ts), why=why)
+        except Exception as e:
+            print("Povolení nabíjení Flipu:", e)
+    data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc")}
+    # horká baterie Flipu
+    ph = inv.get("ph") or {}
+    lim = cfg.get("flip_teplota_max_C") or 40
+    if fresh and ph.get("t") is not None:
+        if ph["t"] >= lim and not fs.get("hot"):
+            ntfy(topic, f"🔥 Flip je horký – {fmt(ph['t'], 1)} °C",
+                 f"Baterie Flipu má {fmt(ph['t'], 1)} °C ({'nabíjí se' if ph.get('c') else 'nenabíjí se'}). Nad 42 °C Flip nabíjení sám vypne. "
+                 "Nemá na slunci / u topení?", 4, "fire,warning")
+            fs["hot"] = True
+        elif fs.get("hot") and ph["t"] <= lim - 4:
+            fs["hot"] = False
 
 
 def flip_check(data, st, now, topic, cfg):

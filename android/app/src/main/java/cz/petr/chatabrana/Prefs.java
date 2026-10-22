@@ -24,8 +24,25 @@ public final class Prefs {
 
     private Prefs() {}
 
+    /**
+     * 1.6: nastavení v úložišti dostupném hned po restartu telefonu, ještě před odemčením („Direct Boot“) –
+     * po restartu (aktualizace systému) brána naběhne sama, i když na Flipu nikdo nezadá PIN.
+     * Při prvním spuštění se staré nastavení přesune (jde jen po odemčení – do té doby se čte, co je).
+     */
+    private static volatile boolean moved;
     public static SharedPreferences get(Context c) {
-        return c.getSharedPreferences("chata_brana", Context.MODE_PRIVATE);
+        Context dp = c.getApplicationContext() != null ? c.getApplicationContext().createDeviceProtectedStorageContext() : c.createDeviceProtectedStorageContext();
+        if (!moved) {
+            try {
+                android.os.UserManager um = c.getSystemService(android.os.UserManager.class);
+                if (um == null || um.isUserUnlocked()) {
+                    SharedPreferences ce = c.getSharedPreferences("chata_brana", Context.MODE_PRIVATE);
+                    if (!ce.getAll().isEmpty()) dp.moveSharedPreferencesFrom(c, "chata_brana");
+                    moved = true;
+                }
+            } catch (Exception ignored) { }
+        }
+        return dp.getSharedPreferences("chata_brana", Context.MODE_PRIVATE);
     }
 
     public static String s(Context c, String k) { return get(c).getString(k, "").trim(); }
