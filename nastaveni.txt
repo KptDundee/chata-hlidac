@@ -61,7 +61,7 @@ river_nabita = zapnuto
 
 # --- Brána na chatě (telefon u měniče) ---
 # upozornit, když brána přestane posílat data
-brana_hlidat = vypnuto
+brana_hlidat = zapnuto
 brana_ticho_min = 60
 # upozornit, když baterie telefonu klesne pod (%)
 telefon_baterie_pod = 15
