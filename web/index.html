@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.50", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.51", FLIP_VER = "1.4.1";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -618,7 +618,8 @@ function render(){
     if(ph && ph.b!=null){
       const old = Date.now()/1000 - g.t > 1800, col = ph.b <= 20 ? "--crit" : ph.b <= 50 && !ph.c ? "--warn" : ph.c ? "--good" : "--text2";
       const bc = ph.b <= 20 ? "--crit" : ph.c ? "--good" : "--text";       // nabíjí = zelená + ⚡, nenabíjí = bílá, málo = červená
-      fb.innerHTML = `<span${old ? ' style="color:var(--crit)"' : ""}>Flip ${agoS(g.t)}</span> · <b style="color:var(${bc})">${nf(ph.b)} %</b>${ph.c ? " ⚡" : ""}`;
+      const ff = d.flip_fc;   // 4.51: kdy se vybije (nenabíjí se)
+      fb.innerHTML = `<span${old ? ' style="color:var(--crit)"' : ""}>Flip ${agoS(g.t)}</span> · <b style="color:var(${bc})">${nf(ph.b)} %</b>${ph.c ? " ⚡" : ""}${ff && !ph.c ? ` <span style="color:var(--text2)">· vydrží do ${relDay(ff.t_empty)} ~${hmT(ff.t_empty)}</span>` : ""}`;
     } else fb.textContent = g ? `Flip ${agoS(g.t)}` : "Flip – zatím žádná data"; }
   { const R = regStale(d), u = $("upd");
     const reg = !d.updated ? "Regulátor – zatím žádná data" : `<span${R.stale ? ' style="color:var(--crit);font-weight:700"' : ""}>Regulátor ${agoS(d.updated)}${R.stale ? " ⚠" : ""}</span>`;
@@ -1867,7 +1868,8 @@ function alertItems(d, h){
   if(!g || h.now - g.t > 1800) A.push({s:2, t:`Flip neposílá data${g?` (od ${relDay(g.t)} ${hmT(g.t)})`:""}`, k:"sys"});
   else if(g.wifi===0) A.push({s:2, t:"Flip není na Wi‑Fi – zásuvky nejdou číst", k:"sys"});
   if(g && h.now - g.t <= 1800 && d.vic_t && h.now - d.vic_t > 3600 && !h.rvOn && !h.menicOff) A.push({s:1, t:`Victron neposílá (od ${relDay(d.vic_t)} ${hmT(d.vic_t)})`, k:"sys"});
-  if(g && h.now - g.t <= 1800 && ph && ph.b!=null && !ph.c && ph.b <= 50) A.push({s: ph.b <= 20 ? 2 : 1, t:`Flip má ${nf(ph.b)} % a nenabíjí se`, k:"sys"});
+  { const ff = d.flip_fc, soon = ff && ff.t15 - h.now < 12*3600;   // 4.51: i s předstihem podle rychlosti vybíjení
+    if(g && h.now - g.t <= 1800 && ph && ph.b!=null && !ph.c && (ph.b <= 50 || soon)) A.push({s: ph.b <= 20 ? 2 : 1, t:`Flip má ${nf(ph.b)} % a nenabíjí se${ff ? ` – vydrží do ${relDay(ff.t_empty)} ~${hmT(ff.t_empty)}` : ""}`, k:"sys"}); }
   if(!RS.stale && h.bv!=null && h.bv < CRIT_V) A.push({s:2, t:`Solární baterie ${nf(h.bv,2)} V – pod ${nf(CRIT_V,1)} V`, k:"bat"});
   if(!RS.stale && h.extraW!=null && h.net!=null && h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.extraW >= (h.cfg.odber_navic_W ?? 40)) A.push({s:1, t:`Odběr ${nf(h.extraW)} W navíc za měničem`, k:"bat"});
   const rs = d.river_sup; if(rs && rs.soc <= lim) A.push({s:2, t:`${rs.name} má ${rs.soc} % – vyměň River`, k:"river"});

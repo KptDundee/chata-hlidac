@@ -1511,6 +1511,7 @@ def main():
                          ("Lednice", lambda: fridge_check(data, st, now, topic, cfg)),
                          ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
                          ("Plné nabití", lambda: full_charge_check(data, st, now, topic, cfg)),
+                         ("Flip – výdrž", lambda: flip_check(data, st, now, topic, cfg)),
                          ("Učení výhledu", lambda: night_learn(data, st, now, cfg)),
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
@@ -2736,6 +2737,61 @@ def fridge_check(data, st, now, topic, cfg):
         fs["state"] = state
     data["fridge"] = {"state": state, **info, "max_off_h": round(max_off / 3600, 1), "max_on_h": round(max_on / 3600, 1),
                       "now_on": bool(cur and cur[0]) if cur else None, "since": cur[1] if cur else None}
+
+
+def flip_check(data, st, now, topic, cfg):
+    """4.51: jak rychle se Flip (brána na chatě) vybíjí a kdy dojde – s předstihem, ne až při 20 %.
+    Historie baterie Flipu ve state.ph_hist (24 h). Z posledního úseku bez nabíjení (≥ 45 min, pokles ≥ 2 %) rychlost %/h.
+    • nenabíjí se a pod 15 % klesne do 12 h → jednou za vybíjení „Flip vydrží jen do ~HH:MM“ (Vysoká)
+    • v ranní čas z rozvrhu (den_kontrola) a dojde do 48 h → „Než odjedeš: Flip se nenabíjí…“ (Vysoká)"""
+    inv = data.get("inverter") or {}
+    ph = inv.get("ph") or {}
+    ts = now.timestamp()
+    h = st.setdefault("ph_hist", [])
+    if ph.get("b") is not None and inv.get("t") and (not h or inv["t"] > h[-1][0]):
+        h.append([int(inv["t"]), float(ph["b"]), 1 if ph.get("c") else 0])
+    h[:] = [x for x in h if x[0] >= ts - 86400]
+    data.pop("flip_fc", None)
+    if not h or ts - h[-1][0] > 3600:
+        return
+    seg = []
+    for x in reversed(h):                                  # poslední úsek bez nabíjení
+        if x[2]:
+            break
+        seg.append(x)
+    seg.reverse()
+    fp = st.setdefault("flip_fc", {})
+    if h[-1][2]:                                           # nabíjí se → vše znovu
+        fp.clear()
+        return
+    if len(seg) < 3 or seg[-1][0] - seg[0][0] < 2700 or seg[0][1] - seg[-1][1] < 2:
+        return
+    rate = (seg[0][1] - seg[-1][1]) / ((seg[-1][0] - seg[0][0]) / 3600)          # %/h
+    b = seg[-1][1]
+    t_empty = seg[-1][0] + b / rate * 3600
+    t15 = seg[-1][0] + max(0.0, b - 15) / rate * 3600
+    data["flip_fc"] = {"b": b, "rate": round(rate, 1), "t_empty": int(t_empty), "t15": int(t15)}
+    hm = lambda t: f"{rel_day(t, now)} ~{datetime.fromtimestamp(t, TZ).strftime('%H:%M')}"
+    if t15 - ts < 12 * 3600 and not fp.get("early"):
+        ntfy(topic, f"📱 Flip se nenabíjí – vydrží jen do {hm(t_empty)}",
+             f"Má {b:.0f} %, ubývá ~{rate:.1f} % za hodinu → pod 15 % {hm(t15)}, vybitý {hm(t_empty)}.\n"
+             "Bez Flipu nechodí data z Victronu ani zásuvek. Zkontroluj nabíječku / zásuvku u Flipu.", 4, "battery,warning")
+        fp["early"], fp["early_t"] = True, int(ts)
+    # ranní kontrola před odjezdem (stejný rozvrh jako výhled dne)
+    tk = None
+    for part in str(cfg.get("den_kontrola") or "").split(","):
+        bits = part.strip().split()
+        if len(bits) == 2 and bits[0].lower()[:2] == WD[now.weekday()] and ":" in bits[1]:
+            tk = bits[1]
+    if tk and t_empty - ts < 48 * 3600 and fp.get("morning") != now.strftime("%Y-%m-%d") and ts - fp.get("early_t", 0) > 6 * 3600:
+        try:
+            hh, mm = (int(x) for x in tk.split(":")[:2])
+            if now >= now.replace(hour=hh, minute=mm, second=0, microsecond=0):
+                ntfy(topic, f"📱 Než odjedeš: Flip se nenabíjí – vybije se {hm(t_empty)}",
+                     f"Má {b:.0f} %, ubývá ~{rate:.1f} % za hodinu. Dej ho nabíjet, jinak přestanou chodit data.", 4, "battery,warning")
+                fp["morning"] = now.strftime("%Y-%m-%d")
+        except ValueError:
+            pass
 
 
 def full_charge_check(data, st, now, topic, cfg):
