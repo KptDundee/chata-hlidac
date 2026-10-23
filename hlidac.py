@@ -1459,7 +1459,8 @@ def main():
                     raw[ip] = wh
             st["tp_v2"] = True
         if rivers:
-            data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w")} for r in rivers]
+            data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w"), "k": str(r.get("sn", ""))[-6:]}
+                                        for r in rivers]       # 4.99: „k“ = konec SN (pořadí River se může změnit)
     try:
         backfill_flip(data, now, cfg)
     except Exception as e:

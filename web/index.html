@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.98", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.99", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2057,7 +2057,8 @@ function detRiver(body){
     + chartCard("rv_out", "Z River do chaty", long ? `kWh za den · ${RL.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ")}` : "W · součet zásuvek na výstupu River")
     + (long ? "" : R.map(r=>chartCard("rv_w"+r.id, r.name, "W na výstupu (zásuvka Tapo)")).join(""))
     + chartCard("rv_gen", "Generátor", long ? "kWh za den (zásuvka generátoru)" : "W (zásuvka generátoru)")
-    + chartCard("rv_soc", "Nabití River", anyEF ? "% podle EcoFlow" : "až z EcoFlow (čekáme na vývojářský přístup)")
+    + (anyEF ? (d.rivers||[]).map(r=>chartCard("rv_soc_"+String(r.sn||"").slice(-6), `Nabití – ${escH(pn(r.name)||"River")}`, "% podle EcoFlow")).join("")
+             : chartCard("rv_soc", "Nabití River", "až z EcoFlow"))
     + chartCard("rv_in", "Nabíjení River", anyEF ? "kWh za den do každé River (EcoFlow)" : "až z EcoFlow – generátor nabíjí všechny najednou, rozdělení zná jen EcoFlow");
   // běhy generátoru
   const cap = d.cfg?.river_Wh ?? 768, GL = (d.gen_cur ? [Object.assign({run:true}, d.gen_cur)] : []).concat((d.gen_log||[]).slice().reverse()).slice(0, 12);
@@ -2105,11 +2106,14 @@ function detRiver(body){
     lineChart($("rv_gen"), pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})), "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:hrs});
   }
   // EcoFlow: % a nabíjení (až budou data)
-  if(!anyEF){ empty($("rv_soc"), "Až budou data z EcoFlow."); empty($("rv_in"), "Až budou data z EcoFlow."); return; }
+  if(!anyEF){ if($("rv_soc")) empty($("rv_soc"), "Až budou data z EcoFlow."); empty($("rv_in"), "Až budou data z EcoFlow."); return; }
   const efs = (d.rivers||[]).map((r,i)=>{ const m = R.find(x=>x.sn && x.sn===String(r.sn||"").slice(-6));
     return {i, name:r.name||`River ${i+1}`, sn:String(r.sn||"").slice(-6), color: m ? m.color : rivColor(r.name, i)}; });
-  lineChart($("rv_soc"), pts.filter(p=>p.rv && p.rv[0]).map(p=>({t:p.t, s:p.rv[0].s, s2:p.rv[1] ? p.rv[1].s : null})), "s", efs[0].color,
-    {unit:"%",dec:0,zero:true,hours:hrs,k2: efs[1] ? {key:"s2", color:efs[1].color, name:efs[1].name} : undefined});
+  // 4.99: graf nabití pro každou River zvlášť, body podle konce SN („k“), starší body podle pořadí
+  for(const e of efs){ const el = $("rv_soc_"+e.sn); if(!el) continue;
+    const ser = pts.filter(p=>p.rv && p.rv.length).map(p=>{ const x = p.rv.find(q=>q.k===e.sn) || (p.rv.some(q=>q.k) ? null : p.rv[e.i]); return {t:p.t, s: x ? x.s : null}; });
+    if(ser.some(q=>q.s!=null)) lineChart(el, ser, "s", e.color, {unit:"%",dec:0,zero:true,hours:hrs});
+    else empty(el, "Zatím málo dat – graf se naplní během pár hodin."); }
   stackBars($("rv_in"), Object.keys(d.days||{}).sort().filter(k=>k >= dkey(Date.now()/1000 - Math.max(hrs,7*24)*3600)).map(k=>({k, v:Object.fromEntries(efs.map(e=>[e.sn, ((((d.days[k]||{}).rv)||{})[e.sn]||{}).i||0]))})),
     efs.map(e=>({id:e.sn, name:e.name, color:e.color})), {});
 }

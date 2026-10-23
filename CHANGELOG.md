@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.99 – 23. 10. 2026
+- Graf „Nabití River“: pro každou River zvlášť (dřív jen první dvě podle pořadí – žlutá chyběla). Body si pamatují konec SN, takže změna pořadí River nic nepřehodí.
+- Graf zásuvky generátoru během nabíjení 21:00–21:40 prázdný: data z Flipu se v té době ztrácela (opraveno ve 4.98), nic dalšího.
+
 ## 4.98 – 23. 10. 2026
 - Oprava „Flip se neozval 1 h“ během nabíjení z generátoru: hlídač na konci každého běhu spouštěl další běh sám a ten nahradil čekající běh s daty z Flipu (GitHub nechá čekat jen jeden) – data z Flipu se tak ztrácela. Teď se další běh spustí jen když žádný nečeká; čekající běh (z Flipu) smyčku převezme.
 
