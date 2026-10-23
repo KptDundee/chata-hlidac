@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.54 – 23. 10. 2026
+- Dlaždice Flip: místo „až s Flip 1.6“ skutečný důvod, proč řízení nabíjení neběží – stará verze (s číslem), Flip nevidí zásuvku (9), zásuvka nedostupná / odmítá přihlášení.
+
 ## 4.53 – 22. 10. 2026 (Flip 1.6.0)
 - **Nabíjení Flipu zásuvkou (9):** hlídač posílá povolení (ntfy <téma>-fc): chata na River → kdykoli, chata na soláru → jen když panely dodávají (≥ 30 W). Flip sám a i bez internetu: pod 20 % nabíjí vždy, od 80 % vypne (znovu pod 75 %), **nad 42 °C vypne** (zpět pod 36 °C), bez spojení s hlídačem nabíjí pod 40 %. Při vypnutí odpočet v zásuvce „za 3 h zapnout“ (pojistka, když aplikace spadne). Upozornění „🔥 Flip je horký“ nad 40 °C.
 - **Po restartu telefonu brána naběhne sama i bez odemčení** (Direct Boot – nastavení v úložišti dostupném před zadáním PIN, start při LOCKED_BOOT_COMPLETED). Dřív po restartu (aktualizace) čekala, až někdo Flip odemkne.
