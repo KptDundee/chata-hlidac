@@ -3737,7 +3737,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gs.update({"btn": ts0, "first": None, "idle": None, "t_on": ts0, "active": True, "idle_warned": False, "ever": False,
                    "restart": True})
         gs.pop("stop", None)
-        for k_ in ("con", "low", "chg_t"):
+        for k_ in ("con", "low", "chg_t", "sig"):
             gs.pop(k_, None)
         log("ev", f"Nabíjení z generátoru: spuštěno tlačítkem ({'plyn' if str(cfg.get('gen_palivo')).startswith(('lpg', 'plyn')) else 'benzín'})")
     elif cmd == "stop" and gs.get("active"):
@@ -3844,6 +3844,12 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         else:
             gs["idle"] = gs.get("idle") or tnow
             gs["first"] = None                         # 4.89: po výpadku (došlo palivo) zase 30 s na klidových výkonech
+            # 4.97: generátor vypadl / došlo palivo → hned všem klidový výkon, ať je nový start nepřetíží
+            back = {r["sn"]: safe_of(r) for r in ctl if sets.get(r["sn"]) not in (None, safe_of(r))}
+            if back:
+                out += apply(back)
+            gs.pop("sig", None)
+            insess.clear()
         plan = {}
         # 4.90: generátor sám hlásí max. výkon (pd.oilMaxOutPower – nejspíš podle zvoleného paliva: benzín / plyn).
         # Bere se menší z obou (nastavení × generátor) – bezpečné, i kdyby údaj znamenal něco jiného.
@@ -3877,23 +3883,14 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 plan = {sn: (min(rng(byid(sn))[1], max(rng(byid(sn))[0], avail - mins)) if sn == keep
                              else rng(byid(sn))[0]) for sn in plan}
             plan = {sn: int(round(w / 10) * 10) for sn, w in plan.items()}
-            # 4.95: neměnit pořád – River ke změně nejdřív 5 min po poslední změně (od 90 % po 1 min) a jen o ≥ 50 W.
-            # Hned jen snížení, když by součet nastavených výkonů přetížil generátor.
-            chg_t = gs.setdefault("chg_t", {})
-            tot_set = sum(sets.get(sn) or 0 for sn in plan)
-            over = tot_set > avail + 20
-            under = tot_set < sum(plan.values()) - 150          # 4.96: volný výkon (jiná River doběhla) → hned rozdělit
-            plan_go = {}
-            for sn, w in plan.items():
-                cur = sets.get(sn)
-                ivl = 60 if (byid(sn).get("soc") or 0) >= 90 else 300
-                if cur is None or (over and w < cur - 20) or (under and w > cur + 20) \
-                        or (abs(w - cur) >= 50 and tnow - chg_t.get(sn, 0) >= ivl):
-                    plan_go[sn] = w
+            # 4.97: nastavit a nechat. Přepočítá se jen při změně: start (30 s po začátku nabíjení), River přibyla,
+            # River odešla (plná / odpojená – její výkon dostanou ostatní), změna paliva / rezervy. Žádné průběžné
+            # dorovnávání – River bere přesně nastavený výkon, korekce jen zbytečně cukaly a generátor jednou vypadl.
+            sig = [sorted(plan), round(budget_eff)]
+            plan_go = plan if gs.get("sig") != sig else {}
             res_ = apply(plan_go)
-            for sn in plan_go:
-                if sets.get(sn) == plan_go[sn]:
-                    chg_t[sn] = tnow
+            if plan_go and all(sets.get(sn) == w for sn, w in plan_go.items()):
+                gs["sig"] = sig
             out += res_
         rv, fins = [], []
         for r in con:
@@ -3920,7 +3917,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 gs["idle_warned"] = True
             log("ev", "Nabíjení z generátoru: konec" + (f" – {', '.join(out2)}" if out2 else ""))
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig"):
                 gs.pop(k, None)
             return False
         return True
