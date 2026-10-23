@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.99", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.00", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2057,7 +2057,7 @@ function detRiver(body){
     + chartCard("rv_out", "Z River do chaty", long ? `kWh za den · ${RL.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ")}` : "W · součet zásuvek na výstupu River")
     + (long ? "" : R.map(r=>chartCard("rv_w"+r.id, r.name, "W na výstupu (zásuvka Tapo)")).join(""))
     + chartCard("rv_gen", "Generátor", long ? "kWh za den (zásuvka generátoru)" : "W (zásuvka generátoru)")
-    + (anyEF ? (d.rivers||[]).map(r=>chartCard("rv_soc_"+String(r.sn||"").slice(-6), `Nabití – ${escH(pn(r.name)||"River")}`, "% podle EcoFlow")).join("")
+    + (anyEF ? (d.rivers||[]).map(r=>chartCard("rv_soc_"+String(r.sn||"").slice(-6), `${escH(pn(r.name)||"River")} – kolik má v baterii`, "% nabití, jak ho ukazuje displej River a aplikace EcoFlow · 100 % = plná")).join("")
              : chartCard("rv_soc", "Nabití River", "až z EcoFlow"))
     + chartCard("rv_in", "Nabíjení River", anyEF ? "kWh za den do každé River (EcoFlow)" : "až z EcoFlow – generátor nabíjí všechny najednou, rozdělení zná jen EcoFlow");
   // běhy generátoru
