@@ -231,3 +231,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **4.77**: `gen_sessions` – `active = gen_on or (not zasuvka_generator and River nabíjí)`; `gen_cur` se `src == "river"` se při nastavené zásuvce generátoru zahodí (bez záznamu a upozornění). Web `rivState`: generátor jen `x.w > 5`; River `in_w > 20` → zdroj = jiná River s `out_w` ±max(40 W, 40 %), jinak generátor (jen `G.w > 5`), jinak bez zdroje; `out_w > 20` → „dodává … → nabíjí X“.
 
 **4.78**: `tileRivers` – `onX` (River: `ef.online`, jinak zásuvka bez `off`/`miss`; generátor `w > 5`) → třída `on` (plné písmo, ●), `sel` = rámeček; CSS `.rtabs`. `rivState` bez párování River↔River. `batOutlook` → `cls` dlaždice Solární baterie (noční předpověď: `t_off` před `day_fc.end` bad, jinak warn; `t_crit`/`cut_by` warn; přes den `day_fc.ok === false` bad, `night_ok === false` warn). `tileProdSolar` `cls = na` při `pv < 1`.
+
+**4.83**: `read_ecoflow_app` pro všechna zařízení z `/device/list` (ne jen `qerr`); když aplikace vrátí `quotaMap`, smažou se hodnoty z vývojářského rozhraní (soc, in_w, out_w, …) a doplní z aplikace (`src = "app"`). Web `ecoProbeHtml` jen při `qerr`.

@@ -196,7 +196,7 @@ def power_keys(q):
     """4.82: všechny výkony, které EcoFlow hlásí (diagnostika – proč „nabíjí 151 W“, když nenabíjí)."""
     return {k.replace("Status", ""): q[k] for k in ("pd.wattsInSum", "inv.inputWatts", "mppt.inWatts", "bms_bmsStatus.inputWatts",
                                                     "pd.wattsOutSum", "inv.outputWatts", "bms_bmsStatus.outputWatts",
-                                                    "pd.chgPowerAC", "pd.chgSunPower", "bms_emsStatus.chgState")
+                                                    "bms_emsStatus.chgState")
             if q.get(k) is not None}
 
 

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.83 – 23. 10. 2026
+- EcoFlow: všechny River i generátor se čtou přes přihlášení aplikace (živá data, u River 2 Pro 175 údajů místo 20). Vývojářské rozhraní u červené vracelo starou hodnotu „nabíjí 150 W“ (inv.inputWatts), když už nenabíjela. Vývojářské rozhraní zůstává jako záloha, když aplikace neodpoví. Řádek „zkouška …“ jen u zařízení, které nejde přečíst.
+
 ## 4.82 – 23. 10. 2026
 - Oprava: dlaždice Generátor, Ze soláru a Z River ukazovaly „undefined“ (chyba ve 4.79 / 4.80 – hodnota zakomentovaná).
 - Malá River už nedostává „do rána nevydrží“ ani „vyměň River“ – chatu nenapájí. Upozornění „River do rána nevydrží“ jen když chata opravdu jede z velké River (ne ze soláru).

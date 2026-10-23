@@ -2573,7 +2573,9 @@ def read_ecoflow_app(rivers, data, st, now):
     r["gd"] = {fuel %, w, max_w, type, motor, …}. Stav do data["eco_app"]."""
     em = os.environ.get("ECOFLOW_EMAIL", "").strip()
     pw = os.environ.get("ECOFLOW_PASSWORD", "")
-    bad = [r for r in rivers if r.get("qerr")]
+    # 4.83: přes aplikaci všechna zařízení – vývojářské rozhraní u červené vracelo starou hodnotu (inv.inputWatts 150 W,
+    # když už nenabíjela; jen 20 údajů), aplikace posílá živá data (175 údajů). Vývojářské rozhraní zůstává jako záloha.
+    bad = list(rivers)
     if not (em and pw) or not bad:
         return
     import ecoflow_app
@@ -2613,6 +2615,8 @@ def read_ecoflow_app(rivers, data, st, now):
         if not q:
             continue
         r["src"], r["qerr"], r["nq"] = "app", None, len(q)
+        for k in ("soc", "in_w", "out_w", "ac_in_w", "ac_out_w", "dsg_min", "chg_min", "temp"):
+            r.pop(k, None)                              # hodnoty z vývojářského rozhraní nahradí živé z aplikace
         for key, names in KEYS_EF().items():
             for n in names:
                 if q.get(n) is not None:
