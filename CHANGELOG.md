@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.92 – 23. 10. 2026
+- Palivo jako přepínač: dvě tlačítka ⛽ Benzín / 🔥 Plyn, zelené a ✓ je vždy jen jedno. Neběží: zmáčknutí = spustit nabíjení na tom palivu. Běží: druhé tlačítko přepne palivo. Pod nimi ⏹ Ukončit.
+
 ## 4.91 – 23. 10. 2026
 - Nabíjení z generátoru: palivo rovnou tlačítkem – „⛽ Spustit – benzín“ / „🔥 Spustit – plyn“ (zapíše palivo do nastavení a spustí). Během nabíjení „Přepnout na plyn / benzín“ (platí do 30 s) a „⏹ Ukončit“.
 

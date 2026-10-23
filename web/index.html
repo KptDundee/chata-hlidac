@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.91", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.92", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1718,12 +1718,13 @@ function genPlanHtml(d){
   const gmax = fuel==="lpg" ? (c.gen_max_lpg_W ?? 1600) : (c.gen_max_benzin_W ?? 1800), fl = fuel==="lpg" ? "plyn (LPG)" : "benzín";
   if(c.gen_rizeni === false) return `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2><span class="sub">Řízení je vypnuté (Nastavení → Generátor).</span></div>`;
   const run = P && !P.end && Date.now()/1000 - P.t < 900;
-  const B = (cmd, txt, main) => `<button onclick="genCmd('${cmd}', this)" style="font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;border:1px solid ${main?"var(--good)":"var(--line)"};background:${main?"color-mix(in srgb,var(--good) 18%,transparent)":"transparent"};color:var(--text);cursor:pointer">${txt}</button>`;
-  // 4.91: palivo se vybírá rovnou tlačítkem (zapíše se do nastavení a hlídač ho načte i během nabíjení)
-  const btn = `<div style="display:flex;gap:8px;margin:6px 0 4px">` + (run
-    ? B(fuel==="lpg" ? "fuel:benzin" : "fuel:lpg", fuel==="lpg" ? "⛽ Přepnout na benzín" : "🔥 Přepnout na plyn", false) + B("stop", "⏹ Ukončit", false)
-    : B("start:benzin", "⛽ Spustit – benzín", fuel!=="lpg") + B("start:lpg", "🔥 Spustit – plyn", fuel==="lpg")) + `</div>`
-    + (run ? `<div class="sub">Jede na: <b>${fl}</b> (max ${nf(gmax)} W)</div>` : "");
+  // 4.92: dvě tlačítka jako přepínač – Benzín / Plyn. Zelené = na čem právě nabíjí (nebo právě zmáčknuté).
+  //   Neběží: zmáčknutí = spustit na tom palivu. Běží: zmáčknutí druhého = přepnout palivo.
+  const sty = on => `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:${on?"2px solid var(--good)":"1px solid var(--line)"};background:${on?"color-mix(in srgb,var(--good) 22%,transparent)":"transparent"}`;
+  const FB = (f, txt) => { const on = run && fuel===f; return `<button data-fuel="${f}" onclick="genFuel('${f}', this, ${run?1:0})" style="${sty(on)}">${txt}${on?" ✓":""}</button>`; };
+  const btn = `<div style="display:flex;gap:8px;margin:6px 0 4px">${FB("benzin","⛽ Benzín")}${FB("lpg","🔥 Plyn")}</div>`
+    + `<div class="sub" style="margin-bottom:4px">${run ? `Nabíjí na: <b>${fl}</b> (max ${nf(gmax)} W) – druhé tlačítko přepne palivo` : "Zmáčkni palivo, na které generátor nastartuješ – tím se nabíjení spustí"}</div>`
+    + (run ? `<button onclick="genCmd('stop', this)" style="${sty(false)};width:100%;flex:none;font-weight:600">⏹ Ukončit nabíjení</button>` : "");
   let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}`;
   if(run){
     h += (P.wait ? `<div class="sub" style="margin:4px 0">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
@@ -1753,11 +1754,18 @@ async function setCfgKey(tok, key, val){
   if(!w.ok) throw new Error("Nastavení nejde uložit ("+w.status+")");
   if(DATA && DATA.cfg) DATA.cfg[key] = val;
 }
-async function genCmd(cmd, el){
+function genFuel(f, el, running){     // 4.92: přepínač paliva – vždy platí jen jedno
+  document.querySelectorAll("button[data-fuel]").forEach(b=>{ const on = b.dataset.fuel===f;
+    b.style.border = on ? "2px solid var(--good)" : "1px solid var(--line)";
+    b.style.background = on ? "color-mix(in srgb,var(--good) 22%,transparent)" : "transparent";
+    b.textContent = (b.dataset.fuel==="lpg" ? "🔥 Plyn" : "⛽ Benzín") + (on ? " ✓" : ""); });
+  return genCmd((running ? "fuel:" : "start:") + f, null, el);
+}
+async function genCmd(cmd, el, fel){
   const tok = store.get("ghtok");
   if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
   const [c0, fuel] = cmd.split(":");
-  if(el){ el.disabled = true; el.textContent = c0==="start" ? "Spouštím…" : c0==="fuel" ? "Přepínám…" : "Ukončuji…"; }
+  if(el){ el.disabled = true; el.textContent = "Ukončuji…"; }
   try{
     if(fuel) await setCfgKey(tok, "gen_palivo", fuel);
     if(c0 !== "fuel"){
@@ -1767,9 +1775,12 @@ async function genCmd(cmd, el){
       if(r.status===401||r.status===403||r.status===404){store.del("ghtok");throw new Error("Token nefunguje – zadej ho znovu.");}
       if(!r.ok) throw new Error("GitHub odpověděl "+r.status);
     }
-    if(el) el.textContent = c0==="start" ? "✓ Spuštěno – nastartuj generátor" : c0==="fuel" ? `✓ ${fuel==="lpg"?"Plyn":"Benzín"} – platí do 30 s` : "✓ Ukončeno";
+    if(el) el.textContent = "✓ Ukončeno";
+    const note = document.querySelector("button[data-fuel]")?.parentElement?.nextElementSibling;
+    if(note && c0!=="stop") note.innerHTML = c0==="start" ? `<b>Spuštěno na ${fuel==="lpg"?"plyn":"benzín"}</b> – nastartuj generátor a zapoj River` : `<b>Přepnuto na ${fuel==="lpg"?"plyn":"benzín"}</b> – platí do 30 s`;
     if(c0 !== "fuel") setTimeout(()=>{ try{ triggerLive(); }catch(e){} }, 1500);
-  }catch(e){ if(el){ el.disabled = false; el.textContent = e.message; } }
+  }catch(e){ if(el){ el.disabled = false; el.textContent = e.message; }
+    const note = document.querySelector("button[data-fuel]")?.parentElement?.nextElementSibling; if(note) note.innerHTML = `<b style="color:var(--crit)">${e.message}</b>`; }
 }
 const escH = t => String(t).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 /* 4.52: teploměry Xiaomi (přes Flip 1.5) */
