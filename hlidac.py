@@ -3907,7 +3907,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
     t_start = time.time()
     go = step(int(t_start))
     # smyčka po 30 s (jen během relace) – v jednom běhu hlídače nejvýš ~3 min, pak další běh spustí hlídač sám
-    while go and time.time() - t_start < 180:
+    while go and time.time() - t_start < 150:
         time.sleep(30)
         try:                                           # 4.89: nastavení (palivo!) změněné na webu během běhu
             import subprocess
