@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.63", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.64", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1950,7 +1950,7 @@ function detRiver(body){
   { const es = d.eco_seen, ee = d.eco_err;   // 4.59: co vidí EcoFlow API (diagnostika spárování)
     html += `<div class="card"><h2 style="margin:0 0 6px">EcoFlow – připojení</h2><div style="font-size:13.5px;line-height:1.55">`
       + (ee ? `<div style="color:var(--crit)">Chyba ${relDay(ee.t)} ${hmT(ee.t)}: ${escH(ee.msg)}</div>` : "")
-      + (es ? `<div class="sub">Naposledy přečteno ${relDay(es.t)} ${hmT(es.t)} (${es.host}) – zařízení na účtu:</div>` + (es.devs.length ? es.devs.map(x=>`<div>• <b>${escH(x.n||"?")}</b>${x.model?` <span class="sub">(${escH(x.model)}${x.wh?`, ${x.wh} Wh`:""})</span>`:""} · SN …${x.sn} · ${x.on ? "online" : "offline"}${x.soc!=null ? ` · ${nf(x.soc)} %` : ""}${x.qk ? `<div class="sub" style="font-size:11.5px;word-break:break-all">% zatím neumím přečíst – údaje: ${escH(Object.entries(x.qk).map(([k,v])=>k+"="+v).join(", "))}</div>` : ""}</div>`).join("") : `<div>žádná zařízení</div>`)
+      + (es ? `<div class="sub">Naposledy přečteno ${relDay(es.t)} ${hmT(es.t)} (${es.host}) – zařízení na účtu:</div>` + (es.devs.length ? es.devs.map(x=>`<div>• <b>${escH(x.n||"?")}</b>${x.model?` <span class="sub">(${escH(x.model)}${x.wh?`, ${x.wh} Wh`:""})</span>`:""} · SN …${x.sn} · ${x.on ? "online" : "offline"}${x.soc!=null ? ` · ${nf(x.soc)} %` : ""}${x.qk ? `<div class="sub" style="font-size:11.5px;word-break:break-all">% zatím neumím přečíst – údaje: ${escH(Object.entries(x.qk).map(([k,v])=>k+"="+v).join(", "))}</div>` : ""}<div class="sub" style="font-size:11.5px;word-break:break-all">${x.qerr ? `chyba údajů: ${escH(x.qerr)}` : `údajů od EcoFlow: ${x.nq ?? "?"}`}${x.socs && Object.keys(x.socs).length ? ` · % podle: ${escH(Object.entries(x.socs).map(([k,v])=>k.split(".").pop()+"="+v).join(", "))}` : ""}</div></div>`).join("") : `<div>žádná zařízení</div>`)
             + `<div class="sub" style="margin-top:4px">Spárování se zásuvkami: ${(()=>{ const M = rivModel(d, homeData(d)); return M.R.map(r=>`(${r.id}) ${escH(r.short)} → ${r.sn ? "SN …"+r.sn.slice(-4) : "nespárováno"}`).join(" · "); })()}.<br>Když nesedí, v Nastavení vyplň <b>Spárování River s EcoFlow</b>: <code>číslo zásuvky:konec SN</code>, např. <code>2:AB12, 3:CD34, 6:EF56</code>.</div>`
         : (ee ? "" : `<div class="sub">Zatím žádné čtení.</div>`)) + `</div></div>`; }
   html += `<div class="card"><h2 style="margin:0 0 6px">Výklad</h2><div class="sub" style="line-height:1.55">

@@ -2569,7 +2569,7 @@ def read_ecoflow(data, st, now, topic, cfg):
     data["eco_seen"] = {"t": int(now.timestamp()), "host": host.replace("https://", ""),
                         "devs": [{"n": r.get("name"), "sn": str(r.get("sn", ""))[-4:], "on": r.get("online"),
                                   "soc": r.get("soc"), "gen": bool(r.get("gen")), "model": r.get("model"), "wh": r.get("wh"),
-                                  "qk": r.get("qk")} for r in rivers]}
+                                  "qk": r.get("qk"), "nq": r.get("nq"), "socs": r.get("socs"), "qerr": r.get("qerr")} for r in rivers]}
     gens = [r for r in rivers if r.get("gen")]
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens

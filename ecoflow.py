@@ -73,6 +73,7 @@ def read_rivers(ak, sk, host_hint=None):
         except Exception as e:
             print("EcoFlow quota", sn, e)
             q = {}
+            r["qerr"] = str(e)[:120]                                 # 4.64: diagnostika na web
         if os.environ.get("ECOFLOW_DEBUG") == "1":
             print("EcoFlow klíče", sn, json.dumps({k: q[k] for k in sorted(q)
                                                      if any(x in k.lower() for x in ("soc", "watt", "remain", "temp"))}))
@@ -93,6 +94,8 @@ def read_rivers(ak, sk, host_hint=None):
                     except (TypeError, ValueError):
                         pass
                     break
+        r["nq"] = len(q)                                                # 4.64: kolik údajů EcoFlow vrátil
+        r["socs"] = {k: q[k] for k in KEYS["soc"] if q.get(k) is not None}   # všechny zdroje % (porovnání s displejem)
         if r.get("soc") is None and not r.get("gen") and q:          # 4.62: neznámé klíče (jiný model) → poslat výběr na web
             r["qk"] = {k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and
                        any(x in k.lower() for x in ("soc", "batt", "watt", "remain", "cap"))}
