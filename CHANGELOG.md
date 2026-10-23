@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.57 – 23. 10. 2026 (Flip 1.7.1)
+- Flip 1.7.1: tlačítko „Zastavit bránu“ neutrální barvou (červená vypadala jako chyba).
+- docs/pokracovani.md – shrnutí pravidel a otevřených věcí pro pokračování v novém chatu.
+
 ## 4.56 – 23. 10. 2026 (Flip 1.7.0)
 - **Flip 1.7.0 – nový vzhled aplikace:** karty (Stav, Ovládání, Nastavení, Oprávnění, Záznam), tmavý vzhled. Nastavení je zamčené – jen přehled (hesla skrytá), upravuje se po „✏️ Upravit nastavení“ → Uložit / Zrušit. U každého tlačítka „?“ s vysvětlením. Záznam se rozbaluje.
 - **Baterie routeru M7000 – zatím jen čtení:** Flip se přihlásí do webového rozhraní routeru (heslo správce ve Flipu) a pošle stav baterie. Na webu v dlaždici Flip řádek „router M7000“ (nebo důvod, proč čtení nejde). Řízení nabíjení až po ověření.

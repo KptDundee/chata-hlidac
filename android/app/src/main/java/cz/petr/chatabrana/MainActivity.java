@@ -201,7 +201,7 @@ public class MainActivity extends Activity {
                 + " (před " + Math.max(0, (System.currentTimeMillis() - last) / 60000) + " min)" : "zatím nic";
         stSub.setText("Naposledy odesláno: " + ago);
         startBtn.setText(run ? "⏹  Zastavit bránu" : "▶  Spustit bránu");
-        tint(startBtn, run ? BAD : ACC);
+        tint(startBtn, run ? CARD_BTN() : ACC);   // 1.7.1: „Zastavit“ neutrálně – červená vypadala jako chyba
 
         // varování
         warnBox.removeAllViews();
