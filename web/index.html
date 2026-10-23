@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.55", FLIP_VER = "1.6.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.56", FLIP_VER = "1.7.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1588,6 +1588,7 @@ function tileFlip(d, h){
   else if(ch.ip) rows.push(["řízení", flipCtlMiss(d), 1]);
   if(ph.t!=null) rows.push(["teplota baterie", `<span style="color:var(${hot?"--crit":"--text"})">${nf(ph.t,1)} °C</span>`]);
   if(ff && !ph.c) rows.push(["vydrží do", `${relDay(ff.t_empty)} ~${hmT(ff.t_empty)} <span class="sub">(−${nf(ff.rate,1)} %/h)</span>`]);
+  const rt = g.rt; if(rt) rows.push(["router M7000", rt.b!=null ? `${nf(rt.b)} %${rt.c ? " ⚡" : ""}` : `<span class="sub">${String(rt.err||"").slice(0,60)}</span>`, rt.b==null ? 1 : 0]);   // 4.56
   return {k:"flip", icon:"📱", label:"Flip (brána)", wide:true, cls, v:`${nf(ph.b)}<small>%</small>`, st: old ? `bez dat ${agoS(g.t)}` : "teď", rows};
 }
 /* 4.53: lednice – kompresor (zásuvka) + teploměr, pokud je */

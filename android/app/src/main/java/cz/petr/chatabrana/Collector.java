@@ -172,6 +172,19 @@ public final class Collector {
                 }
             }
 
+            // 1.7: baterie routeru M7000 (jen čtení)
+            String rpass = Prefs.get(ctx).getString(Prefs.ROUTER_PASS, "");
+            if (!rpass.isEmpty()) {
+                RouterM7000.Result rr = RouterM7000.read(gateway(), rpass);
+                JSONObject rt = new JSONObject();
+                if (rr.pct != null) { rt.put("b", rr.pct); if (rr.charging != null) rt.put("c", rr.charging ? 1 : 0); sum.append(", router ").append(rr.pct).append(" %"); }
+                if (rr.err != null) {
+                    rt.put("err", rr.err);
+                    if (!rr.err.equals(Prefs.get(ctx).getString("rt_err", ""))) Prefs.log(ctx, "Router: " + rr.err);
+                }
+                Prefs.get(ctx).edit().putString("rt_err", rr.err == null ? "" : rr.err).apply();
+                o.put("rt", rt);
+            }
             if (o.has("th")) sum.append(", teploměry ").append(o.getJSONArray("th").length());
             o.put("av", appVersion());
             // je Flip na Wi‑Fi? (po restartu routeru se umí přepnout na mobilní data a pak nevidí zásuvky)
@@ -496,6 +509,22 @@ public final class Collector {
         }
         P.edit().putBoolean("fc_hot", hot).apply();
         o.put("fc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("hot", hot ? 1 : 0).put("fresh", fresh ? 1 : 0).put("ip", id));
+    }
+
+    /** Adresa routeru = výchozí brána Wi-Fi (jinak 192.168.0.1). */
+    private String gateway() {
+        try {
+            android.net.ConnectivityManager cm = ctx.getSystemService(android.net.ConnectivityManager.class);
+            for (android.net.Network n : cm.getAllNetworks()) {
+                android.net.NetworkCapabilities nc = cm.getNetworkCapabilities(n);
+                if (nc == null || !nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) continue;
+                android.net.LinkProperties lp = cm.getLinkProperties(n);
+                if (lp == null) continue;
+                for (android.net.RouteInfo ri : lp.getRoutes())
+                    if (ri.isDefaultRoute() && ri.getGateway() != null) return ri.getGateway().getHostAddress();
+            }
+        } catch (Exception ignored) { }
+        return "192.168.0.1";
     }
 
     /** Najde zásuvku za měničem (název obsahuje „měnič“, „220“ …) a pošle hodinovou spotřebu za posledních 30 dní. */

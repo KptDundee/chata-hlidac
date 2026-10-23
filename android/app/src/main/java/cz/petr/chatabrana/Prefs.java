@@ -15,7 +15,8 @@ public final class Prefs {
     public static final String GH_TOKEN = "gh_token";            // GitHub token: Flip po každém měření spustí hlídače
     public static final String VICTRON_MAC = "victron_mac";
     public static final String VICTRON_KEY = "victron_key";
-    public static final String XIAOMI = "xiaomi";                // teploměry Xiaomi: řádky „MAC KLÍČ jméno“ (1.5)
+    public static final String XIAOMI = "xiaomi";
+    public static final String ROUTER_PASS = "router_pass";      // heslo správce routeru M7000 (1.7 – čtení baterie)                // teploměry Xiaomi: řádky „MAC KLÍČ jméno“ (1.5)
     public static final String TAPO_EMAIL = "tapo_email";
     public static final String TAPO_PASSWORD = "tapo_password";
     public static final String TAPO_IPS = "tapo_ips";

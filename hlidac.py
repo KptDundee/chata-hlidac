@@ -1396,6 +1396,8 @@ def main():
                     pt["pt"] = ph_["t"]
             if inv.get("fc"):
                 pt["fc"] = inv["fc"].get("on")
+            if (inv.get("rt") or {}).get("b") is not None:
+                pt["rb"] = inv["rt"]["b"]      # baterie routeru (graf, později řízení nabíjení)
             ths = {x["n"]: x["t"] for x in inv.get("th", []) if x.get("t") is not None and now.timestamp() - x["tm"] < 1800}
             if ths:
                 pt["th"] = ths                 # 1.5: teploty z teploměrů Xiaomi
@@ -2227,6 +2229,8 @@ def inv_from_msg(last, now, cfg=None):
         inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
     if isinstance(body.get("fc"), dict):                 # 1.6: řízení nabíjení Flipu (stav zásuvky a proč)
         inv["fc"] = body["fc"]
+    if isinstance(body.get("rt"), dict):                 # 1.7: baterie routeru M7000 (jen čtení)
+        inv["rt"] = {k: body["rt"].get(k) for k in ("b", "c", "err") if body["rt"].get(k) is not None}
     th = body.get("th")                                   # 1.5: teploměry Xiaomi [{n, t, h, b, age}]
     if isinstance(th, list):
         inv["th"] = [{"n": str(x.get("n"))[:30], "t": x.get("t"), "h": x.get("h"), "b": x.get("b"),
