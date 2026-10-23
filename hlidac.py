@@ -3820,7 +3820,16 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             gs["idle"] = gs.get("idle") or tnow
             gs["first"] = None                         # 4.89: po výpadku (došlo palivo) zase 30 s na klidových výkonech
         plan = {}
-        avail = max(0.0, budget - small_w)
+        # 4.90: generátor sám hlásí max. výkon (pd.oilMaxOutPower – nejspíš podle zvoleného paliva: benzín / plyn).
+        # Bere se menší z obou (nastavení × generátor) – bezpečné, i kdyby údaj znamenal něco jiného.
+        gm = gd.get("max_w")
+        try:
+            gm = float(gm) if gm is not None else None
+        except (TypeError, ValueError):
+            gm = None
+        gmax_eff = min(gmax, gm) if gm and 1000 <= gm <= 2500 else gmax
+        budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0)
+        avail = max(0.0, budget_eff - small_w)
         need = {r["sn"]: max(0.0, (100 - r["soc"]) / 100 * (r.get("wh") or 768)) for r in con}
         if con and tnow - gs["first"] >= 30:               # 30 s po začátku nabíjení → vypočítané výkony
             left, todo = avail, dict(need)
@@ -3851,7 +3860,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             fins.append(fin)
             rv.append({"n": r.get("name"), "sn": r["sn"][-4:], "soc": round(r["soc"]), "need": round(need[r["sn"]]),
                        "w": w, "in": round(acw(r)), "fin": int(fin)})
-        data["gen_plan"] = {"t": tnow, "fuel": fuel, "gmax": gmax, "budget": budget, "gw": round(gw) if gw is not None else None,
+        data["gen_plan"] = {"t": tnow, "fuel": fuel, "gmax": gmax_eff, "gmax_set": gmax, "gmax_gen": gm, "budget": budget_eff, "gw": round(gw) if gw is not None else None,
                             "small": round(small_w), "small_soc": round(small["soc"]) if small and small.get("soc") is not None else None,
                             "avail": round(avail), "rv": rv, "fin": int(max(fins)) if fins else None, "t_on": gs.get("t_on"),
                             "btn": bool(gs.get("btn")), "wait": bool(con) and tnow - gs["first"] < 30,

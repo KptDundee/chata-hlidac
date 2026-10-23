@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.89", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.90", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1722,7 +1722,7 @@ function genPlanHtml(d){
   let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}`;
   if(run){
     h += (P.wait ? `<div class="sub" style="margin:4px 0">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
-      + rowI("Generátor", `${P.gw!=null ? nf(P.gw)+" W z " : "max "}${nf(P.gmax)} W (${fl})${P.gd && P.gd.fuel!=null ? ` · palivo ${nf(P.gd.fuel)} %` : ""}`)
+      + rowI("Generátor", `${P.gw!=null ? nf(P.gw)+" W z " : "max "}${nf(P.gmax)} W (${P.gmax_gen ? `generátor hlásí max ${nf(P.gmax_gen)} W, nastaveno ${fl}` : fl})${P.gd && P.gd.fuel!=null ? ` · palivo ${nf(P.gd.fuel)} %` : ""}`)
       + (P.small ? rowI("Malá River (neovládaná)", `bere ~${nf(P.small)} W${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}`) : "")
       + P.rv.map(r=>rowI(`<b>${escH(r.n||"River")}</b>`, `${nf(r.soc)} % · ${r.w?`nastaveno ${nf(r.w)} W`:"200 W"} (bere ${nf(r.in)} W) · plná ${relDay(r.fin)} ~${hmT(r.fin)}`)).join("")
       + (P.fin ? rowI("Generátor můžeš vypnout", `${relDay(P.fin)} ~${hmT(P.fin)}`) : "")

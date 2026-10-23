@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.90 – 23. 10. 2026
+- Nabíjení z generátoru: max. výkon i podle generátoru – generátor přes aplikaci EcoFlow hlásí pd.oilMaxOutPower (nejspíš max podle zvoleného paliva). Bere se menší z nastavení a hlášení generátoru, takže při zapomenutém přepnutí na plyn se nepřetíží (pokud údaj opravdu odpovídá palivu – ověří se při prvním běhu, pak půjde ruční přepínání zrušit). Karta ukazuje „generátor hlásí max … W“.
+
 ## 4.89 – 23. 10. 2026
 - Nabíjení z generátoru: když generátoru dojde palivo (nabíjení se zastaví), River hned dostanou klidové výkony a po novém startu se zase 30 s čeká, než hlídač nastaví vypočítané. Změna paliva v Nastavení (benzín → plyn) platí i během běžícího nabíjení (hlídač si nastavení načítá každých 30 s).
 
