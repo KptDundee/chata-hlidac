@@ -51,6 +51,8 @@ jobs:
           DATA_KEY: ${{ secrets.DATA_KEY }}
           ECOFLOW_ACCESS_KEY: ${{ secrets.ECOFLOW_ACCESS_KEY }}
           ECOFLOW_SECRET_KEY: ${{ secrets.ECOFLOW_SECRET_KEY }}
+          ECOFLOW_EMAIL: ${{ secrets.ECOFLOW_EMAIL }}
+          ECOFLOW_PASSWORD: ${{ secrets.ECOFLOW_PASSWORD }}
           ECOFLOW_DEBUG: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test && '1' || '0' }}
           WAKE: ${{ github.event_name == 'workflow_dispatch' && inputs.wake && '1' || '0' }}

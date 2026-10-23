@@ -2562,6 +2562,84 @@ def check_gateway(inv, st, now, topic, cfg):
         sent = {x for x in sent if not (b > x + 5 or chg)}  # po nabití se stupně znovu odemknou
         st["ph_sent"] = sorted(sent)
 
+GEN_KEYS = {"fuel": ("pd.oilVal",), "w": ("pd.acPower", "pd.totalPower", "pd.outputWatts"), "max_w": ("pd.oilMaxOutPower",),
+            "type": ("pd.type",), "motor": ("pd.motorState",), "mode": ("pd.sysMode",), "eco": ("pd.ecoMode",),
+            "err": ("pd.errCode",), "hours": ("pd.motorUseTime",), "remain": ("pd.remainTime",), "temp": ("pd.temp",)}
+
+
+def read_ecoflow_app(rivers, data, st, now):
+    """4.76: zařízení, která vývojářské rozhraní nepouští (1006), přečíst přes přihlášení aplikace EcoFlow
+    (ECOFLOW_EMAIL / ECOFLOW_PASSWORD). Doplní stejná pole jako vývojářské rozhraní (soc, in_w, …), generátoru
+    r["gd"] = {fuel %, w, max_w, type, motor, …}. Stav do data["eco_app"]."""
+    em = os.environ.get("ECOFLOW_EMAIL", "").strip()
+    pw = os.environ.get("ECOFLOW_PASSWORD", "")
+    bad = [r for r in rivers if r.get("qerr")]
+    if not (em and pw) or not bad:
+        return
+    import ecoflow_app
+    ts = int(now.timestamp())
+    sess = st.get("efp")
+    out = {"t": ts}
+    try:
+        if not sess or ts - sess.get("t", 0) > 7 * 86400:
+            if ts - (st.get("efp_fail") or 0) < 3600:      # přihlášení selhalo – zkusit až za hodinu (ať účet nezablokuje)
+                data["eco_app"] = data.get("eco_app") or {"t": ts, "err": "přihlášení selhalo, další pokus za hodinu"}
+                return
+            sess = ecoflow_app.login(em, pw)
+            st["efp"] = sess
+            log("ev", "EcoFlow (aplikace): přihlášeno")
+        res = ecoflow_app.read(sess, [r["sn"] for r in bad])
+        if res.get("_auth"):                                # token / MQTT údaje přestaly platit → jednou znovu
+            sess = ecoflow_app.login(em, pw)
+            st["efp"] = sess
+            res = ecoflow_app.read(sess, [r["sn"] for r in bad])
+        st["efp_fail"] = 0
+        out["ok"] = True
+    except Exception as e:
+        msg = str(e).replace(em, "…")[:180]
+        print("EcoFlow aplikace:", msg)
+        if "přihlášení" in msg:
+            st["efp_fail"], st["efp"] = ts, None
+        data["eco_app"] = {"t": ts, "err": msg}
+        return
+    for r in bad:
+        a = res.get(r["sn"]) or {}
+        q = a.get("q") or {}
+        r["ak"] = {"n": a.get("n"), "on": a.get("online"), "nq": len(q), "bin": a.get("bin")}
+        if a.get("online") == 1:
+            r["online"] = True
+        elif a.get("online") == 0:
+            r["online"] = False
+        if not q:
+            continue
+        r["src"], r["qerr"], r["nq"] = "app", None, len(q)
+        for key, names in KEYS_EF().items():
+            for n in names:
+                if q.get(n) is not None:
+                    try:
+                        r[key] = float(q[n])
+                    except (TypeError, ValueError):
+                        pass
+                    break
+        r["socs"] = {k: q[k] for k in KEYS_EF()["soc"] if q.get(k) is not None}
+        if r.get("gen"):
+            gd = {}
+            for key, names in GEN_KEYS.items():
+                v = next((q[n] for n in names if q.get(n) is not None), None)
+                if v is not None:
+                    gd[key] = v
+            r["gd"] = gd
+            # všechny číselné údaje generátoru (zatím neznáme význam všech – na web k dohledání benzín/plyn)
+            r["q"] = dict(list({k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and not isinstance(v, bool)}.items())[:80])
+    out["devs"] = {str(r["sn"])[-4:]: r.get("ak") for r in bad}
+    data["eco_app"] = out
+
+
+def KEYS_EF():
+    import ecoflow
+    return ecoflow.KEYS
+
+
 def read_ecoflow(data, st, now, topic, cfg):
     """Načte River 2 Pro z EcoFlow API (jen když jsou nastavené klíče) a pohlídá je."""
     ak = os.environ.get("ECOFLOW_ACCESS_KEY", "").strip()
@@ -2592,6 +2670,7 @@ def read_ecoflow(data, st, now, topic, cfg):
             res = {"code": "chyba", "message": str(e)[:150]}
         print("EcoFlow nastavení", efs, res)
         data["eco_set"] = {"t": int(now.timestamp()), "cmd": efs, "code": str(res.get("code")), "msg": str(res.get("message"))[:150]}
+    read_ecoflow_app(rivers, data, st, now)        # 4.76: generátor a malá River přes přihlášení aplikace
     # 4.67: zařízení s 1006 (generátor, malá River) – zkusit jiné cesty (vybrané údaje přes HTTP, poslech MQTT).
     bad = [r for r in rivers if r.get("qerr")]
     lastp = (st.get("eco_probe") or {}).get("t", 0)
@@ -2613,7 +2692,7 @@ def read_ecoflow(data, st, now, topic, cfg):
                         "devs": [{"n": r.get("name"), "sn": str(r.get("sn", ""))[-4:], "on": r.get("online"),
                                   "soc": r.get("soc"), "gen": bool(r.get("gen")), "model": r.get("model"), "wh": r.get("wh"),
                                   "qk": r.get("qk"), "nq": r.get("nq"), "socs": r.get("socs"), "qerr": r.get("qerr"),
-                                  "chgk": r.get("chgk")} for r in rivers]}
+                                  "chgk": r.get("chgk"), "src": r.get("src"), "gd": r.get("gd"), "ak": r.get("ak")} for r in rivers]}
     gens = [r for r in rivers if r.get("gen")]
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens

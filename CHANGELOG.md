@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.76 – 23. 10. 2026
+- EcoFlow přes přihlášení aplikace (krok 2): generátor a malá River (u vývojářského rozhraní 1006) se čtou stejnou cestou jako aplikace EcoFlow – přihlášení e-mailem a heslem (GitHub Secrets ECOFLOW_EMAIL, ECOFLOW_PASSWORD), MQTT aplikace, dotaz „latestQuotas“. Malá River: % a nabíjení jako u velkých. Generátor: palivo %, výkon, max. výkon, typ, stav motoru, režim + všechny číselné údaje k dohledání benzín / plyn (karta „EcoFlow – připojení“ → „Všechny údaje generátoru“). Neoficiální cesta – když EcoFlow přihlášení odmítne, další pokus až za hodinu (ať účet nezablokuje). Token se pamatuje ve stavu hlídače (šifrovaná data), přihlášení nejvýš 1× za týden.
+
 ## 4.75 – 23. 10. 2026
 - Oprava: noci, kdy chata jela z River (aspoň 20 % noci bez odběru přes měnič), se už nepočítají do učení noční předpovědi napětí – solární baterie neměla odběr, takže „bylo o 0,44 V víc“ nic neříká a kazilo opravu dalších předpovědí. Označí se i zpětně (body za 14 dní). Na webu „chata jela z River – nepočítá se“. (Výhled dne v Ah takové noci vynechával už dřív.)
 
