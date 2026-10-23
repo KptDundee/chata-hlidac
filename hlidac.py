@@ -2557,12 +2557,17 @@ def read_ecoflow(data, st, now, topic, cfg):
     except Exception as e:
         print("Chyba EcoFlow:", e)
         log("err", f"EcoFlow nejde přečíst: {str(e)[:100]}")
+        data["eco_err"] = {"t": int(now.timestamp()), "msg": str(e)[:200]}     # 4.59: na web (diagnostika)
         st["eco_err"] = st.get("eco_err", 0) + 1
         if st["eco_err"] == 12:
             ntfy(topic, "📡 Hlídač nemůže číst EcoFlow", f"Už ~2 hodiny selhává čtení EcoFlow: {str(e)[:150]}", 3, "warning")
         return None
     st["eco_err"] = 0
     st["eco_host"] = host
+    data["eco_err"] = None
+    data["eco_seen"] = {"t": int(now.timestamp()), "host": host.replace("https://", ""),
+                        "devs": [{"n": r.get("name"), "sn": str(r.get("sn", ""))[-4:], "on": r.get("online"),
+                                  "soc": r.get("soc"), "gen": bool(r.get("gen"))} for r in rivers]}
     gens = [r for r in rivers if r.get("gen")]
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens

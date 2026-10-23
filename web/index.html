@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.58", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.59", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1664,6 +1664,7 @@ function detFridge(body){
   lineChart($("dl_w"), pts.map(p=>({t:p.t, w:p.tp && p.tp[fid]!=null ? p.tp[fid] : null})), "w", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:48});
   barChart($("dl_d"), dd.filter(q=>q.v!=null), "v", css("--s1"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
 }
+const escH = t => String(t).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 /* 4.52: teploměry Xiaomi (přes Flip 1.5) */
 function tileTemps(d, h){
   const th = (d.inverter && d.inverter.th) || []; if(!th.length) return null;
@@ -1875,8 +1876,11 @@ function tileRivers(d, h){
   const sel = all.find(x=>x.id===RVSEL) || all.find(act) || R[0];
   const tabs = `<div class="rtabs">${all.map(x=>`<button data-rv="${x.id}" class="${act(x)?"on":""} ${x===sel?"sel":""}">${x.miss?"? ":""}${x.short.slice(0,12)}</button>`).join("")}</div>`;
   const soc = sel.ef ? sel.ef.soc : null;
+  // 4.59: proč chybí % z EcoFlow – chyba čtení / EcoFlow vidí jiná jména / nic
+  const es = d.eco_seen, ee = d.eco_err;
+  const why = soc!=null ? `${nf(soc)} %` : ee && (!es || ee.t > es.t) ? `<span class="sub">EcoFlow chyba</span>` : es && es.devs.length ? `<span class="sub">EcoFlow nespárováno</span>` : "až z EcoFlow";
   return {...t, top:tabs, cls: act(sel) ? "ok" : "na", v: sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–", st: rivState(sel, h, MM),
-    rows: sel.gen ? [["dnes dodal", kWh((((d.days||{})[dkey(h.now)]||{}).tp||{})[sel.id] ?? 0)]] : [["nabití", soc!=null ? `${nf(soc)} %` : "až z EcoFlow"]]};
+    rows: sel.gen ? [["dnes dodal", kWh((((d.days||{})[dkey(h.now)]||{}).tp||{})[sel.id] ?? 0)]] : [["nabití", why]]};
 }
 /* časová osa: řádek pro každé zařízení, pruh = kdy bylo v činnosti */
 function timelineChart(el, pts, rows, hours){
@@ -1937,6 +1941,12 @@ function detRiver(body){
     <tr><td>Běhů generátoru</td><td>${(d.gen_log||[]).filter(r=>dkey(r.t0)===tk).length + (d.gen_cur ? 1 : 0)}</td><td>${runs}</td></tr></tbody></table>
     ${keys.length && keys[0] > dkey(h.now - (PER[1]||9999)*86400) && DETR!=="d" ? `<div class="sub" style="margin-top:6px">Údaje po zásuvkách od ${dayLabel(keys[0])}.</div>` : ""}</div>`;
   html = html.replace("@@RVTAB@@", tab);
+  { const es = d.eco_seen, ee = d.eco_err;   // 4.59: co vidí EcoFlow API (diagnostika spárování)
+    html += `<div class="card"><h2 style="margin:0 0 6px">EcoFlow – připojení</h2><div style="font-size:13.5px;line-height:1.55">`
+      + (ee ? `<div style="color:var(--crit)">Chyba ${relDay(ee.t)} ${hmT(ee.t)}: ${escH(ee.msg)}</div>` : "")
+      + (es ? `<div class="sub">Naposledy přečteno ${relDay(es.t)} ${hmT(es.t)} (${es.host}) – zařízení na účtu:</div>` + (es.devs.length ? es.devs.map(x=>`<div>• <b>${escH(x.n||"?")}</b> · SN …${x.sn} · ${x.on ? "online" : "offline"}${x.soc!=null ? ` · ${nf(x.soc)} %` : ""}</div>`).join("") : `<div>žádná zařízení</div>`)
+            + `<div class="sub" style="margin-top:4px">Spárování se zásuvkami: podle jména (jméno River v aplikaci EcoFlow má být obsažené v názvu zásuvky, nebo naopak).</div>`
+        : (ee ? "" : `<div class="sub">Zatím žádné čtení.</div>`)) + `</div></div>`; }
   html += `<div class="card"><h2 style="margin:0 0 6px">Výklad</h2><div class="sub" style="line-height:1.55">
     <b>Nabíjení:</b> generátor nabíjí River přes zásuvku (7) – která River a kolik, ví až EcoFlow; nabíjení ze soláru jde přes zásuvku (8) za měničem, která neměří (vidíme jen zapnuto / vypnuto; kterou River nabíjí, pozná se, když má zásuvka (8) ve jménu název River).<br>
     <b>Napájí chatu</b> = chata je přepojená na River (měnič nic nedává). <b>Napájí spotřebič</b> = chata jede ze soláru a River zároveň napájí něco samostatného (TV, telefon).<br>
