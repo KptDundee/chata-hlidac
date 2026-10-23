@@ -186,7 +186,7 @@ def probe(host, ak, sk, devs):
                 pr[h.replace("https://", "")] = f"chyba {str(e)[:80]}"
         r["probe"] = {"http": pr}
     sns = [r["sn"] for r in devs]
-    mq = mqtt_listen(host, ak, sk, sns)
+    mq = mqtt_listen(host, ak, sk, sns, 90 if os.environ.get("ECOFLOW_DEBUG") == "1" else 35)
     for r in devs:
         r.setdefault("probe", {})["mqtt"] = mq.get("_err") or mq.get(r["sn"])
     return devs
