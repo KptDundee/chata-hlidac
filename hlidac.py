@@ -3877,13 +3877,15 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 plan = {sn: (min(rng(byid(sn))[1], max(rng(byid(sn))[0], avail - mins)) if sn == keep
                              else rng(byid(sn))[0]) for sn in plan}
             plan = {sn: int(round(w / 10) * 10) for sn, w in plan.items()}
-            # 4.94: neměnit pořád – River ke změně nejdřív 60 s po poslední změně a jen o ≥ 50 W
-            # (snížení vždy hned, ať se generátor nepřetíží)
+            # 4.95: neměnit pořád – River ke změně nejdřív 5 min po poslední změně (od 90 % po 1 min) a jen o ≥ 50 W.
+            # Hned jen snížení, když by součet nastavených výkonů přetížil generátor.
             chg_t = gs.setdefault("chg_t", {})
+            over = sum(sets.get(sn) or 0 for sn in plan) > avail + 20
             plan_go = {}
             for sn, w in plan.items():
                 cur = sets.get(sn)
-                if cur is None or w < cur - 20 or (abs(w - cur) >= 50 and tnow - chg_t.get(sn, 0) >= 60):
+                ivl = 60 if (byid(sn).get("soc") or 0) >= 90 else 300
+                if cur is None or (over and w < cur - 20) or (abs(w - cur) >= 50 and tnow - chg_t.get(sn, 0) >= ivl):
                     plan_go[sn] = w
             res_ = apply(plan_go)
             for sn in plan_go:
