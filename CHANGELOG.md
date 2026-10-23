@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.58 – 23. 10. 2026 (Flip 1.7.2)
+- Flip 1.7.2: router M7000 posílá odpovědi zakódované v base64 – aplikace je teď rozbalí (dřív chyba „Value ewoJ… cannot be converted to JSONObject“).
+
 ## 4.57 – 23. 10. 2026 (Flip 1.7.1)
 - Flip 1.7.1: tlačítko „Zastavit bránu“ neutrální barvou (červená vypadala jako chyba).
 - docs/pokracovani.md – shrnutí pravidel a otevřených věcí pro pokračování v novém chatu.

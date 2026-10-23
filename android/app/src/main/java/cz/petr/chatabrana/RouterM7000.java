@@ -61,7 +61,13 @@ public final class RouterM7000 {
         if (in != null) { byte[] b = new byte[4096]; int n; while ((n = in.read(b)) > 0) bo.write(b, 0, n); in.close(); }
         c.disconnect();
         if (code >= 400) throw new Exception("HTTP " + code);
-        return new JSONObject(bo.toString("UTF-8"));
+        String txt = bo.toString("UTF-8").trim();
+        // 1.7.2: M7000 posílá odpověď zakódovanou v base64 („ewoJ…“ = „{\n\t…“) – rozbalit
+        if (!txt.startsWith("{")) {
+            try { txt = new String(android.util.Base64.decode(txt, android.util.Base64.DEFAULT), StandardCharsets.UTF_8).trim(); }
+            catch (Exception e) { throw new Exception("neznámá odpověď: " + trim(txt)); }
+        }
+        return new JSONObject(txt);
     }
 
     private static JSONObject findObj(JSONObject o, String name) {
