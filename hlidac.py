@@ -3077,6 +3077,14 @@ def flip_check(data, st, now, topic, cfg):
     t15 = seg[-1][0] + max(0.0, b - 15) / rate * 3600
     data["flip_fc"] = {"b": b, "rate": round(rate, 1), "t_empty": int(t_empty), "t15": int(t15)}
     hm = lambda t: f"{rel_day(t, now)} ~{datetime.fromtimestamp(t, TZ).strftime('%H:%M')}"
+    # 5.02: když nabíjení Flipu řídí hlídač zásuvkou (9) a zásuvka je vidět, Flip se nenabíjí schválně (drží 40–80 %)
+    # a dobije se sám → neupozorňovat. Jen když řízení nejde (zásuvka nevidět / vypnuté), nebo Flip i tak klesl pod 18 %.
+    fid = str(cfg.get("zasuvka_flip") or "9")
+    pp = next((p for p in inv.get("tp") or [] if str(p.get("ip")) == fid), None)
+    ctl_ok = bool(cfg.get("flip_nabijeni_rizeni")) and pp is not None and not pp.get("off") and pp.get("err") is None
+    data["flip_fc"]["ctl"] = ctl_ok
+    if ctl_ok and b >= 18:
+        return
     if t15 - ts < 12 * 3600 and not fp.get("early"):
         ntfy(topic, f"📱 Flip se nenabíjí – vydrží jen do {hm(t_empty)}",
              f"Má {b:.0f} %, ubývá ~{rate:.1f} % za hodinu → pod 15 % {hm(t15)}, vybitý {hm(t_empty)}.\n"
@@ -3091,7 +3099,8 @@ def flip_check(data, st, now, topic, cfg):
     if tk and t_empty - ts < 48 * 3600 and fp.get("morning") != now.strftime("%Y-%m-%d") and ts - fp.get("early_t", 0) > 6 * 3600:
         try:
             hh, mm = (int(x) for x in tk.split(":")[:2])
-            if now >= now.replace(hour=hh, minute=mm, second=0, microsecond=0):
+            t_k = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            if t_k <= now <= t_k + timedelta(hours=2):        # 5.02: jen ráno v čase kontroly, ne kdykoli během dne
                 ntfy(topic, f"📱 Než odjedeš: Flip se nenabíjí – vybije se {hm(t_empty)}",
                      f"Má {b:.0f} %, ubývá ~{rate:.1f} % za hodinu. Dej ho nabíjet, jinak přestanou chodit data.", 4, "battery,warning")
                 fp["morning"] = now.strftime("%Y-%m-%d")
