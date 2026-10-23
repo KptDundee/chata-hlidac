@@ -160,3 +160,4 @@ gen_rezerva_W = 100              # tolik W nechat generátoru volných
 gen_po_behu_W = 200              # výkon velkých River mimo nabíjení z generátoru (start generátoru nic nepřetíží)
 zasuvky_stale = 1, 4, 5, 9       # zásuvky, které musí být vidět pořád (číslo) – jinak upozornění; zásuvka měniče jen když měnič běží
 zasuvky_stale_min = 8            # upozornit, když zásuvka není vidět aspoň tolik minut (a ve 2 měřeních po sobě)
+gen_mala_po_behu_W = 100         # výkon malé River mimo nabíjení z generátoru (100–360 W, ovládá se přes aplikaci EcoFlow)

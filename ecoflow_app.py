@@ -118,3 +118,54 @@ def read(sess, sns, secs=14):
     if state["auth"] is None:
         raise RuntimeError("MQTT aplikace: spojení se nenavázalo")
     return res
+
+
+def set_ac_charge(sess, sn, watts, secs=10):
+    """4.88: nabíjecí výkon ze sítě (AC) přes MQTT aplikace – i pro zařízení, která vývojářské rozhraní nepouští
+    (malá River 2: 100–360 W). → {"code": "0"} při potvrzení, jinak {"code": …, "message": …}."""
+    import paho.mqtt.client as mqtt
+    uid, mid = sess["uid"], str(999900000 + random.randint(10000, 99999))
+    state = {"auth": None, "reply": None}
+
+    def on_msg(cl, ud, m):
+        try:
+            js = json.loads(m.payload.decode("utf-8"))
+        except Exception:
+            return
+        if str(js.get("id")) == mid or state["reply"] is None:
+            state["reply"] = js
+
+    def on_conn(cl, ud, flags, rc, props=None):
+        ok = (rc == 0) if isinstance(rc, int) else not rc.is_failure
+        state["auth"] = ok
+        if not ok:
+            return
+        cl.subscribe(f"/app/{uid}/{sn}/thing/property/set_reply", 1)
+        cl.publish(f"/app/{uid}/{sn}/thing/property/set",
+                   json.dumps({"from": "Android", "id": mid, "version": "1.0", "moduleType": 5, "operateType": "acChgCfg",
+                               "params": {"chgWatts": int(watts), "chgPauseFlag": 255}}), 1)
+
+    cid = f"ANDROID_{uuid.uuid4().hex.upper()}_{uid}"
+    try:
+        cl = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=cid)
+    except AttributeError:
+        cl = mqtt.Client(client_id=cid)
+    cl.username_pw_set(sess["acct"], sess["pw"])
+    cl.tls_set()
+    cl.on_message, cl.on_connect = on_msg, on_conn
+    cl.connect(sess["url"], sess["port"], 30)
+    cl.loop_start()
+    t0 = time.time()
+    while time.time() - t0 < secs and state["reply"] is None and state["auth"] is not False:
+        time.sleep(0.3)
+    cl.loop_stop()
+    cl.disconnect()
+    if state["auth"] is False:
+        return {"code": "auth", "message": "MQTT aplikace odmítlo přihlášení"}
+    r = state["reply"]
+    if r is None:
+        return {"code": "?", "message": "bez potvrzení (zařízení offline?)"}
+    d = r.get("data") or {}
+    ack = d.get("ack") if isinstance(d, dict) else None
+    code = r.get("code", 0 if ack in (0, None) else ack)
+    return {"code": str(code), "message": str(r.get("message") or d)[:80]}

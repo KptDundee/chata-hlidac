@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.87", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.88", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1723,7 +1723,7 @@ function genPlanHtml(d){
   if(run){
     h += (P.wait ? `<div class="sub" style="margin:4px 0">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
       + rowI("Generátor", `${P.gw!=null ? nf(P.gw)+" W z " : "max "}${nf(P.gmax)} W (${fl})${P.gd && P.gd.fuel!=null ? ` · palivo ${nf(P.gd.fuel)} %` : ""}`)
-      + rowI("Malá River", P.small ? `bere ~${nf(P.small)} W${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}` : `nenabíjí se${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}`)
+      + (P.small ? rowI("Malá River (neovládaná)", `bere ~${nf(P.small)} W${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}`) : "")
       + P.rv.map(r=>rowI(`<b>${escH(r.n||"River")}</b>`, `${nf(r.soc)} % · ${r.w?`nastaveno ${nf(r.w)} W`:"200 W"} (bere ${nf(r.in)} W) · plná ${relDay(r.fin)} ~${hmT(r.fin)}`)).join("")
       + (P.fin ? rowI("Generátor můžeš vypnout", `${relDay(P.fin)} ~${hmT(P.fin)}`) : "")
       + (P.rv.length ? "" : `<div class="sub">Velké River se zatím nenabíjejí – zapoj je do generátoru.</div>`)
@@ -1732,7 +1732,7 @@ function genPlanHtml(d){
     h += `<div class="sub">Generátor neběží.${P && P.end ? ` Poslední nabíjení ${relDay(P.t_on||P.t)} ${hmT(P.t_on||P.t)}–${hmT(P.end)}.` : ""}</div>`;
   }
   if(P && P.set && P.set.length) h += `<div class="sub" style="margin-top:4px">Naposledy nastaveno: ${escH(P.set.join(", "))}</div>`;
-  h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${nf(c.gen_po_behu_W ?? 200)} W, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${nf(gmax)} W − rezerva ${nf(c.gen_rezerva_W ?? 100)} W − co bere malá River, rozdělí mezi velké River podle toho, kolik které chybí, aby se nabily zároveň (200–940 W na River). Jakmile je některá plná, vrátí jí ${nf(c.gen_po_behu_W ?? 200)} W. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
+  h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${nf(c.gen_po_behu_W ?? 200)} W a malá ${nf(c.gen_mala_po_behu_W ?? 100)} W, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${nf(gmax)} W − rezerva ${nf(c.gen_rezerva_W ?? 100)} W − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná, vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
   return h;
 }
 /* 4.87: tlačítko start / konec nabíjení z generátoru → spustí hlídače (GitHub) s povelem */
@@ -2779,7 +2779,8 @@ const SETTINGS = [
     ["gen_max_benzin_W","Max. výkon na benzín","Štítek: 1800 W (špička 1900 W)","W",50,"num"],
     ["gen_max_lpg_W","Max. výkon na plyn","Štítek: 1600 W (špička 1700 W)","W",50,"num"],
     ["gen_rezerva_W","Rezerva","Tolik W nechá hlídač generátoru volných","W",50,"num"],
-    ["gen_po_behu_W","Výkon velkých River po běhu","Ať další start generátoru nepřetíží, než hlídač zareaguje","W",10,"num"],
+    ["gen_po_behu_W","Klidový výkon velkých River","Mimo nabíjení z generátoru – ať start generátoru nic nepřetíží (200–940 W)","W",10,"num"],
+    ["gen_mala_po_behu_W","Klidový výkon malé River","Mimo nabíjení z generátoru (100–360 W)","W",10,"num"],
   ]],
   ["Zásuvky", [
     ["zasuvky_stale","Zásuvky, které musí být vidět pořád","Čísla zásuvek – když je Flip nepřečte, přijde upozornění (zásuvka měniče jen když měnič běží)","",0,"str"],

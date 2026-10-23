@@ -34,7 +34,7 @@ DEFAULTS = {
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "river_sn": "",
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_rezerva_W": 100,
-    "gen_po_behu_W": 200,
+    "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100,
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
@@ -2657,6 +2657,11 @@ def read_ecoflow_app(rivers, data, st, now, force=False):
                         pass
                     break
         r["socs"] = {k: q[k] for k in KEYS_EF()["soc"] if q.get(k) is not None}
+        if q.get("mppt.cfgChgWatts") is not None:           # 4.88: nastavený nabíjecí výkon (skutečný, z River)
+            try:
+                r["cfg_w"] = int(q["mppt.cfgChgWatts"])
+            except (TypeError, ValueError):
+                pass
         import ecoflow as _ef
         r["pw"] = _ef.power_keys(q)
         if not r.get("online"):
@@ -3707,6 +3712,7 @@ def plug_watch(data, st, now, topic, cfg):
     data["plug_miss"] = miss
 
 PRO_CHG_W = (200, 940)     # River 2 Pro: rozsah nabíjecího výkonu ze sítě (AC)
+SMALL_CHG_W = (100, 360)   # River 2 (malá): rozsah nabíjecího výkonu ze sítě (AC) – ovládá se přes aplikaci
 
 
 def gen_charge_ctl(data, st, now, topic, cfg):
@@ -3738,22 +3744,35 @@ def gen_charge_ctl(data, st, now, topic, cfg):
     fuel = "lpg" if str(cfg.get("gen_palivo") or "").lower().startswith(("lpg", "plyn")) else "benzin"
     gmax = cfg.get("gen_max_lpg_W" if fuel == "lpg" else "gen_max_benzin_W") or (1600 if fuel == "lpg" else 1800)
     budget = gmax - (cfg.get("gen_rezerva_W") or 0)
-    safe = max(PRO_CHG_W[0], min(PRO_CHG_W[1], int(cfg.get("gen_po_behu_W") or 200)))
+    safe_pro = max(PRO_CHG_W[0], min(PRO_CHG_W[1], int(cfg.get("gen_po_behu_W") or 200)))
+    safe_small = max(SMALL_CHG_W[0], min(SMALL_CHG_W[1], int(cfg.get("gen_mala_po_behu_W") or 100)))
     acw = lambda r: r.get("ac_in_w") if r.get("ac_in_w") is not None else (r.get("in_w") or 0)
     is_pro = lambda r: "pro" in str(r.get("model") or "").lower() and not r.get("qerr")
     is_small = lambda r: (r.get("wh") or 768) < 500 and not r.get("gen")
+    # 4.88: ovládat jde i malá – přes aplikaci (src app); velké přes vývojářské rozhraní
+    ctl_ok = lambda r: is_pro(r) or (is_small(r) and r.get("src") == "app")
+    rng = lambda r: SMALL_CHG_W if is_small(r) else PRO_CHG_W
+    safe_of = lambda r: safe_small if is_small(r) else safe_pro
+    byid = lambda sn: next((r for r in data.get("rivers") or [] if r.get("sn") == sn), {})
+    for r in data.get("rivers") or []:                   # skutečně nastavený výkon (když ho River hlásí)
+        if r.get("cfg_w") is not None:
+            sets[r["sn"]] = r["cfg_w"]
 
     def apply(plan_w):
         """Nastavit výkony – nejdřív snížení, pak zvýšení (ať generátor ani na chvíli nepřetíží)."""
         done = []
-        if not (ak and sk and host):
+        if not (ak and sk and host) and not st.get("efp"):
             return ["EcoFlow klíče chybí"]
         import ecoflow
         for sn, w in sorted(plan_w.items(), key=lambda x: x[1] - (sets.get(x[0]) or 9999)):
-            if sets.get(sn) is not None and abs(sets[sn] - w) < 30:
+            if sets.get(sn) is not None and abs(sets[sn] - w) < 20:
                 continue
             try:
-                res = ecoflow.set_ac_charge(host, ak, sk, sn, w)
+                if is_small(byid(sn)):
+                    import ecoflow_app
+                    res = ecoflow_app.set_ac_charge(st.get("efp") or {}, sn, w) if st.get("efp") else {"code": "?", "message": "bez přihlášení aplikace"}
+                else:
+                    res = ecoflow.set_ac_charge(host, ak, sk, sn, w)
                 ok = str(res.get("code")) == "0"
             except Exception as e:
                 ok, res = False, {"message": str(e)[:80]}
@@ -3773,19 +3792,20 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gens = data.get("ef_gens") or []
         inv = data.get("inverter") or {}
         g = (inv.get("gen") or {}) if inv and tnow - inv.get("t", 0) < 600 else {}
-        pros = [r for r in rivers if r.get("online") and r.get("soc") is not None and is_pro(r)]
+        ctl = [r for r in rivers if r.get("online") and r.get("soc") is not None and ctl_ok(r)]
         small = next((r for r in rivers if is_small(r) and r.get("online") and r.get("in_w") is not None), None)
-        con = [r for r in pros if acw(r) > 20]
-        pro_in = sum(acw(r) for r in con)
+        con = [r for r in ctl if acw(r) > 20]
+        con_in = sum(acw(r) for r in con)
         gd = next((x.get("gd") for x in gens if x.get("gd")), None) or {}
         gw = g.get("w") if g.get("w") is not None else gd.get("w")
-        small_w = (small.get("in_w") or 0) if small else max(0.0, (gw or 0) - pro_in)
+        # malá, kterou ovládat nejde (bez aplikace): odečíst, kolik bere
+        small_w = 0.0 if small and ctl_ok(small) else (small.get("in_w") or 0) if small else max(0.0, (gw or 0) - con_in)
         if small_w < 20:
             small_w = 0.0
         charging = bool(con) or small_w > 0 or (gw or 0) > 20
         out = []
         # River, která se přestala nabíjet (plná / odpojená) → hned zpět na bezpečný výkon
-        idle_pros = {r["sn"]: safe for r in pros if acw(r) <= 20 and sets.get(r["sn"]) not in (None, safe)}
+        idle_pros = {r["sn"]: safe_of(r) for r in ctl if acw(r) <= 20 and sets.get(r["sn"]) not in (None, safe_of(r))}
         if idle_pros:
             out += apply(idle_pros)
         if not gs.get("active") and charging:              # relace sama (bez tlačítka) – River se nabíjejí
@@ -3806,7 +3826,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             while todo:
                 tot = sum(todo.values())
                 cand = {sn: left * n / tot if tot > 0 else left / len(todo) for sn, n in todo.items()}
-                clamp = {sn: max(PRO_CHG_W[0], min(PRO_CHG_W[1], w)) for sn, w in cand.items()}
+                clamp = {sn: max(rng(byid(sn))[0], min(rng(byid(sn))[1], w)) for sn, w in cand.items()}
                 fixed = [sn for sn in todo if clamp[sn] != cand[sn]]
                 if not fixed:
                     plan.update(clamp)
@@ -3816,10 +3836,11 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                     left -= clamp[sn]
                     del todo[sn]
                 left = max(0.0, left)
-            if sum(plan.values()) > avail and len(plan) > 1:   # minimum 200 W každé by přetížilo → zbytek nejprázdnější
+            if sum(plan.values()) > avail and len(plan) > 1:   # minima všech by přetížila → zbytek nejprázdnější
                 keep = max(plan, key=lambda sn: need[sn])
-                plan = {sn: (min(PRO_CHG_W[1], max(PRO_CHG_W[0], avail - PRO_CHG_W[0] * (len(plan) - 1))) if sn == keep
-                             else PRO_CHG_W[0]) for sn in plan}
+                mins = sum(rng(byid(sn))[0] for sn in plan if sn != keep)
+                plan = {sn: (min(rng(byid(sn))[1], max(rng(byid(sn))[0], avail - mins)) if sn == keep
+                             else rng(byid(sn))[0]) for sn in plan}
             plan = {sn: int(round(w / 10) * 10) for sn, w in plan.items()}
             out += apply(plan)
         rv, fins = [], []
@@ -3839,8 +3860,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         if charging:
             gs["ever"] = True
         if gs.get("stop") or (gs.get("idle") and tnow - gs["idle"] >= idle_lim):
-            out2 = apply({r["sn"]: safe for r in rivers if is_pro(r) and r.get("online")})
-            gs["reset"] = [r["sn"] for r in rivers if is_pro(r) and sets.get(r["sn"]) != safe]
+            out2 = apply({r["sn"]: safe_of(r) for r in rivers if ctl_ok(r) and r.get("online")})
+            gs["reset"] = [r["sn"] for r in rivers if ctl_ok(r) and sets.get(r["sn"]) != safe_of(r)]
             if (gw or 0) > 20 and not gs.get("idle_warned"):
                 ntfy(topic, "⛽ Generátor běží naprázdno", "Nic se nenabíjí – River jsou nabité (nebo odpojené). Vypni generátor.",
                      4, "fuelpump,white_check_mark")
@@ -3854,14 +3875,17 @@ def gen_charge_ctl(data, st, now, topic, cfg):
 
     # nastavit bezpečný výkon River, kterým se to minule nepovedlo (byly offline)
     if gs.get("reset") and not gs.get("active"):
-        onl = {r["sn"] for r in data.get("rivers") or [] if r.get("online")}
-        apply({sn: safe for sn in gs["reset"] if sn in onl})
-        gs["reset"] = [sn for sn in gs["reset"] if sets.get(sn) != safe]
-    # klid: velké River drží bezpečný výkon (první nastavení po zavedení / změně hodnoty)
-    if not gs.get("active") and gs.get("safe") != safe:
-        apply({r["sn"]: safe for r in data.get("rivers") or [] if is_pro(r) and r.get("online")})
-        if all(sets.get(r["sn"]) == safe for r in data.get("rivers") or [] if is_pro(r) and r.get("online")):
-            gs["safe"] = safe
+        onl = {r["sn"]: r for r in data.get("rivers") or [] if r.get("online")}
+        apply({sn: safe_of(onl[sn]) for sn in gs["reset"] if sn in onl})
+        gs["reset"] = [sn for sn in gs["reset"] if sets.get(sn) != safe_of(byid(sn))]
+    # klid: River drží bezpečný výkon (první nastavení po zavedení / změně hodnoty, nebo když ho někdo změnil v aplikaci)
+    if not gs.get("active"):
+        idle_set = {r["sn"]: safe_of(r) for r in data.get("rivers") or [] if ctl_ok(r) and r.get("online")
+                    and (gs.get("safe") != [safe_pro, safe_small] or (r.get("cfg_w") is not None and r["cfg_w"] != safe_of(r)))}
+        if idle_set:
+            apply(idle_set)
+        if all(sets.get(r["sn"]) == safe_of(r) for r in data.get("rivers") or [] if ctl_ok(r) and r.get("online")):
+            gs["safe"] = [safe_pro, safe_small]
     t_start = time.time()
     go = step(int(t_start))
     # smyčka po 30 s (jen během relace) – v jednom běhu hlídače nejvýš ~3 min, pak další běh spustí hlídač sám
