@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.70 – 23. 10. 2026
+- EcoFlow zkouška generátoru / malé River (4.67) už jen 1× za den, když je generátor online (35 s). Spouštěla se při každém ručním spuštění – to je i každé odeslání z Flipu, a s Flipem po 2 min by hlídač zbytečně zdržovala (běh 1 min 45 s místo ~20 s).
+
 ## 4.69 – 23. 10. 2026 · Flip 1.7.3
 - Flip 1.7.3 – nabíjení z generátoru: dokud zásuvka generátoru (7) bere proud, Flip měří a posílá každé 2 min (jinak 10 min) → hlídač běží stejně často a hned přerozděluje výkon River. Po vypnutí generátoru ještě ~5 min po 2 min (zaznamená konec), pak zpět na 10 min.
 - Flip 1.7.3: když zásuvka generátoru chybí, Flip ji v síti hledá při každém měření (po startu generátoru může mít jinou adresu – dřív nejdřív za 30 min). Tlačítko „Odeslat teď“ síť prohledá vždy. Častá hledání se do záznamu nezapisují, dokud se nic nezmění.

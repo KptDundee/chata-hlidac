@@ -2580,11 +2580,11 @@ def read_ecoflow(data, st, now, topic, cfg):
         print("EcoFlow nastavení", efs, res)
         data["eco_set"] = {"t": int(now.timestamp()), "cmd": efs, "code": str(res.get("code")), "msg": str(res.get("message"))[:150]}
     # 4.67: zařízení s 1006 (generátor, malá River) – zkusit jiné cesty (vybrané údaje přes HTTP, poslech MQTT).
-    # Při ručním spuštění vždy, jinak když je generátor online (rychle usíná) a nejvýš jednou za 30 min.
     bad = [r for r in rivers if r.get("qerr")]
     lastp = (st.get("eco_probe") or {}).get("t", 0)
     gen_on = any(r.get("gen") and r.get("online") for r in bad)
-    if bad and (os.environ.get("ECOFLOW_DEBUG") == "1" or (gen_on and now.timestamp() - lastp > 1800)):
+    # 4.70: jen když je generátor online, nejvýš 1× za den (ruční spuštění = i každé odeslání Flipu, to by zdržovalo)
+    if bad and gen_on and now.timestamp() - lastp > 86400:
         try:
             ecoflow.probe(host, ak, sk, rivers)
             st["eco_probe"] = {"t": int(now.timestamp()),
