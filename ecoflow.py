@@ -50,6 +50,36 @@ def _get(host, path, ak, sk, params=None):
     return d.get("data")
 
 
+def _flat(obj, prefix=""):
+    """Vnořený JSON → ploché „a.b=v“ / „a[0]=v“ (EcoFlow podepisuje tělo PUT takhle)."""
+    out = {}
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            out.update(_flat(v, f"{prefix}.{k}" if prefix else k))
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            out.update(_flat(v, f"{prefix}[{i}]"))
+    else:
+        out[prefix] = obj
+    return out
+
+
+def set_quota(host, ak, sk, body):
+    """4.66: nastavení zařízení (PUT /iot-open/sign/device/quota). Vrací odpověď EcoFlow (dict)."""
+    flat = _flat(body)
+    hdr = _sign(ak, sk, flat)
+    hdr["Content-Type"] = "application/json;charset=UTF-8"
+    req = urllib.request.Request(host + "/iot-open/sign/device/quota", data=json.dumps(body).encode(), headers=hdr, method="PUT")
+    return json.loads(urllib.request.urlopen(req, timeout=30).read())
+
+
+def set_ac_charge(host, ak, sk, sn, watts):
+    """River 2 Pro: nabíjecí výkon ze sítě (AC) ve W."""
+    body = {"id": int(time.time() * 1000) % 1000000000, "version": "1.0", "sn": sn, "moduleType": 5,
+            "operateType": "acChgCfg", "params": {"chgWatts": int(watts), "chgPauseFlag": 0}}
+    return set_quota(host, ak, sk, body)
+
+
 def read_rivers(ak, sk, host_hint=None):
     """Vrátí (host, [ {sn, name, online, soc, in_w, out_w, ...}, ... ])."""
     errs = []
@@ -95,6 +125,10 @@ def read_rivers(ak, sk, host_hint=None):
                         pass
                     break
         r["nq"] = len(q)                                                # 4.64: kolik údajů EcoFlow vrátil
+        r["chgk"] = {k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and "chg" in k.lower()
+                     and "watt" in k.lower()}                           # 4.66: nastavený nabíjecí výkon (ověření)
+        if len(r["chgk"]) > 8:
+            r["chgk"] = dict(list(r["chgk"].items())[:8])
         r["socs"] = {k: q[k] for k in KEYS["soc"] if q.get(k) is not None}   # všechny zdroje % (porovnání s displejem)
         if r.get("soc") is None and not r.get("gen") and q:          # 4.62: neznámé klíče (jiný model) → poslat výběr na web
             r["qk"] = {k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and

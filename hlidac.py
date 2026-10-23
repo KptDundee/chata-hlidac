@@ -2565,11 +2565,23 @@ def read_ecoflow(data, st, now, topic, cfg):
         return None
     st["eco_err"] = 0
     st["eco_host"] = host
+    # 4.66: zkušební nastavení nabíjecího výkonu (workflow vstup efset „konec SN:W“, např. 1167:300)
+    efs = os.environ.get("EF_SET", "").strip()
+    if efs and ":" in efs:
+        tail, w = (x.strip() for x in efs.split(":", 1))
+        tgt = next((r for r in rivers if str(r.get("sn", "")).upper().endswith(tail.upper())), None)
+        try:
+            res = ecoflow.set_ac_charge(host, ak, sk, tgt["sn"], int(w)) if tgt else {"code": "?", "message": "SN nenalezeno"}
+        except Exception as e:
+            res = {"code": "chyba", "message": str(e)[:150]}
+        print("EcoFlow nastavení", efs, res)
+        data["eco_set"] = {"t": int(now.timestamp()), "cmd": efs, "code": str(res.get("code")), "msg": str(res.get("message"))[:150]}
     data["eco_err"] = None
     data["eco_seen"] = {"t": int(now.timestamp()), "host": host.replace("https://", ""),
                         "devs": [{"n": r.get("name"), "sn": str(r.get("sn", ""))[-4:], "on": r.get("online"),
                                   "soc": r.get("soc"), "gen": bool(r.get("gen")), "model": r.get("model"), "wh": r.get("wh"),
-                                  "qk": r.get("qk"), "nq": r.get("nq"), "socs": r.get("socs"), "qerr": r.get("qerr")} for r in rivers]}
+                                  "qk": r.get("qk"), "nq": r.get("nq"), "socs": r.get("socs"), "qerr": r.get("qerr"),
+                                  "chgk": r.get("chgk")} for r in rivers]}
     gens = [r for r in rivers if r.get("gen")]
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens

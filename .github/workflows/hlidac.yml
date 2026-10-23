@@ -17,6 +17,10 @@ on:
         description: "Data z Flipu (1.4+: pole zpráv JSON; jinak prázdné)"
         type: string
         default: ""
+      efset:
+        description: "EcoFlow: nastavit nabíjecí výkon „konec SN:W“ (zkouška)"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -51,6 +55,7 @@ jobs:
           TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test && '1' || '0' }}
           WAKE: ${{ github.event_name == 'workflow_dispatch' && inputs.wake && '1' || '0' }}
           FLIP_DATA: ${{ github.event_name == 'workflow_dispatch' && inputs.flip || '' }}
+          EF_SET: ${{ github.event_name == 'workflow_dispatch' && inputs.efset || '' }}
         run: python3 hlidac.py
 
       - name: Odblokovat zaseknuté nasazení stránky
