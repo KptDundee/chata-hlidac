@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.79 – 23. 10. 2026
+- Dlaždice Generátor (Výroba dnes) šedá, když generátor neběží (jako Solár v noci).
+
 ## 4.78 – 23. 10. 2026
 - Dlaždice EcoFlow – záložky: vypnutá River šedě, zapnutá plným písmem se zelenou tečkou (EcoFlow ji vidí online; bez EcoFlow = zásuvka na jejím výstupu má proud; generátor = běží), rámeček = údaje pod záložkami patří téhle. Nabíjení z jiné River se nerozlišuje (výjimečná situace) – „nabíjí se · W“, z generátoru jen když běží; River, která něco napájí: „dodává W“.
 - Dlaždice Solární baterie – barva podle výhledu: zelená jen když vydrží do rána; do 22:00 ano, do rána ne → oranžová; ani do 22:00 → červená (po západu podle noční předpovědi: vypne se před 22:00 červená, později oranžová; těsně / „sniž odběr“ oranžová). Chata na River: beze změny.

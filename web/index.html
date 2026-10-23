@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.78", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.79", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1590,7 +1590,7 @@ function tileProdGen(d, h){
   const L = dayLedger(d, h), gc = d.gen_cur, last = (d.gen_log||[]).slice(-1)[0];
   const rv = (d.rivers||[]).map(r=>({n:r.name, i:riverToday(d,r).i||0})).filter(r=>r.i>5);
   const live = h.invF && h.inv.gen;
-  return {k:"gen", icon:"⛽", label:"Generátor", cls:"ok", info:true, v: L.gen!=null ? `${nf(L.gen/1000,2)}<small>kWh</small>` : `0<small>kWh</small>`,
+  return {k:"gen", icon:"⛽", label:"Generátor", cls: (live && live.w > 5) || gc ? "ok" : "na", info:true,   // 4.79: šedý, když neběží v: L.gen!=null ? `${nf(L.gen/1000,2)}<small>kWh</small>` : `0<small>kWh</small>`,
     st: gc ? `běží od ${hmT(gc.t0)}${live && live.w>5 ? ` · ${nf(live.w)} W` : ""}` : last ? `naposledy ${relDay(last.t0)} ${hmT(last.t0)}–${hmT(last.t1)}` : "dnes neběžel",
     rows: rv.length ? rv.map(r=>[`→ ${pn(r.n).replace(/^River\s*/i,"")}`, kWh(r.i)]) : [["→ River", "až z EcoFlow"]]};
 }
