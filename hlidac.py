@@ -3733,9 +3733,11 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         if f_ in ("lpg", "plyn", "benzin"):
             cfg["gen_palivo"] = f_
     ts0 = int(now.timestamp())
-    if cmd == "start":
-        gs.update({"btn": ts0, "first": None, "idle": None, "t_on": ts0, "active": True, "idle_warned": False})
-        log("ev", "Nabíjení z generátoru: spuštěno tlačítkem")
+    if cmd == "start":                                   # i během nabíjení = nový start (např. po přepnutí na plyn)
+        gs.update({"btn": ts0, "first": None, "idle": None, "t_on": ts0, "active": True, "idle_warned": False, "ever": False,
+                   "restart": True})
+        gs.pop("stop", None)
+        log("ev", f"Nabíjení z generátoru: spuštěno tlačítkem ({'plyn' if str(cfg.get('gen_palivo')).startswith(('lpg', 'plyn')) else 'benzín'})")
     elif cmd == "stop" and gs.get("active"):
         gs["stop"] = True
         log("ev", "Nabíjení z generátoru: ukončeno tlačítkem")
@@ -3900,6 +3902,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             apply(idle_set)
         if all(sets.get(r["sn"]) == safe_of(r) for r in data.get("rivers") or [] if ctl_ok(r) and r.get("online")):
             gs["safe"] = [safe_pro, safe_small]
+    if gs.pop("restart", None):                          # nový start → všem hned klidový výkon, výpočet až 30 s po nabíjení
+        apply({r["sn"]: safe_of(r) for r in data.get("rivers") or [] if ctl_ok(r) and r.get("online")})
     t_start = time.time()
     go = step(int(t_start))
     # smyčka po 30 s (jen během relace) – v jednom běhu hlídače nejvýš ~3 min, pak další běh spustí hlídač sám

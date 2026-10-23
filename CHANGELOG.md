@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.93 – 23. 10. 2026
+- Tlačítka ⛽ Benzín / 🔥 Plyn vždy spustí nabíjení znovu na daném palivu (i během nabíjení – např. když dojde benzín a nastartuješ na plyn): River hned dostanou klidové výkony, 30 s po začátku nabíjení vypočítané podle nového paliva. Zelené = palivo, na kterém právě nabíjí.
+
 ## 4.92 – 23. 10. 2026
 - Palivo jako přepínač: dvě tlačítka ⛽ Benzín / 🔥 Plyn, zelené a ✓ je vždy jen jedno. Neběží: zmáčknutí = spustit nabíjení na tom palivu. Běží: druhé tlačítko přepne palivo. Pod nimi ⏹ Ukončit.
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.92", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.93", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1723,7 +1723,7 @@ function genPlanHtml(d){
   const sty = on => `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:${on?"2px solid var(--good)":"1px solid var(--line)"};background:${on?"color-mix(in srgb,var(--good) 22%,transparent)":"transparent"}`;
   const FB = (f, txt) => { const on = run && fuel===f; return `<button data-fuel="${f}" onclick="genFuel('${f}', this, ${run?1:0})" style="${sty(on)}">${txt}${on?" ✓":""}</button>`; };
   const btn = `<div style="display:flex;gap:8px;margin:6px 0 4px">${FB("benzin","⛽ Benzín")}${FB("lpg","🔥 Plyn")}</div>`
-    + `<div class="sub" style="margin-bottom:4px">${run ? `Nabíjí na: <b>${fl}</b> (max ${nf(gmax)} W) – druhé tlačítko přepne palivo` : "Zmáčkni palivo, na které generátor nastartuješ – tím se nabíjení spustí"}</div>`
+    + `<div class="sub" style="margin-bottom:4px">${run ? `Nabíjí na: <b>${fl}</b> (max ${nf(gmax)} W). Po novém startu generátoru zmáčkni palivo, na které jede – spustí se znovu.` : "Zmáčkni palivo, na které generátor nastartuješ – tím se nabíjení spustí"}</div>`
     + (run ? `<button onclick="genCmd('stop', this)" style="${sty(false)};width:100%;flex:none;font-weight:600">⏹ Ukončit nabíjení</button>` : "");
   let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}`;
   if(run){
@@ -1759,7 +1759,7 @@ function genFuel(f, el, running){     // 4.92: přepínač paliva – vždy plat
     b.style.border = on ? "2px solid var(--good)" : "1px solid var(--line)";
     b.style.background = on ? "color-mix(in srgb,var(--good) 22%,transparent)" : "transparent";
     b.textContent = (b.dataset.fuel==="lpg" ? "🔥 Plyn" : "⛽ Benzín") + (on ? " ✓" : ""); });
-  return genCmd((running ? "fuel:" : "start:") + f, null, el);
+  return genCmd("start:" + f, null, el);    // 4.93: vždy „spustit znovu na tomhle palivu“
 }
 async function genCmd(cmd, el, fel){
   const tok = store.get("ghtok");
@@ -1777,7 +1777,7 @@ async function genCmd(cmd, el, fel){
     }
     if(el) el.textContent = "✓ Ukončeno";
     const note = document.querySelector("button[data-fuel]")?.parentElement?.nextElementSibling;
-    if(note && c0!=="stop") note.innerHTML = c0==="start" ? `<b>Spuštěno na ${fuel==="lpg"?"plyn":"benzín"}</b> – nastartuj generátor a zapoj River` : `<b>Přepnuto na ${fuel==="lpg"?"plyn":"benzín"}</b> – platí do 30 s`;
+    if(note && c0!=="stop") note.innerHTML = c0==="start" ? `<b>Spuštěno na ${fuel==="lpg"?"plyn":"benzín"}</b> – nastartuj generátor a zapoj River` : `<b>Spuštěno na ${fuel==="lpg"?"plyn":"benzín"}</b>`;
     if(c0 !== "fuel") setTimeout(()=>{ try{ triggerLive(); }catch(e){} }, 1500);
   }catch(e){ if(el){ el.disabled = false; el.textContent = e.message; }
     const note = document.querySelector("button[data-fuel]")?.parentElement?.nextElementSibling; if(note) note.innerHTML = `<b style="color:var(--crit)">${e.message}</b>`; }
