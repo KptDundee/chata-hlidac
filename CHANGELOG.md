@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.65 – 23. 10. 2026
+- EcoFlow funguje: žlutá a červená (River 2 Pro) posílají nabití, spárování podle jména sedí. Malá (River 2) a Smart Generator: EcoFlow přes vývojářské rozhraní údaje nedává (chyba 1006) – na webu „EcoFlow % neposílá“ / „tento model … nepodporuje“ místo chyby.
+
 ## 4.64 – 23. 10. 2026
 - EcoFlow diagnostika: u každého zařízení v kartě „EcoFlow – připojení“ kolik údajů EcoFlow vrátil (nebo chyba) a všechna čísla nabití, která posílá (k porovnání s displejem).
 
