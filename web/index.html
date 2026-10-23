@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.62", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.63", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1843,7 +1843,10 @@ function rivModel(d, h){
     // 4.61: nejdřív ruční spárování z Nastavení (river_sn „zásuvka:konec SN“), pak podle jména, pak podle pořadí
     const snMap = Object.fromEntries(String(d.cfg?.river_sn||"").split(/[,;]+/).map(x=>x.split(":").map(y=>y.trim().toUpperCase())).filter(x=>x.length===2 && x[0] && x[1]));
     const e = (snMap[id] && ef.find(r=>String(r.sn||"").toUpperCase().endsWith(snMap[id])))
-      || ef.find(r=>norm(r.name) && (norm(nm).includes(norm(r.name)) || norm(r.name).includes(norm(nm)))) || (ef.length===U.rids.length ? ef[i] : null);
+      || ef.find(r=>norm(r.name) && (norm(nm).includes(norm(r.name)) || norm(r.name).includes(norm(nm))))
+      // 4.63: podle prvního slova (první 3 písmena: zlu / cer / mal) – bez párování podle pořadí (to párovalo špatně)
+      || (()=>{ const k = w => norm(String(w||"").replace(/^\s*\(\d+\)\s*/,"").split(/\s+/)[0]).slice(0,3); const kp = k(nm);
+          return kp.length===3 ? ef.find(r=>k(r.name)===kp) : null; })() || null;
     return {id, name:nm, short:nm.replace(/^River\s*/i,"") || nm, color:rivColor(nm, i), w:p.w, off:!!p.off || p.err!=null,
       miss: h.invF && !live.some(x=>x.ip===id), ef: e && efFresh ? e : null, sn: e ? String(e.sn||"").slice(-6) : null};
   });

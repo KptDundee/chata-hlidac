@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.63 – 23. 10. 2026
+- EcoFlow: zrušeno párování zásuvek s River „podle pořadí“ (přiřazovalo procenta jiné River). Páruje se ručně podle konce SN (Nastavení), podle jména, nebo podle prvních 3 písmen prvního slova (zlu / cer / mal).
+
 ## 4.62 – 23. 10. 2026
 - EcoFlow: spárování podle jména bez diakritiky („Žlutá“ = „ZLUTA“). Kapacita každé River podle modelu z EcoFlow (River 2 Pro 768 Wh, menší modely méně) – nabití z generátoru a výdrž se počítají s ní. Když model posílá nabití pod jinými názvy (malá River), v kartě „EcoFlow – připojení“ se ukáže, co posílá – podle toho se doplní.
 
