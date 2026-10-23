@@ -323,6 +323,20 @@ public final class Collector {
             p.put("n", names.containsKey(ip) ? names.get(ip) : ip);
             String model = models.containsKey(ip) ? models.get(ip) : "";
             p.put("m", model);
+            if (model.startsWith("L")) {                                  // 1.7.5: světla / pásky Tapo (L900, L920…)
+                JSONObject info = new JSONObject(t.call("get_device_info")).optJSONObject("result");
+                if (info != null) p.put("on", info.optBoolean("device_on") ? 1 : 0);
+                // spotřebu světlo samo neměří, odhaduje ji (jako aplikace Tapo): Wh dnes z get_device_usage
+                try {
+                    JSONObject u = new JSONObject(t.call("get_device_usage")).optJSONObject("result");
+                    JSONObject pu = u != null ? u.optJSONObject("power_usage") : null;
+                    if (pu != null && pu.has("today")) p.put("wh", pu.optInt("today"));
+                    else p.put("nm", 1);
+                } catch (Exception ue) { p.put("nm", 1); }
+                p.put("lt", 1);
+                note(ip, "ok", null);
+                return p;
+            }
             if (model.startsWith("P100") || model.startsWith("P105")) {   // tyto zásuvky spotřebu neměří
                 JSONObject info = new JSONObject(t.call("get_device_info")).optJSONObject("result");
                 if (info != null) p.put("on", info.optBoolean("device_on") ? 1 : 0);

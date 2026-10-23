@@ -80,7 +80,7 @@ zasuvka_generator = 7
 
 # --- Automatické nabíjení River přebytkem ze slunce ---
 # zapne zásuvku, když je solární baterie plná (Float) a panely dávají dost; vypne při poklesu
-river_auto = zapnuto
+river_auto = vypnuto
 river_auto_ip = 8
 river_auto_pv_on = 150
 river_auto_pv_off = 100

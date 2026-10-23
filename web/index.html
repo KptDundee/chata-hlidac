@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.84", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.85", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1598,7 +1598,7 @@ function tileProdGen(d, h){
 function tileUseSolar(d, h){
   const L = dayLedger(d, h);
   USE_SH = null; const ud = useDay(dkey(h.now), useModel(d));
-  return {k:"use_s", icon:"🔆", label:"Ze soláru", cls: h.invF && (h.inv.mw||0) > 3 ? "ok" : "na", info:true, /* 4.80: šedá, když měnič nic nedodává  */ v: `${nf((ud ? ud.s._sum : 0)/1000,2)}<small>kWh</small>`,
+  return {k:"use_s", icon:"🔆", label:"Ze solární baterie", cls: h.invF && (h.inv.mw||0) > 3 ? "ok" : "na", info:true, /* 4.80: šedá, když měnič nic nedodává  */ v: `${nf((ud ? ud.s._sum : 0)/1000,2)}<small>kWh</small>`,
     st: h.invF && h.inv.mw!=null ? `teď ${nf(h.inv.mw)} W` : h.menicOff ? "měnič vypnutý" : "měnič bez dat",
     rows:[["vč. ztrát", h.dcWh!=null ? kWh(h.dcWh) : "–"]]};
 }
@@ -1752,10 +1752,11 @@ function tileDevices(d, h){
   // jen zásuvky pojmenované číslem „(N) …“ nebo právě živé – staré záznamy podle IP adres vynechat
   const named = id => /^\s*\(\d{1,3}\)/.test(names[id]||"");
   const ids = [...new Set([...Object.keys(tpd).filter(named), ...live.filter(p=>!p.off).map(p=>p.ip)])].filter(id=>!skip.has(id));
-  const rows = ids.map(id=>{ const p = live.find(x=>x.ip===id)||{}; return {id, n: pn(names[id]||p.n)||`zásuvka ${id}`, wh: tpd[id], w: p.w, nm: p.nm, off: p.off}; })
+  const rows = ids.map(id=>{ const p = live.find(x=>x.ip===id)||{}; return {id, n: pn(names[id]||p.n)||`zásuvka ${id}`, wh: tpd[id] ?? p.wh, w: p.w, nm: p.nm, off: p.off, lt: p.lt, on: p.on}; })
     .sort((a,b)=>(b.wh||0)-(a.wh||0));
   return {k:"use", icon:"🔌", label:"Spotřebiče", wide:true, cls:"ok", info:true, v:"", st:"dnes · teď",
-    rows: rows.length ? rows.map(r=>[r.n, `${r.nm ? "neměří" : kWh(r.wh||0)}${r.off ? " · vyp." : r.w!=null ? ` · ${nf(r.w)} W` : ""}`]) : [["žádné zásuvky", ""]]};
+    rows: rows.length ? rows.map(r=>[r.n, r.lt ? `${r.nm ? "neměří" : kWh(r.wh||0) + " odhad"} · ${r.off ? "vyp." : r.on===1 ? "svítí" : "nesvítí"}`   // 4.85: světla – odhad Tapo
+      : `${r.nm ? "neměří" : kWh(r.wh||0)}${r.off ? " · vyp." : r.w!=null ? ` · ${nf(r.w)} W` : ""}`]) : [["žádné zásuvky", ""]]};
 }
 /* ================= SPOTŘEBA: co bralo a kdy (v3.53) =================
    Hlavní okruh chaty jede vždy z jednoho zdroje (m): "s" = měnič dodává, "r" = chata přepojená na River.
@@ -2126,7 +2127,7 @@ const DET = {
   use:   {t:"🏠 Spotřeba celkem", s:"Co bralo a kdy – ze soláru i z River", build:b=>detUse(b,"a")},
   flip:  {t:"📱 Flip (brána)", s:"Baterie, nabíjení, teplota", build:detFlip},
   fridge:{t:"🧊 Lednice", s:"Kompresor, teplota, spotřeba", build:detFridge},
-  use_s: {t:"🔆 Spotřeba ze soláru", s:"Jen doba, kdy chatu napájela solární baterie", build:b=>detUse(b,"s")},
+  use_s: {t:"🔆 Spotřeba ze solární baterie", s:"Jen doba, kdy chatu napájela solární baterie (přes měnič)", build:b=>detUse(b,"s")},
   use_r: {t:"🔋 Spotřeba z River", s:"Jen doba, kdy chatu (nebo něco) napájela River", build:b=>detUse(b,"r")},
   today: {t:"⚡ Dnes", s:"Výroba a spotřeba", build:detToday},
   health:{t:"❤️ Zdraví baterie", s:"Kapacita AGM baterie a hluboká vybití", ids:["s_health"]},

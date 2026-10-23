@@ -233,3 +233,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **4.78**: `tileRivers` – `onX` (River: `ef.online`, jinak zásuvka bez `off`/`miss`; generátor `w > 5`) → třída `on` (plné písmo, ●), `sel` = rámeček; CSS `.rtabs`. `rivState` bez párování River↔River. `batOutlook` → `cls` dlaždice Solární baterie (noční předpověď: `t_off` před `day_fc.end` bad, jinak warn; `t_crit`/`cut_by` warn; přes den `day_fc.ok === false` bad, `night_ok === false` warn). `tileProdSolar` `cls = na` při `pv < 1`.
 
 **4.83**: `read_ecoflow_app` pro všechna zařízení z `/device/list` (ne jen `qerr`); když aplikace vrátí `quotaMap`, smažou se hodnoty z vývojářského rozhraní (soc, in_w, out_w, …) a doplní z aplikace (`src = "app"`). Web `ecoProbeHtml` jen při `qerr`.
+
+**4.85 / Flip 1.7.5 Světla**: `readPlugOnce` – model `L…` → `get_device_info` (device_on → `on`), `get_device_usage` → `result.power_usage.today` → `wh` (jinak `nm`), `lt = 1`. Hlídač propouští `lt`; web `tileUse` řádek „kWh odhad · svítí / nesvítí“.

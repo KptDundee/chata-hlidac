@@ -2254,7 +2254,7 @@ def inv_from_msg(last, now, cfg=None):
                       "tm": int(inv.get("t") or 0) - int(x.get("age") or 0)} for x in th if isinstance(x, dict) and x.get("n")]
     tp = body.get("tp")
     if isinstance(tp, list):
-        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d") if p.get(k) is not None}
+        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d", "lt") if p.get(k) is not None}
                      for p in tp if isinstance(p, dict)][:16]
         # zásuvka se pozná podle čísla v první závorce jména („(3) (R) River…“), ne podle IP – i se starším Flipem
         import re as _re
