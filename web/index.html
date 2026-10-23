@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.83", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.84", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1936,7 +1936,8 @@ function rivState(x, h, M){
   // 4.82: zásuvka na výstupu River má proud jen když je zapnutý AC výstup River – chybějící zásuvka není chyba
   if(x.miss || x.off){
     if(x.ef && x.ef.online){ const iw0 = x.ef.in_w||0, ow0 = x.ef.out_w||0;
-      return iw0 > 20 ? `nabíjí se · ${nf(iw0)} W · AC výstup vypnutý` : ow0 > 20 ? `dodává ${nf(ow0)} W (mimo zásuvku)` : "zapnutá · AC výstup vypnutý"; }
+      const nz = `zásuvka (${x.id}) nečte`;     // 4.84: bez proudu, nebo ji Flip nevidí (nová adresa) – nerozlišíme
+      return iw0 > 20 ? `nabíjí se · ${nf(iw0)} W · ${nz}` : ow0 > 20 ? `dodává ${nf(ow0)} W · ${nz}` : `zapnutá · ${nz}`; }
     return "vypnutá";
   }
   const iw = x.ef ? x.ef.in_w||0 : 0, ow = x.ef ? x.ef.out_w||0 : 0;
