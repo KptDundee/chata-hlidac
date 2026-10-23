@@ -2568,7 +2568,8 @@ def read_ecoflow(data, st, now, topic, cfg):
     data["eco_err"] = None
     data["eco_seen"] = {"t": int(now.timestamp()), "host": host.replace("https://", ""),
                         "devs": [{"n": r.get("name"), "sn": str(r.get("sn", ""))[-4:], "on": r.get("online"),
-                                  "soc": r.get("soc"), "gen": bool(r.get("gen"))} for r in rivers]}
+                                  "soc": r.get("soc"), "gen": bool(r.get("gen")), "model": r.get("model"), "wh": r.get("wh"),
+                                  "qk": r.get("qk")} for r in rivers]}
     gens = [r for r in rivers if r.get("gen")]
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens
@@ -3276,7 +3277,7 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     if avg < 3:
         data.pop("river_sup", None)
         return
-    cap = cfg.get("river_Wh") or 768
+    cap = r.get("wh") or cfg.get("river_Wh") or 768                 # 4.62: kapacita podle modelu z EcoFlow
     res = cfg.get("river_rezerva_pct") or 5
     left = max(0.0, r["soc"] - res) / 100 * cap * 0.9          # 0,9 = ztráty měniče v River
     h = left / avg
@@ -3403,7 +3404,7 @@ def gen_sessions(data, st, now, topic, cfg):
             cur["wh"] = round(cur.get("wh_prev", 0.0) + max(0.0, dw - (cur.get("w0") or 0.0)), 1)
         for r in rivers:
             k = str(r.get("sn", ""))[-6:]
-            e = cur["rv"].setdefault(k, {"name": r.get("name"), "s0": r.get("soc")})
+            e = cur["rv"].setdefault(k, {"name": r.get("name"), "s0": r.get("soc"), "wh": r.get("wh")})
             e["s1"] = r.get("soc")
             if (r.get("in_w") or 0) > 20:
                 e["chg"] = True
@@ -3435,7 +3436,7 @@ def gen_sessions(data, st, now, topic, cfg):
         rv_txt, got = [], 0.0
         for v in rec["rv"].values():
             if v.get("s0") is not None and v.get("s1") is not None:
-                d_ = (v["s1"] - v["s0"]) / 100 * cap
+                d_ = (v["s1"] - v["s0"]) / 100 * (v.get("wh") or cap)
                 got += max(0.0, d_)
                 rv_txt.append(f"{v.get('name') or 'River'} {fmt(v['s0'])} → {fmt(v['s1'])} % (+{fmt(d_ / 1000, 2)} kWh)")
         dur = (rec["t1"] - rec["t0"]) / 3600

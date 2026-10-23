@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.61", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.62", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1400,7 +1400,7 @@ function tileRiver(d, h){
 /* generátor: běžící běh (gen_cur) nebo poslední běh (gen_log) – vidět i po vypnutí zásuvky */
 function genSummary(r, cap){
   const rv = Object.values(r.rv||{}).filter(v=>v.s0!=null && v.s1!=null);
-  const got = rv.reduce((s,v)=>s+Math.max(0,(v.s1-v.s0)/100*cap),0);
+  const got = rv.reduce((s,v)=>s+Math.max(0,(v.s1-v.s0)/100*(v.wh||cap)),0);   // 4.62: kapacita každé River podle modelu
   return {rv, got, txt: rv.map(v=>`${v.name||"River"} ${nf(v.s0)} → ${nf(v.s1)} %`).join(" · "),
     eff: r.wh && got > 0 ? Math.round(got/r.wh*100) : null};
 }
@@ -1836,7 +1836,7 @@ function rivColor(name, i){
 }
 function rivModel(d, h){
   const U = useModel(d), names = d.plug_names || {}, live = h.invF ? (h.inv.tp||[]) : [];
-  const ef = d.rivers || [], efFresh = h.now - (d.rivers_t||0) < 3600, norm = x => String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const ef = d.rivers || [], efFresh = h.now - (d.rivers_t||0) < 3600, norm = x => String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");   // 4.62: bez diakritiky (Žlutá = zluta)
   const cols = ["--s1","--s3","--s5"];
   const R = U.rids.map((id, i) => {
     const p = live.find(x=>x.ip===id) || {}, nm = pn(names[id] || p.n) || `River ${i+1}`;
@@ -1947,7 +1947,7 @@ function detRiver(body){
   { const es = d.eco_seen, ee = d.eco_err;   // 4.59: co vidí EcoFlow API (diagnostika spárování)
     html += `<div class="card"><h2 style="margin:0 0 6px">EcoFlow – připojení</h2><div style="font-size:13.5px;line-height:1.55">`
       + (ee ? `<div style="color:var(--crit)">Chyba ${relDay(ee.t)} ${hmT(ee.t)}: ${escH(ee.msg)}</div>` : "")
-      + (es ? `<div class="sub">Naposledy přečteno ${relDay(es.t)} ${hmT(es.t)} (${es.host}) – zařízení na účtu:</div>` + (es.devs.length ? es.devs.map(x=>`<div>• <b>${escH(x.n||"?")}</b> · SN …${x.sn} · ${x.on ? "online" : "offline"}${x.soc!=null ? ` · ${nf(x.soc)} %` : ""}</div>`).join("") : `<div>žádná zařízení</div>`)
+      + (es ? `<div class="sub">Naposledy přečteno ${relDay(es.t)} ${hmT(es.t)} (${es.host}) – zařízení na účtu:</div>` + (es.devs.length ? es.devs.map(x=>`<div>• <b>${escH(x.n||"?")}</b>${x.model?` <span class="sub">(${escH(x.model)}${x.wh?`, ${x.wh} Wh`:""})</span>`:""} · SN …${x.sn} · ${x.on ? "online" : "offline"}${x.soc!=null ? ` · ${nf(x.soc)} %` : ""}${x.qk ? `<div class="sub" style="font-size:11.5px;word-break:break-all">% zatím neumím přečíst – údaje: ${escH(Object.entries(x.qk).map(([k,v])=>k+"="+v).join(", "))}</div>` : ""}</div>`).join("") : `<div>žádná zařízení</div>`)
             + `<div class="sub" style="margin-top:4px">Spárování se zásuvkami: ${(()=>{ const M = rivModel(d, homeData(d)); return M.R.map(r=>`(${r.id}) ${escH(r.short)} → ${r.sn ? "SN …"+r.sn.slice(-4) : "nespárováno"}`).join(" · "); })()}.<br>Když nesedí, v Nastavení vyplň <b>Spárování River s EcoFlow</b>: <code>číslo zásuvky:konec SN</code>, např. <code>2:AB12, 3:CD34, 6:EF56</code>.</div>`
         : (ee ? "" : `<div class="sub">Zatím žádné čtení.</div>`)) + `</div></div>`; }
   html += `<div class="card"><h2 style="margin:0 0 6px">Výklad</h2><div class="sub" style="line-height:1.55">

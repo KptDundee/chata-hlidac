@@ -27,6 +27,11 @@ KEYS = {
 }
 
 
+# 4.62: kapacita podle modelu (Wh) – River 2 Pro 768, ostatní menší
+MODEL_WH = (("river 2 pro", 768), ("river 2 max", 512), ("river 2", 256), ("river 3 plus", 286), ("river 3", 245),
+            ("river pro", 720), ("river max", 576), ("river mini", 210))
+
+
 def _sign(ak, sk, params):
     nonce, ts = str(random.randint(100000, 999999)), str(int(time.time() * 1000))
     base = "&".join(f"{k}={params[k]}" for k in sorted(params))
@@ -60,7 +65,9 @@ def read_rivers(ak, sk, host_hint=None):
     for dv in devs:
         sn = dv.get("sn")
         r = {"sn": sn, "name": dv.get("deviceName") or dv.get("productName") or sn,
-             "online": bool(dv.get("online"))}
+             "online": bool(dv.get("online")), "model": dv.get("productName")}
+        pm = str(dv.get("productName") or "").lower()
+        r["wh"] = next((w for m, w in MODEL_WH if m in pm), None)
         try:
             q = _get(host, "/iot-open/sign/device/quota/all", ak, sk, {"sn": sn}) or {}
         except Exception as e:
@@ -86,5 +93,10 @@ def read_rivers(ak, sk, host_hint=None):
                     except (TypeError, ValueError):
                         pass
                     break
+        if r.get("soc") is None and not r.get("gen") and q:          # 4.62: neznámé klíče (jiný model) → poslat výběr na web
+            r["qk"] = {k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and
+                       any(x in k.lower() for x in ("soc", "batt", "watt", "remain", "cap"))}
+            if len(r["qk"]) > 25:
+                r["qk"] = dict(list(r["qk"].items())[:25])
         out.append(r)
     return host, out
