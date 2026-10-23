@@ -3737,6 +3737,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gs.update({"btn": ts0, "first": None, "idle": None, "t_on": ts0, "active": True, "idle_warned": False, "ever": False,
                    "restart": True})
         gs.pop("stop", None)
+        for k_ in ("con", "low", "chg_t"):
+            gs.pop(k_, None)
         log("ev", f"Nabíjení z generátoru: spuštěno tlačítkem ({'plyn' if str(cfg.get('gen_palivo')).startswith(('lpg', 'plyn')) else 'benzín'})")
     elif cmd == "stop" and gs.get("active"):
         gs["stop"] = True
@@ -3800,7 +3802,24 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         g = (inv.get("gen") or {}) if inv and tnow - inv.get("t", 0) < 600 else {}
         ctl = [r for r in rivers if r.get("online") and r.get("soc") is not None and ctl_ok(r)]
         small = next((r for r in rivers if is_small(r) and r.get("online") and r.get("in_w") is not None), None)
-        con = [r for r in ctl if acw(r) > 20]
+        # 4.94: kdo se nabíjí – stabilně. Po změně výkonu River chvíli „náběh“ (příjem na chvíli ~0) → dřív vypadla
+        # z výpočtu, druhá dostala všechno, pak zase naopak (kolísání; jedna naplno, druhá 150 W). Teď River vypadne
+        # až když je plná (≥ 99 %), nebo nebere nic aspoň 2 min.
+        low = gs.setdefault("low", {})
+        insess = gs.setdefault("con", [])
+        for r in ctl:
+            if acw(r) > 20:
+                low.pop(r["sn"], None)
+                if r["sn"] not in insess:
+                    insess.append(r["sn"])
+            else:
+                low.setdefault(r["sn"], tnow)
+        for sn in list(insess):
+            rr = byid(sn)
+            if not rr or (rr.get("soc") or 0) >= 99 or (sn in low and tnow - low[sn] >= 120) or not rr.get("online"):
+                insess.remove(sn)
+                low.pop(sn, None)
+        con = [r for r in ctl if r["sn"] in insess]
         con_in = sum(acw(r) for r in con)
         gd = next((x.get("gd") for x in gens if x.get("gd")), None) or {}
         gw = g.get("w") if g.get("w") is not None else gd.get("w")
@@ -3811,7 +3830,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         charging = bool(con) or small_w > 0 or (gw or 0) > 20
         out = []
         # River, která se přestala nabíjet (plná / odpojená) → hned zpět na bezpečný výkon
-        idle_pros = {r["sn"]: safe_of(r) for r in ctl if acw(r) <= 20 and sets.get(r["sn"]) not in (None, safe_of(r))}
+        idle_pros = {r["sn"]: safe_of(r) for r in ctl if r["sn"] not in insess and sets.get(r["sn"]) not in (None, safe_of(r))}
         if idle_pros:
             out += apply(idle_pros)
         if not gs.get("active") and charging:              # relace sama (bez tlačítka) – River se nabíjejí
@@ -3833,7 +3852,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             gm = float(gm) if gm is not None else None
         except (TypeError, ValueError):
             gm = None
-        gmax_eff = min(gmax, gm) if gm and 1000 <= gm <= 2500 else gmax
+        gmax_eff = min(gmax, gm) if gm and 1400 <= gm <= 2500 else gmax     # 4.94: jen věrohodná hodnota
         budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0)
         avail = max(0.0, budget_eff - small_w)
         need = {r["sn"]: max(0.0, (100 - r["soc"]) / 100 * (r.get("wh") or 768)) for r in con}
@@ -3858,7 +3877,19 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 plan = {sn: (min(rng(byid(sn))[1], max(rng(byid(sn))[0], avail - mins)) if sn == keep
                              else rng(byid(sn))[0]) for sn in plan}
             plan = {sn: int(round(w / 10) * 10) for sn, w in plan.items()}
-            out += apply(plan)
+            # 4.94: neměnit pořád – River ke změně nejdřív 60 s po poslední změně a jen o ≥ 50 W
+            # (snížení vždy hned, ať se generátor nepřetíží)
+            chg_t = gs.setdefault("chg_t", {})
+            plan_go = {}
+            for sn, w in plan.items():
+                cur = sets.get(sn)
+                if cur is None or w < cur - 20 or (abs(w - cur) >= 50 and tnow - chg_t.get(sn, 0) >= 60):
+                    plan_go[sn] = w
+            res_ = apply(plan_go)
+            for sn in plan_go:
+                if sets.get(sn) == plan_go[sn]:
+                    chg_t[sn] = tnow
+            out += res_
         rv, fins = [], []
         for r in con:
             w = sets.get(r["sn"]) or plan.get(r["sn"])
@@ -3884,7 +3915,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 gs["idle_warned"] = True
             log("ev", "Nabíjení z generátoru: konec" + (f" – {', '.join(out2)}" if out2 else ""))
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t"):
                 gs.pop(k, None)
             return False
         return True
