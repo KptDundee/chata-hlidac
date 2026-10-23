@@ -3818,6 +3818,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             gs["first"] = gs.get("first") or tnow
         else:
             gs["idle"] = gs.get("idle") or tnow
+            gs["first"] = None                         # 4.89: po výpadku (došlo palivo) zase 30 s na klidových výkonech
         plan = {}
         avail = max(0.0, budget - small_w)
         need = {r["sn"]: max(0.0, (100 - r["soc"]) / 100 * (r.get("wh") or 768)) for r in con}
@@ -3891,6 +3892,24 @@ def gen_charge_ctl(data, st, now, topic, cfg):
     # smyčka po 30 s (jen během relace) – v jednom běhu hlídače nejvýš ~3 min, pak další běh spustí hlídač sám
     while go and time.time() - t_start < 180:
         time.sleep(30)
+        try:                                           # 4.89: nastavení (palivo!) změněné na webu během běhu
+            import subprocess
+            subprocess.run(["git", "fetch", "-q", "origin", "main", "--depth", "1"], timeout=20, check=True)
+            txt = subprocess.run(["git", "show", "origin/main:" + CONFIG_FILE], capture_output=True, text=True, timeout=10).stdout
+            if txt:
+                import tempfile
+                tmp = os.path.join(tempfile.gettempdir(), "nastaveni_nove.txt")
+                open(tmp, "w", encoding="utf-8").write(txt)
+                c2 = load_config(tmp)
+                for k in ("gen_palivo", "gen_max_benzin_W", "gen_max_lpg_W", "gen_rezerva_W", "gen_rizeni"):
+                    if c2.get(k) != cfg.get(k):
+                        log("ev", f"Nastavení během nabíjení: {k} = {c2.get(k)}")
+                        cfg[k] = c2.get(k)
+                fuel = "lpg" if str(cfg.get("gen_palivo") or "").lower().startswith(("lpg", "plyn")) else "benzin"
+                gmax = cfg.get("gen_max_lpg_W" if fuel == "lpg" else "gen_max_benzin_W") or (1600 if fuel == "lpg" else 1800)
+                budget = gmax - (cfg.get("gen_rezerva_W") or 0)
+        except Exception as e:
+            print("Nastavení – načtení během smyčky:", e)
         try:
             read_ecoflow_app((data.get("rivers") or []) + (data.get("ef_gens") or []), data, st, datetime.now(TZ), force=True)
         except Exception as e:

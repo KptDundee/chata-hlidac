@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.89 – 23. 10. 2026
+- Nabíjení z generátoru: když generátoru dojde palivo (nabíjení se zastaví), River hned dostanou klidové výkony a po novém startu se zase 30 s čeká, než hlídač nastaví vypočítané. Změna paliva v Nastavení (benzín → plyn) platí i během běžícího nabíjení (hlídač si nastavení načítá každých 30 s).
+
 ## 4.88 – 23. 10. 2026
 - Nabíjení z generátoru řídí i malou River (přes přihlášení aplikace EcoFlow, MQTT „acChgCfg“, 100–360 W): dostane podíl podle toho, kolik jí chybí, aby skončila se všemi zároveň; mimo nabíjení 100 W (Nastavení → Generátor → Klidový výkon malé River). Velké dál přes vývojářské rozhraní.
 - Hlídač čte skutečně nastavený nabíjecí výkon z River (mppt.cfgChgWatts, přes aplikaci) – když ho někdo změní v aplikaci EcoFlow, mimo nabíjení ho vrátí na klidový.
