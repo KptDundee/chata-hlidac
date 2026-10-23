@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.90", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.91", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1718,7 +1718,12 @@ function genPlanHtml(d){
   const gmax = fuel==="lpg" ? (c.gen_max_lpg_W ?? 1600) : (c.gen_max_benzin_W ?? 1800), fl = fuel==="lpg" ? "plyn (LPG)" : "benzín";
   if(c.gen_rizeni === false) return `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2><span class="sub">Řízení je vypnuté (Nastavení → Generátor).</span></div>`;
   const run = P && !P.end && Date.now()/1000 - P.t < 900;
-  const btn = `<button class="genbtn" onclick="genCmd('${run?"stop":"start"}', this)" style="font:inherit;font-weight:700;width:100%;padding:12px;margin:6px 0 4px;border-radius:12px;border:1px solid ${run?"var(--line)":"var(--good)"};background:${run?"transparent":"color-mix(in srgb,var(--good) 18%,transparent)"};color:var(--text);cursor:pointer">${run ? "⏹ Ukončit nabíjení z generátoru" : "⛽ Spustit nabíjení z generátoru"}</button>`;
+  const B = (cmd, txt, main) => `<button onclick="genCmd('${cmd}', this)" style="font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;border:1px solid ${main?"var(--good)":"var(--line)"};background:${main?"color-mix(in srgb,var(--good) 18%,transparent)":"transparent"};color:var(--text);cursor:pointer">${txt}</button>`;
+  // 4.91: palivo se vybírá rovnou tlačítkem (zapíše se do nastavení a hlídač ho načte i během nabíjení)
+  const btn = `<div style="display:flex;gap:8px;margin:6px 0 4px">` + (run
+    ? B(fuel==="lpg" ? "fuel:benzin" : "fuel:lpg", fuel==="lpg" ? "⛽ Přepnout na benzín" : "🔥 Přepnout na plyn", false) + B("stop", "⏹ Ukončit", false)
+    : B("start:benzin", "⛽ Spustit – benzín", fuel!=="lpg") + B("start:lpg", "🔥 Spustit – plyn", fuel==="lpg")) + `</div>`
+    + (run ? `<div class="sub">Jede na: <b>${fl}</b> (max ${nf(gmax)} W)</div>` : "");
   let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}`;
   if(run){
     h += (P.wait ? `<div class="sub" style="margin:4px 0">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
@@ -1735,19 +1740,35 @@ function genPlanHtml(d){
   h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${nf(c.gen_po_behu_W ?? 200)} W a malá ${nf(c.gen_mala_po_behu_W ?? 100)} W, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${nf(gmax)} W − rezerva ${nf(c.gen_rezerva_W ?? 100)} W − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná, vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
   return h;
 }
-/* 4.87: tlačítko start / konec nabíjení z generátoru → spustí hlídače (GitHub) s povelem */
+/* 4.87 / 4.91: tlačítka nabíjení z generátoru. „start:benzin“ / „start:lpg“ = zapsat palivo do nastavení + spustit,
+   „fuel:…“ = jen změnit palivo (hlídač ho načte do 30 s i během nabíjení), „stop“ = ukončit. */
+async function setCfgKey(tok, key, val){
+  const r = await fetch(GH+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+  if(!r.ok) throw new Error("Nastavení nejde načíst ("+r.status+")");
+  const j = await r.json(), txt = utf8b64.dec(j.content), re = new RegExp("^("+key+"\\s*=\\s*)([^#\\n]*?)(\\s*#.*)?$","m");
+  if(re.test(txt) && (parseCfg(txt)[key]||"") === val) return;
+  const nt = re.test(txt) ? txt.replace(re, (m,a,b,c)=>a+val+(c||"")) : txt.replace(/\n?$/,"\n")+`${key} = ${val}\n`;
+  const w = await fetch(GH,{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
+    body:JSON.stringify({message:`Nastavení: ${key} = ${val} (tlačítko generátoru)`, content:utf8b64.enc(nt), sha:j.sha, branch:"main"})});
+  if(!w.ok) throw new Error("Nastavení nejde uložit ("+w.status+")");
+  if(DATA && DATA.cfg) DATA.cfg[key] = val;
+}
 async function genCmd(cmd, el){
   const tok = store.get("ghtok");
   if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
-  if(el){ el.disabled = true; el.textContent = cmd==="start" ? "Spouštím… (do 1 min)" : "Ukončuji…"; }
+  const [c0, fuel] = cmd.split(":");
+  if(el){ el.disabled = true; el.textContent = c0==="start" ? "Spouštím…" : c0==="fuel" ? "Přepínám…" : "Ukončuji…"; }
   try{
-    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{
-      method:"POST", headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"},
-      body:JSON.stringify({ref:"main",inputs:{test:false,wake:true,gen:cmd}})});
-    if(r.status===401||r.status===403||r.status===404){store.del("ghtok");throw new Error("Token nefunguje – zadej ho znovu.");}
-    if(!r.ok) throw new Error("GitHub odpověděl "+r.status);
-    if(el) el.textContent = cmd==="start" ? "✓ Spuštěno – nastartuj generátor" : "✓ Ukončeno";
-    setTimeout(()=>{ try{ triggerLive(); }catch(e){} }, 1500);
+    if(fuel) await setCfgKey(tok, "gen_palivo", fuel);
+    if(c0 !== "fuel"){
+      const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{
+        method:"POST", headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"},
+        body:JSON.stringify({ref:"main",inputs:{test:false,wake:true,gen:cmd}})});
+      if(r.status===401||r.status===403||r.status===404){store.del("ghtok");throw new Error("Token nefunguje – zadej ho znovu.");}
+      if(!r.ok) throw new Error("GitHub odpověděl "+r.status);
+    }
+    if(el) el.textContent = c0==="start" ? "✓ Spuštěno – nastartuj generátor" : c0==="fuel" ? `✓ ${fuel==="lpg"?"Plyn":"Benzín"} – platí do 30 s` : "✓ Ukončeno";
+    if(c0 !== "fuel") setTimeout(()=>{ try{ triggerLive(); }catch(e){} }, 1500);
   }catch(e){ if(el){ el.disabled = false; el.textContent = e.message; } }
 }
 const escH = t => String(t).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));

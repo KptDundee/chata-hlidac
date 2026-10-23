@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.91 – 23. 10. 2026
+- Nabíjení z generátoru: palivo rovnou tlačítkem – „⛽ Spustit – benzín“ / „🔥 Spustit – plyn“ (zapíše palivo do nastavení a spustí). Během nabíjení „Přepnout na plyn / benzín“ (platí do 30 s) a „⏹ Ukončit“.
+
 ## 4.90 – 23. 10. 2026
 - Nabíjení z generátoru: max. výkon i podle generátoru – generátor přes aplikaci EcoFlow hlásí pd.oilMaxOutPower (nejspíš max podle zvoleného paliva). Bere se menší z nastavení a hlášení generátoru, takže při zapomenutém přepnutí na plyn se nepřetíží (pokud údaj opravdu odpovídá palivu – ověří se při prvním běhu, pak půjde ruční přepínání zrušit). Karta ukazuje „generátor hlásí max … W“.
 

@@ -3728,6 +3728,10 @@ def gen_charge_ctl(data, st, now, topic, cfg):
     gs = st.setdefault("gen_ctl", {})
     sets = gs.setdefault("w", {})                       # co hlídač naposledy nastavil (SN → W)
     cmd = os.environ.get("GEN_CMD", "").strip().lower()
+    if ":" in cmd:                                       # 4.91: „start:lpg“ – palivo rovnou z tlačítka
+        cmd, f_ = cmd.split(":", 1)
+        if f_ in ("lpg", "plyn", "benzin"):
+            cfg["gen_palivo"] = f_
     ts0 = int(now.timestamp())
     if cmd == "start":
         gs.update({"btn": ts0, "first": None, "idle": None, "t_on": ts0, "active": True, "idle_warned": False})
