@@ -47,15 +47,15 @@ def _get(host, path, ak, sk, params=None):
 
 def read_rivers(ak, sk, host_hint=None):
     """Vrátí (host, [ {sn, name, online, soc, in_w, out_w, ...}, ... ])."""
-    err = None
+    errs = []
     for host in ([host_hint] if host_hint else []) + [h for h in HOSTS if h != host_hint]:
         try:
             devs = _get(host, "/iot-open/sign/device/list", ak, sk) or []
             break
         except Exception as e:  # špatný region => zkusit druhý
-            err = e
+            errs.append(f"{host.replace('https://', '')}: {e}")
     else:
-        raise RuntimeError(f"EcoFlow nedostupný: {err}")
+        raise RuntimeError("EcoFlow nedostupný – " + " | ".join(errs))   # 4.60: chyby z obou oblastí
     out = []
     for dv in devs:
         sn = dv.get("sn")
