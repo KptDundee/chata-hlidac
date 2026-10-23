@@ -67,7 +67,13 @@ public final class TapoScan {
      */
     public static Map<String, JSONObject> scan(Context c, String email, String pass) { return scan(c, email, pass, false); }
 
-    public static Map<String, JSONObject> scan(Context c, String email, String pass, boolean quiet) {
+    public static Map<String, JSONObject> scan(Context c, String email, String pass, boolean quiet) { return scan(c, email, pass, quiet, null); }
+
+    /** Zásuvky, které odmítly přihlášení (401) – při rychlém hledání je hodinu nezkoušet znovu. */
+    private static final Map<String, Long> refused = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** @param skip adresy, na které se nepřihlašovat (fungující zásuvky z tohoto měření); null = plné hledání */
+    public static Map<String, JSONObject> scan(Context c, String email, String pass, boolean quiet, java.util.Set<String> skip) {
         Map<String, JSONObject> found = Collections.synchronizedMap(new TreeMap<>());
         java.util.concurrent.atomic.AtomicInteger open = new java.util.concurrent.atomic.AtomicInteger();
         List<String> errs = Collections.synchronizedList(new ArrayList<>());
@@ -83,6 +89,9 @@ public final class TapoScan {
                         return;
                     }
                     open.incrementAndGet();
+                    if (skip != null && skip.contains(ip)) return;
+                    Long rf = refused.get(ip);
+                    if (skip != null && rf != null && System.currentTimeMillis() - rf < 3600_000L) return;
                     try {
                         TapoKlap t = new TapoKlap(ip, email, pass);
                         JSONObject info = new JSONObject(t.call("get_device_info")).optJSONObject("result");
@@ -90,8 +99,10 @@ public final class TapoScan {
                         String nick = info.optString("nickname", "");
                         try { nick = new String(Base64.decode(nick, Base64.DEFAULT), StandardCharsets.UTF_8); } catch (Exception ignored) { }
                         String id = idFromName(nick);
+                        boolean named = id != null;
                         if (id == null) id = ip.substring(ip.lastIndexOf('.') + 1);
                         JSONObject o = new JSONObject();
+                        o.put("named", named);
                         o.put("ip", ip);
                         o.put("nick", nick);
                         o.put("model", info.optString("model", ""));
@@ -99,6 +110,7 @@ public final class TapoScan {
                     } catch (Exception e) {
                         String m = String.valueOf(e.getMessage());
                         String oct = ip.substring(ip.lastIndexOf('.') + 1);
+                        if (m.contains("401")) refused.put(ip, System.currentTimeMillis());
                         if (errs.size() < 3) errs.add(m.contains("401") ? "zásuvka na ." + oct + " odmítá přihlášení (401) – číslo nejde zjistit, v aplikaci Tapo zapni „Kompatibilita s třetími stranami“"
                                                                      : "." + oct + ": " + m);
                     }

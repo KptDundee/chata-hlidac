@@ -101,10 +101,21 @@ public final class Collector {
             if (!email.isEmpty()) applyCommands(email, pass);
             if (!email.isEmpty()) {
                 Map<String, String> map = plugMap(email, pass);            // číslo zásuvky → IP (hledá se v síti)
-                java.util.LinkedHashSet<String> ipsAll = new java.util.LinkedHashSet<>(map.values());
-                if (map.isEmpty()) ipsAll.addAll(Prefs.tapoIps(ctx));       // ruční adresy jen když hledání nic nenašlo
                 boolean missing = false;
                 Map<String, String> idIp = new HashMap<>();
+                // 1.7.4: dva průchody – když některá známá zásuvka na své adrese neodpovídá (River / generátor /
+                // nabíjení se zapnou a dostanou novou IP), hned v tomtéž měření se prohledá síť (jen nové adresy,
+                // podle čísla ve jméně) a zásuvky se přečtou znovu na nových adresách
+                for (int pass_ = 0; pass_ < 2; pass_++) {
+                if (pass_ == 1) {
+                    if (!missing || map.isEmpty()) break;
+                    java.util.Set<String> okIps = new java.util.HashSet<>();
+                    for (String ip0 : map.values()) if (!offIps.contains(ip0)) okIps.add(ip0);
+                    if (!remap(email, pass, map, okIps)) break;              // nic se nepřestěhovalo
+                    plugs = new JSONArray(); ok = 0; total = 0; off = 0; missing = false; idIp.clear();
+                }
+                java.util.LinkedHashSet<String> ipsAll = new java.util.LinkedHashSet<>(map.values());
+                if (map.isEmpty()) ipsAll.addAll(Prefs.tapoIps(ctx));       // ruční adresy jen když hledání nic nenašlo
                 for (String ip : ipsAll) {
                     total++;
                     JSONObject p = readPlug(ip, email, pass);
@@ -142,20 +153,17 @@ public final class Collector {
                         if (onSince.containsKey(ip)) { p.put("since", onSince.get(ip) / 1000); lastGood.put(ip, p); }
                     }
                 }
-                if (missing || (ok == 0 && total > 0)) Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
+                }                                                            // konec průchodů (1.7.4)
+                if (ok == 0 && total > 0) Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
                 // 1.7.3: generátor – dokud jeho zásuvka bere proud, měřit a posílat každé 2 min (hlídač hned řídí
-                // nabíjení River); když zásuvka chybí, hledat ji v síti při každém měření (po startu generátoru
-                // může mít jinou adresu)
-                boolean genOn = false, genSeen = false;
+                // nabíjení River)
+                boolean genOn = false;
                 for (int k = 0; k < plugs.length(); k++) {
                     JSONObject p = plugs.optJSONObject(k);
                     if (p == null || !GEN_PLUG.equals(p.optString("ip"))) continue;
-                    genSeen = true;
                     if (!p.has("off") && !p.has("err") && p.optDouble("w", 0) > 5) genOn = true;
                 }
-                android.content.SharedPreferences.Editor ed = Prefs.get(ctx).edit();
-                if (genOn) ed.putLong("fast_until", System.currentTimeMillis() + 5 * 60_000L);
-                ed.putBoolean("gen_missing", !genOn && map.containsKey(GEN_PLUG) && (!genSeen || offIps.contains(map.get(GEN_PLUG)))).apply();
+                if (genOn) Prefs.get(ctx).edit().putLong("fast_until", System.currentTimeMillis() + 5 * 60_000L).apply();
                 // historie ze zásuvky (hodinová energie za 7 dní): jednou denně a hned, když se zásuvka znovu objeví
                 sendPlugHistories(email, pass, plugs, idIp);
                 if (plugs.length() > 0) o.put("tp", plugs);
@@ -247,6 +255,38 @@ public final class Collector {
             Prefs.log(ctx, m);
             return m;
         }
+    }
+
+    /**
+     * 1.7.4: rychlé dohledání přestěhovaných zásuvek – prohledá síť, přihlásí se jen na adresy, které teď nepatří
+     * žádné fungující zásuvce, a podle čísla ve jméně („(7) …“) přepíše mapu. Vrací true, když se něco přestěhovalo.
+     */
+    private boolean remap(String email, String pass, Map<String, String> map, java.util.Set<String> okIps) {
+        Map<String, JSONObject> found = TapoScan.scan(ctx, email, pass, true, okIps);
+        if (found.isEmpty()) return false;
+        android.content.SharedPreferences sp = Prefs.get(ctx);
+        JSONObject j;
+        try { j = new JSONObject(sp.getString("tapo_map", "{}")); } catch (Exception e) { j = new JSONObject(); }
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, JSONObject> en : found.entrySet()) {
+            String id = en.getKey(), ip = en.getValue().optString("ip"), old = map.get(id);
+            if (ip.equals(old)) continue;
+            if (!en.getValue().optBoolean("named")) continue;         // zásuvka bez čísla ve jméně – podle adresy, nechat na plné hledání
+            try { j.put(id, en.getValue()); } catch (Exception ignored) { }
+            map.put(id, ip);
+            names.remove(ip);
+            if (old != null) {                                        // přenést stav „vypnutá od…“ na novou adresu
+                if (offIps.remove(old)) offIps.add(ip);
+                Long g = goneAt.remove(old); if (g != null) goneAt.put(ip, g);
+                JSONObject lg = lastGood.remove(old); if (lg != null) lastGood.put(ip, lg);
+                tapo.remove(old);
+            }
+            sb.append(sb.length() > 0 ? ", " : "").append("(").append(id).append(") → .").append(ip.substring(ip.lastIndexOf('.') + 1));
+        }
+        if (sb.length() == 0) return false;
+        sp.edit().putString("tapo_map", j.toString()).apply();
+        Prefs.log(ctx, "Zásuvky na nové adrese: " + sb);
+        return true;
     }
 
     /** Čtení zásuvky; když zásuvka zrušila relaci (HTTP 403/401), jednou hned znovu s novým přihlášením. */
@@ -373,12 +413,12 @@ public final class Collector {
             for (java.util.Iterator<String> it = j.keys(); it.hasNext(); ) { String k = it.next(); m.put(k, j.getJSONObject(k).optString("ip")); }
         } catch (Exception ignored) { }
         long age = System.currentTimeMillis() - sp.getLong("tapo_scan_t", 0);
-        boolean genMiss = sp.getBoolean("gen_missing", false), force = sp.getBoolean("tapo_force", false);
+        boolean force = sp.getBoolean("tapo_force", false);
         boolean want = force || (m.isEmpty() ? age > 3 * 60_000L : age > 6 * 3600_000L
-                || (sp.getBoolean("tapo_rescan", false) && age > (genMiss ? 8 * 60_000L : 30 * 60_000L)));
+                || (sp.getBoolean("tapo_rescan", false) && age > 30 * 60_000L));
         if (force) sp.edit().putBoolean("tapo_force", false).apply();
         if (!want) return m;
-        boolean quiet = genMiss && !force && age < 6 * 3600_000L;   // časté hledání generátoru nezapisovat, dokud nic nenajde
+        boolean quiet = false;
         Map<String, JSONObject> found = TapoScan.scan(ctx, email, pass, quiet);
         tapo.clear();                                            // hledání se přihlásilo znovu → staré relace zásuvky zrušila (HTTP 403)
         sp.edit().putLong("tapo_scan_t", System.currentTimeMillis()).putBoolean("tapo_rescan", false).apply();
