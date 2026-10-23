@@ -3700,12 +3700,19 @@ def plug_watch(data, st, now, topic, cfg):
     pw["t"] = inv.get("t")
     mip = str(cfg.get("zasuvka_menic") or inv.get("mip") or "1")
     inv_on = str(inv.get("st") or "").upper() == "INVERTING"
+    # 5.03: chata jede z River (zásuvka na výstupu River bere) → zásuvka měniče je odpojená přepínačem, to je v pořádku
+    rids = ips(cfg.get("zasuvky_river"))
+    on_river = any(str(p.get("ip")) in rids and (p.get("w") or 0) > 3 for p in inv.get("tp") or [])
+    if on_river:
+        inv_on = False
     miss = []
     for i in ids_:
         p = by.get(i)
         bad = p is None or p.get("off") or p.get("gone") or p.get("err") is not None
         if i == mip and not inv_on:
             bad = False                                # měnič vypnutý / chata na River → zásuvka měniče bez proudu
+            if pw.get(i, {}).get("warned"):            # 5.03: rozběhnuté upozornění tiše zrušit (bez „je zase vidět“)
+                pw[i] = {}
         e = pw.setdefault(i, {})
         if not bad:
             if e.get("warned"):

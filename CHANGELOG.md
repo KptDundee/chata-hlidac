@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.03 – 23. 10. 2026
+- Upozornění „(1) 220 měnič není vidět“ i když chata jede z River: měnič hlásil „běží“, ale zásuvka (1) je při chatě na River odpojená přepínačem. Teď se zásuvka měniče nehlídá, když některá zásuvka na výstupu River bere proud (chata na River).
+
 ## 5.02 – 23. 10. 2026
 - Upozornění „Flip se nenabíjí“ nesmyslně ve 22:34 při 82 %: Flip nabíjení řídí hlídač zásuvkou (9) a nad 80 % ho schválně nenabíjí. Teď se upozorňuje jen když řízení nejde (zásuvka (9) není vidět, řízení vypnuté) nebo Flip i tak klesne pod 18 %. Ranní „Než odjedeš“ jen 2 h od času ranní kontroly, ne kdykoli později během dne.
 
