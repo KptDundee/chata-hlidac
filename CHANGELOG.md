@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.68 – 23. 10. 2026
+- Nabíjení z generátoru (krok 1 – bez dat z generátoru): hlídač při běhu generátoru nastavuje nabíjecí výkon velkých River (River 2 Pro přes EcoFlow) tak, aby se nabily zároveň a generátor jel naplno = co nejkratší běh. K dispozici = max. generátoru podle paliva (benzín 1800 W / plyn 1600 W ze štítku) − rezerva 100 W − co bere malá River (zásuvka generátoru − příjem velkých). Rozdělení podle toho, kolik které chybí do 100 %, 200–940 W na River; nejdřív se snižuje, pak zvyšuje. Po běhu nastaví velkým 650 W, ať příští start nepřetíží generátor. Upozornění „Generátor běží naprázdno – vypni ho“, když je zásuvka generátoru pod proudem a nic nebere.
+- Web: karta „Nabíjení z generátoru“ (detail EcoFlow i Generátor) – výkon generátoru, malá River, nastavení každé River, kdy bude plná a kdy generátor vypnout. Nastavení → Generátor: řízení, palivo, max. výkony, rezerva, výkon po běhu.
+- EcoFlow zkouška (4.67) potvrdila: generátor a malá River i při zapnutí 1006, MQTT od nich nic – údaje přes vývojářské rozhraní nedávají.
+
 ## 4.67 – 23. 10. 2026
 - EcoFlow: u generátoru a malé River (chyba 1006 u „všech údajů“) hlídač zkouší jiné cesty – vybrané údaje (POST /device/quota: palivo pd.oilVal, typ pd.type, výkon, max. výkon pd.oilMaxOutPower …) na obou serverech EcoFlow a 35 s poslech MQTT (oficiální certifikát pro vývojáře). Spouští se při ručním spuštění a sám, když je generátor online (nejvýš 1× za 30 min, generátor rychle usíná). Výsledek v kartě „EcoFlow – připojení“ pod zařízením („zkouška …“).
 
