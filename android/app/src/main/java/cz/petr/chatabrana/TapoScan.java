@@ -65,7 +65,9 @@ public final class TapoScan {
      * Prohledá podsítě: rychlý test portu 80, pak přihlášení KLAP a get_device_info.
      * @return mapa „číslo zásuvky“ → {ip, nick, model}
      */
-    public static Map<String, JSONObject> scan(Context c, String email, String pass) {
+    public static Map<String, JSONObject> scan(Context c, String email, String pass) { return scan(c, email, pass, false); }
+
+    public static Map<String, JSONObject> scan(Context c, String email, String pass, boolean quiet) {
         Map<String, JSONObject> found = Collections.synchronizedMap(new TreeMap<>());
         java.util.concurrent.atomic.AtomicInteger open = new java.util.concurrent.atomic.AtomicInteger();
         List<String> errs = Collections.synchronizedList(new ArrayList<>());
@@ -105,7 +107,7 @@ public final class TapoScan {
         }
         ex.shutdown();
         try { ex.awaitTermination(90, TimeUnit.SECONDS); } catch (InterruptedException ignored) { }
-        Prefs.log(c, "Hledání zásuvek v " + nets + "*: odpovídá " + open.get() + " adres, zásuvek Tapo " + found.size()
+        if (!quiet) Prefs.log(c, "Hledání zásuvek v " + nets + "*: odpovídá " + open.get() + " adres, zásuvek Tapo " + found.size()
                 + (errs.isEmpty() ? "" : " · chyby: " + errs));
         return found;
     }

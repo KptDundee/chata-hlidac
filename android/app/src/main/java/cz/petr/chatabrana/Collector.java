@@ -32,6 +32,8 @@ public final class Collector {
     private final Map<String, Long> goneAt = new HashMap<>();                     // IP → kdy zmizela
     private final Map<String, JSONObject> lastGood = new HashMap<>();             // IP → poslední úspěšné čtení
 
+    static final String GEN_PLUG = "7";                 // číslo zásuvky generátoru (jako zasuvka_generator v nastavení hlídače)
+
     public Collector(Context ctx, BleListener ble) {
         this.ctx = ctx.getApplicationContext();
         this.ble = ble;
@@ -141,6 +143,19 @@ public final class Collector {
                     }
                 }
                 if (missing || (ok == 0 && total > 0)) Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
+                // 1.7.3: generátor – dokud jeho zásuvka bere proud, měřit a posílat každé 2 min (hlídač hned řídí
+                // nabíjení River); když zásuvka chybí, hledat ji v síti při každém měření (po startu generátoru
+                // může mít jinou adresu)
+                boolean genOn = false, genSeen = false;
+                for (int k = 0; k < plugs.length(); k++) {
+                    JSONObject p = plugs.optJSONObject(k);
+                    if (p == null || !GEN_PLUG.equals(p.optString("ip"))) continue;
+                    genSeen = true;
+                    if (!p.has("off") && !p.has("err") && p.optDouble("w", 0) > 5) genOn = true;
+                }
+                android.content.SharedPreferences.Editor ed = Prefs.get(ctx).edit();
+                if (genOn) ed.putLong("fast_until", System.currentTimeMillis() + 5 * 60_000L);
+                ed.putBoolean("gen_missing", !genOn && map.containsKey(GEN_PLUG) && (!genSeen || offIps.contains(map.get(GEN_PLUG)))).apply();
                 // historie ze zásuvky (hodinová energie za 7 dní): jednou denně a hned, když se zásuvka znovu objeví
                 sendPlugHistories(email, pass, plugs, idIp);
                 if (plugs.length() > 0) o.put("tp", plugs);
@@ -358,9 +373,13 @@ public final class Collector {
             for (java.util.Iterator<String> it = j.keys(); it.hasNext(); ) { String k = it.next(); m.put(k, j.getJSONObject(k).optString("ip")); }
         } catch (Exception ignored) { }
         long age = System.currentTimeMillis() - sp.getLong("tapo_scan_t", 0);
-        boolean want = m.isEmpty() ? age > 3 * 60_000L : age > 6 * 3600_000L || (sp.getBoolean("tapo_rescan", false) && age > 30 * 60_000L);
+        boolean genMiss = sp.getBoolean("gen_missing", false), force = sp.getBoolean("tapo_force", false);
+        boolean want = force || (m.isEmpty() ? age > 3 * 60_000L : age > 6 * 3600_000L
+                || (sp.getBoolean("tapo_rescan", false) && age > (genMiss ? 8 * 60_000L : 30 * 60_000L)));
+        if (force) sp.edit().putBoolean("tapo_force", false).apply();
         if (!want) return m;
-        Map<String, JSONObject> found = TapoScan.scan(ctx, email, pass);
+        boolean quiet = genMiss && !force && age < 6 * 3600_000L;   // časté hledání generátoru nezapisovat, dokud nic nenajde
+        Map<String, JSONObject> found = TapoScan.scan(ctx, email, pass, quiet);
         tapo.clear();                                            // hledání se přihlásilo znovu → staré relace zásuvky zrušila (HTTP 403)
         sp.edit().putLong("tapo_scan_t", System.currentTimeMillis()).putBoolean("tapo_rescan", false).apply();
         if (found.isEmpty()) return m;
@@ -374,7 +393,8 @@ public final class Collector {
             names.remove(ip);                                    // ať se jméno načte znovu
         }
         sp.edit().putString("tapo_map", j.toString()).apply();
-        Prefs.log(ctx, "Hledání zásuvek: nalezeno " + found.size() + (sb.length() > 0 ? " · změny: " + sb : " · beze změn"));
+        if (!quiet || sb.length() > 0)
+            Prefs.log(ctx, "Hledání zásuvek: nalezeno " + found.size() + (sb.length() > 0 ? " · změny: " + sb : " · beze změn"));
         m.clear();
         for (java.util.Iterator<String> it = j.keys(); it.hasNext(); ) { String k = it.next(); m.put(k, j.optJSONObject(k) != null ? j.optJSONObject(k).optString("ip") : ""); }
         return m;

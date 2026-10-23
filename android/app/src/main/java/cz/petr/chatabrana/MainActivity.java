@@ -78,8 +78,9 @@ public class MainActivity extends Activity {
                     else askPermissionsThenStart();
                 });
         action(ctl, "📤  Odeslat teď", CARD_BTN(),
-                "Změří a pošle data hned, nečeká na dalších 10 minut. Hodí se po změně nastavení nebo když chceš na webu vidět čerstvý stav.",
-                v -> { GatewayService.start(this, true); toast("Odesílám… (do 30 s)"); });
+                "Změří a pošle data hned, nečeká na dalších 10 minut, a znovu prohledá síť (najde i zásuvku generátoru s novou adresou). Hodí se po startu generátoru, po změně nastavení nebo když chceš na webu vidět čerstvý stav.",
+                v -> { Prefs.get(this).edit().putBoolean("tapo_force", true).apply();   // 1.7.3: hned najít i zásuvky s novou adresou (generátor)
+                       GatewayService.start(this, true); toast("Odesílám… (do 30 s)"); });
         Button test = action(ctl, "📶  Test Bluetooth (15 s)", CARD_BTN(),
                 "15 sekund poslouchá Bluetooth a do záznamu zapíše, jestli vidí měnič Victron (a s jakým klíčem). Použij, když web píše „Victron neposílá“.",
                 null);

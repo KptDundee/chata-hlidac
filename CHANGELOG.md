@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.69 – 23. 10. 2026 · Flip 1.7.3
+- Flip 1.7.3 – nabíjení z generátoru: dokud zásuvka generátoru (7) bere proud, Flip měří a posílá každé 2 min (jinak 10 min) → hlídač běží stejně často a hned přerozděluje výkon River. Po vypnutí generátoru ještě ~5 min po 2 min (zaznamená konec), pak zpět na 10 min.
+- Flip 1.7.3: když zásuvka generátoru chybí, Flip ji v síti hledá při každém měření (po startu generátoru může mít jinou adresu – dřív nejdřív za 30 min). Tlačítko „Odeslat teď“ síť prohledá vždy. Častá hledání se do záznamu nezapisují, dokud se nic nezmění.
+
 ## 4.68 – 23. 10. 2026
 - Nabíjení z generátoru (krok 1 – bez dat z generátoru): hlídač při běhu generátoru nastavuje nabíjecí výkon velkých River (River 2 Pro přes EcoFlow) tak, aby se nabily zároveň a generátor jel naplno = co nejkratší běh. K dispozici = max. generátoru podle paliva (benzín 1800 W / plyn 1600 W ze štítku) − rezerva 100 W − co bere malá River (zásuvka generátoru − příjem velkých). Rozdělení podle toho, kolik které chybí do 100 %, 200–940 W na River; nejdřív se snižuje, pak zvyšuje. Po běhu nastaví velkým 650 W, ať příští start nepřetíží generátor. Upozornění „Generátor běží naprázdno – vypni ho“, když je zásuvka generátoru pod proudem a nic nebere.
 - Web: karta „Nabíjení z generátoru“ (detail EcoFlow i Generátor) – výkon generátoru, malá River, nastavení každé River, kdy bude plná a kdy generátor vypnout. Nastavení → Generátor: řízení, palivo, max. výkony, rezerva, výkon po běhu.

@@ -28,6 +28,7 @@ public class GatewayService extends Service {
     public static final String ACTION_TICK = "cz.petr.chatabrana.TICK";
     public static final String ACTION_STOP = "cz.petr.chatabrana.STOP";
     static final long INTERVAL_MS = 10 * 60_000L;
+    static final long FAST_MS = 2 * 60_000L;
     private static final String CHANNEL = "brana";
     private static final int NOTIF_ID = 1;
 
@@ -163,6 +164,7 @@ public class GatewayService extends Service {
                 // první běh po startu: chvíli počkat, ať se stihne chytit měnič
                 if (Prefs.get(this).getLong(Prefs.LAST_SENT, 0) == 0) SystemClock.sleep(20_000);
                 String res = collector.runOnce(dispatch);
+                scheduleAlarm(this);                    // 1.7.3: generátor → další měření za 2 min (nebo zpět na 10 min)
                 String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
                 getSystemService(NotificationManager.class).notify(NOTIF_ID, notification(time + " · " + res));
                 // 1.3.9: zpět jako do 1.3.6 – sken se restartuje jen po 25 min (restart po každém měření v 1.3.7
@@ -194,7 +196,9 @@ public class GatewayService extends Service {
 
     static void scheduleAlarm(Context c) {
         AlarmManager am = c.getSystemService(AlarmManager.class);
-        long at = SystemClock.elapsedRealtime() + INTERVAL_MS;
+        // 1.7.3: při nabíjení z generátoru každé 2 min, jinak 10 min
+        boolean fast = System.currentTimeMillis() < Prefs.get(c).getLong("fast_until", 0);
+        long at = SystemClock.elapsedRealtime() + (fast ? FAST_MS : INTERVAL_MS);
         // přesný budík i v úsporném režimu (jinak Android běh natahuje na 15–20 min)
         if (am.canScheduleExactAlarms()) {
             am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent(c));
