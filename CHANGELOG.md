@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.80 – 23. 10. 2026
+- Spotřeba dnes: dlaždice Z River zelená jen když některá River právě dodává proud (zásuvka na jejím výstupu > 2 W), jinak šedá. Stejně Ze soláru – šedá, když měnič nic nedodává.
+
 ## 4.79 – 23. 10. 2026
 - Dlaždice Generátor (Výroba dnes) šedá, když generátor neběží (jako Solár v noci).
 

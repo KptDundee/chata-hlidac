@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.79", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.80", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1598,7 +1598,7 @@ function tileProdGen(d, h){
 function tileUseSolar(d, h){
   const L = dayLedger(d, h);
   USE_SH = null; const ud = useDay(dkey(h.now), useModel(d));
-  return {k:"use_s", icon:"🔆", label:"Ze soláru", cls:"ok", info:true, v: `${nf((ud ? ud.s._sum : 0)/1000,2)}<small>kWh</small>`,
+  return {k:"use_s", icon:"🔆", label:"Ze soláru", cls: h.invF && (h.inv.mw||0) > 3 ? "ok" : "na", info:true,   // 4.80: šedá, když měnič nic nedodává v: `${nf((ud ? ud.s._sum : 0)/1000,2)}<small>kWh</small>`,
     st: h.invF && h.inv.mw!=null ? `teď ${nf(h.inv.mw)} W` : h.menicOff ? "měnič vypnutý" : "měnič bez dat",
     rows:[["vč. ztrát", h.dcWh!=null ? kWh(h.dcWh) : "–"]]};
 }
@@ -1606,7 +1606,7 @@ function tileUseRiver(d, h){
   const L = dayLedger(d, h), dot = '<span style="color:var(--good)">●</span>';
   const nowW = L.rvT.filter(r=>(r.w||0)>2).reduce((s,r)=>s+r.w,0);
   USE_SH = null; const ud = useDay(dkey(h.now), useModel(d));
-  return {k:"use_r", icon:"🔋", label:"Z River", cls:"ok", info:true, v:`${nf((ud ? ud.r._sum : 0)/1000,2)}<small>kWh</small>`,
+  return {k:"use_r", icon:"🔋", label:"Z River", cls: nowW > 0 ? "ok" : "na", info:true,   // 4.80: zelená jen když některá River dodává v:`${nf((ud ? ud.r._sum : 0)/1000,2)}<small>kWh</small>`,
     st: nowW ? `teď ${nf(nowW)} W` : "",
     rows: L.rvT.map(r=>[`${(r.w||0)>2?dot+" ":""}${r.name.replace(/^River\s*/i,"")}`, kWh(r.o||0)])};
 }
