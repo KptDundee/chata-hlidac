@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.55 – 23. 10. 2026
+- Solární baterie / hlavička: „chata na River“ jen když River opravdu dodává. Když měnič nemá proud a River nedodává (třeba právě při přepínání River → solár, než zásuvky naběhnou), píše se „měnič vypnutý“ / „měnič bez proudu“.
+
 ## 4.54 – 23. 10. 2026
 - Dlaždice Flip: místo „až s Flip 1.6“ skutečný důvod, proč řízení nabíjení neběží – stará verze (s číslem), Flip nevidí zásuvku (9), zásuvka nedostupná / odmítá přihlášení.
 
