@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.73 – 23. 10. 2026
+- Lednice: graf „Jak dlouho kompresor běžel“ – % dne po dnech (30 dní). Z měření zásuvky lednice, každé měření váží čas do dalšího (bez průměrování; mezery nad 15 min se nepočítají). V bublině hodiny běhu, počet rozběhů, příkon za běhu a za kolik hodin jsou data; den s daty pod 20 h je světlejší. Hlídač si to ukládá do denních součtů, takže graf vydrží i po smazání podrobných bodů (14 dní).
+
 ## 4.72 – 23. 10. 2026
 - Upozornění „🔌 (1) 220 měnič není vidět“: zásuvky, které mají být vidět pořád (Nastavení → Zásuvky, výchozí 1, 4, 5, 9), hlídač hlídá podle čísla a jména. Když je Flip nepřečte ve 2 měřeních po sobě a aspoň 8 min (přepnutí solár / River chvíli trvá), přijde upozornění s důvodem (nenalezena / bez proudu / odmítá přihlášení) a po návratu „je zase vidět“. Zásuvka měniče jen když Victron hlásí, že měnič běží. Na webu dlaždice Systém → Problém. Zásuvky, které mají proud jen někdy (River, generátor, nabíjení ze soláru), se nehlídají.
 

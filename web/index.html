@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.72", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.73", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1652,6 +1652,7 @@ function detFridge(body){
   if(!nm) rec.push("Tip: s teploměrem Xiaomi v lednici (Nastavení → Teploměr v lednici) uvidíš přímo teplotu a přijde upozornění, když se ohřeje.");
   body.insertAdjacentHTML("beforeend", (hasT ? chartCard("dl_t", "Teplota v lednici", `°C · 48 h · červeně ${d.cfg?.lednice_max_C ?? 8} °C = upozornění`) : "")
     + chartCard("dl_w", "Kompresor lednice", "W · 48 h · zásuvka lednice (běží ~55–80 W, stojí ~0 W)")
+    + chartCard("dl_duty", "Jak dlouho kompresor běžel", "% dne · 30 dní · světlejší = den s neúplnými daty (pod 20 h)")
     + chartCard("dl_d", "Spotřeba lednice po dnech", "kWh · 14 dní")
     + `<div class="card">
       ${S1 ? rowI("Za 24 h", `běžel ${S1.duty} % času · ${S1.cyc}× rozběh`) : ""}
@@ -1663,6 +1664,11 @@ function detFridge(body){
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Hlídač upozorní, když kompresor stojí déle než ${d.cfg?.lednice_ticho_h ?? 3} h nebo běží déle než ${d.cfg?.lednice_bezi_h ?? 2} h (hranice se přizpůsobí posledním 7 dnům), když zásuvka lednice nejde přečíst${nm?`, nebo když je v lednici tepleji než ${d.cfg?.lednice_max_C ?? 8} °C déle než 30 min`:""}.</div>`);
   if(hasT) lineChart($("dl_t"), pts.map(p=>({t:p.t, c:p.th && p.th[nm]!=null ? p.th[nm] : null})), "c", css("--s1"), {unit:"°C",dec:1,hours:48,refs:[[d.cfg?.lednice_max_C ?? 8,"--crit"]]});
   lineChart($("dl_w"), pts.map(p=>({t:p.t, w:p.tp && p.tp[fid]!=null ? p.tp[fid] : null})), "w", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:48});
+  { const dk = Object.keys(D).sort().filter(k=>D[k].fd!=null).slice(-30).map(k=>({k, v:D[k].fd, h:D[k].fh, n:D[k].fn, w:D[k].fw}));   // 4.73
+    if(dk.length) barChart($("dl_duty"), dk, "v", css("--s1"), {unit:"%",dec:0,label:k=>dayLabel(k),
+      op:q=>q.h < 20 && q.k !== dkey(Date.now()/1000) ? .45 : 1,
+      tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,0)} % dne</b> (${nf(q.v*24/100,1)} h)<br>${q.n}× rozběh${q.w?` · za běhu ~${nf(q.w)} W`:""}<br><span class="sub">data za ${nf(q.h,1)} h</span>`});
+    else $("dl_duty").innerHTML = '<div class="sub">Zatím málo dat – graf se naplní po první kontrole hlídače.</div>'; }
   barChart($("dl_d"), dd.filter(q=>q.v!=null), "v", css("--s1"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
 }
 // 4.67: výsledek zkoušky jiných cest pro zařízení s 1006 (vybrané údaje přes HTTP, poslech MQTT)
@@ -2499,7 +2505,7 @@ function barChart(el, dd, key, color, o){
   const hi=Math.max(...p.map(q=>q[key]))*1.15||1; const {svg,y}=frame(el,0,hi,1);
   const n=Math.max(p.length,7), bw=(W-M.l-M.r)/n, w=Math.max(2,Math.min(28,bw-2));
   let s=""; p.forEach((q,i)=>{const cx=M.l+bw*i+bw/2, top=y(q[key]), h=y(0)-top, r=Math.min(4,w/2,h);
-    s+=`<path d="M${cx-w/2},${y(0)}V${top+r}Q${cx-w/2},${top} ${cx-w/2+r},${top}H${cx+w/2-r}Q${cx+w/2},${top} ${cx+w/2},${top+r}V${y(0)}Z" fill="${o.color?o.color(q):color}"/>`;
+    s+=`<path d="M${cx-w/2},${y(0)}V${top+r}Q${cx-w/2},${top} ${cx-w/2+r},${top}H${cx+w/2-r}Q${cx+w/2},${top} ${cx+w/2},${top+r}V${y(0)}Z" fill="${o.color?o.color(q):color}"${o.op?` fill-opacity="${o.op(q)}"`:""}/>`;
     s+=`<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
     if(i%Math.ceil(p.length/6)===0||i===p.length-1)s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${(o.label||dayLabel)(q.k)}</text>`;});
   svg.insertAdjacentHTML("beforeend",s);

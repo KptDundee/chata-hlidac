@@ -1528,6 +1528,7 @@ def main():
                          ("Test kapacity", lambda: capacity_check(data, st, now, cfg)),
                          ("Upozornění #", lambda: hash_alert(data, st, now, topic, cfg)),
                          ("Lednice", lambda: fridge_check(data, st, now, topic, cfg)),
+                         ("Lednice po dnech", lambda: fridge_days(data, now, cfg)),
                          ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
                          ("Plné nabití", lambda: full_charge_check(data, st, now, topic, cfg)),
                          ("Flip – výdrž", lambda: flip_check(data, st, now, topic, cfg)),
@@ -2733,6 +2734,38 @@ def ocv_soc(v):
 
 
 WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
+
+
+def fridge_days(data, now, cfg):
+    """4.73: kolik % dne běžel kompresor lednice – z uložených bodů (zásuvka lednice), každý bod váží čas do
+    dalšího (nejvýš 15 min, při mezeře v datech se nepočítá). days[k]["fd"] = % času, "fh" = pokryté hodiny,
+    "fn" = rozběhů, "fw" = průměrný příkon za běhu (W). Přepisuje se jen lepším pokrytím (body se po 14 dnech mažou)."""
+    fid = str(cfg.get("zasuvka_lednice") or "4")
+    pts = [(p["t"], p["tp"][fid]) for p in data.get("points", []) if (p.get("tp") or {}).get(fid) is not None]
+    agg = {}
+    for (t, w), (t2, _) in zip(pts, pts[1:] + [(now.timestamp(), None)]):
+        dt = t2 - t
+        if dt <= 0 or dt > 900:
+            continue
+        k = datetime.fromtimestamp(t, TZ).strftime("%Y-%m-%d")
+        a = agg.setdefault(k, {"tot": 0.0, "on": 0.0, "wh": 0.0, "n": 0, "prev": None})
+        a["tot"] += dt
+        if w > 20:
+            a["on"] += dt
+            a["wh"] += w * dt
+            if a["prev"] is not None and a["prev"] <= 20:
+                a["n"] += 1
+        a["prev"] = w
+    days = data.setdefault("days", {})
+    for k, a in agg.items():
+        h = a["tot"] / 3600
+        if h < 1 or k not in days and k != now.strftime("%Y-%m-%d"):
+            continue
+        d = days.setdefault(k, {})
+        if h + 0.05 < (d.get("fh") or 0):
+            continue
+        d["fd"], d["fh"], d["fn"] = round(a["on"] / a["tot"] * 100, 1), round(h, 1), a["n"]
+        d["fw"] = round(a["wh"] / a["on"]) if a["on"] else None
 
 
 def fridge_check(data, st, now, topic, cfg):
