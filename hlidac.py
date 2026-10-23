@@ -1150,7 +1150,8 @@ def health_baseline(data):
 
 def night_corr(data):
     """Medián chyby (skutečnost − předpověď) za posledních 10 vyhodnocených nocí; oprava max ±0,4 V."""
-    errs = [v["a"] - v["raw"] for k, v in sorted((data.get("nlog") or {}).items()) if v.get("a") is not None and v.get("raw") is not None][-10:]
+    errs = [v["a"] - v["raw"] for k, v in sorted((data.get("nlog") or {}).items())
+            if v.get("a") is not None and v.get("raw") is not None and not v.get("riv")][-10:]   # 4.75: bez nocí na River
     if len(errs) < 3:
         return 0.0, len(errs)
     errs.sort()
@@ -1181,6 +1182,14 @@ def night_log(data, now, cfg, set_):
             nl[key] = {"p": f["v_until"], "raw": f.get("v_raw", f["v_until"]), "corr": f.get("corr", 0), "until": f["until"],
                        "t": int(t), "v0": f.get("v_now"), "w": f.get("draw_w"), "cap": f.get("cap")}
     pts = data.get("points", [])
+    # 4.75: noc, kdy chata (aspoň zčásti) jela z River, není měřítko – solární baterie neměla odběr, předpověď
+    # s odběrem počítala. Takové noci se označí a z učení (oprava předpovědi) vynechají.
+    for k, e in nl.items():
+        if "riv" in e or t < e["until"]:
+            continue
+        night = [p for p in pts if e["t"] <= p["t"] <= e["until"] and p.get("tp") is not None]
+        if len(night) >= 6:
+            e["riv"] = sum(1 for p in night if (p.get("mw") or 0) > 3) < 0.8 * len(night)
     for k, e in nl.items():
         if e.get("a") is not None or e.get("skip") or t < e["until"] + 900:
             continue
@@ -1191,7 +1200,8 @@ def night_log(data, now, cfg, set_):
             e["a"] = round(min(near), 2)
             e["min"] = round(min(night), 2) if night else None
             if not e.get("bf"):
-                log("ev", f"Noc z {datetime.strptime(k, '%Y-%m-%d').strftime('%-d. %-m.')}: předpověď {fmt(e['p'], 2)} V, ráno potom skutečně {fmt(e['a'], 2)} V")
+                log("ev", f"Noc z {datetime.strptime(k, '%Y-%m-%d').strftime('%-d. %-m.')}: předpověď {fmt(e['p'], 2)} V, ráno potom skutečně {fmt(e['a'], 2)} V"
+                    + (" (chata jela z River – do učení se nepočítá)" if e.get("riv") else ""))
         elif t > e["until"] + 6 * 3600:
             e["a"] = None
             e["skip"] = True

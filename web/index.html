@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.74", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.75", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1297,7 +1297,7 @@ function dayPhase(d){
 }
 const dkey = t => new Date(t*1000).toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
 function nightCorr(d){
-  const e = Object.keys(d.nlog||{}).sort().map(k=>d.nlog[k]).filter(x=>x.a!=null && x.raw!=null).slice(-10).map(x=>x.a-x.raw).sort((a,b)=>a-b);
+  const e = Object.keys(d.nlog||{}).sort().map(k=>d.nlog[k]).filter(x=>x.a!=null && x.raw!=null && !x.riv).slice(-10).map(x=>x.a-x.raw).sort((a,b)=>a-b);
   return e.length >= 3 ? {c:Math.max(-0.4,Math.min(0.4,e[Math.floor(e.length/2)])), n:e.length} : {c:0, n:e.length};
 }
 /* minulá (poslední ukončená) noc z uložených bodů */
@@ -1473,7 +1473,7 @@ function tilePastNight(d, h){
   const cls = n.vEnd < CRIT_V ? "bad" : n.vEnd < WARN_V ? "warn" : "ok";
   const e = n.e, diff = e && e.a!=null ? e.a - e.p : null;
   return {...t, cls, v:`${nf(n.vEnd,2)}<small>V ${rano(n.end)}</small>`, st:`${cap1(relDay(n.start))} večer ${nf(n.v0,2)} → ${rano(n.end)} ${nf(n.vEnd,2)} V`,
-    a: e && e.p!=null ? (diff==null ? `Předpověď byla ${nf(e.p,2)} V` : Math.abs(diff) <= 0.1 ? `Předpověď ${nf(e.p,2)} V – sedí` : `Předpověď ${nf(e.p,2)} V – ${diff<0?"bylo o":"bylo o"} ${nf(Math.abs(diff),2)} V ${diff<0?"méně":"víc"}`) : `Odebráno ~${nf(n.kwh,2)} kWh`};
+    a: e && e.riv ? "Chata jela z River – solární baterie bez odběru, s předpovědí se neporovnává" : e && e.p!=null ? (diff==null ? `Předpověď byla ${nf(e.p,2)} V` : Math.abs(diff) <= 0.1 ? `Předpověď ${nf(e.p,2)} V – sedí` : `Předpověď ${nf(e.p,2)} V – ${diff<0?"bylo o":"bylo o"} ${nf(Math.abs(diff),2)} V ${diff<0?"méně":"víc"}`) : `Odebráno ~${nf(n.kwh,2)} kWh`};
 }
 function tileYesterday(d, h){
   const t = {k:"yday", icon:"📅", label:"Včera", info:true};
@@ -2442,7 +2442,7 @@ function detPastNight(body){
     ${rowI(`${mo} (před nabíjením)`, `<b style="color:${col(n.vEnd)}">${nf(n.vEnd,2)} V</b>`)}
     ${rowI("Z baterie odebráno (i se ztrátami měniče)", `~${nf(n.kwh,2)} kWh · ~${nf(n.kwh*1000/12.3)} Ah`)}
     ${rowI(`Předpověď (${ev.toLowerCase()}) na ${rano(n.end)}`, e && e.p!=null ? `${nf(e.p,2)} V${e.corr?` <span class="sub">(vč. opravy ${e.corr>0?"+":"−"}${nf(Math.abs(e.corr),2)})</span>`:""}` : "–")}
-    ${diff!=null ? rowI("Rozdíl skutečnost − předpověď", `<b style="color:var(${Math.abs(diff)<=0.1?"--good":"--warn"})">${diff>0?"+":"−"}${nf(Math.abs(diff),2)} V</b>`) : ""}
+    ${e && e.riv ? rowI("Rozdíl skutečnost − předpověď", `<span class="sub">nepočítá se – chata jela z River (baterie bez odběru)</span>`) : diff!=null ? rowI("Rozdíl skutečnost − předpověď", `<b style="color:var(${Math.abs(diff)<=0.1?"--good":"--warn"})">${diff>0?"+":"−"}${nf(Math.abs(diff),2)} V</b>`) : ""}
     ${rowI("Oprava pro příští noci", C.n>=3 ? `<b>${C.c>0?"+":C.c<0?"−":"±"}${nf(Math.abs(C.c),2)} V</b> <span class="sub">(medián z ${C.n} nocí)</span>` : `zatím ne <span class="sub">(${C.n} z 3 nocí)</span>`)}
   </div>`
   + nightAnalysisHtml(d)
@@ -2451,8 +2451,8 @@ function detPastNight(body){
       <div class="sub" style="font-size:12px">noc (večer → ráno) · předpověď napětí na to ráno → skutečnost</div>
       <div style="font-size:13.5px;margin-top:6px">${nl.map(([k,x])=>{ const df = x.a!=null ? x.a-x.p : null;
         return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${nightLbl(k)}</span>
-          <span style="font-variant-numeric:tabular-nums">${nf(x.p,2)} → <b>${x.a!=null?nf(x.a,2):"čeká"}</b>${df!=null?` <span style="color:var(${Math.abs(df)<=0.1?"--good":"--warn"})">(${df>0?"+":"−"}${nf(Math.abs(df),2)})</span>`:""}</span></div>`; }).join("") || '<span class="sub">Zatím žádná zaznamenaná noc.</span>'}</div></div>
-  <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se předpověď učí:</b> každý večer hodinu po západu si hlídač zapíše, jaké napětí čeká příští ráno. To příští ráno pak změří skutečnost (nejnižší napětí před začátkem nabíjení). Z posledních až 10 nocí vezme medián rozdílu a o tolik opraví další předpovědi (nejvýš ±0,4 V). Když předpověď sedí, oprava je ~0. Kapacita baterie a noční odběr se navíc učí zvlášť (Zdraví baterie, měřený odběr).</div>`);
+          <span style="font-variant-numeric:tabular-nums">${nf(x.p,2)} → <b>${x.a!=null?nf(x.a,2):"čeká"}</b>${x.riv ? ` <span class="sub">(na River – nepočítá se)</span>` : df!=null?` <span style="color:var(${Math.abs(df)<=0.1?"--good":"--warn"})">(${df>0?"+":"−"}${nf(Math.abs(df),2)})</span>`:""}</span></div>`; }).join("") || '<span class="sub">Zatím žádná zaznamenaná noc.</span>'}</div></div>
+  <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se předpověď učí:</b> každý večer hodinu po západu si hlídač zapíše, jaké napětí čeká příští ráno. To příští ráno pak změří skutečnost (nejnižší napětí před začátkem nabíjení). Noci, kdy chata jela z River, se vynechají (baterie neměla odběr). Z posledních až 10 nocí vezme medián rozdílu a o tolik opraví další předpovědi (nejvýš ±0,4 V). Když předpověď sedí, oprava je ~0. Kapacita baterie a noční odběr se navíc učí zvlášť (Zdraví baterie, měřený odběr).</div>`);
   lineChart($("dp_v"), n.pts, "bat_v", css("--s1"), {unit:"V",dec:2,hours:(Date.now()/1000-n.start)/3600+0.5,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,modes:true});
 }
 function detYesterday(body){

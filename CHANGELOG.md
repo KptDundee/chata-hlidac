@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.75 – 23. 10. 2026
+- Oprava: noci, kdy chata jela z River (aspoň 20 % noci bez odběru přes měnič), se už nepočítají do učení noční předpovědi napětí – solární baterie neměla odběr, takže „bylo o 0,44 V víc“ nic neříká a kazilo opravu dalších předpovědí. Označí se i zpětně (body za 14 dní). Na webu „chata jela z River – nepočítá se“. (Výhled dne v Ah takové noci vynechával už dřív.)
+
 ## 4.74 – 23. 10. 2026
 - Oprava: dlaždice Solární baterie („do rána ne“) a Noc („do zítřejšího rána vydrží“) si odporovaly – každá brala jiný výpočet. Teď obě stejně: po západu noční předpověď (napětí, odběr za poslední hodinu, oprava z minulých nocí – podle ní chodí i večerní upozornění), přes den výhled dne (stejný jako „do 22:00 / do rána“ na dlaždici baterie).
 
