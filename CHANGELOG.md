@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.72 – 23. 10. 2026
+- Upozornění „🔌 (1) 220 měnič není vidět“: zásuvky, které mají být vidět pořád (Nastavení → Zásuvky, výchozí 1, 4, 5, 9), hlídač hlídá podle čísla a jména. Když je Flip nepřečte ve 2 měřeních po sobě a aspoň 8 min (přepnutí solár / River chvíli trvá), přijde upozornění s důvodem (nenalezena / bez proudu / odmítá přihlášení) a po návratu „je zase vidět“. Zásuvka měniče jen když Victron hlásí, že měnič běží. Na webu dlaždice Systém → Problém. Zásuvky, které mají proud jen někdy (River, generátor, nabíjení ze soláru), se nehlídají.
+
 ## 4.71 – 23. 10. 2026 · Flip 1.7.4
 - Flip 1.7.4 – zásuvky s novou adresou hned: když některá známá zásuvka na své adrese neodpovídá (River, generátor, nabíjení se zapnou a router jim dá jinou IP), Flip v tomtéž měření prohledá síť, přihlásí se jen na adresy, které nepatří fungujícím zásuvkám, pozná zásuvku podle čísla ve jméně („(7) …“) a hned ji přečte na nové adrese. Do záznamu: „Zásuvky na nové adrese: (7) → .xxx“. Zásuvky, které odmítají přihlášení (401), zkouší jen 1× za hodinu. Nahrazuje hledání generátoru z 1.7.3.
 - Zásuvky bez čísla ve jméně se takhle dohledat nedají (jen plným hledáním po 6 h) – v aplikaci Tapo jim dej číslo do jména.

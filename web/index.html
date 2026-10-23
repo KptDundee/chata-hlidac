@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.71", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.72", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1506,6 +1506,7 @@ function tileSystem(d, h){
   const cmp = (a,b) => { const x=String(a).split(".").map(Number), y=String(b).split(".").map(Number); return (x[0]-y[0]) || ((x[1]||0)-(y[1]||0)); };
   if(h.inv && (!h.inv.av || cmp(h.inv.av, FLIP_VER) < 0)) warns.push(`nahraj Flip ${FLIP_VER}`);
   if(d.ver && d.ver !== WEB_VER) warns.push("obnov stránku");
+  for(const m of (d.plug_miss||[])) if(h.now - m.since >= (d.cfg?.zasuvky_stale_min ?? 8)*60) probs.push(`${escH(m.n)} není vidět od ${hmT(m.since)}`);   // 4.72
   if(probs.length) return {...t, cls:"bad", v:`<span style="font-size:18px">Problém</span>`, st: probs[0], a: probs.slice(1).concat(warns).join(" · ")};
   if(warns.length) return {...t, cls:"warn", v:`<span style="font-size:18px">Skoro vše</span>`, st: warns[0], a: warns.slice(1).join(" · ")};
   return {...t, cls:"ok", v:`<span style="font-size:18px">Vše běží</span>`, st:"Flip · Victron · cloud", a:""};
@@ -2708,6 +2709,10 @@ const SETTINGS = [
     ["gen_max_lpg_W","Max. výkon na plyn","Štítek: 1600 W (špička 1700 W)","W",50,"num"],
     ["gen_rezerva_W","Rezerva","Tolik W nechá hlídač generátoru volných","W",50,"num"],
     ["gen_po_behu_W","Výkon velkých River po běhu","Ať další start generátoru nepřetíží, než hlídač zareaguje","W",10,"num"],
+  ]],
+  ["Zásuvky", [
+    ["zasuvky_stale","Zásuvky, které musí být vidět pořád","Čísla zásuvek – když je Flip nepřečte, přijde upozornění (zásuvka měniče jen když měnič běží)","",0,"str"],
+    ["zasuvky_stale_min","Upozornit po","Přepnutí solár / River chvíli trvá","min",1,"num"],
   ]],
   ["Automatické nabíjení River", [
     ["river_auto","Nabíjet River přebytkem ze slunce","Zapne zásuvku, když je solární baterie plná","","", "sw"],

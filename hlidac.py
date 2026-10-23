@@ -35,6 +35,7 @@ DEFAULTS = {
     "river_sn": "",
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_rezerva_W": 100,
     "gen_po_behu_W": 650,
+    "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
@@ -1535,6 +1536,7 @@ def main():
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
+                         ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
             try:
@@ -3477,6 +3479,59 @@ def gen_sessions(data, st, now, topic, cfg):
         log("ev", "Generátor: konec – " + msg.replace("\n", " · "))
         ntfy(topic, "⛽ Generátor doběhl", msg, 2, "fuelpump")
 
+
+def plug_watch(data, st, now, topic, cfg):
+    """4.72: zásuvky, které mají být vidět pořád (zasuvky_stale, např. 1 měnič, 4 lednice, 5 router, 9 Flip).
+    Když ji Flip nepřečte ve 2 měřeních po sobě a aspoň zasuvky_stale_min minut → upozornění podle jména.
+    Zásuvka měniče jen když Victron hlásí, že měnič běží (vypnutý měnič = zásuvka bez proudu, to je v pořádku).
+    data["plug_miss"] = [{id, n, since, why}]"""
+    ids_ = ips(cfg.get("zasuvky_stale"))
+    inv = data.get("inverter") or {}
+    ts = int(now.timestamp())
+    if not ids_ or not inv or ts - inv.get("t", 0) > 1800:
+        return                                         # Flip mlčí – to hlídá jiná kontrola
+    pw = st.setdefault("plug_watch", {})
+    names = pw.setdefault("names", {})
+    by = {str(p.get("ip")): p for p in inv.get("tp") or []}
+    for i, p in by.items():
+        if p.get("n") and not p.get("off") and p.get("err") is None:
+            names[i] = str(p["n"])[:40]
+    new_msg = inv.get("t") != pw.get("t")
+    pw["t"] = inv.get("t")
+    mip = str(cfg.get("zasuvka_menic") or inv.get("mip") or "1")
+    inv_on = str(inv.get("st") or "").upper() == "INVERTING"
+    miss = []
+    for i in ids_:
+        p = by.get(i)
+        bad = p is None or p.get("off") or p.get("gone") or p.get("err") is not None
+        if i == mip and not inv_on:
+            bad = False                                # měnič vypnutý / chata na River → zásuvka měniče bez proudu
+        e = pw.setdefault(i, {})
+        if not bad:
+            if e.get("warned"):
+                ntfy(topic, f"🔌 {names.get(i, f'Zásuvka ({i})')} je zase vidět",
+                     f"Flip ji znovu čte (nebyla vidět od {datetime.fromtimestamp(e['since'], TZ).strftime('%H:%M')}).", 2, "electric_plug")
+                log("ev", f"Zásuvka ({i}) zase vidět")
+            pw[i] = {}
+            continue
+        why = "Flip ji v síti nenašel" if p is None else "nedostupná (bez proudu nebo mimo Wi-Fi)" if p.get("off") or p.get("gone") \
+            else f"chyba: {str(p.get('err'))[:60]}"
+        if "401" in why:
+            why = "odmítá přihlášení (aktualizace softwaru zásuvky / Kompatibilita s třetími stranami v Tapo)"
+        e.setdefault("since", inv.get("t") or ts)
+        if new_msg:
+            e["n"] = e.get("n", 0) + 1
+        e["why"] = why
+        nm = names.get(i, f"Zásuvka ({i})")
+        miss.append({"id": i, "n": nm, "since": e["since"], "why": why})
+        if not e.get("warned") and e.get("n", 0) >= 2 and ts - e["since"] >= (cfg.get("zasuvky_stale_min") or 8) * 60:
+            extra = " Bez ní hlídač nezná odběr chaty ze solární baterie." if i == mip else ""
+            ntfy(topic, f"🔌 {nm} není vidět",
+                 f"Flip ji nečte od {datetime.fromtimestamp(e['since'], TZ).strftime('%H:%M')} – {why}.{extra}\n"
+                 "Zkontroluj, jestli má proud a Wi-Fi (v aplikaci Tapo je online?).", 4, "electric_plug,warning")
+            log("ev", f"Zásuvka ({i}) není vidět – {why}")
+            e["warned"] = True
+    data["plug_miss"] = miss
 
 PRO_CHG_W = (200, 940)     # River 2 Pro: rozsah nabíjecího výkonu ze sítě (AC)
 
