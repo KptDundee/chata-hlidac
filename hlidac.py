@@ -3880,12 +3880,15 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             # 4.95: neměnit pořád – River ke změně nejdřív 5 min po poslední změně (od 90 % po 1 min) a jen o ≥ 50 W.
             # Hned jen snížení, když by součet nastavených výkonů přetížil generátor.
             chg_t = gs.setdefault("chg_t", {})
-            over = sum(sets.get(sn) or 0 for sn in plan) > avail + 20
+            tot_set = sum(sets.get(sn) or 0 for sn in plan)
+            over = tot_set > avail + 20
+            under = tot_set < sum(plan.values()) - 150          # 4.96: volný výkon (jiná River doběhla) → hned rozdělit
             plan_go = {}
             for sn, w in plan.items():
                 cur = sets.get(sn)
                 ivl = 60 if (byid(sn).get("soc") or 0) >= 90 else 300
-                if cur is None or (over and w < cur - 20) or (abs(w - cur) >= 50 and tnow - chg_t.get(sn, 0) >= ivl):
+                if cur is None or (over and w < cur - 20) or (under and w > cur + 20) \
+                        or (abs(w - cur) >= 50 and tnow - chg_t.get(sn, 0) >= ivl):
                     plan_go[sn] = w
             res_ = apply(plan_go)
             for sn in plan_go:
