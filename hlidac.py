@@ -2622,6 +2622,8 @@ def read_ecoflow_app(rivers, data, st, now):
                         pass
                     break
         r["socs"] = {k: q[k] for k in KEYS_EF()["soc"] if q.get(k) is not None}
+        import ecoflow as _ef
+        r["pw"] = _ef.power_keys(q)
         if not r.get("online"):
             for k in ("in_w", "out_w", "ac_in_w", "ac_out_w"):
                 if r.get(k):
@@ -2696,7 +2698,7 @@ def read_ecoflow(data, st, now, topic, cfg):
                         "devs": [{"n": r.get("name"), "sn": str(r.get("sn", ""))[-4:], "on": r.get("online"),
                                   "soc": r.get("soc"), "gen": bool(r.get("gen")), "model": r.get("model"), "wh": r.get("wh"),
                                   "qk": r.get("qk"), "nq": r.get("nq"), "socs": r.get("socs"), "qerr": r.get("qerr"),
-                                  "chgk": r.get("chgk"), "src": r.get("src"), "gd": r.get("gd"), "ak": r.get("ak")} for r in rivers]}
+                                  "chgk": r.get("chgk"), "src": r.get("src"), "gd": r.get("gd"), "ak": r.get("ak"), "pw": r.get("pw")} for r in rivers]}
     gens = [r for r in rivers if r.get("gen")]
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens
@@ -3424,8 +3426,11 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     rv = data.get("rivers") or []
     act = []
     if now.timestamp() - (data.get("rivers_t") or 0) <= 3600:
-        act = [(i, r) for i, r in enumerate(rv) if r.get("online") and r.get("soc") is not None
-               and (r.get("out_w") or 0) - (r.get("in_w") or 0) > 3]
+        # 4.82: chatu napájí jen velká River (malá nikdy – ta jen spotřebiče); a jen když chata nejede ze soláru
+        inv_ = data.get("inverter") or {}
+        on_solar = now.timestamp() - inv_.get("t", 0) < 1800 and (inv_.get("mw") or 0) > 3
+        act = [(i, r) for i, r in enumerate(rv) if r.get("online") and r.get("soc") is not None and not on_solar
+               and (r.get("wh") or 768) >= 500 and (r.get("out_w") or 0) - (r.get("in_w") or 0) > 3]
     if not act:
         river_supply_plugs(data, now, cfg)      # bez EcoFlow: pozná se ze zásuvek na výstupu River
         return
@@ -3800,7 +3805,7 @@ def check_river(r, st, topic, cfg):
     io = f"{name}: {fmt(soc)} %, nabíjení {fmt(r.get('in_w'))} W, odběr {fmt(r.get('out_w'))} W"
     # Skoro vybitá -> vyměnit
     lim = cfg["river_vymenit_pod"]
-    if cfg["river_vymenit"] and lim is not None:
+    if cfg["river_vymenit"] and lim is not None and (r.get("wh") or 768) >= 500:   # 4.82: malá chatu nenapájí
         if soc <= lim and not st.get(k + "_low"):
             mins = r.get("dsg_min")
             rest = f" Zbývá asi {fmt(mins / 60, 1)} h." if mins and mins < 6000 else ""

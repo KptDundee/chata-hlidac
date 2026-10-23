@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.82 – 23. 10. 2026
+- Oprava: dlaždice Generátor, Ze soláru a Z River ukazovaly „undefined“ (chyba ve 4.79 / 4.80 – hodnota zakomentovaná).
+- Malá River už nedostává „do rána nevydrží“ ani „vyměň River“ – chatu nenapájí. Upozornění „River do rána nevydrží“ jen když chata opravdu jede z velké River (ne ze soláru).
+- Dlaždice EcoFlow: zásuvka na výstupu River bez proudu není chyba – „vypnutá“, nebo když ji EcoFlow vidí online „zapnutá · AC výstup vypnutý“ (místo „Flip zásuvku (6) nenašel“).
+- Karta „EcoFlow – připojení“: u každé River všechny výkony, které EcoFlow hlásí (k vyřešení „nabíjí 151 W“, když nenabíjí).
+
 ## 4.81 – 23. 10. 2026
 - EcoFlow: River, která je offline, má výkon nabíjení / odběru 0 – EcoFlow u offline zařízení vrací poslední hodnoty, takže „nabíjí se 150 W“ viselo i po odpojení. U výkonu River na dlaždici EcoFlow stáří údaje („před 8 min“), když je starší než 5 min.
 

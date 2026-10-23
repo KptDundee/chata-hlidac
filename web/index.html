@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.81", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.82", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1590,7 +1590,7 @@ function tileProdGen(d, h){
   const L = dayLedger(d, h), gc = d.gen_cur, last = (d.gen_log||[]).slice(-1)[0];
   const rv = (d.rivers||[]).map(r=>({n:r.name, i:riverToday(d,r).i||0})).filter(r=>r.i>5);
   const live = h.invF && h.inv.gen;
-  return {k:"gen", icon:"⛽", label:"Generátor", cls: (live && live.w > 5) || gc ? "ok" : "na", info:true,   // 4.79: šedý, když neběží v: L.gen!=null ? `${nf(L.gen/1000,2)}<small>kWh</small>` : `0<small>kWh</small>`,
+  return {k:"gen", icon:"⛽", label:"Generátor", cls: (live && live.w > 5) || gc ? "ok" : "na", info:true, /* 4.79: šedý, když neběží  */ v: L.gen!=null ? `${nf(L.gen/1000,2)}<small>kWh</small>` : `0<small>kWh</small>`,
     st: gc ? `běží od ${hmT(gc.t0)}${live && live.w>5 ? ` · ${nf(live.w)} W` : ""}` : last ? `naposledy ${relDay(last.t0)} ${hmT(last.t0)}–${hmT(last.t1)}` : "dnes neběžel",
     rows: rv.length ? rv.map(r=>[`→ ${pn(r.n).replace(/^River\s*/i,"")}`, kWh(r.i)]) : [["→ River", "až z EcoFlow"]]};
 }
@@ -1598,7 +1598,7 @@ function tileProdGen(d, h){
 function tileUseSolar(d, h){
   const L = dayLedger(d, h);
   USE_SH = null; const ud = useDay(dkey(h.now), useModel(d));
-  return {k:"use_s", icon:"🔆", label:"Ze soláru", cls: h.invF && (h.inv.mw||0) > 3 ? "ok" : "na", info:true,   // 4.80: šedá, když měnič nic nedodává v: `${nf((ud ? ud.s._sum : 0)/1000,2)}<small>kWh</small>`,
+  return {k:"use_s", icon:"🔆", label:"Ze soláru", cls: h.invF && (h.inv.mw||0) > 3 ? "ok" : "na", info:true, /* 4.80: šedá, když měnič nic nedodává  */ v: `${nf((ud ? ud.s._sum : 0)/1000,2)}<small>kWh</small>`,
     st: h.invF && h.inv.mw!=null ? `teď ${nf(h.inv.mw)} W` : h.menicOff ? "měnič vypnutý" : "měnič bez dat",
     rows:[["vč. ztrát", h.dcWh!=null ? kWh(h.dcWh) : "–"]]};
 }
@@ -1606,7 +1606,7 @@ function tileUseRiver(d, h){
   const L = dayLedger(d, h), dot = '<span style="color:var(--good)">●</span>';
   const nowW = L.rvT.filter(r=>(r.w||0)>2).reduce((s,r)=>s+r.w,0);
   USE_SH = null; const ud = useDay(dkey(h.now), useModel(d));
-  return {k:"use_r", icon:"🔋", label:"Z River", cls: nowW > 0 ? "ok" : "na", info:true,   // 4.80: zelená jen když některá River dodává v:`${nf((ud ? ud.r._sum : 0)/1000,2)}<small>kWh</small>`,
+  return {k:"use_r", icon:"🔋", label:"Z River", cls: nowW > 0 ? "ok" : "na", info:true, /* 4.80: zelená jen když některá River dodává  */ v:`${nf((ud ? ud.r._sum : 0)/1000,2)}<small>kWh</small>`,
     st: nowW ? `teď ${nf(nowW)} W` : "",
     rows: L.rvT.map(r=>[`${(r.w||0)>2?dot+" ":""}${r.name.replace(/^River\s*/i,"")}`, kWh(r.o||0)])};
 }
@@ -1933,7 +1933,12 @@ function rivState(x, h, M){
   if(x.chg) return !x.known ? "zásuvka bez dat" : x.on ? `nabíjí${x.tgt ? ` ${x.tgt.short}` : ""}` : "vypnuto";
   if(x.gen){ const P = DATA.gen_plan, fin = P && !P.end && P.fin && Date.now()/1000 - P.t < 1800 ? ` · vypnout ~${hmT(P.fin)}` : "";
     return (x.w||0) > 5 ? `běží · ${nf(x.w)} W${fin}` : "neběží"; }     // 4.77: jen podle zásuvky generátoru
-  if(x.miss) return `Flip zásuvku (${x.id}) nenašel`;
+  // 4.82: zásuvka na výstupu River má proud jen když je zapnutý AC výstup River – chybějící zásuvka není chyba
+  if(x.miss || x.off){
+    if(x.ef && x.ef.online){ const iw0 = x.ef.in_w||0, ow0 = x.ef.out_w||0;
+      return iw0 > 20 ? `nabíjí se · ${nf(iw0)} W · AC výstup vypnutý` : ow0 > 20 ? `dodává ${nf(ow0)} W (mimo zásuvku)` : "zapnutá · AC výstup vypnutý"; }
+    return "vypnutá";
+  }
   const iw = x.ef ? x.ef.in_w||0 : 0, ow = x.ef ? x.ef.out_w||0 : 0;
   if((x.w||0) > 2) return h.invF && (h.inv.mw||0) > 3 ? "napájí spotřebič" : "napájí chatu";
   // 4.78: zdroj jen generátor (když opravdu běží); nabíjení z jiné River je výjimka – bez udání zdroje
@@ -1943,7 +1948,6 @@ function rivState(x, h, M){
   if(ow > 20) return `dodává ${nf(ow)} W${agoT}`;
   if(M && (M.G.w||0) > 5 && !(x.ef && x.ef.in_w!=null)) return "generátor běží – nabíjí se?";   // bez dat z EcoFlow nevíme
   if(M && M.C.on && M.C.tgt === x) return "nabíjí se ze soláru";
-  if(x.off) return "zásuvka nedostupná";
   return "nic nedělá";
 }
 function tileRivers(d, h){
@@ -2029,7 +2033,7 @@ function detRiver(body){
       + (d.eco_app ? `<div class="sub">Přihlášení aplikace (generátor, malá River): ${d.eco_app.err ? `<b style="color:var(--crit)">${escH(d.eco_app.err)}</b>` : "funguje"} · ${relDay(d.eco_app.t)} ${hmT(d.eco_app.t)}</div>` : "")
       + (ee ? `<div style="color:var(--crit)">Chyba ${relDay(ee.t)} ${hmT(ee.t)}: ${escH(ee.msg)}</div>` : "")
       + (d.eco_set ? `<div class="sub">Nastavení ${relDay(d.eco_set.t)} ${hmT(d.eco_set.t)} „${escH(d.eco_set.cmd)}“ → odpověď ${escH(d.eco_set.code)} ${escH(d.eco_set.msg)}</div>` : "")
-      + (es ? `<div class="sub">Naposledy přečteno ${relDay(es.t)} ${hmT(es.t)} (${es.host}) – zařízení na účtu:</div>` + (es.devs.length ? es.devs.map(x=>`<div>• <b>${escH(x.n||"?")}</b>${x.model?` <span class="sub">(${escH(x.model)}${x.wh?`, ${x.wh} Wh`:""})</span>`:""} · SN …${x.sn} · ${x.on ? "online" : "offline"}${x.soc!=null ? ` · ${nf(x.soc)} %` : ""}${x.qk ? `<div class="sub" style="font-size:11.5px;word-break:break-all">% zatím neumím přečíst – údaje: ${escH(Object.entries(x.qk).map(([k,v])=>k+"="+v).join(", "))}</div>` : ""}<div class="sub" style="font-size:11.5px;word-break:break-all">${x.qerr ? (/1006/.test(x.qerr) ? "vývojářské rozhraní údaje neposílá (1006)" + (x.ak ? ` · aplikace: ${x.ak.on===0?"zařízení spí / offline":`zpráv ${x.ak.n||0}${x.ak.bin?`, binárních ${x.ak.bin}`:""}, údajů ${x.ak.nq||0}`}` : (d.eco_app ? "" : " – doplň přihlášení aplikace (ECOFLOW_EMAIL / ECOFLOW_PASSWORD)")) : `chyba údajů: ${escH(x.qerr)}`) : x.src==="app" ? `přes aplikaci EcoFlow · údajů ${x.nq ?? "?"}` : `údajů od EcoFlow: ${x.nq ?? "?"}`}${x.gd ? ` · <b>${[x.gd.fuel!=null?`palivo ${nf(x.gd.fuel)} %`:"", x.gd.w!=null?`výkon ${nf(x.gd.w)} W`:"", x.gd.max_w!=null?`max ${nf(x.gd.max_w)} W`:"", x.gd.type!=null?`typ ${x.gd.type}`:"", x.gd.motor!=null?`motor ${x.gd.motor}`:"", x.gd.mode!=null?`režim ${x.gd.mode}`:""].filter(Boolean).join(" · ")}</b>` : ""}${x.socs && Object.keys(x.socs).length ? ` · % podle: ${escH(Object.entries(x.socs).map(([k,v])=>k.split(".").pop()+"="+v).join(", "))}` : ""}${x.chgk && Object.keys(x.chgk).length ? ` · nabíjení: ${escH(Object.entries(x.chgk).map(([k,v])=>k+"="+v).join(", "))}` : ""}</div>${ecoProbeHtml(d.eco_probe, x.sn)}</div>`).join("") : `<div>žádná zařízení</div>`)
+      + (es ? `<div class="sub">Naposledy přečteno ${relDay(es.t)} ${hmT(es.t)} (${es.host}) – zařízení na účtu:</div>` + (es.devs.length ? es.devs.map(x=>`<div>• <b>${escH(x.n||"?")}</b>${x.model?` <span class="sub">(${escH(x.model)}${x.wh?`, ${x.wh} Wh`:""})</span>`:""} · SN …${x.sn} · ${x.on ? "online" : "offline"}${x.soc!=null ? ` · ${nf(x.soc)} %` : ""}${x.qk ? `<div class="sub" style="font-size:11.5px;word-break:break-all">% zatím neumím přečíst – údaje: ${escH(Object.entries(x.qk).map(([k,v])=>k+"="+v).join(", "))}</div>` : ""}<div class="sub" style="font-size:11.5px;word-break:break-all">${x.qerr ? (/1006/.test(x.qerr) ? "vývojářské rozhraní údaje neposílá (1006)" + (x.ak ? ` · aplikace: ${x.ak.on===0?"zařízení spí / offline":`zpráv ${x.ak.n||0}${x.ak.bin?`, binárních ${x.ak.bin}`:""}, údajů ${x.ak.nq||0}`}` : (d.eco_app ? "" : " – doplň přihlášení aplikace (ECOFLOW_EMAIL / ECOFLOW_PASSWORD)")) : `chyba údajů: ${escH(x.qerr)}`) : x.src==="app" ? `přes aplikaci EcoFlow · údajů ${x.nq ?? "?"}` : `údajů od EcoFlow: ${x.nq ?? "?"}`}${x.gd ? ` · <b>${[x.gd.fuel!=null?`palivo ${nf(x.gd.fuel)} %`:"", x.gd.w!=null?`výkon ${nf(x.gd.w)} W`:"", x.gd.max_w!=null?`max ${nf(x.gd.max_w)} W`:"", x.gd.type!=null?`typ ${x.gd.type}`:"", x.gd.motor!=null?`motor ${x.gd.motor}`:"", x.gd.mode!=null?`režim ${x.gd.mode}`:""].filter(Boolean).join(" · ")}</b>` : ""}${x.socs && Object.keys(x.socs).length ? ` · % podle: ${escH(Object.entries(x.socs).map(([k,v])=>k.split(".").pop()+"="+v).join(", "))}` : ""}${x.pw && Object.keys(x.pw).length ? ` · výkony: ${escH(Object.entries(x.pw).map(([k,v])=>k+"="+v).join(", "))}` : ""}${x.chgk && Object.keys(x.chgk).length ? ` · nabíjení: ${escH(Object.entries(x.chgk).map(([k,v])=>k+"="+v).join(", "))}` : ""}</div>${ecoProbeHtml(d.eco_probe, x.sn)}</div>`).join("") : `<div>žádná zařízení</div>`)
             + `<div class="sub" style="margin-top:4px">Spárování se zásuvkami: ${(()=>{ const M = rivModel(d, homeData(d)); return M.R.map(r=>`(${r.id}) ${escH(r.short)} → ${r.sn ? "SN …"+r.sn.slice(-4) : "nespárováno"}`).join(" · "); })()}.<br>Když nesedí, v Nastavení vyplň <b>Spárování River s EcoFlow</b>: <code>číslo zásuvky:konec SN</code>, např. <code>2:AB12, 3:CD34, 6:EF56</code>.</div>`
         : (ee ? "" : `<div class="sub">Zatím žádné čtení.</div>`))
       + ((d.ef_gens||[]).filter(g=>g.q && Object.keys(g.q).length).map(g=>`<details style="margin-top:6px"><summary class="sub">Všechny údaje generátoru z aplikace (${Object.keys(g.q).length})</summary><div class="sub" style="font-size:11.5px;word-break:break-all">${escH(Object.entries(g.q).map(([k,v])=>k+"="+v).join(", "))}</div></details>`).join(""))

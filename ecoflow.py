@@ -192,6 +192,14 @@ def probe(host, ak, sk, devs):
     return devs
 
 
+def power_keys(q):
+    """4.82: všechny výkony, které EcoFlow hlásí (diagnostika – proč „nabíjí 151 W“, když nenabíjí)."""
+    return {k.replace("Status", ""): q[k] for k in ("pd.wattsInSum", "inv.inputWatts", "mppt.inWatts", "bms_bmsStatus.inputWatts",
+                                                    "pd.wattsOutSum", "inv.outputWatts", "bms_bmsStatus.outputWatts",
+                                                    "pd.chgPowerAC", "pd.chgSunPower", "bms_emsStatus.chgState")
+            if q.get(k) is not None}
+
+
 def read_rivers(ak, sk, host_hint=None):
     """Vrátí (host, [ {sn, name, online, soc, in_w, out_w, ...}, ... ])."""
     errs = []
@@ -246,6 +254,8 @@ def read_rivers(ak, sk, host_hint=None):
         if len(r["chgk"]) > 8:
             r["chgk"] = dict(list(r["chgk"].items())[:8])
         r["socs"] = {k: q[k] for k in KEYS["soc"] if q.get(k) is not None}   # všechny zdroje % (porovnání s displejem)
+        # 4.82: všechny výkony, které EcoFlow hlásí (proč „nabíjí 151 W“, když nenabíjí)
+        r["pw"] = power_keys(q)
         if r.get("soc") is None and not r.get("gen") and q:          # 4.62: neznámé klíče (jiný model) → poslat výběr na web
             r["qk"] = {k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and
                        any(x in k.lower() for x in ("soc", "batt", "watt", "remain", "cap"))}
