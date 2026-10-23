@@ -157,6 +157,6 @@ gen_palivo = benzin              # benzin / lpg – na plyn dává generátor m�
 gen_max_benzin_W = 1800          # štítek: 1800 W (špička 1900 W)
 gen_max_lpg_W = 1600             # štítek: 1600 W (špička 1700 W)
 gen_rezerva_W = 100              # tolik W nechat generátoru volných
-gen_po_behu_W = 650              # výkon velkých River po běhu (další start nepřetíží generátor)
+gen_po_behu_W = 200              # výkon velkých River mimo nabíjení z generátoru (start generátoru nic nepřetíží)
 zasuvky_stale = 1, 4, 5, 9       # zásuvky, které musí být vidět pořád (číslo) – jinak upozornění; zásuvka měniče jen když měnič běží
 zasuvky_stale_min = 8            # upozornit, když zásuvka není vidět aspoň tolik minut (a ve 2 měřeních po sobě)

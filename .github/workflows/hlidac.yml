@@ -21,8 +21,13 @@ on:
         description: "EcoFlow: nastavit nabíjecí výkon „konec SN:W“ (zkouška)"
         type: string
         default: ""
+      gen:
+        description: "Nabíjení z generátoru: start / stop"
+        type: string
+        default: ""
 
 permissions:
+  actions: write
   contents: write
   pages: write
   deployments: read
@@ -58,6 +63,8 @@ jobs:
           WAKE: ${{ github.event_name == 'workflow_dispatch' && inputs.wake && '1' || '0' }}
           FLIP_DATA: ${{ github.event_name == 'workflow_dispatch' && inputs.flip || '' }}
           EF_SET: ${{ github.event_name == 'workflow_dispatch' && inputs.efset || '' }}
+          GEN_CMD: ${{ github.event_name == 'workflow_dispatch' && inputs.gen || '' }}
+          GH_TOKEN: ${{ github.token }}
         run: python3 hlidac.py
 
       - name: Odblokovat zaseknuté nasazení stránky

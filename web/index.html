@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.86", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.87", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1712,25 +1712,43 @@ function ecoProbeHtml(p, sn){
   const m = r.mqtt, mq = m == null ? "" : typeof m === "string" ? m : `zpráv ${m.n||0}${m.st!=null?`, stav ${m.st}`:""}${m.code?`, odpověď ${m.code}`:""}${m.q && Object.keys(m.q).length ? ` – ${fmt(m.q)}` : ""}`;
   return `<div class="sub" style="font-size:11.5px;word-break:break-all">zkouška ${relDay(p.t)} ${hmT(p.t)} (${r.on?"online":"offline"}): vybrané údaje → ${escH(http)}${mq?`<br>MQTT → ${escH(mq)}`:""}</div>`;
 }
-// 4.68: nabíjení z generátoru – jak hlídač rozdělil výkon mezi velké River (skončí zároveň, generátor naplno)
+// 4.68 / 4.87: nabíjení z generátoru – tlačítko start / konec a jak hlídač rozdělil výkon mezi velké River
 function genPlanHtml(d){
   const c = d.cfg || {}, P = d.gen_plan, fuel = (c.gen_palivo||"benzin").startsWith("lpg") ? "lpg" : "benzin";
   const gmax = fuel==="lpg" ? (c.gen_max_lpg_W ?? 1600) : (c.gen_max_benzin_W ?? 1800), fl = fuel==="lpg" ? "plyn (LPG)" : "benzín";
   if(c.gen_rizeni === false) return `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2><span class="sub">Řízení je vypnuté (Nastavení → Generátor).</span></div>`;
-  const run = P && !P.end && Date.now()/1000 - P.t < 1800;
-  let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>`;
+  const run = P && !P.end && Date.now()/1000 - P.t < 900;
+  const btn = `<button class="genbtn" onclick="genCmd('${run?"stop":"start"}', this)" style="font:inherit;font-weight:700;width:100%;padding:12px;margin:6px 0 4px;border-radius:12px;border:1px solid ${run?"var(--line)":"var(--good)"};background:${run?"transparent":"color-mix(in srgb,var(--good) 18%,transparent)"};color:var(--text);cursor:pointer">${run ? "⏹ Ukončit nabíjení z generátoru" : "⛽ Spustit nabíjení z generátoru"}</button>`;
+  let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}`;
   if(run){
-    h += rowI("Generátor teď", `${nf(P.gw)} W z ${nf(P.gmax)} W (${fl})`)
-      + rowI("Malá River bere", P.small ? `~${nf(P.small)} W` : "nic")
-      + P.rv.map(r=>rowI(`<b>${escH(r.n||"River")}</b>`, `${nf(r.soc)} % · nastaveno ${r.w?nf(r.w)+" W":"–"} (bere ${nf(r.in)} W) · plná ${relDay(r.fin)} ~${hmT(r.fin)}`)).join("")
+    h += (P.wait ? `<div class="sub" style="margin:4px 0">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
+      + rowI("Generátor", `${P.gw!=null ? nf(P.gw)+" W z " : "max "}${nf(P.gmax)} W (${fl})${P.gd && P.gd.fuel!=null ? ` · palivo ${nf(P.gd.fuel)} %` : ""}`)
+      + rowI("Malá River", P.small ? `bere ~${nf(P.small)} W${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}` : `nenabíjí se${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}`)
+      + P.rv.map(r=>rowI(`<b>${escH(r.n||"River")}</b>`, `${nf(r.soc)} % · ${r.w?`nastaveno ${nf(r.w)} W`:"200 W"} (bere ${nf(r.in)} W) · plná ${relDay(r.fin)} ~${hmT(r.fin)}`)).join("")
       + (P.fin ? rowI("Generátor můžeš vypnout", `${relDay(P.fin)} ~${hmT(P.fin)}`) : "")
-      + (P.rv.length ? "" : `<div class="sub">Žádná velká River se z generátoru nenabíjí.</div>`);
+      + (P.rv.length ? "" : `<div class="sub">Velké River se zatím nenabíjejí – zapoj je do generátoru.</div>`)
+      + `<div class="sub" style="margin-top:4px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s</div>`;
   } else {
-    h += `<div class="sub">Generátor neběží.${P && P.end ? ` Poslední řízení ${relDay(P.t_on||P.t)} ${hmT(P.t_on||P.t)}–${hmT(P.end)}.` : ""}</div>`;
+    h += `<div class="sub">Generátor neběží.${P && P.end ? ` Poslední nabíjení ${relDay(P.t_on||P.t)} ${hmT(P.t_on||P.t)}–${hmT(P.end)}.` : ""}</div>`;
   }
   if(P && P.set && P.set.length) h += `<div class="sub" style="margin-top:4px">Naposledy nastaveno: ${escH(P.set.join(", "))}</div>`;
-  h += `<div class="sub" style="margin-top:6px;line-height:1.5">Palivo: <b>${fl}</b> – max. ${nf(gmax)} W, z toho rezerva ${nf(c.gen_rezerva_W ?? 100)} W (změna v Nastavení → Generátor). Hlídač rozdělí zbytek po malé River mezi velké River podle toho, kolik které chybí, aby se nabily zároveň (200–940 W na River). Po běhu jim nastaví ${nf(c.gen_po_behu_W ?? 650)} W, aby příští start nepřetížil generátor. Mění se při každé kontrole (asi 10 min).</div></div>`;
+  h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${nf(c.gen_po_behu_W ?? 200)} W, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${nf(gmax)} W − rezerva ${nf(c.gen_rezerva_W ?? 100)} W − co bere malá River, rozdělí mezi velké River podle toho, kolik které chybí, aby se nabily zároveň (200–940 W na River). Jakmile je některá plná, vrátí jí ${nf(c.gen_po_behu_W ?? 200)} W. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
   return h;
+}
+/* 4.87: tlačítko start / konec nabíjení z generátoru → spustí hlídače (GitHub) s povelem */
+async function genCmd(cmd, el){
+  const tok = store.get("ghtok");
+  if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
+  if(el){ el.disabled = true; el.textContent = cmd==="start" ? "Spouštím… (do 1 min)" : "Ukončuji…"; }
+  try{
+    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{
+      method:"POST", headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"},
+      body:JSON.stringify({ref:"main",inputs:{test:false,wake:true,gen:cmd}})});
+    if(r.status===401||r.status===403||r.status===404){store.del("ghtok");throw new Error("Token nefunguje – zadej ho znovu.");}
+    if(!r.ok) throw new Error("GitHub odpověděl "+r.status);
+    if(el) el.textContent = cmd==="start" ? "✓ Spuštěno – nastartuj generátor" : "✓ Ukončeno";
+    setTimeout(()=>{ try{ triggerLive(); }catch(e){} }, 1500);
+  }catch(e){ if(el){ el.disabled = false; el.textContent = e.message; } }
 }
 const escH = t => String(t).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 /* 4.52: teploměry Xiaomi (přes Flip 1.5) */
@@ -2001,7 +2019,7 @@ function detRiver(body){
                  {...C, at:p=>!p.tp ? undefined : p.rc ? "c" : false}];
   const dd = Object.keys(d.days||{}).sort().filter(k=>k >= dkey(Date.now()/1000 - Math.max(hrs,24)*3600) && k >= USE_FROM);
   const RL = R.map(r=>({id:r.id, name:r.short, color:r.color}));
-  let html = `<div class="card"><h2 style="margin:0 0 4px">Teď</h2>${[...R, G, C].map(x=>rowI(`<b style="color:${x.color}">${x.name}</b>`, `${rivState(x, h, MM)}${x.ef && x.ef.soc!=null ? ` · ${nf(x.ef.soc)} %` : ""}`)).join("")}</div>`
+  let html = genPlanHtml(d) + `<div class="card"><h2 style="margin:0 0 4px">Teď</h2>${[...R, G, C].map(x=>rowI(`<b style="color:${x.color}">${x.name}</b>`, `${rivState(x, h, MM)}${x.ef && x.ef.soc!=null ? ` · ${nf(x.ef.soc)} %` : ""}`)).join("")}</div>`
     + segHtml() + "@@RVTAB@@"
     + (long ? "" : chartCard("rv_tl", "Co se dělo", `plný pruh = napájí chatu · světlejší = napájí jen spotřebič (chata jela ze soláru) · <span style="color:var(--s7)">■</span> generátor běží (nabíjí River) · <span style="color:var(--good)">■</span> nabíjení River ze soláru`))
     + chartCard("rv_out", "Z River do chaty", long ? `kWh za den · ${RL.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ")}` : "W · součet zásuvek na výstupu River")
@@ -2011,7 +2029,6 @@ function detRiver(body){
     + chartCard("rv_in", "Nabíjení River", anyEF ? "kWh za den do každé River (EcoFlow)" : "až z EcoFlow – generátor nabíjí všechny najednou, rozdělení zná jen EcoFlow");
   // běhy generátoru
   const cap = d.cfg?.river_Wh ?? 768, GL = (d.gen_cur ? [Object.assign({run:true}, d.gen_cur)] : []).concat((d.gen_log||[]).slice().reverse()).slice(0, 12);
-  html += genPlanHtml(d);
   html += `<div class="card"><h2 style="margin:0 0 4px">Běhy generátoru</h2>${GL.length ? GL.map(r=>{ const S = genSummary(r, cap);
     return `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${relDay(r.t0)} ${hmT(r.t0)}–${r.run?"běží":hmT(r.t1)}</b><span style="font-variant-numeric:tabular-nums">${r.wh?`${nf(r.wh/1000,2)} kWh`:"–"}</span></div>
       <div class="sub" style="font-size:13px">${durTxt((r.t1-r.t0)/60)}${S.txt?` · ${S.txt}`:""}${S.eff?` · účinnost ~${S.eff} %`:""}</div></div>`; }).join("") : '<span class="sub">Zatím žádný zaznamenaný běh.</span>'}</div>`;

@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.87 – 23. 10. 2026
+- Nabíjení z generátoru – tlačítko a rychlé řízení: v detailu EcoFlow (nahoře) a Generátor tlačítko „⛽ Spustit nabíjení z generátoru“ / „⏹ Ukončit“. Po spuštění hlídač běží ve smyčce: každých 30 s čte EcoFlow přes aplikaci (živě) a přenastavuje výkony, po ~3 min spustí další běh sám (bez čekání na Flip), dokud nabíjení neskončí.
+- Mimo nabíjení mají velké River 200 W (dřív 650 W), takže start generátoru nic nepřetíží. 30 s po začátku nabíjení vypočítané výkony (max podle paliva − rezerva − malá River, rozdělené podle toho, kolik které chybí, 200–940 W). Jakmile se některá River přestane nabíjet (plná / odpojená), hned zpět na 200 W – při dalším startu je vše nachystané. Libovolný počet River (1–3).
+- Malá River se počítá z jejího vlastního příjmu (přes aplikaci EcoFlow); výkon generátoru ze zásuvky (7), nebo z generátoru přes aplikaci.
+- Konec: tlačítko, nebo 10 min nic nenabíjí (po tlačítku bez nabíjení 30 min) → všem 200 W; když generátor dál dodává, „Generátor běží naprázdno – vypni ho“. Bez tlačítka se nabíjení pozná samo (pomaleji, podle měření Flipu).
+
 ## 4.86 – 23. 10. 2026
 - Nabíjení River ze soláru se zase samo zapne: místo vypnutí v nastavení (4.85) automatika pozná, že zásuvka (8) není vidět (vypínač – 3 měření po sobě), čeká a nic neposílá. Jakmile se zásuvka objeví (na jaře zapneš vypínač), běží sama dál a přijde zpráva „Nabíjení River ze soláru zase běží“. Nastavení vráceno na zapnuto.
 
