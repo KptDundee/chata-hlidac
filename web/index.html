@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.80", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.81", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1937,8 +1937,10 @@ function rivState(x, h, M){
   const iw = x.ef ? x.ef.in_w||0 : 0, ow = x.ef ? x.ef.out_w||0 : 0;
   if((x.w||0) > 2) return h.invF && (h.inv.mw||0) > 3 ? "napájí spotřebič" : "napájí chatu";
   // 4.78: zdroj jen generátor (když opravdu běží); nabíjení z jiné River je výjimka – bez udání zdroje
-  if(iw > 20) return `nabíjí se${M && (M.G.w||0) > 5 ? " z generátoru" : ""} · ${nf(iw)} W`;
-  if(ow > 20) return `dodává ${nf(ow)} W`;
+  // 4.81: stáří údaje z EcoFlow (čte se s každým během hlídače) – ať je vidět, že 150 W může být z doby před 10 min
+  const efAge = DATA.rivers_t ? Math.round((Date.now()/1000 - DATA.rivers_t)/60) : null, agoT = efAge!=null && efAge >= 5 ? ` · před ${efAge} min` : "";
+  if(iw > 20) return `nabíjí se${M && (M.G.w||0) > 5 ? " z generátoru" : ""} · ${nf(iw)} W${agoT}`;
+  if(ow > 20) return `dodává ${nf(ow)} W${agoT}`;
   if(M && (M.G.w||0) > 5 && !(x.ef && x.ef.in_w!=null)) return "generátor běží – nabíjí se?";   // bez dat z EcoFlow nevíme
   if(M && M.C.on && M.C.tgt === x) return "nabíjí se ze soláru";
   if(x.off) return "zásuvka nedostupná";

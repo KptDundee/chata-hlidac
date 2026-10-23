@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.81 – 23. 10. 2026
+- EcoFlow: River, která je offline, má výkon nabíjení / odběru 0 – EcoFlow u offline zařízení vrací poslední hodnoty, takže „nabíjí se 150 W“ viselo i po odpojení. U výkonu River na dlaždici EcoFlow stáří údaje („před 8 min“), když je starší než 5 min.
+
 ## 4.80 – 23. 10. 2026
 - Spotřeba dnes: dlaždice Z River zelená jen když některá River právě dodává proud (zásuvka na jejím výstupu > 2 W), jinak šedá. Stejně Ze soláru – šedá, když měnič nic nedodává.
 

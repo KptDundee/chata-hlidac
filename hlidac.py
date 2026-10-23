@@ -2622,6 +2622,10 @@ def read_ecoflow_app(rivers, data, st, now):
                         pass
                     break
         r["socs"] = {k: q[k] for k in KEYS_EF()["soc"] if q.get(k) is not None}
+        if not r.get("online"):
+            for k in ("in_w", "out_w", "ac_in_w", "ac_out_w"):
+                if r.get(k):
+                    r[k] = 0.0
         if r.get("gen"):
             gd = {}
             for key, names in GEN_KEYS.items():

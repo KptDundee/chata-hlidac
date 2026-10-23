@@ -236,6 +236,10 @@ def read_rivers(ak, sk, host_hint=None):
                     except (TypeError, ValueError):
                         pass
                     break
+        if not r["online"]:                     # 4.81: offline zařízení EcoFlow vrací poslední hodnoty – výkon by „visel“
+            for k in ("in_w", "out_w", "ac_in_w", "ac_out_w"):
+                if r.get(k):
+                    r[k] = 0.0
         r["nq"] = len(q)                                                # 4.64: kolik údajů EcoFlow vrátil
         r["chgk"] = {k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and "chg" in k.lower()
                      and "watt" in k.lower()}                           # 4.66: nastavený nabíjecí výkon (ověření)
