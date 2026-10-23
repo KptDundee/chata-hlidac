@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.77 – 23. 10. 2026
+- Oprava vymyšlených stavů na dlaždici EcoFlow: „generátor běží“ a „nabíjí se z generátoru“ u River, které se vůbec nenabíjely. Hlídač bral jako běh generátoru i to, že se některá River nabíjí (červená z malé). Teď běh generátoru jen podle jeho zásuvky (7); „běh“ vzniklý jen z nabíjení River se zahodí. River: „nabíjí se z generátoru“ jen když generátor opravdu běží, „nabíjí se z malé“ když jiná River dává podobný výkon, jinak „nabíjí se · W“ bez zdroje; River, která dává výkon, „dodává W → nabíjí červenou“. River bez dat z EcoFlow při běžícím generátoru: „generátor běží – nabíjí se?“.
+
 ## 4.76 – 23. 10. 2026
 - EcoFlow přes přihlášení aplikace (krok 2): generátor a malá River (u vývojářského rozhraní 1006) se čtou stejnou cestou jako aplikace EcoFlow – přihlášení e-mailem a heslem (GitHub Secrets ECOFLOW_EMAIL, ECOFLOW_PASSWORD), MQTT aplikace, dotaz „latestQuotas“. Malá River: % a nabíjení jako u velkých. Generátor: palivo %, výkon, max. výkon, typ, stav motoru, režim + všechny číselné údaje k dohledání benzín / plyn (karta „EcoFlow – připojení“ → „Všechny údaje generátoru“). Neoficiální cesta – když EcoFlow přihlášení odmítne, další pokus až za hodinu (ať účet nezablokuje). Token se pamatuje ve stavu hlídače (šifrovaná data), přihlášení nejvýš 1× za týden.
 

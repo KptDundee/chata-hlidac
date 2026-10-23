@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.76", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.77", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1915,13 +1915,22 @@ function rivModel(d, h){
 function rcMinutes(pts){ let m = 0; for(let i=1;i<pts.length;i++){ const a = pts[i-1], b = pts[i]; if(a.rc && b.t-a.t <= 2400) m += (b.t-a.t)/60; } return Math.round(m); }
 function rivState(x, h, M){
   if(x.chg) return !x.known ? "zásuvka bez dat" : x.on ? `nabíjí${x.tgt ? ` ${x.tgt.short}` : ""}` : "vypnuto";
-  if(x.gen){ const cur = DATA.gen_cur, P = DATA.gen_plan, fin = P && !P.end && P.fin && Date.now()/1000 - P.t < 1800 ? ` · vypnout ~${hmT(P.fin)}` : "";
-    return (x.w||0) > 5 ? `běží · ${nf(x.w)} W${fin}` : cur ? "běží" : "neběží"; }
+  if(x.gen){ const P = DATA.gen_plan, fin = P && !P.end && P.fin && Date.now()/1000 - P.t < 1800 ? ` · vypnout ~${hmT(P.fin)}` : "";
+    return (x.w||0) > 5 ? `běží · ${nf(x.w)} W${fin}` : "neběží"; }     // 4.77: jen podle zásuvky generátoru
   if(x.miss) return `Flip zásuvku (${x.id}) nenašel`;
-  const iw = x.ef ? x.ef.in_w||0 : 0;
+  const iw = x.ef ? x.ef.in_w||0 : 0, ow = x.ef ? x.ef.out_w||0 : 0;
   if((x.w||0) > 2) return h.invF && (h.inv.mw||0) > 3 ? "napájí spotřebič" : "napájí chatu";
-  if(iw > 20) return `nabíjí se · ${nf(iw)} W`;
-  if(M && ((M.G.w||0) > 5 || DATA.gen_cur)) return "nabíjí se z generátoru";
+  // 4.77: odkud se River nabíjí – z generátoru jen když generátor opravdu běží (jeho zásuvka), jinak z jiné River,
+  // když ta dává podobný výkon (červená z malé), jinak bez udání zdroje
+  if(iw > 20){
+    const from = M && M.R.find(o=>o!==x && o.ef && (o.ef.out_w||0) > 20 && Math.abs((o.ef.out_w||0) - iw) <= Math.max(40, iw*0.4));
+    return `nabíjí se${from ? ` z ${from.short}` : M && (M.G.w||0) > 5 ? " z generátoru" : ""} · ${nf(iw)} W`;
+  }
+  if(ow > 20){
+    const to = M && M.R.find(o=>o!==x && o.ef && (o.ef.in_w||0) > 20 && Math.abs((o.ef.in_w||0) - ow) <= Math.max(40, ow*0.4));
+    return `dodává ${nf(ow)} W${to ? ` → nabíjí ${to.short}` : ""}`;
+  }
+  if(M && (M.G.w||0) > 5 && !(x.ef && x.ef.in_w!=null)) return "generátor běží – nabíjí se?";   // bez dat z EcoFlow nevíme
   if(M && M.C.on && M.C.tgt === x) return "nabíjí se ze soláru";
   if(x.off) return "zásuvka nedostupná";
   return "nic nedělá";
@@ -1931,7 +1940,7 @@ function tileRivers(d, h){
   const MM = rivModel(d, h), {R, G} = MM, all = [...R, G];
   if(!R.length) return {...t, cls:"na", v:"–", st:"Nastav zásuvky River v Nastavení"};
   // 4.36: „nabíjí se z generátoru“ / „ze soláru“ je taky činnost → zelený pruh a tečka (dřív šedé, i když text říkal, že se nabíjí)
-  const act = x => x.gen ? (x.w||0) > 5 || !!d.gen_cur : (x.w||0) > 2 || (x.ef && (x.ef.in_w||0) > 20) || /^nabíjí se/.test(rivState(x, h, MM));
+  const act = x => x.gen ? (x.w||0) > 5 : (x.w||0) > 2 || (x.ef && ((x.ef.in_w||0) > 20 || (x.ef.out_w||0) > 20)) || /^nabíjí se/.test(rivState(x, h, MM));
   const sel = all.find(x=>x.id===RVSEL) || all.find(act) || R[0];
   const tabs = `<div class="rtabs">${all.map(x=>`<button data-rv="${x.id}" class="${act(x)?"on":""} ${x===sel?"sel":""}">${x.miss?"? ":""}${x.short.slice(0,12)}</button>`).join("")}</div>`;
   const soc = sel.ef ? sel.ef.soc : null;

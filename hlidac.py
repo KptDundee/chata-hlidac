@@ -3500,7 +3500,10 @@ def gen_sessions(data, st, now, topic, cfg):
     rivers = [r for r in (data.get("rivers") or []) if r.get("online")] if rv_fresh else []
     auto_on = bool((data.get("river_auto") or {}).get("on"))
     chg = [r for r in rivers if (r.get("in_w") or 0) > 20]
-    active = gen_on or (bool(chg) and not auto_on)
+    # 4.77: běh generátoru jen podle jeho zásuvky. Dřív stačilo, že se nějaká River nabíjí – jenže River se
+    # nabíjí i z jiné River (červená z malé) a web pak všude psal „nabíjí se z generátoru“ / „generátor běží“.
+    # Podle River jen když zásuvka generátoru není nastavená.
+    active = gen_on or (not gip and bool(chg) and not auto_on)
     log_ = data.setdefault("gen_log", [])
     if not st.get("gen_bf"):                          # jednorázově: dohledat dřívější běhy z uložených bodů (14 dní)
         st["gen_bf"] = True
@@ -3580,6 +3583,10 @@ def gen_sessions(data, st, now, topic, cfg):
         dw = day_wh()
         if dw is not None and cur.get("d") == now.strftime("%Y-%m-%d"):
             cur["wh"] = round(cur.get("wh_prev", 0.0) + max(0.0, dw - (cur.get("w0") or 0.0)), 1)
+    if cur and cur.get("src") == "river" and gip:      # 4.77: „běh“ vzniklý jen z nabíjení River – nebyl to generátor
+        st["gen_cur"] = None
+        data.pop("gen_cur", None)
+        return
     if cur:                                            # běh skončil → uložit a poslat souhrn
         cur["rv"] = {k: v for k, v in cur["rv"].items() if v.get("chg")}
         rec = {k: v for k, v in cur.items() if k not in ("w0", "wh_prev", "d", "w", "w0fix")}
