@@ -32,6 +32,7 @@ DEFAULTS = {
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
     "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14,
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
+    "river_sn": "",
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",

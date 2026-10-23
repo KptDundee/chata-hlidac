@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.59", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.61", FLIP_VER = "1.7.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1840,7 +1840,10 @@ function rivModel(d, h){
   const cols = ["--s1","--s3","--s5"];
   const R = U.rids.map((id, i) => {
     const p = live.find(x=>x.ip===id) || {}, nm = pn(names[id] || p.n) || `River ${i+1}`;
-    const e = ef.find(r=>norm(r.name) && (norm(nm).includes(norm(r.name)) || norm(r.name).includes(norm(nm)))) || (ef.length===U.rids.length ? ef[i] : null);
+    // 4.61: nejdřív ruční spárování z Nastavení (river_sn „zásuvka:konec SN“), pak podle jména, pak podle pořadí
+    const snMap = Object.fromEntries(String(d.cfg?.river_sn||"").split(/[,;]+/).map(x=>x.split(":").map(y=>y.trim().toUpperCase())).filter(x=>x.length===2 && x[0] && x[1]));
+    const e = (snMap[id] && ef.find(r=>String(r.sn||"").toUpperCase().endsWith(snMap[id])))
+      || ef.find(r=>norm(r.name) && (norm(nm).includes(norm(r.name)) || norm(r.name).includes(norm(nm)))) || (ef.length===U.rids.length ? ef[i] : null);
     return {id, name:nm, short:nm.replace(/^River\s*/i,"") || nm, color:rivColor(nm, i), w:p.w, off:!!p.off || p.err!=null,
       miss: h.invF && !live.some(x=>x.ip===id), ef: e && efFresh ? e : null, sn: e ? String(e.sn||"").slice(-6) : null};
   });
@@ -1945,7 +1948,7 @@ function detRiver(body){
     html += `<div class="card"><h2 style="margin:0 0 6px">EcoFlow – připojení</h2><div style="font-size:13.5px;line-height:1.55">`
       + (ee ? `<div style="color:var(--crit)">Chyba ${relDay(ee.t)} ${hmT(ee.t)}: ${escH(ee.msg)}</div>` : "")
       + (es ? `<div class="sub">Naposledy přečteno ${relDay(es.t)} ${hmT(es.t)} (${es.host}) – zařízení na účtu:</div>` + (es.devs.length ? es.devs.map(x=>`<div>• <b>${escH(x.n||"?")}</b> · SN …${x.sn} · ${x.on ? "online" : "offline"}${x.soc!=null ? ` · ${nf(x.soc)} %` : ""}</div>`).join("") : `<div>žádná zařízení</div>`)
-            + `<div class="sub" style="margin-top:4px">Spárování se zásuvkami: podle jména (jméno River v aplikaci EcoFlow má být obsažené v názvu zásuvky, nebo naopak).</div>`
+            + `<div class="sub" style="margin-top:4px">Spárování se zásuvkami: ${(()=>{ const M = rivModel(d, homeData(d)); return M.R.map(r=>`(${r.id}) ${escH(r.short)} → ${r.sn ? "SN …"+r.sn.slice(-4) : "nespárováno"}`).join(" · "); })()}.<br>Když nesedí, v Nastavení vyplň <b>Spárování River s EcoFlow</b>: <code>číslo zásuvky:konec SN</code>, např. <code>2:AB12, 3:CD34, 6:EF56</code>.</div>`
         : (ee ? "" : `<div class="sub">Zatím žádné čtení.</div>`)) + `</div></div>`; }
   html += `<div class="card"><h2 style="margin:0 0 6px">Výklad</h2><div class="sub" style="line-height:1.55">
     <b>Nabíjení:</b> generátor nabíjí River přes zásuvku (7) – která River a kolik, ví až EcoFlow; nabíjení ze soláru jde přes zásuvku (8) za měničem, která neměří (vidíme jen zapnuto / vypnuto; kterou River nabíjí, pozná se, když má zásuvka (8) ve jménu název River).<br>
@@ -2711,9 +2714,10 @@ const SETTINGS = [
     ["mraz_C","Mráz = teplota baterie pod","","°C",1,"num"],
     ["mraz_hash","Upozornit při mrazu pod","Nabití solární baterie","#",5,"num"],
     ["plne_nabiti_dni","Připomenout plné nabití po","Kolik dní bez Floatu – AGM nemá dlouho stát nedobitá","dní",1,"num"],
-    ["teplomer_baterie","Teploměr u solární baterie","Jméno teploměru Xiaomi (jak je zadané ve Flipu) – jeho teplota se bere pro mráz a kapacitu v chladu","",0,"txt"],
-    ["teplomer_lednice","Teploměr v lednici","Jméno teploměru Xiaomi v lednici","",0,"txt"],
+    ["teplomer_baterie","Teploměr u solární baterie","Jméno teploměru Xiaomi (jak je zadané ve Flipu) – jeho teplota se bere pro mráz a kapacitu v chladu","",0,"str"],
+    ["teplomer_lednice","Teploměr v lednici","Jméno teploměru Xiaomi v lednici","",0,"str"],
     ["lednice_max_C","Lednice teplejší než","Upozornit, když je v lednici tepleji déle než 30 min","°C",1,"num"],
+    ["river_sn","Spárování River s EcoFlow","„číslo zásuvky:konec SN“, např. 2:AB12, 3:CD34, 6:EF56 – konec SN je v detailu EcoFlow","",0,"str"],
     ["zasuvka_flip","Zásuvka nabíječky Flipu","Číslo zásuvky (prázdné = neřídit)","",0,"txt"],
     ["flip_nabijeni_rizeni","Řídit nabíjení Flipu","Na soláru jen ze slunce, na River kdykoli; pod 20 % vždy, nad 42 °C nikdy (Flip 1.6)","","", "sw"],
     ["flip_teplota_max_C","Flip horký nad","Upozornit, když má baterie Flipu víc","°C",1,"num"],
@@ -2764,6 +2768,8 @@ function renderSettings(){
       if(type==="sel"){
         const opts = unit.map((o,i)=>`<option value="${o}" ${String(val||unit[0])===o?"selected":""}>${step[i]}</option>`).join("");
         html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><select data-k="${k}" data-t="sel" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)">${opts}</select></div></div>`;
+      } else if(type==="str"){   // 4.61: volný text (jména, SN) – „txt“ nechává jen čísla
+        html += `<div class="row" style="display:block"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><input type="text" data-k="${k}" data-t="str" value="${String(val).replace(/"/g,"&quot;")}" style="width:100%;margin-top:6px"></div>`;
       } else if(type==="txt"){
         html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="text" data-k="${k}" data-t="txt" value="${String(val)}" style="width:110px"></div></div>`;
       } else if(type==="time" || type==="timeopt"){
@@ -2799,6 +2805,7 @@ function collectSettings(){
     const k = el.dataset.k;
     if(el.dataset.t==="sw"){ out[k] = el.checked ? "zapnuto" : "vypnuto"; continue; }
     if(el.dataset.t==="txt"){ out[k] = el.value.replace(/[^0-9.,; ]/g,"").trim(); continue; }
+    if(el.dataset.t==="str"){ out[k] = el.value.replace(/[#\r\n]/g," ").trim(); continue; }
     if(el.dataset.t==="sel"){ out[k] = el.value; continue; }
     if(el.dataset.t==="time"){ const o = $("setbody").querySelector(`[data-opt="${k}"]`);
       out[k] = o && !o.checked ? "vypnuto" : timeOf(el); continue; }

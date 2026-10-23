@@ -148,6 +148,7 @@ plne_nabiti_dni = 14            # připomenout, když solární baterie tolik dn
 teplomer_baterie =               # jméno teploměru Xiaomi u solární baterie (jak je zadané ve Flipu) – teplota pro mráz a kapacitu v chladu
 teplomer_lednice =               # jméno teploměru Xiaomi v lednici
 lednice_max_C = 8                # upozornit, když je v lednici tepleji déle než 30 min
+river_sn =                       # spárování zásuvek River s EcoFlow: „číslo zásuvky:konec SN“, např. 2:AB12, 3:CD34, 6:EF56 (konec SN viz detail EcoFlow)
 zasuvka_flip = 9                 # zásuvka s nabíječkou Flipu (číslo)
 flip_nabijeni_rizeni = zapnuto   # řídit nabíjení Flipu: na soláru jen ze slunce, na River kdykoli; pod 20 % vždy, nad 42 °C nikdy (Flip 1.6)
 flip_teplota_max_C = 40          # upozornit, když je baterie Flipu teplejší

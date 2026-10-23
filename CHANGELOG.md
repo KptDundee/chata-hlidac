@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.61 – 23. 10. 2026
+- Nastavení: nový typ pole pro volný text – jména teploměrů a spárování River (dřív pole nechávalo jen číslice a jména teploměrů by se smazala).
+- EcoFlow: ruční spárování zásuvek River se zařízeními EcoFlow (Nastavení „Spárování River s EcoFlow“: `číslo zásuvky:konec SN`). Karta „EcoFlow – připojení“ ukazuje, jak je co spárované.
+
 ## 4.60 – 23. 10. 2026
 - EcoFlow: při chybě se ukáže odpověď obou serverů (Evropa api-e i USA api), ne jen posledního.
 
