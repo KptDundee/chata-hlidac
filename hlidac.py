@@ -1561,7 +1561,19 @@ def main():
             try:
                 tok = os.environ.get("GH_TOKEN", "")
                 rep = os.environ.get("GITHUB_REPOSITORY", "KptDundee/chata-hlidac")
+                # 4.98: když už čeká jiný běh (typicky s daty z Flipu), nespouštět – čekající běh by nahradil a data
+                # z Flipu by se ztratila (proto „Flip se neozval 1 h“); ten čekající běh smyčku stejně převezme
+                waiting = 0
                 if tok:
+                    for stt in ("pending", "queued", "waiting"):
+                        try:
+                            jr = json.loads(urllib.request.urlopen(urllib.request.Request(
+                                f"https://api.github.com/repos/{rep}/actions/workflows/hlidac.yml/runs?status={stt}&per_page=5",
+                                headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"}), timeout=15).read())
+                            waiting += int(jr.get("total_count") or 0)
+                        except Exception as e:
+                            print("Čekající běhy – nejde zjistit:", e)
+                if tok and not waiting:
                     urllib.request.urlopen(urllib.request.Request(
                         f"https://api.github.com/repos/{rep}/actions/workflows/hlidac.yml/dispatches",
                         data=json.dumps({"ref": "main"}).encode(), method="POST",
