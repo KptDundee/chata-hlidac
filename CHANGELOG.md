@@ -3,10 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.86 – 23. 10. 2026
+- Nabíjení River ze soláru se zase samo zapne: místo vypnutí v nastavení (4.85) automatika pozná, že zásuvka (8) není vidět (vypínač – 3 měření po sobě), čeká a nic neposílá. Jakmile se zásuvka objeví (na jaře zapneš vypínač), běží sama dál a přijde zpráva „Nabíjení River ze soláru zase běží“. Nastavení vráceno na zapnuto.
+
 ## 4.85 – 23. 10. 2026 · Flip 1.7.5
 - Flip 1.7.5: světelné pásky / světla Tapo (modely L…) – zapnuto / vypnuto a spotřeba dnes (Wh) z get_device_usage. Je to odhad světla (jako v aplikaci Tapo), okamžitý příkon světlo neměří. Na webu ve Spotřebičích „0,02 kWh odhad · svítí“.
 - Dlaždice „Ze soláru“ přejmenována na „Ze solární baterie“ (je to odběr přes měnič, ne výroba panelů).
-- Nabíjení River ze soláru (zásuvka 8) vypnuto v nastavení – zásuvka je do jara vypnutá vypínačem (Petr 23. 10.). Zapnout: Nastavení → Automatické nabíjení River.
 
 ## 4.84 – 23. 10. 2026
 - Dlaždice EcoFlow: River zapnutá, ale její zásuvka se nečte → „zapnutá · zásuvka (6) nečte“ (dřív chybně „AC výstup vypnutý“ – nerozlišíme, jestli je zásuvka bez proudu, nebo ji Flip nevidí).

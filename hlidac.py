@@ -1586,6 +1586,26 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
             st["ra_on"] = False
         data["river_auto"] = None
         return
+    # 4.86: zásuvka vypnutá vypínačem (zima – nic k nabíjení) → automatika čeká a nic neposílá; jakmile se zásuvka
+    # zase objeví (vypínač zapnutý), automatika běží sama dál – nic se nemusí přepínat v nastavení
+    inv_ = data.get("inverter") or {}
+    if inv_ and now.timestamp() - inv_.get("t", 0) < 1800:
+        pp = next((p for p in inv_.get("tp") or [] if str(p.get("ip")) == ip), None)
+        seen = pp is not None and not pp.get("off") and not pp.get("gone") and pp.get("err") is None
+        if not seen:
+            st["ra_gone_n"] = st.get("ra_gone_n", 0) + 1
+            if st["ra_gone_n"] >= 3:
+                st["ra_paused"], st["ra_on"] = True, False
+        else:
+            st["ra_gone_n"] = 0
+            if st.get("ra_paused"):
+                st["ra_paused"] = False
+                log("ev", f"Zásuvka ({ip}) zase zapnutá – nabíjení River ze soláru znovu automaticky")
+                ntfy(topic, "☀️ Nabíjení River ze soláru zase běží",
+                     f"Zásuvka ({ip}) je zase zapnutá – hlídač bude River nabíjet přebytkem ze slunce sám, jako dřív.", 2, "sunny")
+        if st.get("ra_paused"):
+            data["river_auto"] = {"on": False, "paused": True, "reason": f"zásuvka ({ip}) vypnutá vypínačem – zapne se sama, až bude vidět"}
+            return
     bv, pv = v.get("bat_v"), v.get("pv_w")
     status = int(v["status"]) if v.get("status") is not None else None
     stale = v.get("age_min") is None or v["age_min"] > cfg["regulator_offline_min"]

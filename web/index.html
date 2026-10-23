@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.85", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.86", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -574,7 +574,7 @@ function render(){
     const since = ra.since ? new Date(ra.since*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}) : "";
     const hmS = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
     const waitTxt = ra.wait && ra.wait*1000 > Date.now() ? `znovu zkusí po ${hmS(ra.wait)}` : "zapne se, až bude solární baterie plná nebo regulátor bude držet nabíjecí napětí";
-    $("rauto").innerHTML = ra.on ? `🔌 <b>Nabíjení River zapnuto</b>${since?` od ${since}`:""}${ra.why?` · ${ra.why}`:""}`
+    $("rauto").innerHTML = ra.paused ? `🔌 Nabíjení River ze soláru čeká · ${ra.reason}` : ra.on ? `🔌 <b>Nabíjení River zapnuto</b>${since?` od ${since}`:""}${ra.why?` · ${ra.why}`:""}`
       : `🔌 Nabíjení River vypnuto · ${waitTxt}${ra.why && ra.off_ts?`<br><span style="opacity:.7">naposledy vypnuto ${hmS(ra.off_ts)}: ${ra.why}</span>`:""}`;
   }
   const gi = d.inverter, giFresh = gi && Date.now()/1000 - gi.t < 1800;

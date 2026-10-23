@@ -235,3 +235,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **4.83**: `read_ecoflow_app` pro všechna zařízení z `/device/list` (ne jen `qerr`); když aplikace vrátí `quotaMap`, smažou se hodnoty z vývojářského rozhraní (soc, in_w, out_w, …) a doplní z aplikace (`src = "app"`). Web `ecoProbeHtml` jen při `qerr`.
 
 **4.85 / Flip 1.7.5 Světla**: `readPlugOnce` – model `L…` → `get_device_info` (device_on → `on`), `get_device_usage` → `result.power_usage.today` → `wh` (jinak `nm`), `lt = 1`. Hlídač propouští `lt`; web `tileUse` řádek „kWh odhad · svítí / nesvítí“.
+
+**4.86**: `river_auto` – zásuvka `river_auto_ip` v `inverter.tp` chybí / `off` / `gone` / `err` ve 3 měřeních → `st.ra_paused` (žádné povely, `data.river_auto = {paused, reason}`); znovu vidět → `ra_paused = False`, ntfy prio 2, automatika pokračuje.
