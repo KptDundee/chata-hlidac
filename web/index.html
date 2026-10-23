@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.77", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.78", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -180,10 +180,10 @@ details.sec>.in{margin-top:8px}
 .abar .ab{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .abar.quiet{padding:6px 12px;font-size:13px;font-weight:500}.abar.quiet .dot{width:18px;height:18px;font-size:11px}
 .rtabs{display:flex;gap:6px;margin:6px 0 2px;flex-wrap:wrap}
-.rtabs button{font:inherit;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
-.rtabs button.on{color:var(--text);border-color:var(--good)}
+.rtabs button{font:inherit;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1.5px solid transparent;background:transparent;color:var(--muted);cursor:pointer}
+.rtabs button.on{color:var(--text)}
 .rtabs button.on::before{content:"● ";color:var(--good)}
-.rtabs button.sel{background:color-mix(in srgb,var(--text) 10%,transparent);color:var(--text)}
+.rtabs button.sel{border-color:var(--text2)}
 .ht .rows{margin-top:6px;font-size:13px;font-variant-numeric:tabular-nums}
 .ht .rows div{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .ht .rows div span:first-child{color:var(--text2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1273,6 +1273,20 @@ function nightRow(d, h){
   return ["do rána", n.t_crit ? `<b style="color:var(--crit)">ne</b>` : `<span style="color:var(--good)">ano ✓</span>`];
 }
 function nightRows2(d, h){ const r = nightRow(d, h); return !r ? [] : Array.isArray(r[0]) ? r : [r]; }
+/* 4.78: barva dlaždice Solární baterie podle výhledu – stejné zdroje jako řádky „do 22:00“ a „do rána“ */
+function batOutlook(d, h){
+  const nfc = d.forecast, F = d.day_fc && h.now - d.day_fc.t <= 1800 && d.day_fc.src !== "river" ? d.day_fc : null;
+  const endT = F ? F.end : null;
+  if(nfc && nfc.until && h.now < nfc.until && !(h.invF && !(h.inv.mw > 3))){       // po západu: noční předpověď
+    if(nfc.t_off) return endT && nfc.t_off < endT ? "bad" : "warn";
+    if(nfc.t_crit || (nfc.ok_base && nfc.cut_by && h.now < nfc.cut_by)) return "warn";
+    return "ok";
+  }
+  if(!F) return null;
+  if(F.ok === false) return "bad";
+  if(F.night_ok === false) return "warn";
+  return "ok";
+}
 function tileSolar(d, h){
   const t = {k:"bat", icon:"🔆", label:"Solární baterie"};
   if(h.bv==null) return {...t, cls:"na", v:"–", st:"Bez dat z regulátoru"};
@@ -1284,7 +1298,9 @@ function tileSolar(d, h){
   const soc = h.last.bat_soc!=null && h.last.bat_soc>=0 && h.last.bat_soc<=100 ? h.last.bat_soc : null;   // regulátor občas pošle nesmysl (1446 %)
   const odb = h.loadB==null ? "–" : `${nf(h.loadB)} W`;
   const off = h.menicOff || h.rvOn;   // 4.29: chata na River → řádek odběru pryč (nic neodebírá, „chata na River“ je v textu nad tím)
-  return {...t, label:`${t.label}${bang}`, cls: ac ? (h.bv!=null && h.bv < CRIT_V || R.stale ? "bad" : "warn") : "ok",
+  // 4.78: zelená jen když vydrží do rána; do 22:00 ano, do rána ne → oranžová; ani do 22:00 → červená
+  const OL = h.rvOn ? null : batOutlook(d, h);
+  return {...t, label:`${t.label}${bang}`, cls: ac ? (h.bv!=null && h.bv < CRIT_V || R.stale ? "bad" : "warn") : OL || "ok",
     v, st: R.stale ? ac : `<span style="color:var(${F.c})">${F.t}</span>`,
     rows:[["nabití", soc!=null ? `${nf(soc)} %` : "–"], ["☀ panely", h.pv!=null ? `${nf(h.pv)} W` : "–"], ...(off ? [] : [["🏠 odběr", odb]]),
       ...(dayFcRow(d, h) ? [dayFcRow(d, h)] : []), ...nightRows2(d, h)]};
@@ -1566,7 +1582,7 @@ function dayLedger(d, h){
 /* ---- výroba dnes ---- */
 function tileProdSolar(d, h){
   const L = dayLedger(d, h), pr = d.wxo && (d.wxo.preds||[]).find(x=>x.d===dkey(h.now));
-  return {k:"today", icon:"☀️", label:"Solár", cls:"ok", info:true, v:`${nf(h.prod,2)}<small>kWh</small>`,
+  return {k:"today", icon:"☀️", label:"Solár", cls: h.pv!=null && h.pv >= 1 ? "ok" : "na", info:true, v:`${nf(h.prod,2)}<small>kWh</small>`,
     st: h.pv!=null && h.pv >= 1 ? `teď ${nf(h.pv)} W` : "teď nevyrábí",
     rows:[["→ River", kWh(L.auto)], ...(pr ? [["předpověď", `${nf(pr.kwh,1)} kWh`]] : [])]};
 }
@@ -1920,16 +1936,9 @@ function rivState(x, h, M){
   if(x.miss) return `Flip zásuvku (${x.id}) nenašel`;
   const iw = x.ef ? x.ef.in_w||0 : 0, ow = x.ef ? x.ef.out_w||0 : 0;
   if((x.w||0) > 2) return h.invF && (h.inv.mw||0) > 3 ? "napájí spotřebič" : "napájí chatu";
-  // 4.77: odkud se River nabíjí – z generátoru jen když generátor opravdu běží (jeho zásuvka), jinak z jiné River,
-  // když ta dává podobný výkon (červená z malé), jinak bez udání zdroje
-  if(iw > 20){
-    const from = M && M.R.find(o=>o!==x && o.ef && (o.ef.out_w||0) > 20 && Math.abs((o.ef.out_w||0) - iw) <= Math.max(40, iw*0.4));
-    return `nabíjí se${from ? ` z ${from.short}` : M && (M.G.w||0) > 5 ? " z generátoru" : ""} · ${nf(iw)} W`;
-  }
-  if(ow > 20){
-    const to = M && M.R.find(o=>o!==x && o.ef && (o.ef.in_w||0) > 20 && Math.abs((o.ef.in_w||0) - ow) <= Math.max(40, ow*0.4));
-    return `dodává ${nf(ow)} W${to ? ` → nabíjí ${to.short}` : ""}`;
-  }
+  // 4.78: zdroj jen generátor (když opravdu běží); nabíjení z jiné River je výjimka – bez udání zdroje
+  if(iw > 20) return `nabíjí se${M && (M.G.w||0) > 5 ? " z generátoru" : ""} · ${nf(iw)} W`;
+  if(ow > 20) return `dodává ${nf(ow)} W`;
   if(M && (M.G.w||0) > 5 && !(x.ef && x.ef.in_w!=null)) return "generátor běží – nabíjí se?";   // bez dat z EcoFlow nevíme
   if(M && M.C.on && M.C.tgt === x) return "nabíjí se ze soláru";
   if(x.off) return "zásuvka nedostupná";
@@ -1941,8 +1950,10 @@ function tileRivers(d, h){
   if(!R.length) return {...t, cls:"na", v:"–", st:"Nastav zásuvky River v Nastavení"};
   // 4.36: „nabíjí se z generátoru“ / „ze soláru“ je taky činnost → zelený pruh a tečka (dřív šedé, i když text říkal, že se nabíjí)
   const act = x => x.gen ? (x.w||0) > 5 : (x.w||0) > 2 || (x.ef && ((x.ef.in_w||0) > 20 || (x.ef.out_w||0) > 20)) || /^nabíjí se/.test(rivState(x, h, MM));
-  const sel = all.find(x=>x.id===RVSEL) || all.find(act) || R[0];
-  const tabs = `<div class="rtabs">${all.map(x=>`<button data-rv="${x.id}" class="${act(x)?"on":""} ${x===sel?"sel":""}">${x.miss?"? ":""}${x.short.slice(0,12)}</button>`).join("")}</div>`;
+  // 4.78: zapnutá = EcoFlow ji vidí online (bez EcoFlow: zásuvka na jejím výstupu má proud); generátor = běží
+  const onX = x => x.gen ? (x.w||0) > 5 : x.ef && x.ef.online != null ? !!x.ef.online : !x.off && !x.miss;
+  const sel = all.find(x=>x.id===RVSEL) || all.find(act) || all.find(onX) || R[0];
+  const tabs = `<div class="rtabs">${all.map(x=>`<button data-rv="${x.id}" class="${onX(x)?"on":""} ${x===sel?"sel":""}">${x.miss?"? ":""}${x.short.slice(0,12)}</button>`).join("")}</div>`;
   const soc = sel.ef ? sel.ef.soc : null;
   // 4.59: proč chybí % z EcoFlow – chyba čtení / EcoFlow vidí jiná jména / nic
   const es = d.eco_seen, ee = d.eco_err;

@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.78 – 23. 10. 2026
+- Dlaždice EcoFlow – záložky: vypnutá River šedě, zapnutá plným písmem se zelenou tečkou (EcoFlow ji vidí online; bez EcoFlow = zásuvka na jejím výstupu má proud; generátor = běží), rámeček = údaje pod záložkami patří téhle. Nabíjení z jiné River se nerozlišuje (výjimečná situace) – „nabíjí se · W“, z generátoru jen když běží; River, která něco napájí: „dodává W“.
+- Dlaždice Solární baterie – barva podle výhledu: zelená jen když vydrží do rána; do 22:00 ano, do rána ne → oranžová; ani do 22:00 → červená (po západu podle noční předpovědi: vypne se před 22:00 červená, později oranžová; těsně / „sniž odběr“ oranžová). Chata na River: beze změny.
+- Dlaždice Solár (výroba): šedá, když panely nevyrábí (noc).
+
 ## 4.77 – 23. 10. 2026
 - Oprava vymyšlených stavů na dlaždici EcoFlow: „generátor běží“ a „nabíjí se z generátoru“ u River, které se vůbec nenabíjely. Hlídač bral jako běh generátoru i to, že se některá River nabíjí (červená z malé). Teď běh generátoru jen podle jeho zásuvky (7); „běh“ vzniklý jen z nabíjení River se zahodí. River: „nabíjí se z generátoru“ jen když generátor opravdu běží, „nabíjí se z malé“ když jiná River dává podobný výkon, jinak „nabíjí se · W“ bez zdroje; River, která dává výkon, „dodává W → nabíjí červenou“. River bez dat z EcoFlow při běžícím generátoru: „generátor běží – nabíjí se?“.
 
