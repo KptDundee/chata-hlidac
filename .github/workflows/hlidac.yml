@@ -41,7 +41,7 @@ jobs:
       - name: Načíst historii
         run: |
           git fetch -q origin gh-pages --depth 1 && git show origin/gh-pages:data.enc > data.enc || rm -f data.enc
-          pip install -q cryptography
+          pip install -q cryptography paho-mqtt
 
       - name: Kontrola baterie
         env:

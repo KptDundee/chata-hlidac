@@ -281,3 +281,4 @@ Verdikt (dobrá / opotřebovaná / slabá / vyměnit) se počítá **jen z test�
 Vedle % regulátoru (odhad z napětí – v Boostu ukazuje 100 %, i když baterie plná není) je **#**: spočítané z toho, kolik ampérhodin do baterie přiteklo a kolik odteklo. 100 # = baterie skutečně plná (regulátor aspoň 30 min ve Float); když plná dlouho nebyla, nejlepší stav za posledních 7 dní. Když nic neteče, # se nemění.
 
 Upozornění: pod 50 # a pod 30 # (nastavení `hash_upozornit`). 50 # ≈ 12,3 V v klidu / 12,2 V při nočním odběru; 30 # ≈ 12,0 V. Na hodinkách je na dlaždici #, v komplikaci napětí.
+**Generátor a malá River v EcoFlow (4.67)**: EcoFlow u nich neposílá „všechny údaje“ (chyba 1006). Hlídač proto sám zkouší jiné cesty, hlavně když generátor běží (po vypnutí elektronika generátoru rychle usne a pak není co číst). Co zjistil, je v Nastavení → karta „EcoFlow – připojení“ pod generátorem a malou River, řádek „zkouška …“.

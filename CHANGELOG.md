@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.67 – 23. 10. 2026
+- EcoFlow: u generátoru a malé River (chyba 1006 u „všech údajů“) hlídač zkouší jiné cesty – vybrané údaje (POST /device/quota: palivo pd.oilVal, typ pd.type, výkon, max. výkon pd.oilMaxOutPower …) na obou serverech EcoFlow a 35 s poslech MQTT (oficiální certifikát pro vývojáře). Spouští se při ručním spuštění a sám, když je generátor online (nejvýš 1× za 30 min, generátor rychle usíná). Výsledek v kartě „EcoFlow – připojení“ pod zařízením („zkouška …“).
+
 ## 4.66 – 23. 10. 2026
 - EcoFlow: zkušební nastavení nabíjecího výkonu River (workflow vstup `efset` „konec SN:W“, PUT /device/quota, acChgCfg). V kartě „EcoFlow – připojení“ odpověď EcoFlow a nastavené nabíjecí výkony (klíče *chg*watt*) k ověření.
 

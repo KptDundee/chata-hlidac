@@ -80,6 +80,118 @@ def set_ac_charge(host, ak, sk, sn, watts):
     return set_quota(host, ak, sk, body)
 
 
+# 4.67: zkouška jiných cest pro zařízení, kde quota/all vrací 1006 (generátor, malá River 2)
+PROBE_Q = {
+    "gen": ["pd.oilVal", "pd.type", "pd.acPower", "pd.totalPower", "pd.motorState", "pd.oilMaxOutPower",
+            "pd.sysMode", "pd.ecoMode", "pd.remainTime", "pd.motorUseTime", "pd.errCode"],
+    "river": ["pd.soc", "pd.wattsInSum", "pd.wattsOutSum", "bms_bmsStatus.soc", "inv.cfgSlowChgWatts"],
+}
+
+
+def get_quota(host, ak, sk, sn, quotas):
+    """Vybrané údaje (POST /iot-open/sign/device/quota) – jiná cesta než quota/all. Vrací odpověď EcoFlow (dict)."""
+    body = {"sn": sn, "params": {"quotas": list(quotas)}}
+    hdr = _sign(ak, sk, _flat(body))
+    hdr["Content-Type"] = "application/json;charset=UTF-8"
+    req = urllib.request.Request(host + "/iot-open/sign/device/quota", data=json.dumps(body).encode(), headers=hdr, method="POST")
+    return json.loads(urllib.request.urlopen(req, timeout=30).read())
+
+
+def _short(d, n=30):
+    out = {k: v for k, v in sorted(d.items()) if isinstance(v, (int, float, str)) and len(str(v)) < 24}
+    return dict(list(out.items())[:n])
+
+
+def mqtt_listen(host, ak, sk, sns, secs=35):
+    """Poslech EcoFlow MQTT (oficiální cesta pro vývojáře) – co jednotlivá zařízení sama posílají.
+    Vrací {sn: {"n": počet zpráv, "q": vzorek údajů, "st": online/offline}} nebo {"_err": text}."""
+    try:
+        import paho.mqtt.client as mqtt
+    except Exception as e:
+        return {"_err": f"chybí paho-mqtt ({e})"}
+    try:
+        c = _get(host, "/iot-open/sign/certification", ak, sk) or {}
+    except Exception as e:
+        return {"_err": f"certifikát: {str(e)[:100]}"}
+    acct, pw = c.get("certificateAccount"), c.get("certificatePassword")
+    url, port = c.get("url"), int(c.get("port") or 8883)
+    if not (acct and pw and url):
+        return {"_err": "certifikát bez údajů"}
+    res = {sn: {"n": 0, "q": {}} for sn in sns}
+
+    def on_msg(cl, ud, m):
+        parts = m.topic.split("/")
+        sn = parts[3] if len(parts) > 4 else None
+        if sn not in res:
+            return
+        try:
+            js = json.loads(m.payload.decode("utf-8", "replace"))
+        except Exception:
+            res[sn]["bin"] = res[sn].get("bin", 0) + 1
+            return
+        if parts[-1] == "status":
+            res[sn]["st"] = (js.get("params") or {}).get("status", js.get("status"))
+            return
+        res[sn]["n"] += 1
+        p = js.get("params") or js.get("data") or {}
+        if isinstance(p, dict):
+            pre = js.get("typeCode") or js.get("moduleType") or ""
+            for k, v in _flat(p).items():
+                res[sn]["q"][(f"{pre}." if pre and "." not in k else "") + k] = v
+        if js.get("code") not in (None, 0, "0"):
+            res[sn]["code"] = f"{js.get('code')} {js.get('message', '')}"[:80]
+
+    def on_conn(cl, ud, flags, rc, props=None):
+        for sn in sns:
+            for t in ("quota", "status", "get_reply"):
+                cl.subscribe(f"/open/{acct}/{sn}/{t}", 1)
+            q = PROBE_Q["gen"] if str(sn).upper().startswith("DG") else PROBE_Q["river"]
+            cl.publish(f"/open/{acct}/{sn}/get", json.dumps({"id": random.randint(10**8, 10**9), "version": "1.0",
+                                                               "sn": sn, "operateType": "latestQuotas",
+                                                               "params": {"quotas": q}}), 1)
+
+    try:
+        try:
+            cl = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"{acct}_{random.randint(10**6, 10**7)}")
+        except AttributeError:
+            cl = mqtt.Client(client_id=f"{acct}_{random.randint(10**6, 10**7)}")
+        cl.username_pw_set(acct, pw)
+        cl.tls_set()
+        cl.on_message, cl.on_connect = on_msg, on_conn
+        cl.connect(url, port, 30)
+        cl.loop_start()
+        time.sleep(secs)
+        cl.loop_stop()
+        cl.disconnect()
+    except Exception as e:
+        return {"_err": f"MQTT: {str(e)[:100]}"}
+    for sn in res:
+        res[sn]["q"] = _short(res[sn]["q"])
+    return res
+
+
+def probe(host, ak, sk, devs):
+    """4.67: pro zařízení s chybou údajů zkusí vybrané údaje přes HTTP a poslech MQTT. Zapisuje do r["probe"]."""
+    for r in devs:
+        if not r.get("qerr"):
+            continue
+        q = PROBE_Q["gen"] if r.get("gen") else PROBE_Q["river"]
+        pr = {}
+        for h in HOSTS:
+            try:
+                d = get_quota(h, ak, sk, r["sn"], q)
+                pr[h.replace("https://", "")] = (f"{d.get('code')} {d.get('message') or ''}"[:90] if str(d.get("code")) != "0"
+                                                 else _short(d.get("data") or {}))
+            except Exception as e:
+                pr[h.replace("https://", "")] = f"chyba {str(e)[:80]}"
+        r["probe"] = {"http": pr}
+    sns = [r["sn"] for r in devs]
+    mq = mqtt_listen(host, ak, sk, sns)
+    for r in devs:
+        r.setdefault("probe", {})["mqtt"] = mq.get("_err") or mq.get(r["sn"])
+    return devs
+
+
 def read_rivers(ak, sk, host_hint=None):
     """Vrátí (host, [ {sn, name, online, soc, in_w, out_w, ...}, ... ])."""
     errs = []

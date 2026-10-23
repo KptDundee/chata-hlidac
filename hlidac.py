@@ -2576,6 +2576,22 @@ def read_ecoflow(data, st, now, topic, cfg):
             res = {"code": "chyba", "message": str(e)[:150]}
         print("EcoFlow nastavení", efs, res)
         data["eco_set"] = {"t": int(now.timestamp()), "cmd": efs, "code": str(res.get("code")), "msg": str(res.get("message"))[:150]}
+    # 4.67: zařízení s 1006 (generátor, malá River) – zkusit jiné cesty (vybrané údaje přes HTTP, poslech MQTT).
+    # Při ručním spuštění vždy, jinak když je generátor online (rychle usíná) a nejvýš jednou za 30 min.
+    bad = [r for r in rivers if r.get("qerr")]
+    lastp = (st.get("eco_probe") or {}).get("t", 0)
+    gen_on = any(r.get("gen") and r.get("online") for r in bad)
+    if bad and (os.environ.get("ECOFLOW_DEBUG") == "1" or (gen_on and now.timestamp() - lastp > 1800)):
+        try:
+            ecoflow.probe(host, ak, sk, rivers)
+            st["eco_probe"] = {"t": int(now.timestamp()),
+                               "devs": {str(r.get("sn", ""))[-4:]: dict(r["probe"], on=r.get("online"))
+                                        for r in rivers if r.get("probe")}}
+            print("EcoFlow zkouška", json.dumps(st["eco_probe"], ensure_ascii=False)[:3000])
+        except Exception as e:
+            print("EcoFlow zkouška selhala", e)
+            st["eco_probe"] = {"t": int(now.timestamp()), "err": str(e)[:150]}
+    data["eco_probe"] = st.get("eco_probe")
     data["eco_err"] = None
     data["eco_seen"] = {"t": int(now.timestamp()), "host": host.replace("https://", ""),
                         "devs": [{"n": r.get("name"), "sn": str(r.get("sn", ""))[-4:], "on": r.get("online"),
