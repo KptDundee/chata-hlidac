@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.01 – 23. 10. 2026
+- Generátor na dlaždicích a v detailu: když nabíjí, údaje z EcoFlow (nezávisle na Flipu) – výkon, od kdy a na jaké palivo, kolik bere která River (W a %), celkem do River, kolik dodal za toto nabíjení (kWh, součet příjmů River × čas) a kdy vypnout. Detail Generátor: karta nabíjení nahoře.
+
 ## 5.00 – 23. 10. 2026
 - Graf nabití River srozumitelněji: „Žlutá – kolik má v baterii“, popis „% nabití, jak ho ukazuje displej River a aplikace EcoFlow · 100 % = plná“.
 

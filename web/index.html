@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.00", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.01", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1590,6 +1590,10 @@ function tileProdGen(d, h){
   const L = dayLedger(d, h), gc = d.gen_cur, last = (d.gen_log||[]).slice(-1)[0];
   const rv = (d.rivers||[]).map(r=>({n:r.name, i:riverToday(d,r).i||0})).filter(r=>r.i>5);
   const live = h.invF && h.inv.gen;
+  const GP = genLive(d);
+  if(GP) return {k:"gen", icon:"⛽", label:"Generátor", cls:"ok", info:true,
+    v:`${nf(Math.max((L.gen||0), GP.wh||0)/1000,2)}<small>kWh</small>`, st:`běží od ${hmT(GP.t_on)} · ${nf(GP.gw ?? GP.tot_in)} W`,
+    rows:(GP.rv||[]).map(r=>[`→ ${pn(r.n).replace(/^River\s*/i,"")}`, `${nf(r.in)} W`])};
   return {k:"gen", icon:"⛽", label:"Generátor", cls: (live && live.w > 5) || gc ? "ok" : "na", info:true, /* 4.79: šedý, když neběží  */ v: L.gen!=null ? `${nf(L.gen/1000,2)}<small>kWh</small>` : `0<small>kWh</small>`,
     st: gc ? `běží od ${hmT(gc.t0)}${live && live.w>5 ? ` · ${nf(live.w)} W` : ""}` : last ? `naposledy ${relDay(last.t0)} ${hmT(last.t0)}–${hmT(last.t1)}` : "dnes neběžel",
     rows: rv.length ? rv.map(r=>[`→ ${pn(r.n).replace(/^River\s*/i,"")}`, kWh(r.i)]) : [["→ River", "až z EcoFlow"]]};
@@ -1731,6 +1735,7 @@ function genPlanHtml(d){
       + rowI("Generátor", `${P.gw!=null ? nf(P.gw)+" W z " : "max "}${nf(P.gmax)} W (${P.gmax_gen ? `generátor hlásí max ${nf(P.gmax_gen)} W, nastaveno ${fl}` : fl})${P.gd && P.gd.fuel!=null ? ` · palivo ${nf(P.gd.fuel)} %` : ""}`)
       + (P.small ? rowI("Malá River (neovládaná)", `bere ~${nf(P.small)} W${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}`) : "")
       + P.rv.map(r=>rowI(`<b>${escH(r.n||"River")}</b>`, `${nf(r.soc)} % · ${r.w?`nastaveno ${nf(r.w)} W`:"200 W"} (bere ${nf(r.in)} W) · plná ${relDay(r.fin)} ~${hmT(r.fin)}`)).join("")
+      + rowI("Celkem do River", `${nf(P.tot_in)} W · za toto nabíjení ${kWh(P.wh)} (od ${hmT(P.t_on)})`)
       + (P.fin ? rowI("Generátor můžeš vypnout", `${relDay(P.fin)} ~${hmT(P.fin)}`) : "")
       + (P.rv.length ? "" : `<div class="sub">Velké River se zatím nenabíjejí – zapoj je do generátoru.</div>`)
       + `<div class="sub" style="margin-top:4px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s</div>`;
@@ -2002,6 +2007,16 @@ function rivState(x, h, M){
   if(M && M.C.on && M.C.tgt === x) return "nabíjí se ze soláru";
   return "nic nedělá";
 }
+/* 4.101: běžící nabíjení z generátoru (z EcoFlow přes aplikaci – nezávisle na Flipu) */
+function genLive(d){ const P = d.gen_plan; return P && !P.end && Date.now()/1000 - P.t < 900 ? P : null; }
+function genRows(d, h, sel){
+  const P = genLive(d), today = (((d.days||{})[dkey(h.now)]||{}).tp||{})[sel.id];
+  if(!P) return [["dnes dodal", kWh(today ?? 0)]];
+  const rows = (P.rv||[]).map(r=>[`→ ${escH(pn(r.n)||"River")}`, `${nf(r.in)} W · ${nf(r.soc)} %`]);
+  rows.push(["celkem do River", `${nf(P.tot_in)} W`], ["za toto nabíjení", kWh(P.wh)]);
+  if(P.fin) rows.push(["vypnout", `${relDay(P.fin)} ~${hmT(P.fin)}`]);
+  return rows;
+}
 function tileRivers(d, h){
   const t = {k:"river", icon:"🔋", label:"EcoFlow"};
   const MM = rivModel(d, h), {R, G} = MM, all = [...R, G];
@@ -2017,8 +2032,11 @@ function tileRivers(d, h){
   const es = d.eco_seen, ee = d.eco_err;
   const why = soc!=null ? `${nf(soc)} %` : ee && (!es || ee.t > es.t) ? `<span class="sub">EcoFlow chyba</span>`
     : sel.ef ? `<span class="sub">EcoFlow % neposílá</span>` : es && es.devs.length ? `<span class="sub">EcoFlow nespárováno</span>` : "až z EcoFlow";   // 4.65
-  return {...t, top:tabs, cls: act(sel) ? "ok" : "na", v: sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–", st: rivState(sel, h, MM),
-    rows: sel.gen ? [["dnes dodal", kWh((((d.days||{})[dkey(h.now)]||{}).tp||{})[sel.id] ?? 0)]] : [["nabití", why]]};
+  const GP = genLive(d);
+  return {...t, top:tabs, cls: act(sel) || (sel.gen && GP) ? "ok" : "na",
+    v: sel.gen && GP ? `${nf(GP.gw ?? GP.tot_in)}<small>W</small>` : sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–",
+    st: sel.gen && GP ? `běží od ${hmT(GP.t_on)} · ${GP.fuel==="lpg"?"plyn":"benzín"}` : rivState(sel, h, MM),
+    rows: sel.gen ? genRows(d, h, sel) : [["nabití", why]]};
 }
 /* časová osa: řádek pro každé zařízení, pruh = kdy bylo v činnosti */
 function timelineChart(el, pts, rows, hours){
@@ -2502,11 +2520,11 @@ function detGen(body){
   // 4.35: grafy nahoře – výkon generátoru (zásuvka generátoru) a kolik dodal po dnech
   const U = useModel(d), pts = d.points || [], dayTp = k => ((d.days||{})[k]||{}).tp || {};
   const dd = []; for(let i=13;i>=0;i--) dd.push(dkey(Date.now()/1000 - i*86400));
+  body.insertAdjacentHTML("beforeend", genPlanHtml(d));    // 4.101: běžící nabíjení nahoře
   body.insertAdjacentHTML("beforeend", chartCard("dg_w", "Výkon generátoru", "W · zásuvka generátoru · 48 h")
     + chartCard("dg_d", "Dodal po dnech", "kWh za den · zásuvka generátoru · 14 dní"));
   lineChart($("dg_w"), pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})), "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
   barChart($("dg_d"), dd.map(k=>({k, v:(dayTp(k)[U.gen]||0)/1000})), "v", css("--s7"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
-  body.insertAdjacentHTML("beforeend", genPlanHtml(d));
   body.insertAdjacentHTML("beforeend", `<div class="card">${rows || '<span class="sub">Zatím žádný zaznamenaný běh generátoru.</span>'}</div>
   <div class="sub" style="margin:0 4px 12px;line-height:1.5">Dodáno = energie přes zásuvku Tapo generátoru. Nabito = změna % River × kapacita (${cap} Wh). Účinnost = nabito ÷ dodáno (ztráty nabíječky River a odběr během nabíjení).</div>`);
 }

@@ -3750,7 +3750,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gs.update({"btn": ts0, "first": None, "idle": None, "t_on": ts0, "active": True, "idle_warned": False, "ever": False,
                    "restart": True})
         gs.pop("stop", None)
-        for k_ in ("con", "low", "chg_t", "sig"):
+        for k_ in ("con", "low", "chg_t", "sig", "wh", "e_t", "e_w"):
             gs.pop(k_, None)
         log("ev", f"Nabíjení z generátoru: spuštěno tlačítkem ({'plyn' if str(cfg.get('gen_palivo')).startswith(('lpg', 'plyn')) else 'benzín'})")
     elif cmd == "stop" and gs.get("active"):
@@ -3912,7 +3912,12 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             fins.append(fin)
             rv.append({"n": r.get("name"), "sn": r["sn"][-4:], "soc": round(r["soc"]), "need": round(need[r["sn"]]),
                        "w": w, "in": round(acw(r)), "fin": int(fin)})
-        data["gen_plan"] = {"t": tnow, "fuel": fuel, "gmax": gmax_eff, "gmax_set": gmax, "gmax_gen": gm, "budget": budget_eff, "gw": round(gw) if gw is not None else None,
+        # 4.101: kolik dodal do River za toto nabíjení (součet příjmů River × čas, z EcoFlow – nezávisle na Flipu)
+        tot_in = round(sum(acw(r) for r in con) + small_w)
+        if gs.get("e_t") and 0 < tnow - gs["e_t"] <= 300:
+            gs["wh"] = gs.get("wh", 0.0) + (gs.get("e_w", 0) + tot_in) / 2 * (tnow - gs["e_t"]) / 3600
+        gs["e_t"], gs["e_w"] = tnow, tot_in
+        data["gen_plan"] = {"t": tnow, "fuel": fuel, "tot_in": tot_in, "wh": round(gs.get("wh", 0.0)), "gmax": gmax_eff, "gmax_set": gmax, "gmax_gen": gm, "budget": budget_eff, "gw": round(gw) if gw is not None else None,
                             "small": round(small_w), "small_soc": round(small["soc"]) if small and small.get("soc") is not None else None,
                             "avail": round(avail), "rv": rv, "fin": int(max(fins)) if fins else None, "t_on": gs.get("t_on"),
                             "btn": bool(gs.get("btn")), "wait": bool(con) and tnow - gs["first"] < 30,
