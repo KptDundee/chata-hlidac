@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 4.74 – 23. 10. 2026
+- Oprava: dlaždice Solární baterie („do rána ne“) a Noc („do zítřejšího rána vydrží“) si odporovaly – každá brala jiný výpočet. Teď obě stejně: po západu noční předpověď (napětí, odběr za poslední hodinu, oprava z minulých nocí – podle ní chodí i večerní upozornění), přes den výhled dne (stejný jako „do 22:00 / do rána“ na dlaždici baterie).
+
 ## 4.73 – 23. 10. 2026
 - Lednice: graf „Jak dlouho kompresor běžel“ – % dne po dnech (30 dní). Z měření zásuvky lednice, každé měření váží čas do dalšího (bez průměrování; mezery nad 15 min se nepočítají). V bublině hodiny běhu, počet rozběhů, příkon za běhu a za kolik hodin jsou data; den s daty pod 20 h je světlejší. Hlídač si to ukládá do denních součtů, takže graf vydrží i po smazání podrobných bodů (14 dní).
 

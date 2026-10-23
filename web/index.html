@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "4.73", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "4.74", FLIP_VER = "1.7.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1255,6 +1255,15 @@ function dayFcBlock(f){
 }
 /* do rána (4.19): přes den z výhledu dne (stejný výpočet, pokračuje přes noc), v noci z noční předpovědi */
 function nightRow(d, h){
+  // 4.74: po západu (běží noční předpověď) rozhoduje stejně jako dlaždice Noc – dřív tu vyhrál výhled dne
+  // a dlaždice si odporovaly („do rána ne“ × „do zítřejšího rána vydrží“)
+  const nf_ = d.forecast;
+  if(nf_ && nf_.until && h.now < nf_.until && !(h.invF && !(h.inv.mw > 3))){
+    if(nf_.ok_base && nf_.cut_by && h.now < nf_.cut_by) return ["do rána", `<b style="color:var(--warn)">sniž odběr do ${hmT(nf_.cut_by)}</b>`];
+    if(nf_.t_off) return ["do rána", `<b style="color:var(--crit)">ne</b>`];
+    if(nf_.t_crit) return ["do rána", `<b style="color:var(--warn)">těsně</b>`];
+    return ["do rána", `<span style="color:var(--good)">ano ✓</span>`];
+  }
   const f = d.day_fc;
   if(f && h.now - f.t <= 1800 && f.src==="river") return null;   // na River to řeší řádek „přepnout na solár?“
   if(f && h.now - f.t <= 1800 && f.night_ok != null)
@@ -1346,6 +1355,14 @@ function tileNight(d, h){
       st: M.ok ? cap1(`River ${doRana(M.mor)} vydrží`) : `River se vybije ${relDay(rs.until)} ~${hmT(rs.until)}`,
       a: M.ok ? `Při ~${nf(rs.w)} W · solární baterie se zatím jen nabíjí` : "Dnes večer omez odběr / připrav druhou River"}; }
   if(ol && ol.mode === "zima") return {...t, cls:"ok", v:"River", st:"Zimní provoz", a:"Chata každou noc jede z River"};
+  { const F = d.day_fc;   // 4.74: přes den stejný výpočet jako dlaždice Solární baterie (výhled dne), ať si neodporují
+    if(F && h.now - F.t <= 1800 && F.src !== "river" && F.night_ok != null){
+      if(!F.night_ok) return {...t, cls:"bad", v: F.t_empty_n ? `${hmT(F.t_empty_n)}<small>došla by ${relDay(F.t_empty_n)}</small>` : "ne",
+        st: cap1(`${doRana(morT)} nevydrží`), a:"Podle výhledu dne – dnes večer omez odběr / připrav River"};
+      const r0 = ol && (ol.days||[]).find(x=>x.d===dkey(morT - 86400));
+      return {...t, cls:"ok", v: r0 && r0.mv!=null ? `${nf(r0.mv + C.c,2)}${unit}` : F.cap && F.lvl_end!=null ? `~${Math.round(F.alarm + F.lvl_end/F.cap*100)}<small># ${rano(morT)}</small>` : "ano",
+        st: cap1(`${doRana(morT)} vydrží`), a:"Odhad podle výhledu dne – přesně dnes po západu"};
+    } }
   const dayBefore = dkey(morT - 86400), r = ol && (ol.days||[]).find(x=>x.d===dayBefore);   // days[i].mv = ráno PO dni i
   if(r && r.mv!=null){
     const mv = r.mv + C.c, cls = mv < CRIT_V ? "bad" : mv < WARN_V ? "warn" : "ok";
