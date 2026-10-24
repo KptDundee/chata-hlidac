@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.25", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.26", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1782,6 +1782,42 @@ function genFuel(f, el, running){     // 4.92: přepínač paliva – vždy plat
     b.textContent = (b.dataset.fuel==="lpg" ? "🔥 Plyn" : "⛽ Benzín") + (on ? " ✓" : ""); });
   return genCmd("start:" + f, null, el);    // 4.93: vždy „spustit znovu na tomhle palivu“
 }
+/* 5.26: palivo – nová lahev PB / tankování benzínu (zapisuje se do palivo.txt), kWh na lahev a cena za kWh */
+const GHF = "https://api.github.com/repos/"+REPO+"/contents/palivo.txt";
+async function fuelAdd(f){
+  const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
+  const F = (DATA.fuel||{})[f] || {}, last = (F.hist||[]).slice(-1)[0];
+  const price = prompt(f==="lpg" ? "Nová lahev PB 10 kg – cena v Kč:" : "Natankováno benzínu – cena celkem v Kč:", last ? String(last.price) : "");
+  if(price === null || !price.trim()) return;
+  let lit = "";
+  if(f==="benzin"){ lit = prompt("Kolik litrů?", last && last.l ? String(last.l) : "") || ""; }
+  const full = confirm(f==="lpg" ? "Je lahev úplně plná?\n\nOK = plná · Zrušit = jen částečně (do průměru se nepočítá)" : "Natankováno do plna?\n\nOK = plno · Zrušit = jen část (do průměru se nepočítá)");
+  const now = new Date(), pad = n => String(n).padStart(2,"0");
+  const line = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} | ${f} | ${price.replace(/[^0-9.,]/g,"")} | ${full ? "plna" : "castecna"}${f==="benzin" ? ` | ${lit.replace(/[^0-9.,]/g,"")}` : ""}`;
+  try{
+    const r = await fetch(GHF+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+    let txt = "# lahve PB a tankování benzínu: čas | palivo | cena Kč | plna/castecna | litry (zapisuje web)\n", sha;
+    if(r.ok){ const j = await r.json(); txt = utf8b64.dec(j.content); sha = j.sha; }
+    const w = await fetch(GHF,{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
+      body:JSON.stringify({message:`Palivo: ${line}`, content:utf8b64.enc(txt.replace(/\n?$/,"\n")+line+"\n"), ...(sha?{sha}:{}), branch:"main"})});
+    if(!w.ok) throw new Error("GitHub odpověděl "+w.status);
+    alert("Zapsáno ✓ – hlídač od teď počítá energii na " + (f==="lpg" ? "tuhle lahev." : "tohle tankování."));
+  }catch(e){ alert("Nejde zapsat: "+e.message); }
+}
+function fuelHtml(d){
+  const F = d.fuel || {}, P = d.gen_plan, run = P && !P.end && Date.now()/1000 - P.t < 900;
+  const blk = (f, nm, btn) => { const x = F[f] || {}, c = x.cur;
+    const cost = x.czk_kwh ? `1 kWh ≈ <b>${nf(x.czk_kwh,0)} Kč</b>${x.avg_kwh ? ` · ${f==="lpg" ? "lahev" : "tankování"} ≈ ${nf(x.avg_kwh,1)} kWh` : ""} <span class="sub">(${x.n}× plná)</span>`
+      : `<span class="sub">cena za kWh až po spotřebování první plné ${f==="lpg" ? "lahve" : "nádrže"}</span>`;
+    const curT = c ? `${f==="lpg" ? "lahev" : "tankováno"} ${relDay(c.t)} ${hmT(c.t)} · ${nf(c.price,0)} Kč${c.l ? ` · ${nf(c.l,1)} l` : ""}${c.full ? "" : " · <span style='color:var(--warn)'>částečně</span>"} → zatím <b>${nf(c.wh/1000,2)} kWh</b>${c.left_pct!=null ? ` · zbývá ~${c.left_pct} %` : ""}${!x.czk_kwh && c.full && c.wh > 100 ? ` · zatím ${nf(c.price/(c.wh/1000),0)} Kč/kWh (klesá, jak lahev dojíždí)` : ""}` : `<span class="sub">zatím nic nezapsáno</span>`;
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${nm}</b><button onclick="fuelAdd('${f}')" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer">${btn}</button></div>
+      <div style="font-size:13.5px;margin-top:3px">${curT}</div><div style="font-size:13.5px">${cost}</div></div>`; };
+  const runs = (d.fuel_runs||[]).slice(-6).reverse();
+  return `<div class="card"><h2 style="margin:0 0 4px">Palivo a cena</h2>${blk("lpg","🔥 Plyn – lahev PB 10 kg","+ nová lahev")}${blk("benzin","⛽ Benzín","+ natankováno")}
+    ${run && P.fwh ? `<div style="font-size:13.5px;margin-top:6px">Toto nabíjení zatím ${nf(P.fwh/1000,2)} kWh${(F[P.fuel]||{}).czk_kwh ? ` ≈ ${nf(P.fwh/1000*(F[P.fuel]).czk_kwh,0)} Kč` : ""}</div>` : ""}
+    ${runs.length ? `<div class="sub" style="margin-top:6px">Poslední nabíjení: ${runs.map(r=>`${relDay(r.t0)} ${hmT(r.t0)} ${r.fuel==="lpg"?"plyn":"benzín"} ${nf(r.wh/1000,2)} kWh${r.czk!=null?` ≈ ${r.czk} Kč`:""}`).join(" · ")}</div>` : ""}
+    <div class="sub" style="margin-top:6px;line-height:1.45">Při výměně lahve / tankování zmáčkni tlačítko a zadej cenu. Hlídač pak měří, kolik kWh generátor z lahve vyrobil (výkon generátoru během nabíjení). Částečně plná lahev se do průměru nepočítá – její cena je jen odhad z minulých.</div></div>`;
+}
 async function genCmd(cmd, el, fel){
   const tok = store.get("ghtok");
   if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
@@ -2642,7 +2678,7 @@ function detGen(body){
     return {id:String(r.sn||"").slice(-6), name:pn(r.name)||`River ${i+1}`, color: m ? m.color : rivColor(r.name, i)}; });
   const genWh = k => Math.max(dayTp(k)[U.gen]||0, ((d.days||{})[k]||{}).gq||0);
   const tk = dkey(h.now), wk = dd.slice(-7), gd = ((d.ef_gens||[]).find(g=>g.gd)||{}).gd || {};
-  body.insertAdjacentHTML("beforeend", genPlanHtml(d)
+  body.insertAdjacentHTML("beforeend", genPlanHtml(d) + fuelHtml(d)
     + chartCard("dg_w", "Výkon generátoru", "W · 48 h · zásuvka (7), během nabíjení i z EcoFlow")
     + chartCard("dg_rv", "Co se nabilo do které River", `kWh za den · ${efs.map(e=>`<span style="color:${e.color}">■</span> ${escH(e.name)}`).join(" · ")}`)
     + chartCard("dg_d", "Dodal po dnech", "kWh za den · 14 dní")

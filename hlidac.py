@@ -1553,6 +1553,7 @@ def main():
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
+                         ("Palivo a cena", lambda: fuel_stats(data, st, now, cfg)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
@@ -3000,6 +3001,80 @@ def cons_compare(data, st, now, topic, cfg):
         st["cons_warn"] = day
 
 
+FUEL_FILE = "palivo.txt"
+
+
+def fuel_stats(data, st, now, cfg):
+    """5.26: lahve PB a tankování benzínu (palivo.txt, zapisuje web: „čas | lpg/benzin | cena Kč | plna/castecna | litry“).
+    Energie generátoru podle paliva (st.fuel_e – roste během nabíjení). Každý záznam = od té chvíle se pálí tohle palivo
+    → kWh na lahev / tankování = počítadlo u dalšího záznamu stejného paliva − počítadlo při tomto záznamu.
+    Cena za kWh = součet cen / součet kWh jen z plných a už spotřebovaných (průměr); částečně plné = odhad z průměru.
+    data["fuel"] = {lpg|benzin: {cur, avg_kwh, czk_kwh, n, hist}}, ceny nabíjení do data["fuel_runs"]."""
+    try:
+        lines = open(FUEL_FILE, encoding="utf-8").read().splitlines()
+    except OSError:
+        lines = []
+    ent = []
+    for ln in lines:
+        ln = ln.split("#", 1)[0].strip()
+        bits = [b.strip() for b in ln.split("|")]
+        if len(bits) < 3:
+            continue
+        try:
+            t = int(datetime.strptime(bits[0], "%Y-%m-%d %H:%M").replace(tzinfo=TZ).timestamp())
+            f = "lpg" if bits[1].lower().startswith(("lpg", "plyn", "pb")) else "benzin"
+            price = float(bits[2].lower().replace("kč", "").replace(",", ".").strip() or 0)
+        except ValueError:
+            continue
+        full = not (len(bits) > 3 and bits[3].lower().startswith(("cast", "část", "ne")))
+        lit = None
+        if len(bits) > 4:
+            try:
+                lit = float(bits[4].lower().replace("l", "").replace(",", ".").strip())
+            except ValueError:
+                pass
+        ent.append({"t": t, "f": f, "price": price, "full": full, "l": lit})
+    ent.sort(key=lambda e: e["t"])
+    fe = st.setdefault("fuel_e", {})
+    snap = st.setdefault("fuel_snap", {})
+    if not st.get("fuel_e_t0"):
+        # jednorázově: plyn se pálí od 23. 10. ~21:00 (Petr: všechno nabíjení z plynu je z nové lahve) – energie z doby
+        # před počítadlem: hodinová historie zásuvky generátoru 23. 10. od 21 h + dnešní součet z EcoFlow
+        gip = str(cfg.get("zasuvka_generator") or "7")
+        h23 = ((data.get("tp_hist") or {}).get(gip) or {}).get("2026-10-23") or []
+        seed = sum(x for x in h23[21:] if x) + (((data.get("days") or {}).get(now.strftime("%Y-%m-%d")) or {}).get("gq") or 0)
+        fe["lpg"] = round(fe.get("lpg", 0.0) + seed, 1)
+        st["fuel_e_t0"] = int(now.timestamp())
+        log("ev", f"Palivo: počítadlo plynu založeno s {fmt(seed / 1000, 2)} kWh (od 23. 10. 21 h)")
+    for e in ent:                                           # počítadlo energie v okamžiku záznamu (při prvním běhu po něm)
+        k = f"{e['f']}:{e['t']}"
+        if k not in snap:
+            snap[k] = 0.0 if e["t"] < st["fuel_e_t0"] else fe.get(e["f"], 0.0)   # záznam z doby před počítadlem → od začátku
+    out = {}
+    for f in ("lpg", "benzin"):
+        es = [e for e in ent if e["f"] == f]
+        hist = []
+        for i, e in enumerate(es):
+            a = snap.get(f"{f}:{e['t']}", 0.0)
+            closed = i + 1 < len(es)
+            b = snap.get(f"{f}:{es[i + 1]['t']}", fe.get(f, 0.0)) if closed else fe.get(f, 0.0)
+            hist.append({"t": e["t"], "price": e["price"], "full": e["full"], "l": e["l"], "wh": round(max(0.0, b - a)), "closed": closed})
+        ok = [x for x in hist if x["closed"] and x["full"] and x["wh"] > 100]
+        czk_kwh = sum(x["price"] for x in ok) / (sum(x["wh"] for x in ok) / 1000) if ok else None
+        avg_kwh = sum(x["wh"] for x in ok) / len(ok) / 1000 if ok else None
+        cur = hist[-1] if hist else None
+        if cur and not cur["closed"]:
+            cur = dict(cur)
+            cur["left_pct"] = round(max(0.0, 100 - cur["wh"] / 1000 / avg_kwh * 100)) if avg_kwh and cur["full"] else None
+        # cena za kWh pro odhad: průměr; bez průměru z aktuální plné lahve zatím nejde
+        out[f] = {"cur": cur if cur and not cur["closed"] else None, "avg_kwh": round(avg_kwh, 2) if avg_kwh else None,
+                  "czk_kwh": round(czk_kwh, 1) if czk_kwh else None, "n": len(ok), "hist": hist[-8:], "e": round(fe.get(f, 0.0))}
+    data["fuel"] = out
+    for r in data.get("fuel_runs") or []:                   # cena každého nabíjení (odhad z průměru)
+        c = (out.get(r.get("fuel")) or {}).get("czk_kwh")
+        r["czk"] = round(r["wh"] / 1000 * c) if c else None
+
+
 def fridge_days(data, now, cfg):
     """4.73: kolik % dne běžel kompresor lednice – z uložených bodů (zásuvka lednice), každý bod váží čas do
     dalšího (nejvýš 15 min, při mezeře v datech se nepočítá). days[k]["fd"] = % času, "fh" = pokryté hodiny,
@@ -4178,6 +4253,15 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             dk = datetime.fromtimestamp(tnow, TZ).strftime("%Y-%m-%d")      # 5.06: denní součet i bez zásuvky (7)
             dd_ = data.setdefault("days", {}).setdefault(dk, {})
             dd_["gq"] = round(dd_.get("gq", 0.0) + de, 1)
+        # 5.26: energie generátoru podle paliva (výkon generátoru – zásuvka (7) / generátor; jinak součet příjmů River)
+        gwe = gw if gw is not None and gw > 0 else tot_in
+        if gs.get("f_t") and 0 < tnow - gs["f_t"] <= 300:
+            fe_ = st.setdefault("fuel_e", {})
+            de2 = (gs.get("f_w", 0) + gwe) / 2 * (tnow - gs["f_t"]) / 3600
+            fe_[fuel] = round(fe_.get(fuel, 0.0) + de2, 1)
+            gs["fwh"] = gs.get("fwh", 0.0) + de2
+        gs["f_t"], gs["f_w"] = tnow, gwe
+        gs["fuel"] = fuel
         gs["e_t"], gs["e_w"] = tnow, tot_in
         gp_ = data.setdefault("gen_pts", [])                # 5.06: výkon generátoru po 30 s (graf i bez Flipu)
         gp_.append([tnow, round(gw) if gw is not None else None, tot_in])
@@ -4186,7 +4270,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                             "small": round(small_w), "small_soc": round(small["soc"]) if small and small.get("soc") is not None else None,
                             "avail": round(avail), "rv": rv, "fin": int(max(fins)) if fins else None, "t_on": gs.get("t_on"),
                             "btn": bool(gs.get("btn")), "wait": bool(con) and tnow - gs["first"] < 30,
-                            "set": out or (data.get("gen_plan") or {}).get("set"), "gd": gd or None}
+                            "set": out or (data.get("gen_plan") or {}).get("set"), "gd": gd or None, "fwh": round(gs.get("fwh") or 0)}
         # konec relace: tlačítko, nebo 10 min nic nenabíjí (po tlačítku bez nabíjení až po 30 min)
         idle_lim = 1800 if gs.get("btn") and not gs.get("ever") else 600
         if charging:
@@ -4199,8 +4283,13 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                      4, "fuelpump,white_check_mark")
                 gs["idle_warned"] = True
             log("ev", "Nabíjení z generátoru: konec" + (f" – {', '.join(out2)}" if out2 else ""))
+            fr_ = data.setdefault("fuel_runs", [])          # 5.26: záznam nabíjení s palivem a energií (cena se dopočítá)
+            if (gs.get("fwh") or 0) > 20:
+                fr_.append({"t0": gs.get("t_on"), "t1": tnow, "fuel": gs.get("fuel") or fuel, "wh": round(gs["fwh"])})
+                del fr_[:-30]
+            gs.pop("fwh", None)
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w"):
                 gs.pop(k, None)
             return False
         return True

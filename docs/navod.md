@@ -316,3 +316,5 @@ Upozornění: pod 50 # a pod 30 # (nastavení `hash_upozornit`). 50 # ≈ 12,3 V
 6. **Konec:** prostě vypni generátor (hlídač to pozná a za 10 min nabíjení ukončí), nebo zmáčkni **⏹ Ukončit nabíjení**. Když River dojedou a generátor ještě běží, přijde „⛽ Generátor běží naprázdno – vypni ho“.
 
 Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a nabíjí pomaleji – pro rychlé nabíjení ho vypni.
+
+**Palivo a cena (5.26)**: v detailu Generátor karta „Palivo a cena“. Při **výměně lahve PB** zmáčkni „+ nová lahev“ (cena, plná / jen částečně), při **tankování benzínu** „+ natankováno“ (cena, litry, do plna?). Hlídač pak měří, kolik kWh generátor z dané lahve / nádrže vyrobil, a po spotřebování první plné lahve ukáže kWh na lahev, cenu za 1 kWh a cenu každého nabíjení. Částečně plná lahev se do průměru nepočítá. Tlačítko mačkej až při skutečné výměně – od té chvíle se energie počítá na novou lahev.
