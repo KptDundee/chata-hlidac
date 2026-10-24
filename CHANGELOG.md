@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.21 – 24. 10. 2026
+- Suchý vzduch: hranice 40 % (dřív 35 %) – upozornění s rezervou, než vzduch opravdu vyschne. Znovu až po návratu nad 45 %.
+
 ## 5.20 – 24. 10. 2026
 - Dlaždice Teploty jako tabulka: jméno | °C | 💧 vlhkost | 🔋 baterie teploměru – sloupce zarovnané pod sebou.
 - Suchý vzduch: v obytných místnostech (Pokoj, Loznice, Kuchyne – Nastavení) pod 35 % vlhkosti dvě měření po sobě → „💧 Suchý vzduch – Pokoj 28 %: dej na kamna hrnec s vodou, ať se odpařuje“ (nejvýš 1× za 12 h, znovu až po návratu nad 40 %). Na dlaždici vlhkost oranžově.

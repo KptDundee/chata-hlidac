@@ -165,4 +165,4 @@ teplomery = Koupelna, Pokoj, Loznice, Kuchyne, Baterie, Lednice   # teploměry, 
 teplomery_ticho_min = 60         # upozornit, když teploměr tolik minut nepošle hodnotu
 teplomery_baterie = 10, 5        # upozornit na baterii teploměru při těchto %
 vlhkost_hlidat = Pokoj, Loznice, Kuchyne   # obytné místnosti – upozornit na suchý vzduch (topení v kamnech)
-vlhkost_min = 35                 # suchý vzduch pod tolik % (dobré je 40–60 %)
+vlhkost_min = 40                 # upozornit na suchý vzduch pod tolik % (dobré je 40–60 %; Petr 24. 10.: 40 s rezervou)
