@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.11", FLIP_VER = "1.7.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.12", FLIP_VER = "1.7.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1814,7 +1814,7 @@ function detTemps(body){
   const pts = (d.points||[]).filter(p=>p.t >= h.now - 48*3600 && p.th);
   // 5.10: jen teploměry, které Flip posílá teď (staré / přejmenované zmizí); starší body podle očištěného jména
   const clean = n => String(n).replace(/^[\s,;:.]+|[\s,;:.]+$/g, "");
-  const names = th.map(x=>clean(x.n));
+  const names = [...new Set([...th.map(x=>clean(x.n)), ...pts.flatMap(p=>Object.keys(p.th||{}).map(clean))])].filter(Boolean);   // 5.12: i ty, co teď chvíli mlčí
   const val = (p, n) => { for(const k in (p.th||{})) if(clean(k) === n) return p.th[k]; return null; };
   const role = n => n === cfg.teplomer_baterie ? " – u solární baterie" : n === cfg.teplomer_lednice ? " – v lednici" : "";
   const id = n => "dt_" + String(n).replace(/[^a-z0-9]/gi, "_");

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.12 – 24. 10. 2026
+- Detail Teploty: zpět i teploměry, které v posledním měření chyběly (koupelna zmizela – 5.10 ukazoval jen ty z posledního měření). Jména se slučují podle očištěného jména, takže „,Název“ a „Název“ jsou jeden graf.
+
 ## 5.11 – 24. 10. 2026 · Flip 1.7.7
 - Teploměry – proč některé nemají data: Flip 1.7.7 posílá i teploměry bez hodnot a u každého kolik jeho zpráv zachytil a kolik přečetl. Web: „Flip ho neslyší – mimo dosah“ / „slyší, ale nejde přečíst – zkontroluj klíč a MAC“.
 
