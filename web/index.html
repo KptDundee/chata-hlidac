@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.18", FLIP_VER = "1.7.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.19", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1669,7 +1669,7 @@ function flipCtlMiss(d){
   if(p.err) return `zásuvka (${id}) odmítá přihlášení – kompatibilita s třetími stranami`;
   if(g.fc && g.fc.miss) return g.fc.why || "zásuvka nejde ovládat";
   const vv = String(g.av||"0").split(".").map(Number);
-  if(vv[0] === 1 && (vv[1] < 7 || (vv[1] === 7 && (vv[2]||0) < 8))) return "nahraj Flip 1.7.8 – starší verze tuhle zásuvku (s měřením) nepřepínala";   // 5.18
+  if(vv[0] === 1 && (vv[1] < 7 || (vv[1] === 7 && (vv[2]||0) < 8))) return "nahraj Flip 1.7.9 – starší verze tuhle zásuvku (s měřením) nepřepínala";   // 5.18
   return "čeká na první měření";
 }
 function detFlip(body){

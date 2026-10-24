@@ -2501,7 +2501,7 @@ def read_tp_history(data, topic, cfg):
             continue
         pid = str(body.get("id") or "")
         for dk, arr in (body.get("h") or {}).items():
-            if pid and isinstance(arr, list) and len(arr) == 24:
+            if pid and isinstance(arr, list) and 23 <= len(arr) <= 25:          # 5.19: den změny času má 23 / 25 h
                 th.setdefault(pid, {})[dk] = [None if x is None or x < 0 else x for x in arr]
                 changed.add((pid, dk))
     for pid in th:
@@ -2542,8 +2542,9 @@ def gen_from_history(data, hist):
             else:
                 cur = None
         for h0, h1, wh in blocks:
-            t0 = (base + timedelta(hours=h0)).timestamp()
-            t1 = (base + timedelta(hours=h1)).timestamp()
+            # 5.19: hodiny od půlnoci skutečně uplynulé (ne „na ciferníku“) – v den změny času se jinak posune o hodinu
+            t0 = base.timestamp() + h0 * 3600
+            t1 = base.timestamp() + h1 * 3600
             if t1 > now.timestamp() - 600:
                 continue                                         # hodina ještě běží – vyhodnotit později
             ov = [r for r in log_ if r["t0"] < t1 + 600 and r["t1"] > t0 - 600]
@@ -2554,7 +2555,7 @@ def gen_from_history(data, hist):
                     r["wh_old"], r["wh"], r["kor"] = r.get("wh"), round(wh, 1), True
             else:
                 log_.append({"t0": int(t0), "t1": int(t1), "wh": round(wh, 1), "rv": {}, "src": "hist", "kor": True})
-                log("ev", f"Generátor: doplněn běh {dk} {h0}:00–{h1}:00 ({fmt(wh / 1000, 2)} kWh) z historie zásuvky")
+                log("ev", f"Generátor: doplněn běh {dk} {datetime.fromtimestamp(t0, TZ).strftime('%H:%M')}–{datetime.fromtimestamp(t1, TZ).strftime('%H:%M')} ({fmt(wh / 1000, 2)} kWh) z historie zásuvky")
     log_.sort(key=lambda r: r["t0"])
     del log_[:-60]
 

@@ -399,14 +399,18 @@ public final class Collector {
                     java.util.Calendar d = (java.util.Calendar) cal.clone();
                     d.add(java.util.Calendar.DAY_OF_MONTH, -back);
                     long start = d.getTimeInMillis() / 1000;
+                    java.util.Calendar dn = (java.util.Calendar) d.clone();         // 1.7.9: konec dne = další půlnoc
+                    dn.add(java.util.Calendar.DAY_OF_MONTH, 1);                     // (den změny času má 23 / 25 h)
+                    long end = dn.getTimeInMillis() / 1000;
+                    int hours = (int) Math.round((end - start) / 3600.0);
                     JSONObject r = new JSONObject(t.call("get_energy_data",
-                            "{\"start_timestamp\":" + start + ",\"end_timestamp\":" + (start + 86400 - 1) + ",\"interval\":60}"));
+                            "{\"start_timestamp\":" + start + ",\"end_timestamp\":" + (end - 1) + ",\"interval\":60}"));
                     JSONObject res = r.optJSONObject("result");
                     if (r.optInt("error_code", 0) != 0 || res == null) break;
                     JSONArray data = res.optJSONArray("data");
                     if (data == null) continue;
                     JSONArray h = new JSONArray();
-                    for (int i = 0; i < 24; i++) h.put(data.optInt(i, -1));
+                    for (int i = 0; i < hours; i++) h.put(data.optInt(i, -1));
                     days.put(df.format(d.getTime()), h);
                 }
                 if (days.length() > 0) {
