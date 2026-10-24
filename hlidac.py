@@ -2295,7 +2295,8 @@ def inv_from_msg(last, now, cfg=None):
         inv["rt"] = {k: body["rt"].get(k) for k in ("b", "c", "err") if body["rt"].get(k) is not None}
     th = body.get("th")                                   # 1.5: teploměry Xiaomi [{n, t, h, b, age}]
     if isinstance(th, list):
-        inv["th"] = [{"n": str(x.get("n"))[:30], "t": x.get("t"), "h": x.get("h"), "b": x.get("b"),
+        import re as _re                                  # 5.10: jméno bez čárek / středníků na krajích („, ,Lednice“)
+        inv["th"] = [{"n": _re.sub(r"^[\s,;:.]+|[\s,;:.]+$", "", str(x.get("n")))[:30], "t": x.get("t"), "h": x.get("h"), "b": x.get("b"),
                       "tm": int(inv.get("t") or 0) - int(x.get("age") or 0)} for x in th if isinstance(x, dict) and x.get("n")]
     tp = body.get("tp")
     if isinstance(tp, list):
