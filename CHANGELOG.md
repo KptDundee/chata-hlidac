@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.32 – 24. 10. 2026
+- Dlaždice Lednice: když je teplo jen podle teploměru (kompresor v pořádku), je v červeném řádku „v lednici 8,1 °C – nad 8 °C“ a „cykluje normálně“ v řádku kompresor (dřív červeně „cykluje normálně“).
+
 ## 5.31 – 24. 10. 2026 · Flip 1.8.0
 - Flip 1.8.0: baterie routeru M7000 – přihlášení přepsané na šifrovaný protokol, který router opravdu používá (AES-128-CBC + RSA podpis, jako jeho webová stránka; postup podle projektů tplink-battery-monitor a mimif-battery). Dřív „router nevrátil nonce“. % baterie je v jeho údaji „voltage“ (0–100), nabíjení „charging“. Po přečtení se odhlásí (router dovolí jen jedno přihlášení správce) a čte nejvýš 1× za 9 min.
 

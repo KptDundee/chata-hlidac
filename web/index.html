@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.31", FLIP_VER = "1.8.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.32", FLIP_VER = "1.8.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1659,7 +1659,10 @@ function tileFridge(d, h){
   if(th) rows.push(["teplota", `<span style="color:var(${hotT?"--crit":"--text"})">${nf(th.t,1)} °C</span>`]);
   if(S) rows.push(["kompresor teď", S.last.w > 20 ? `běží · ${nf(S.last.w)} W` : "stojí"], ["za 24 h běžel", `${S.duty} % času · ${S.cyc}× rozběh`]);
   if(tpd!=null) rows.push(["dnes", kWh(tpd)]);
-  const st = !fr ? "" : fr.state==="off" ? `nechladí? stojí od ${hmT(fr.od)}` : fr.state==="on" ? `běží bez přestávky od ${hmT(fr.od)}` : fr.state==="na" ? "zásuvka nejde přečíst" : "cykluje normálně";
+  let st = !fr ? "" : fr.state==="off" ? `nechladí? stojí od ${hmT(fr.od)}` : fr.state==="on" ? `běží bez přestávky od ${hmT(fr.od)}` : fr.state==="na" ? "zásuvka nejde přečíst" : "cykluje normálně";
+  // 5.32: červený řádek pod názvem = co je špatně. Když je teplo jen podle teploměru a kompresor je v pořádku,
+  // je v červeném řádku teplota a „cykluje normálně“ jde do řádků
+  if(hotT && (!fr || fr.state==="ok")){ rows.push(["kompresor", st || "–"]); st = `v lednici ${nf(th.t,1)} °C – nad ${lim} °C`; }
   return {k:"fridge", icon:"🧊", label:"Lednice", wide:true, cls: bad || hotT ? "bad" : "ok", v:"", st, rows};
 }
 /* 4.54: proč řízení nabíjení neběží – stará aplikace, nebo Flip nevidí zásuvku nabíječky */
