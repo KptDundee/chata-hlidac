@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.22", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.23", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1743,7 +1743,7 @@ function genPlanHtml(d){
   const sty = on => `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:${on?"2px solid var(--good)":"1px solid var(--line)"};background:${on?"color-mix(in srgb,var(--good) 22%,transparent)":"transparent"}`;
   const FB = (f, txt) => { const on = run && fuel===f; return `<button data-fuel="${f}" onclick="genFuel('${f}', this, ${run?1:0})" style="${sty(on)}">${txt}${on?" ✓":""}</button>`; };
   const btn = `<div style="display:flex;gap:8px;margin:6px 0 4px">${FB("benzin","⛽ Benzín")}${FB("lpg","🔥 Plyn")}</div>`
-    + `<div class="sub" style="margin-bottom:4px">${run ? `Nabíjí na: <b>${fl}</b> (max ${nf(gmax)} W). Po novém startu generátoru zmáčkni palivo, na které jede – spustí se znovu.` : "Zmáčkni palivo, na které generátor nastartuješ – tím se nabíjení spustí"}</div>`
+    + `<div class="sub" style="margin-bottom:4px">${run ? `Nabíjí na: <b>${fl}</b> (max ${nf(gmax)} W). Po novém startu generátoru zmáčkni palivo, na které jede – spustí se znovu.` : "<b>Postup:</b> 1) zmáčkni palivo (Benzín / Plyn) – tím se nabíjení spustí, klidně před startem · 2) nastartuj generátor a zapoj River · 3) za 30 s hlídač nastaví výkony sám · konec: vypni generátor"}</div>`
     + (run ? `<button onclick="genCmd('stop', this)" style="${sty(false)};width:100%;flex:none;font-weight:600">⏹ Ukončit nabíjení</button>` : "");
   let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}`;
   if(run){

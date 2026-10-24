@@ -304,3 +304,14 @@ Upozornění: pod 50 # a pod 30 # (nastavení `hash_upozornit`). 50 # ≈ 12,3 V
 **Hlavní stránka – sekce (5.15)**: Teď (vždy rozbalené) · Chata (teploty, lednice, Flip, spotřebiče) · Energie dnes (výroba a spotřeba) · Výhled · Uplynulé · Dlouhodobě. Sekce se rozbalí/sbalí ťuknutím na název; prohlížeč si to pamatuje. Když je v sekci něco červeně nebo oranžově, rozbalí se sama. Sbalená sekce ukazuje v řádku krátký souhrn.
 
 **Spotřeba proti obvyklé (5.22)**: dlaždice Chata celkem ukazuje, kolik chata spotřebovala dnes do teď proti obvyklé (medián posledních 7 dní do stejné doby – jednotlivé výjimečné dny se neprojeví), obvyklou denní spotřebu a minulou noc (18–6 h) proti obvyklé. Když je dnes výrazně víc (o 50 % a aspoň o 0,15 kWh), přijde jedno upozornění za den. Ve večerním souhrnu je řádek „🏠 Chata dnes …“. V grafu výroby po dnech je čárkovaně „potřeba“ – kolik musí solár za den vyrobit, aby pokryl obvyklou spotřebu i se ztrátami nabíjení; v detailu Chata celkem graf spotřeby po dnech s obvyklou hodnotou.
+
+## ⛽ Nabíjení z generátoru – postup (platí od 5.22)
+
+1. **Na webu** otevři **EcoFlow** (nebo Generátor). Nahoře je karta „Nabíjení z generátoru“.
+2. **Zmáčkni palivo**, na které generátor pojede: **⛽ Benzín** nebo **🔥 Plyn**. Tím se nabíjení spustí. Je jedno, jestli před startem generátoru nebo po něm – mimo nabíjení mají River vždy malý výkon (velké 200 W, malá 100 W), takže start generátoru nic nepřetíží.
+3. **Nastartuj generátor a zapoj River** (1, 2 nebo 3 – podle potřeby).
+4. Hlídač každých 30 s čte EcoFlow. **30 s po začátku nabíjení** nastaví výkony (generátor naplno: benzín 1800 W / plyn 1600 W − rezerva 100 W, rozdělené podle toho, kolik které River chybí, ať skončí zároveň) – a pak je **nechá být**. Mění je jen, když některá River doběhne (dostane zpět malý výkon a její podíl ostatní) nebo když jednu připojíš / odpojíš.
+5. **Když dojde palivo** a přepneš na druhé: River se hned vrátí na malé výkony; po novém startu zmáčkni **tlačítko toho paliva** (např. 🔥 Plyn) – nabíjení se spustí znovu.
+6. **Konec:** prostě vypni generátor (hlídač to pozná a za 10 min nabíjení ukončí), nebo zmáčkni **⏹ Ukončit nabíjení**. Když River dojedou a generátor ještě běží, přijde „⛽ Generátor běží naprázdno – vypni ho“.
+
+Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a nabíjí pomaleji – pro rychlé nabíjení ho vypni.
