@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.19", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.20", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -173,6 +173,10 @@ details.sec>.in{margin-top:8px}
 .verdict{background:color-mix(in srgb,var(--vc) 11%,var(--surface));border-color:color-mix(in srgb,var(--vc) 35%,var(--line))}
 .hh{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 4px 8px;font-weight:700}
 .hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tt{display:grid;grid-template-columns:1fr auto auto auto;gap:3px 14px;font-size:14px;margin-top:6px;align-items:baseline}
+.tt .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tt .hd{font-size:11px;color:var(--muted);text-align:right}
+.tt .w3{grid-column:2 / span 3;text-align:right;font-size:12.5px}
 .hsec{margin:10px 0 0}
 .hsec>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;padding:10px 4px 8px;border-top:1px solid var(--line)}
 .hsec>summary::-webkit-details-marker{display:none}
@@ -1555,7 +1559,7 @@ const SEV = {bad:0, warn:1, ok:2, na:3};
 function tileHtml(x){
   return `<div class="ht ${x.cls}${x.wide?" wide":""}" data-det="${x.k}" role="button"><span class="go">›</span>
     <div class="l"><span>${x.icon}</span>${x.label}</div>${x.top||""}${x.v!==""?`<div class="v">${x.v}</div>`:""}
-    <div class="st">${x.st||""}</div>${x.a?`<div class="a">${x.a}</div>`:""}${x.rows?`<div class="rows">${x.rows.map(r=>`<div><span${r[2]?' style="white-space:normal"':""}>${r[0]}</span><span>${r[1]}</span></div>`).join("")}</div>`:""}${x.bar!=null?`<div class="bar"><div style="width:${Math.max(0,Math.min(100,x.bar))}%"></div></div>`:""}</div>`;
+    <div class="st">${x.st||""}</div>${x.a?`<div class="a">${x.a}</div>`:""}${x.html||""}${x.rows?`<div class="rows">${x.rows.map(r=>`<div><span${r[2]?' style="white-space:normal"':""}>${r[0]}</span><span>${r[1]}</span></div>`).join("")}</div>`:""}${x.bar!=null?`<div class="bar"><div style="width:${Math.max(0,Math.min(100,x.bar))}%"></div></div>`:""}</div>`;
 }
 /* ---------- pevná struktura hlavní stránky (v3.33): lišta k řešení · Teď (baterie, River) · Dnes (spotřeba, výroba) · Výhled · Uplynulé · Dlouhodobě ---------- */
 let RVSEL = (()=>{ try{ return localStorage.getItem("rvsel"); }catch(e){ return null; } })();
@@ -1816,15 +1820,29 @@ function tileTemps(d, h){
   const th = th0.concat(tw.filter(w=>!th0.some(x=>kk(x.n)===kk(w.n))).map(w=>({n:w.n, sn:null, miss:true, why:w.why, tm:w.last})));
   if(!th.length) return null;
   const cfg = d.cfg || {}, lim = cfg.lednice_max_C ?? 8;
-  const rows = th.map(x=>{ const old = h.now - x.tm > 1800, fr = x.n === cfg.teplomer_lednice;
+  // 5.20: tabulka – jméno | °C | vlhkost | baterie teploměru (sloupce pod sebou, ať se dá rychle porovnat)
+  const hmin = cfg.vlhkost_min ?? 35, hrooms = String(cfg.vlhkost_hlidat || "").split(",").map(kk).filter(Boolean);
+  let html = `<div class="tt"><span></span><span class="hd">°C</span><span class="hd">💧</span><span class="hd">🔋</span>`;
+  for(const x of th){
+    const old = h.now - x.tm > 1800, fr = x.n === cfg.teplomer_lednice;
     const col = old ? "--muted" : fr && x.t > lim ? "--crit" : x.t!=null && x.t <= 0 ? "--s1" : "--text";
-    // 5.14: role (baterie / lednice) jen když ji jméno samo neříká
     const rl = x.n === cfg.teplomer_baterie ? "baterie" : fr ? "lednice" : "";
-    return [x.n + (rl && !String(x.n).toLowerCase().includes(rl) ? ` (${rl})` : ""),
-      x.miss ? `<span style="color:var(--warn);white-space:normal">${x.why || "chybí"}${x.tm ? ` · naposledy ${agoS(x.tm)}` : ""}</span>` :
-      thWhy(x) ? `<span class="sub" style="white-space:normal">${thWhy(x)}</span>` : `<span style="color:var(${col})">${x.t!=null ? nf(x.t,1)+" °C" : "–"}</span>${x.h!=null ? ` · ${nf(x.h)} %` : ""}${x.b!=null ? (x.b <= 10 ? ` · <span style="color:var(--crit)">🪫${x.b} %</span>` : ` · 🔋${x.b} %`) : ""}${old ? ` · ${agoS(x.tm)}` : ""}`]; });
-  const bad = tw.some(w=>w.quiet) || th.some(x=>x.b!=null && x.b <= 10);
-  return {k:"temps", icon:"🌡️", label:"Teploty", wide:true, cls: bad ? "warn" : "ok", v:"", st:"teploměry Xiaomi · teplota · vlhkost", rows};
+    const nm = escH(x.n) + (rl && !String(x.n).toLowerCase().includes(rl) ? ` <span class="sub">(${rl})</span>` : "");
+    if(x.miss || thWhy(x)){
+      html += `<span>${nm}</span><span class="w3" style="color:var(${x.miss?"--warn":"--muted"})">${x.miss ? (x.why || "chybí") + (x.tm ? ` · ${agoS(x.tm)}` : "") : thWhy(x)}</span>`;
+      continue;
+    }
+    const dry = x.h!=null && x.h < hmin && hrooms.includes(kk(x.n));
+    html += `<span>${nm}</span><span class="r" style="color:var(${col})">${x.t!=null ? nf(x.t,1) : "–"}</span>`
+      + `<span class="r" style="color:var(${dry ? "--warn" : old ? "--muted" : "--text2"})">${x.h!=null ? nf(x.h)+" %" : ""}</span>`
+      + `<span class="r" style="color:var(${x.b!=null && x.b <= 10 ? "--crit" : "--muted"})">${x.b!=null ? x.b+" %" : ""}</span>`;
+  }
+  html += `</div>`;
+  const dryAny = th.some(x=>x.h!=null && x.h < hmin && hrooms.includes(kk(x.n)));
+  const bad = tw.some(w=>w.quiet) || th.some(x=>x.b!=null && x.b <= 10) || dryAny;
+  const first = th.find(x=>x.t!=null);
+  return {k:"temps", icon:"🌡️", label:"Teploty", wide:true, cls: bad ? "warn" : "ok", v:"", st: dryAny ? "suchý vzduch – dej na kamna hrnec s vodou" : "teplota · vlhkost · baterie teploměru", html,
+    sum: first ? `${first.n} ${nf(first.t,1)} °C` : ""};
 }
 /* 5.09: detail Teploty – graf teploty každého teploměru (48 h), teď, vlhkost, baterie teploměru */
 function detTemps(body){
@@ -2217,7 +2235,7 @@ function homeSections(G){
   for(const [id, tiles] of Object.entries(G)){
     const el = $("hs_"+id); if(!el) continue;
     const alarm = tiles.filter(t=>(t.cls==="bad" || t.cls==="warn") && !quietBad(t));
-    const sum = tiles.map(t=>{ const lb = strip(t.label), v = strip(t.v) || (t.k === "fridge" ? strip(t.st) : t.rows && t.rows[0] ? strip(t.rows[0][0]) + " " + strip(t.rows[0][1]) : strip(t.st)), c = alarm.includes(t) ? (t.cls==="bad" ? "b" : "w") : "";
+    const sum = tiles.map(t=>{ const lb = strip(t.label), v = strip(t.v) || t.sum || (t.k === "fridge" ? strip(t.st) : t.rows && t.rows[0] ? strip(t.rows[0][0]) + " " + strip(t.rows[0][1]) : strip(t.st)), c = alarm.includes(t) ? (t.cls==="bad" ? "b" : "w") : "";
       return v ? `${c ? `<span class="${c}">${c==="b"?"⚠ ":""}` : ""}${lb} ${v.length > 26 ? v.slice(0,25)+"…" : v}${c ? "</span>" : ""}` : ""; }).filter(Boolean);
     alarm.forEach(t=>{ const i = sum.findIndex(x=>x.includes(strip(t.label))); if(i > 0) sum.unshift(sum.splice(i,1)[0]); });
     $("hss_"+id).innerHTML = sum.join(" · ");
@@ -2986,6 +3004,8 @@ const SETTINGS = [
     ["teplomery","Teploměry, které mají hlásit","Jména oddělená čárkou (jako ve Flipu) – když některý nehlásí, přijde upozornění","",0,"str"],
     ["teplomery_ticho_min","Upozornit, když teploměr nehlásí","","min",10,"num"],
     ["teplomery_baterie","Upozornit na baterii teploměru při","Procenta oddělená čárkou","",0,"str"],
+    ["vlhkost_hlidat","Hlídat suchý vzduch v","Teploměry (jména) v obytných místnostech – při topení v kamnech vysychá vzduch","",0,"str"],
+    ["vlhkost_min","Suchý vzduch pod","Doporučeno 40–60 %, pod 35 % je vzduch suchý","%",5,"num"],
     ["lednice_max_C","Lednice teplejší než","Upozornit, když je v lednici tepleji déle než 30 min","°C",1,"num"],
     ["river_sn","Spárování River s EcoFlow","„číslo zásuvky:konec SN“, např. 2:AB12, 3:CD34, 6:EF56 – konec SN je v detailu EcoFlow","",0,"str"],
     ["zasuvka_flip","Zásuvka nabíječky Flipu","Číslo zásuvky (prázdné = neřídit)","",0,"txt"],

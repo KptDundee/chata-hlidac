@@ -33,6 +33,7 @@ DEFAULTS = {
     "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14,
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
+    "vlhkost_hlidat": "", "vlhkost_min": 35,
     "river_sn": "",
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_rezerva_W": 100,
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100,
@@ -3251,6 +3252,24 @@ def thermo_check(data, st, now, topic, cfg):
             e["b"] = b
         out.append({"n": n, "last": last if e.get("last") else None, "why": why if quiet or not has else None, "b": e.get("b"), "quiet": quiet})
     data["th_watch"] = out
+    # 5.20: suchý vzduch v obytných místnostech (topení v kamnech na dřevo) – pod vlhkost_min dvě měření po sobě
+    rooms = {key(w) for w in str(cfg.get("vlhkost_hlidat") or "").split(",") if w.strip()}
+    hmin = cfg.get("vlhkost_min") or 35
+    hs = st.setdefault("dry", {})
+    for k, x in th.items():
+        if k not in rooms or x.get("h") is None or ts - int(x.get("tm") or 0) > 1800:
+            continue
+        e = hs.setdefault(k, {})
+        if x["h"] < hmin:
+            e["n"] = e.get("n", 0) + (1 if e.get("t") != x.get("tm") else 0)
+            e["t"] = x.get("tm")
+            if e["n"] >= 2 and ts - e.get("warned", 0) > 12 * 3600:
+                ntfy(topic, f"💧 Suchý vzduch – {x['n']} {fmt(x['h'], 0)} %",
+                     f"V místnosti {x['n']} je jen {fmt(x['h'], 0)} % vlhkosti (dobré je 40–60 %). Dej na kamna hrnec s vodou, ať se odpařuje.",
+                     3, "droplet")
+                e["warned"] = ts
+        elif x["h"] >= hmin + 5:
+            e.clear()
 
 
 def frost_check(data, st, now, topic, cfg):

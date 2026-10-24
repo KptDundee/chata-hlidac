@@ -164,3 +164,5 @@ gen_mala_po_behu_W = 100         # výkon malé River mimo nabíjení z generát
 teplomery = Koupelna, Pokoj, Loznice, Kuchyne, Baterie, Lednice   # teploměry, které mají hlásit (jména jako ve Flipu)
 teplomery_ticho_min = 60         # upozornit, když teploměr tolik minut nepošle hodnotu
 teplomery_baterie = 10, 5        # upozornit na baterii teploměru při těchto %
+vlhkost_hlidat = Pokoj, Loznice, Kuchyne   # obytné místnosti – upozornit na suchý vzduch (topení v kamnech)
+vlhkost_min = 35                 # suchý vzduch pod tolik % (dobré je 40–60 %)

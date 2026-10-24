@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.20 – 24. 10. 2026
+- Dlaždice Teploty jako tabulka: jméno | °C | 💧 vlhkost | 🔋 baterie teploměru – sloupce zarovnané pod sebou.
+- Suchý vzduch: v obytných místnostech (Pokoj, Loznice, Kuchyne – Nastavení) pod 35 % vlhkosti dvě měření po sobě → „💧 Suchý vzduch – Pokoj 28 %: dej na kamna hrnec s vodou, ať se odpařuje“ (nejvýš 1× za 12 h, znovu až po návratu nad 40 %). Na dlaždici vlhkost oranžově.
+
 ## 5.19 – 24. 10. 2026 · Flip 1.7.9
 - Změna času (25. 10., 3:00 → 2:00): grafy a součty jdou podle skutečného času (časová razítka), den změny má prostě 25 h. Opraveno, co s tím počítalo špatně: hodinová historie zásuvek (Flip 1.7.9 bere den od půlnoci do půlnoci – 23 / 25 hodin, dřív vždy 24 → poslední hodina dne chyběla) a doplňování běhů generátoru z ní (hodiny podle skutečně uplynulého času – jinak posun o hodinu).
 
