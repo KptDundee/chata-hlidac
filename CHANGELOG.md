@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.33 – 24. 10. 2026
+- Flip (dlaždice i detail): řádek „Router M7000“ je vidět vždy – buď % baterie routeru, nebo proč se nečte (chybí heslo v Bráně, stará verze Flipu, chyba přihlášení).
+
 ## 5.32 – 24. 10. 2026
 - Dlaždice Lednice: když je teplo jen podle teploměru (kompresor v pořádku), je v červeném řádku „v lednici 8,1 °C – nad 8 °C“ a „cykluje normálně“ v řádku kompresor (dřív červeně „cykluje normálně“).
 

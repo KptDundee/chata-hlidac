@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.32", FLIP_VER = "1.8.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.33", FLIP_VER = "1.8.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1639,7 +1639,7 @@ function tileFlip(d, h){
   else if(ch.ip) rows.push(["řízení", flipCtlMiss(d), 1]);
   if(ph.t!=null) rows.push(["teplota baterie", `<span style="color:var(${hot?"--crit":"--text"})">${nf(ph.t,1)} °C</span>`]);
   if(ff && !ph.c) rows.push(["vydrží do", `${relDay(ff.t_empty)} ~${hmT(ff.t_empty)} <span class="sub">(−${nf(ff.rate,1)} %/h)</span>`]);
-  const rt = g.rt; if(rt) rows.push(["router M7000", rt.b!=null ? `${nf(rt.b)} %${rt.c ? " ⚡" : ""}` : `<span class="sub">${String(rt.err||"").slice(0,60)}</span>`, rt.b==null ? 1 : 0]);   // 4.56
+  { const rt = g.rt; rows.push(["router M7000", rt && rt.b!=null ? `${nf(rt.b)} %${rt.c ? " ⚡" : ""}` : `<span class="sub">${routerTxt(g).slice(0,70)}</span>`, rt && rt.b!=null ? 0 : 1]); }   // 4.56 / 5.33: vždy
   return {k:"flip", icon:"📱", label:"Flip (brána)", wide:true, cls, v:`${nf(ph.b)}<small>%</small>`, st: old ? `bez dat ${agoS(g.t)}` : "teď", rows};
 }
 /* 4.53: lednice – kompresor (zásuvka) + teploměr, pokud je */
@@ -1679,6 +1679,14 @@ function flipCtlMiss(d){
   if(vv[0] === 1 && (vv[1] < 7 || (vv[1] === 7 && (vv[2]||0) < 8))) return "nahraj Flip 1.7.9 – starší verze tuhle zásuvku (s měřením) nepřepínala";   // 5.18
   return "čeká na první měření";
 }
+/* 5.33: baterie routeru – vždy s důvodem, proč se nečte */
+function routerTxt(g){
+  const rt = g.rt, v = String(g.av||"0").split(".").map(Number), v18 = v[0] > 1 || (v[0] === 1 && v[1] >= 8);
+  if(rt && rt.b!=null) return `${nf(rt.b)} %${rt.c ? " · nabíjí se ⚡" : ""}`;
+  if(rt && rt.err) return `nečte se – ${String(rt.err).replace(/^router:\s*/,"").slice(0,90)}${v18 ? "" : ` (nahraj Flip ${FLIP_VER}, teď ${g.av||"?"})`}`;
+  if(!v18) return `nečte se – potřeba Flip ${FLIP_VER} (teď ${g.av||"?"})`;
+  return "nečte se – v aplikaci Brána (Upravit) vyplň „Heslo správce routeru“";
+}
 function detFlip(body){
   const d = DATA, g = d.inverter || {}, ph = g.ph || {}, ff = d.flip_fc, ch = d.flip_chg || {}, fc = g.fc && !g.fc.miss ? g.fc : null;
   const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
@@ -1690,6 +1698,7 @@ function detFlip(body){
       ${ff && !ph.c ? rowI("Vybíjí se", `−${nf(ff.rate,1)} %/h → pod 15 % ${relDay(ff.t15)} ~${hmT(ff.t15)}, vybitý ${relDay(ff.t_empty)} ~${hmT(ff.t_empty)}`) : ""}
       ${rowI("Zásuvka nabíječky", fc ? `${fc.on?"zapnutá":"vypnutá"}${fc.why?` – ${fc.why}`:""}` : ch.ip ? flipCtlMiss(d) : "řízení vypnuté")}
       ${rowI("Povolení od hlídače", ch.allow==null ? "–" : `${ch.allow ? "nabíjet" : "nenabíjet"} – ${ch.why}`)}
+      ${rowI("Router M7000 (Wi‑Fi)", routerTxt(g))}
     </div>
     <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se nabíjení řídí</b> (Flip 1.6, zásuvka (${ch.ip||d.cfg?.zasuvka_flip||9})): chata na <b>River</b> → nabíjí kdykoli; chata na <b>soláru</b> → jen když panely dodávají (přes den, ≥ 30 W). Vždy: <b>pod 20 %</b> nabíjí, <b>od 80 %</b> vypne (Flip má limit 80 %, znovu pod 75 %), <b>nad 42 °C</b> vypne kvůli bezpečnosti (zpět pod 36 °C). Bez spojení s hlídačem nabíjí pod 40 %. Při každém vypnutí se v zásuvce nastaví odpočet „za 3 h zapnout“ – kdyby aplikace spadla, telefon se nevybije.</div>`);
   const bands = []; let b0 = null; for(const p of pts){ if(p.pc && b0==null) b0 = p.t; if(!p.pc && b0!=null){ bands.push([b0, p.t]); b0 = null; } } if(b0!=null) bands.push([b0, Date.now()/1000]);
