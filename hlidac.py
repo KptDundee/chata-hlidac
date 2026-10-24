@@ -3997,8 +3997,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             if not cmd:
                 cmd = pv_[0] + (":" + pv_[1] if pv_[1] else "")
             log("ev", f"Nabíjení z generátoru: povel z webu „{pv_[0]}{(' ' + pv_[1]) if pv_[1] else ''}“")
-        elif cmd.startswith(pv_[0]) and pt_ > (gs.get("cmd_t") or 0):
-            gs["cmd_t"] = pt_
+        elif cmd and cmd.startswith(pv_[0]) and now.timestamp() - pt_ < 600:
+            cmd = ""                                       # stejné zmáčknutí už převzal dřívější běh – nespouštět znovu
     if ":" in cmd:                                       # 4.91: „start:lpg“ – palivo rovnou z tlačítka
         cmd, f_ = cmd.split(":", 1)
         if f_ in ("lpg", "plyn", "benzin"):
