@@ -3832,9 +3832,29 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
         plug_extra = {k: ps.get(k) for k in ("now", "t0", "wh", "id")}
     else:
         i, r = max(act, key=lambda x: x[1].get("out_w") or 0)
-        vals = [p["rv"][i]["o"] for p in data.get("points", [])
-                if p["t"] >= now.timestamp() - 3 * 3600 and len(p.get("rv") or []) > i and p["rv"][i].get("o") is not None]
-        avg = sum(vals) / len(vals) if len(vals) >= 3 else (r.get("out_w") or 0) - (r.get("in_w") or 0)
+        cur = (r.get("out_w") or 0) - (r.get("in_w") or 0)
+        # 5.39: průměr jen od chvíle, kdy River chatu napájí (souvislý úsek s výstupem > 3 W, nejvýš 3 h). Dřív se
+        # brali celé 3 h – po přepnutí ze soláru na River se do průměru počítaly i nuly („🏠 4 W“ místo 19 W
+        # a moc optimistická výdrž).
+        ts_ = now.timestamp()
+        seg, t0, wh, nxt = [], ts_, 0.0, (ts_, cur)
+        k6 = str(r.get("sn", ""))[-6:]
+        for p in reversed(data.get("points", [])):
+            if p["t"] < ts_ - 3 * 3600:
+                break
+            e_ = next((x for x in p.get("rv") or [] if x.get("k") == k6), None) if k6 else None
+            if e_ is None and len(p.get("rv") or []) > i and not k6:
+                e_ = p["rv"][i]
+            if e_ is None:
+                continue                                 # v tomhle bodě EcoFlow nepřečtený
+            o = e_.get("o")
+            if o is None or o <= 3:
+                break
+            seg.append(o)
+            wh += (nxt[1] + o) / 2 * min(nxt[0] - p["t"], 1800) / 3600
+            t0, nxt = p["t"], (p["t"], o)
+        avg = sum(seg) / len(seg) if len(seg) >= 3 else cur
+        plug_extra = {"now": round(cur), "t0": int(t0), "wh": round(wh)}
     if avg < 3:
         data.pop("river_sup", None)
         return

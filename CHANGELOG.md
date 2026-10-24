@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.39 – 25. 10. 2026
+- Chata na River (podle EcoFlow): odběr a výdrž River se počítají jen od chvíle, kdy River chatu napájí (nejvýš 3 h). Dřív se průměrovaly celé 3 h včetně doby před přepnutím ze soláru → hodinky ukazovaly „🏠 4 W“ místo skutečných ~19 W a výdrž „vydrží do“ vycházela moc optimisticky. Hodinky teď v 🏠 ukazují aktuální odběr z River.
+
 ## 5.38 – 25. 10. 2026
 - Baterie teploměrů: hlídač si pamatuje poslední známou hodnotu (Xiaomi ji vysílá jen občas) a ukazuje ji pořád; po 3 dnech bez nové hodnoty šedě v závorce. V detailu Teploty „(změřeno …)“.
 

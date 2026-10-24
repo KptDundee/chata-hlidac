@@ -251,3 +251,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.37**: `_segments` mezera > 70 min (4200 s) ukončí úsek. `_fit` větrání: pokles ≥ 0,5 °C mezi body ≤ 15 min a rychlost od prvního výskytu předchozí hodnoty ≥ max(2,5; 0,3·(T − Tvenku)) °C/h.
 
 **5.38**: `thermo_check` – `st.th_bat` {klíč jména: [b, ts]}; do `inverter.th[]` doplní chybějící `b` a `bt` (kdy změřeno). Web: dlaždice Teploty šedě „(b %)“ po 3 dnech, detail „(změřeno …)“.
+
+**5.39**: `river_supply` (větev EcoFlow): průměr `avg` jen ze souvislého úseku bodů s `rv[k=SN].o` > 3 W (od konce, max 3 h; body bez EcoFlow se přeskočí); `now` = aktuální out − in, `t0`, `wh` jako u zásuvkové větve. Hodinky 🏠 = `rv.now`.
