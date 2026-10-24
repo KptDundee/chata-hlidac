@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.17 – 24. 10. 2026
+- Nabíjení Flipu ze soláru podle přebytku: když panely dávají aspoň o 15 W víc, než chata bere (nebo regulátor je ve Float / Boost), Flip se nabíjí – přes den co nejvíc, ať se nemusí nabíjet v noci z baterie / River. Důvod v kartě Flip („přebytek ze slunce 34 W“ / „čeká na přebytek“).
+
 ## 5.16 – 24. 10. 2026
 - Výdrž Flipu podle typického vybíjení za posledních 24 h (všechny úseky bez nabíjení, aspoň 3 h dat), ne jen podle posledního úseku – krátké intenzivní používání (zkoušení vzdálené plochy) dávalo „48 % – vydrží do 21:40“.
 

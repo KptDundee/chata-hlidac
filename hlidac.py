@@ -3053,7 +3053,12 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     last = (data.get("points") or [{}])[-1]
     pv = last.get("pv_w") or 0
     if on_solar:
-        allow, why = (pv >= 30), (f"slunce {pv:.0f} W" if pv >= 30 else "chata na soláru – nabíjí jen přes den ze slunce")
+        # 5.17: nabíjet, když panely dávají víc, než chata bere (přebytek ≥ 15 W) – nabíjení Flipu (~10–15 W) pak jde
+        # ze slunce, ne ze solární baterie. Přes den co nejvíc, ať se nemusí nabíjet v noci (z baterie / River = ztráty).
+        load = inv.get("mw") or 0
+        surplus = pv - load
+        allow = surplus >= 15 or pv >= 30 and (last.get("status") in (1, 2))      # nebo regulátor Float / Boost
+        why = f"přebytek ze slunce {surplus:.0f} W" if allow else f"chata na soláru – panely {pv:.0f} W, odběr {load:.0f} W (čeká na přebytek)"
     elif on_river:
         allow, why = True, "chata na River"
     else:
