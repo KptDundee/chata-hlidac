@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.12", FLIP_VER = "1.7.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.13", FLIP_VER = "1.7.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1800,13 +1800,19 @@ function thWhy(x){
   return "zatím bez hodnot";
 }
 function tileTemps(d, h){
-  const th = (d.inverter && d.inverter.th) || []; if(!th.length) return null;
+  const th0 = (d.inverter && d.inverter.th) || [], tw = d.th_watch || [];
+  const kk = n => String(n||"").replace(/^[\s,;:.]+|[\s,;:.]+$/g,"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  // 5.13: i teploměry ze seznamu, které v posledním měření chybí
+  const th = th0.concat(tw.filter(w=>!th0.some(x=>kk(x.n)===kk(w.n))).map(w=>({n:w.n, sn:null, miss:true, why:w.why, tm:w.last})));
+  if(!th.length) return null;
   const cfg = d.cfg || {}, lim = cfg.lednice_max_C ?? 8;
   const rows = th.map(x=>{ const old = h.now - x.tm > 1800, fr = x.n === cfg.teplomer_lednice;
     const col = old ? "--muted" : fr && x.t > lim ? "--crit" : x.t!=null && x.t <= 0 ? "--s1" : "--text";
     return [x.n + (x.n === cfg.teplomer_baterie ? " (baterie)" : fr ? " (lednice)" : ""),
-      thWhy(x) ? `<span class="sub" style="white-space:normal">${thWhy(x)}</span>` : `<span style="color:var(${col})">${x.t!=null ? nf(x.t,1)+" °C" : "–"}</span>${x.h!=null ? ` · ${nf(x.h)} %` : ""}${x.b!=null && x.b < 20 ? ` · 🪫${x.b} %` : ""}${old ? ` · ${agoS(x.tm)}` : ""}`]; });
-  return {k:"temps", icon:"🌡️", label:"Teploty", wide:true, cls:"ok", v:"", st:"teploměry Xiaomi · teplota · vlhkost", rows};
+      x.miss ? `<span style="color:var(--warn);white-space:normal">${x.why || "chybí"}${x.tm ? ` · naposledy ${agoS(x.tm)}` : ""}</span>` :
+      thWhy(x) ? `<span class="sub" style="white-space:normal">${thWhy(x)}</span>` : `<span style="color:var(${col})">${x.t!=null ? nf(x.t,1)+" °C" : "–"}</span>${x.h!=null ? ` · ${nf(x.h)} %` : ""}${x.b!=null ? (x.b <= 10 ? ` · <span style="color:var(--crit)">🪫${x.b} %</span>` : ` · 🔋${x.b} %`) : ""}${old ? ` · ${agoS(x.tm)}` : ""}`]; });
+  const bad = tw.some(w=>w.quiet) || th.some(x=>x.b!=null && x.b <= 10);
+  return {k:"temps", icon:"🌡️", label:"Teploty", wide:true, cls: bad ? "warn" : "ok", v:"", st:"teploměry Xiaomi · teplota · vlhkost", rows};
 }
 /* 5.09: detail Teploty – graf teploty každého teploměru (48 h), teď, vlhkost, baterie teploměru */
 function detTemps(body){
@@ -2938,6 +2944,9 @@ const SETTINGS = [
     ["plne_nabiti_dni","Připomenout plné nabití po","Kolik dní bez Floatu – AGM nemá dlouho stát nedobitá","dní",1,"num"],
     ["teplomer_baterie","Teploměr u solární baterie","Jméno teploměru Xiaomi (jak je zadané ve Flipu) – jeho teplota se bere pro mráz a kapacitu v chladu","",0,"str"],
     ["teplomer_lednice","Teploměr v lednici","Jméno teploměru Xiaomi v lednici","",0,"str"],
+    ["teplomery","Teploměry, které mají hlásit","Jména oddělená čárkou (jako ve Flipu) – když některý nehlásí, přijde upozornění","",0,"str"],
+    ["teplomery_ticho_min","Upozornit, když teploměr nehlásí","","min",10,"num"],
+    ["teplomery_baterie","Upozornit na baterii teploměru při","Procenta oddělená čárkou","",0,"str"],
     ["lednice_max_C","Lednice teplejší než","Upozornit, když je v lednici tepleji déle než 30 min","°C",1,"num"],
     ["river_sn","Spárování River s EcoFlow","„číslo zásuvky:konec SN“, např. 2:AB12, 3:CD34, 6:EF56 – konec SN je v detailu EcoFlow","",0,"str"],
     ["zasuvka_flip","Zásuvka nabíječky Flipu","Číslo zásuvky (prázdné = neřídit)","",0,"txt"],

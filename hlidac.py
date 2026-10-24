@@ -32,6 +32,7 @@ DEFAULTS = {
     "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
     "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14,
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
+    "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "river_sn": "",
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_rezerva_W": 100,
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100,
@@ -1542,6 +1543,7 @@ def main():
                          ("Lednice po dnech", lambda: fridge_days(data, now, cfg)),
                          ("River po dnech", lambda: river_days(data, now, cfg)),
                          ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
+                         ("Teploměry", lambda: thermo_check(data, st, now, topic, cfg)),
                          ("Plné nabití", lambda: full_charge_check(data, st, now, topic, cfg)),
                          ("Flip – výdrž", lambda: flip_check(data, st, now, topic, cfg)),
                          ("Flip – nabíjení", lambda: flip_charge_cmd(data, st, now, topic, cfg)),
@@ -3180,6 +3182,61 @@ def cold_factor(data, cfg):
         return 1.0, None
     tm = T[len(T) // 2]
     return (max(0.6, 1 - 0.006 * (15 - tm)) if tm < 15 else 1.0), tm
+
+
+def thermo_check(data, st, now, topic, cfg):
+    """5.13: hlídání teploměrů Xiaomi. Seznam „teplomery“ (jména jako ve Flipu): když některý nepošle hodnotu
+    teplomery_ticho_min minut (a Flip jinak posílá) → upozornění s důvodem (Flip ho neslyší / slyší, ale nejde
+    přečíst); po návratu zpráva. Baterie teploměru: upozornění při teplomery_baterie (10 %, 5 %), znovu až po výměně.
+    data["th_watch"] = [{n, last, why, b}]"""
+    import re as _re, unicodedata as _ud
+    key = lambda x: _ud.normalize("NFD", _re.sub(r"^[\s,;:.]+|[\s,;:.]+$", "", str(x or ""))).encode("ascii", "ignore").decode().lower()
+    want = [w.strip() for w in str(cfg.get("teplomery") or "").split(",") if w.strip()]
+    inv = data.get("inverter") or {}
+    ts = int(now.timestamp())
+    if not inv or ts - inv.get("t", 0) > 1800:
+        return                                         # Flip mlčí – to hlídá jiná kontrola
+    tw = st.setdefault("th_watch", {})
+    th = {key(x.get("n")): x for x in inv.get("th") or []}
+    lim_min = cfg.get("teplomery_ticho_min") or 60
+    levels = sorted((int(float(x)) for x in str(cfg.get("teplomery_baterie") or "").replace(";", ",").split(",") if x.strip()), reverse=True)
+    out = []
+    names = want or [x.get("n") for x in inv.get("th") or []]
+    for n in names:
+        k = key(n)
+        x = th.get(k) or {}
+        e = tw.setdefault(k, {"first": ts})
+        has = x.get("t") is not None or x.get("h") is not None
+        if has:
+            e["last"] = max(e.get("last") or 0, int(x.get("tm") or ts))
+        last = e.get("last") or e["first"]
+        why = None
+        if not has:
+            why = "Flip ho neslyší – mimo dosah Bluetooth nebo vybitý" if x.get("sn") == 0 else \
+                  f"Flip ho slyší, ale nejde přečíst – zkontroluj klíč a MAC" if x.get("sn") and not x.get("ok") else \
+                  "Flip ho nemá v nastavení" if want and not x else "Flip od něj nemá hodnotu"
+        quiet = ts - last >= lim_min * 60
+        if quiet and not e.get("warned"):
+            ntfy(topic, f"🌡️ Teploměr {n} nehlásí", f"Poslední hodnota {rel_day(last, now)} {datetime.fromtimestamp(last, TZ).strftime('%H:%M')}. {why or ''}".strip(),
+                 3, "thermometer,warning")
+            log("ev", f"Teploměr {n} nehlásí – {why}")
+            e["warned"] = True
+        if has and e.get("warned"):
+            ntfy(topic, f"🌡️ Teploměr {n} zase hlásí", f"{fmt(x.get('t'), 1)} °C", 2, "thermometer")
+            e["warned"] = False
+        b = x.get("b")
+        if b is not None:
+            if b >= 30:
+                e["bw"] = []                            # nová baterie → upozornit znovu
+            for lv in levels:
+                if b <= lv and lv not in (e.get("bw") or []):
+                    ntfy(topic, f"🪫 Teploměr {n}: baterie {b} %", "Vyměň baterii (CR2032)." if lv <= 5 else "Baterie teploměru dochází – připrav novou (CR2032).",
+                         3 if lv <= 5 else 2, "battery")
+                    e.setdefault("bw", []).extend([l2 for l2 in levels if l2 >= lv])
+                    break
+            e["b"] = b
+        out.append({"n": n, "last": last if e.get("last") else None, "why": why if quiet or not has else None, "b": e.get("b"), "quiet": quiet})
+    data["th_watch"] = out
 
 
 def frost_check(data, st, now, topic, cfg):
