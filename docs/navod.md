@@ -309,7 +309,8 @@ Upozornění: pod 50 # a pod 30 # (nastavení `hash_upozornit`). 50 # ≈ 12,3 V
 
 1. **Na webu** otevři **EcoFlow** (nebo Generátor). Nahoře je karta „Nabíjení z generátoru“.
 2. **Zmáčkni palivo**, na které generátor pojede: **⛽ Benzín** nebo **🔥 Plyn**. Tím se nabíjení spustí. Je jedno, jestli před startem generátoru nebo po něm – mimo nabíjení mají River vždy malý výkon (velké 200 W, malá 100 W), takže start generátoru nic nepřetíží.
-3. **Nastartuj generátor a zapoj River** (1, 2 nebo 3 – podle potřeby).
+3. **Nastartuj generátor a zapoj River** (1, 2 nebo 3 – podle potřeby). Nech generátor **1–2 minuty zahřát**.
+3b. **V aplikaci Tapo zapni zásuvku (7)** (generátor) – tím začne nabíjení. Zásuvka (7) má v Tapo nastavené „Stav po obnovení napájení: Vypnuto“, takže po startu generátoru zůstane vypnutá, dokud se nezahřeje. Hlídač ji sám nepřepíná.
 4. Hlídač každých 30 s čte EcoFlow. **30 s po začátku nabíjení** nastaví výkony (generátor naplno: benzín 1800 W / plyn 1600 W − rezerva 100 W, rozdělené podle toho, kolik které River chybí, ať skončí zároveň) – a pak je **nechá být**. Mění je jen, když některá River doběhne (dostane zpět malý výkon a její podíl ostatní) nebo když jednu připojíš / odpojíš.
 5. **Když dojde palivo** a přepneš na druhé: River se hned vrátí na malé výkony; po novém startu zmáčkni **tlačítko toho paliva** (např. 🔥 Plyn) – nabíjení se spustí znovu.
 6. **Konec:** prostě vypni generátor (hlídač to pozná a za 10 min nabíjení ukončí), nebo zmáčkni **⏹ Ukončit nabíjení**. Když River dojedou a generátor ještě běží, přijde „⛽ Generátor běží naprázdno – vypni ho“.

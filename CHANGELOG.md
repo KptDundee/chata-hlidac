@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.24 – 24. 10. 2026
+- Postup nabíjení z generátoru doplněn: nechat generátor 1–2 min zahřát a pak v aplikaci Tapo ručně zapnout zásuvku (7) (v Tapo „Stav po obnovení napájení: Vypnuto“).
+
 ## 5.23 – 24. 10. 2026
 - Nabíjení z generátoru: krátký postup přímo nad tlačítky (zmáčkni palivo → nastartuj → za 30 s nastaví → konec vypnutím generátoru) a celý postup v Návodu (sekce „⛽ Nabíjení z generátoru – postup“).
 
