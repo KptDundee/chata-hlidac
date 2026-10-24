@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.16 – 24. 10. 2026
+- Výdrž Flipu podle typického vybíjení za posledních 24 h (všechny úseky bez nabíjení, aspoň 3 h dat), ne jen podle posledního úseku – krátké intenzivní používání (zkoušení vzdálené plochy) dávalo „48 % – vydrží do 21:40“.
+
 ## 5.15 – 24. 10. 2026
 - Hlavní stránka přeskládaná do rozbalovacích sekcí: **Teď** (Solární baterie, EcoFlow – vždy rozbalené), **Chata** (Teploty, Lednice, Flip, Spotřebiče – dřív schované ve Spotřebě), **Energie dnes** (Výroba + Spotřeba pohromadě), **Výhled**, **Uplynulé**, **Dlouhodobě**. Sekce s červeným nebo oranžovým příznakem se rozbalí sama, jinak zůstane, jak ji naposledy necháš (pamatuje prohlížeč). Sbalená sekce má v záhlaví krátký souhrn (oranžové / červené dlaždice první). Známá výměna baterie sekci Dlouhodobě nerozbaluje.
 

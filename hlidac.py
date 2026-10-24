@@ -3108,11 +3108,19 @@ def flip_check(data, st, now, topic, cfg):
         return
     if len(seg) < 3 or seg[-1][0] - seg[0][0] < 2700 or seg[0][1] - seg[-1][1] < 2:
         return
-    rate = (seg[0][1] - seg[-1][1]) / ((seg[-1][0] - seg[0][0]) / 3600)          # %/h
+    rate_now = (seg[0][1] - seg[-1][1]) / ((seg[-1][0] - seg[0][0]) / 3600)      # %/h teď (poslední úsek)
+    # 5.16: odhad podle typického vybíjení za 24 h (všechny úseky bez nabíjení), ne jen podle posledního úseku –
+    # krátké intenzivní používání (např. vzdálená plocha) jinak dalo „vydrží jen do 21:40“ při 48 %
+    drop = dur = 0.0
+    for a, b_ in zip(h, h[1:]):
+        if not a[2] and not b_[2] and 0 < b_[0] - a[0] <= 3600 and b_[1] <= a[1]:
+            drop += a[1] - b_[1]
+            dur += b_[0] - a[0]
+    rate = drop / (dur / 3600) if dur >= 3 * 3600 and drop > 0 else rate_now
     b = seg[-1][1]
     t_empty = seg[-1][0] + b / rate * 3600
     t15 = seg[-1][0] + max(0.0, b - 15) / rate * 3600
-    data["flip_fc"] = {"b": b, "rate": round(rate, 1), "t_empty": int(t_empty), "t15": int(t15)}
+    data["flip_fc"] = {"b": b, "rate": round(rate, 1), "rate_now": round(rate_now, 1), "t_empty": int(t_empty), "t15": int(t15)}
     hm = lambda t: f"{rel_day(t, now)} ~{datetime.fromtimestamp(t, TZ).strftime('%H:%M')}"
     # 5.02: když nabíjení Flipu řídí hlídač zásuvkou (9) a zásuvka je vidět, Flip se nenabíjí schválně (drží 40–80 %)
     # a dobije se sám → neupozorňovat. Jen když řízení nejde (zásuvka nevidět / vypnuté), nebo Flip i tak klesl pod 18 %.
