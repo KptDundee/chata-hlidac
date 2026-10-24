@@ -3482,6 +3482,25 @@ def ecoflow_reminder(data, st, now, topic):
     st["ef_remind"] = int(now.timestamp())
 
 
+def river_for_plug(pid, pname, rivers, cfg):
+    """5.04: EcoFlow River k zásuvce na jejím výstupu – podle nastavení river_sn („2:1167, 3:0035“), jinak podle
+    prvních 3 písmen jména bez diakritiky (ZLUTA ECFLW (2) ↔ ŽLUT. VELKÁ ECFLW)."""
+    import re as _re, unicodedata as _ud
+    norm = lambda x: _re.sub(r"[^a-z0-9 ]", " ", _ud.normalize("NFD", str(x or "")).encode("ascii", "ignore").decode().lower())
+    for part in str(cfg.get("river_sn") or "").split(","):
+        if ":" in part:
+            a, b = (x.strip() for x in part.split(":", 1))
+            if a == str(pid) and b:
+                m = next((r for r in rivers if str(r.get("sn", "")).upper().endswith(b.upper())), None)
+                if m:
+                    return m
+    w = [x for x in norm(_re.sub(r"\([^)]*\)", " ", str(pname or ""))).split() if x]
+    if not w:
+        return None
+    hits = [r for r in rivers if norm(r.get("name")).split()[:1] and norm(r.get("name")).split()[0][:3] == w[0][:3]]
+    return hits[0] if len(hits) == 1 else None
+
+
 def river_supply(data, st, now, topic, cfg, rise, set_):
     """Která River teď napájí chatu, kolik má a na jak dlouho vydrží při průměrném odběru (poslední 3 h).
     data["river_sup"] = {name, soc, w, h, until}; večer upozorní, když nevydrží do zítřejšího rána."""
@@ -3493,13 +3512,22 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
         on_solar = now.timestamp() - inv_.get("t", 0) < 1800 and (inv_.get("mw") or 0) > 3
         act = [(i, r) for i, r in enumerate(rv) if r.get("online") and r.get("soc") is not None and not on_solar
                and (r.get("wh") or 768) >= 500 and (r.get("out_w") or 0) - (r.get("in_w") or 0) > 3]
+    plug_extra = {}
     if not act:
         river_supply_plugs(data, now, cfg)      # bez EcoFlow: pozná se ze zásuvek na výstupu River
-        return
-    i, r = max(act, key=lambda x: x[1].get("out_w") or 0)
-    vals = [p["rv"][i]["o"] for p in data.get("points", [])
-            if p["t"] >= now.timestamp() - 3 * 3600 and len(p.get("rv") or []) > i and p["rv"][i].get("o") is not None]
-    avg = sum(vals) / len(vals) if len(vals) >= 3 else (r.get("out_w") or 0) - (r.get("in_w") or 0)
+        # 5.04: zásuvka ukáže, která River napájí; % a výdrž doplnit z EcoFlow podle spárování (jinak hodinky
+        # i web psaly „% až z EcoFlow“, i když EcoFlow % posílá)
+        ps = data.get("river_sup")
+        r = river_for_plug(ps.get("id"), ps.get("name"), rv, cfg) if ps and ps.get("plug") else None
+        if not r or r.get("soc") is None or not r.get("online"):
+            return
+        avg = ps.get("w") or 0
+        plug_extra = {k: ps.get(k) for k in ("now", "t0", "wh", "id")}
+    else:
+        i, r = max(act, key=lambda x: x[1].get("out_w") or 0)
+        vals = [p["rv"][i]["o"] for p in data.get("points", [])
+                if p["t"] >= now.timestamp() - 3 * 3600 and len(p.get("rv") or []) > i and p["rv"][i].get("o") is not None]
+        avg = sum(vals) / len(vals) if len(vals) >= 3 else (r.get("out_w") or 0) - (r.get("in_w") or 0)
     if avg < 3:
         data.pop("river_sup", None)
         return
@@ -3509,7 +3537,7 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     h = left / avg
     until = int(now.timestamp() + h * 3600)
     data["river_sup"] = {"name": r["name"], "soc": round(r["soc"]), "w": round(avg), "h": round(h, 1), "until": until,
-                         "cap": cap, "res": res, "sn": str(r.get("sn", ""))[-6:]}
+                         "cap": cap, "res": res, "sn": str(r.get("sn", ""))[-6:], **plug_extra}
     # večer: vydrží do zítřejšího rána?
     if not (rise and set_):
         return
