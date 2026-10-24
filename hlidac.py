@@ -1540,6 +1540,7 @@ def main():
                          ("Upozornění #", lambda: hash_alert(data, st, now, topic, cfg)),
                          ("Lednice", lambda: fridge_check(data, st, now, topic, cfg)),
                          ("Lednice po dnech", lambda: fridge_days(data, now, cfg)),
+                         ("River po dnech", lambda: river_days(data, now, cfg)),
                          ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
                          ("Plné nabití", lambda: full_charge_check(data, st, now, topic, cfg)),
                          ("Flip – výdrž", lambda: flip_check(data, st, now, topic, cfg)),
@@ -2882,6 +2883,38 @@ def ocv_soc(v):
 
 
 WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
+
+
+def river_days(data, now, cfg):
+    """5.07: kolik hodin která River napájela chatu (zásuvka na jejím výstupu > 3 W a měnič nic nedává) a kolik
+    hodin napájela jen spotřebič – po dnech, z uložených bodů (váha = čas do dalšího bodu, ≤ 15 min).
+    days[k]["rh"] = {číslo zásuvky: hodiny chaty}, days[k]["rhs"] = {…: hodiny spotřebiče}. Přepisuje se jen víc daty."""
+    rids = ips(cfg.get("zasuvky_river"))
+    mip = str(cfg.get("zasuvka_menic") or (data.get("inverter") or {}).get("mip") or "1")
+    pts = [p for p in data.get("points", []) if p.get("tp")]
+    agg = {}
+    for p, q in zip(pts, pts[1:] + [{"t": now.timestamp()}]):
+        dt = q["t"] - p["t"]
+        if dt <= 0 or dt > 900:
+            continue
+        k = datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d")
+        a = agg.setdefault(k, {"c": {}, "s": {}, "tot": 0.0})
+        a["tot"] += dt
+        sol = (p.get("mw") if p.get("mw") is not None else (p["tp"].get(mip) or 0)) > 3
+        for rid in rids:
+            if (p["tp"].get(rid) or 0) > 3:
+                b = a["s" if sol else "c"]
+                b[rid] = b.get(rid, 0.0) + dt
+    days = data.setdefault("days", {})
+    for k, a in agg.items():
+        if k not in days and k != now.strftime("%Y-%m-%d"):
+            continue
+        d = days.setdefault(k, {})
+        if a["tot"] / 3600 + 0.05 < (d.get("rhh") or 0):
+            continue
+        d["rh"] = {i: round(v / 3600, 2) for i, v in a["c"].items()}
+        d["rhs"] = {i: round(v / 3600, 2) for i, v in a["s"].items()}
+        d["rhh"] = round(a["tot"] / 3600, 1)
 
 
 def fridge_days(data, now, cfg):

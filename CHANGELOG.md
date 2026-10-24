@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.07 – 24. 10. 2026
+- Detail EcoFlow přeskládán (přehled River): nahoře „Chatu napájí ŽLUTÁ · 45 % · ~60 W – vydrží do ~03:40“ (velkým písmem) + vydrží do rána / co udělat; pod tím každá River s % a co dělá, generátor jedním řádkem s odkazem. Pak grafy (co se dělo, kolik má každá River v baterii, z River do chaty), nově po dnech „Kolik hodin která River napájela chatu“ a „Kolik která River dodala“ (střídání River přes zimu), čísla (kWh a hodiny), EcoFlow – připojení sbalené, výklad. Samostatné grafy výstupu každé River zrušeny (nahradily je sloupce po dnech).
+- Detail Generátor (vše kolem nabíjení): tlačítka a běžící nabíjení → výkon generátoru → co se nabilo do které River (kWh/den) → dodal po dnech → běhy → čísla (dnes, 7 dní, běhy, palivo a motohodiny z generátoru) → výklad.
+- Hlídač si po dnech ukládá, kolik hodin která River napájela chatu (a kolik jen spotřebič).
+
 ## 5.06 – 24. 10. 2026
 - Generátor i bez zásuvky (7): během nabíjení si hlídač každých 30 s ukládá výkon generátoru a kolik berou River (z EcoFlow) a počítá denní součet (kWh). Graf „Výkon generátoru“ a „Dodal po dnech“ i dlaždice Generátor to používají, když zásuvka (7) data nemá (např. včera, když se ztrácela data z Flipu). Dlaždice Generátor: „→ River dnes nic“ místo matoucího „až z EcoFlow“.
 
