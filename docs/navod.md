@@ -320,3 +320,5 @@ Upozornění: pod 50 # a pod 30 # (nastavení `hash_upozornit`). 50 # ≈ 12,3 V
 Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a nabíjí pomaleji – pro rychlé nabíjení ho vypni.
 
 **Palivo a cena (5.26)**: v detailu Generátor karta „Palivo a cena“. Při **výměně lahve PB** zmáčkni „+ nová lahev“ (cena, plná / jen částečně), při **tankování benzínu** „+ natankováno“ (cena, litry, do plna?). Hlídač pak měří, kolik kWh generátor z dané lahve / nádrže vyrobil, a po spotřebování první plné lahve ukáže kWh na lahev, cenu za 1 kWh a cenu každého nabíjení. Částečně plná lahev se do průměru nepočítá. Tlačítko mačkej až při skutečné výměně – od té chvíle se energie počítá na novou lahev.
+
+**Nápověda v Nastavení (5.35)**: u každé položky je otazník – klepnutím se rozbalí vysvětlení (co to je, co to řídí, co znamená změna). Dalším klepnutím se zavře.

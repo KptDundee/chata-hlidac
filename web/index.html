@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.34", FLIP_VER = "1.9.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.35", FLIP_VER = "1.9.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -237,6 +237,9 @@ details.sec>.in{margin-top:8px}
 #detbody .unused{position:relative;outline:3px solid #8a3ffc;outline-offset:2px;border-radius:14px}
 #detbody .unused::after{content:"NEPOUŽITO";position:absolute;top:-11px;left:10px;background:#8a3ffc;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.08em;padding:2px 8px;border-radius:6px;z-index:1}
 #detbody details.sec>.in{margin-top:0}
+.qh{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin-left:6px;padding:0;border-radius:50%;border:1.5px solid var(--muted);background:transparent;color:var(--muted);font:600 12px/1 inherit;vertical-align:1px;cursor:pointer}
+.qh.on{border-color:var(--accent,var(--text));color:var(--accent,var(--text))}
+.qb{margin:0 0 10px;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:13px;line-height:1.5;color:var(--text2,var(--text))}
 </style>
 </head>
 <body>
@@ -3050,7 +3053,7 @@ const SETTINGS = [
   ]],
   ["Automatické nabíjení River", [
     ["river_auto","Nabíjet River přebytkem ze slunce","Zapne zásuvku, když je solární baterie plná","","", "sw"],
-    ["river_auto_ip","Zásuvka nabíjení River","Konec IP adresy","",0,"txt"],
+    ["river_auto_ip","Zásuvka nabíjení River","Číslo zásuvky","",0,"txt"],
     ["river_auto_pv_on","Zapnout, když panely dávají aspoň","","W",10,"num"],
     ["river_auto_pv_off","Vypnout, když panely klesnou pod","","W",10,"num"],
     ["river_auto_v_drzet","Vypnout hned, když napětí klesne pod","Solární baterie se přestala nabíjet (Float ~13,6 V)","V",0.05,"num"],
@@ -3084,7 +3087,7 @@ const SETTINGS = [
     ["brana_ticho_min","Mlčí déle než","","min",10,"num"],
     ["telefon_baterie_pod","Baterie Flipu – červeně pod","","%",5,"num"],
   ]],
-  ["Zásuvky (konec IP adresy)", [
+  ["Zásuvky, lednice, teploměry a Flip", [
     ["zasuvka_menic","Zásuvka za měničem","Odběr ze solární baterie","",0,"txt"],
     ["zasuvky_river","Zásuvky na River","Zimní provoz, oddělit čárkou","",0,"txt"],
     ["zasuvka_generator","Zásuvka generátoru","Kolik generátor dodává","",0,"txt"],
@@ -3119,6 +3122,98 @@ const SETTINGS = [
     ["regulator_offline_min","Regulátor neposílá data déle než","","min",10,"num"],
   ]],
 ];
+/* 5.35: nápověda k nastavení (ⓘ) – co to je, co to řídí, co znamená změna */
+const SET_HELP = {
+  nabito: "Zpráva, když regulátor přejde do Float (solární baterie plně nabitá). Hodí se, když chceš zapojit něco náročnějšího (vrtačka, nabíjení River). Vypnuto = zpráva nechodí, nic jiného se nemění.",
+  panely_nevyrabi: "Zpráva, když panely přes den dlouho skoro nic nevyrábí (sníh, stín, vypadlý konektor). Kdy přesně, určují volby v sekci Panely. Vypnuto = nehlídá se.",
+  predpoved_noc: "Každý večer hlídač spočítá z napětí, kapacity baterie a odběru, jestli baterie vydrží do rána (do doby, kdy panely začnou nabíjet). Když ne, přijde upozornění. Vypnuto = večerní upozornění nechodí, výpočet je dál vidět na webu.",
+  den_kontrola: "Ráno v nastavenou hodinu (pro každý den zvlášť) hlídač zkontroluje, jestli chata na soláru vydrží do večera („Výhled dne“). Hodí se jako kontrola před odjezdem. Vypnutý den = ten den se nekontroluje.",
+  den_do: "Do kolika hodin má chata na soláru vydržet při ranní kontrole (Výhled dne). Pozdější čas = přísnější kontrola, častěji poradí River. Noc potom řeší předpověď do rána.",
+  nutne_river_v: "Když solární baterie nevydrží noc, od tohoto času přichází každých 5 min naléhavé upozornění „přepni na River“, dokud chata nejede z River nebo to nepotvrdíš / neodložíš (Přepínám / Za 30 min / Za 1 h). Vypnuto = jen běžná upozornění.",
+  vecerni_souhrn_hodina: "V tuto hodinu přijde každý večer přehled dneška (výroba, spotřeba, baterie, River, chyby). Vypínačem se souhrn vypne úplně.",
+  baterie_slabne_V: "Hranice napětí solární baterie pro první varování „⚠️ Baterie slábne“ (2 měření po sobě pod hranicí). Je to obyčejná hranice – pod větším odběrem (PC) napětí poklesne víc, takže se může ozvat dřív. Vyšší číslo = varuje dřív, nižší = později.",
+  baterie_kriticka_V: "Hranice „🛑 Odpoj spotřebiče“ – stejná jako alarm regulátoru. Pod ní se baterie vybíjí příliš hluboko. Měl by být níž než „slábne“ a výš než „Měnič se vypíná“.",
+  odpojeni_V: "Napětí, při kterém měnič Victron sám vypne 230 V (ochrana baterie). Musí odpovídat nastavení v měniči – hlídač podle toho jen hlásí a počítá předpověď „vydrží do“. Změna tady nic v měniči nepřenastaví.",
+  panely_min_W: "Pod tímhle výkonem se panely berou jako „nevyrábí“ (pro upozornění Panely nevyrábí). Vyšší číslo = upozornění i při slabém zatažení, nižší = jen při úplné tmě / sněhu.",
+  panely_po_dobu_min: "Jak dlouho musí panely nevyrábět, než přijde upozornění. Kratší = rychlejší zpráva, ale i kvůli delšímu mraku.",
+  panely_rezerva_min: "Kolik minut po východu a před západem slunce se výroba nehlídá (nízko nad obzorem panely přirozeně nevyrábí). Vyšší číslo = méně zbytečných zpráv ráno a večer.",
+  noc_spotreba_W: "Odhad nočního odběru za měničem, se kterým se počítá, dokud není změřený skutečný (po hodině měření se bere skutečný). Ovlivňuje předpověď do rána hned po západu.",
+  menic_vlastni_W: "Kolik bere měnič Victron sám pro sebe, když je zapnutý. Přičítá se ke každému výpočtu odběru z baterie (předpověď do rána, výdrž). Vyšší = opatrnější předpovědi.",
+  kapacita_Ah: "Jmenovitá kapacita solární baterie. Hlídač ji ale postupně nahrazuje skutečnou kapacitou naměřenou z posledních nocí (a v chladu ji zmenšuje). Ovlivňuje „vydrží do rána“ a výhled.",
+  nabijeni_od_vychodu_min: "Kolik minut po východu slunce začnou panely opravdu nabíjet. Do té doby se ještě počítá s vybíjením – „do rána“ = do východu + tento čas. Vyšší = opatrnější předpověď.",
+  river_vymenit: "Upozornění, když River, ze které jede chata, klesne pod hranici „Vyměnit pod“ – ať včas přepojíš na jinou. Vypnuto = nehlásí se.",
+  river_vymenit_pod: "Procenta River (podle EcoFlow), pod kterými přijde „vyměň River“. Vyšší = dřív, s větší rezervou.",
+  river_Wh: "Kapacita jedné velké River (River 2 Pro = 768 Wh). Z ní a z % se počítá, kolik Wh v River zbývá a jak dlouho vydrží.",
+  river_rezerva_pct: "Výdrž River („vydrží do“) se počítá do této hranice, ne do nuly – ať zbyde rezerva. Vyšší = kratší, opatrnější výdrž.",
+  river_nabita: "Zpráva, když se River při nabíjení (z generátoru) nabije – ať můžeš vypnout generátor. Vypnuto = nehlásí se.",
+  gen_rizeni: "Při nabíjení z generátoru hlídač nastavuje velkým River (a malé) nabíjecí výkon v EcoFlow tak, aby se nabíjely zároveň a generátor jel co nejkratší dobu, ale nepřetížil se. Vypnuto = hlídač výkony nemění, nastavuješ je v aplikaci EcoFlow sám.",
+  gen_palivo: "Na jaké palivo generátor jede – podle toho se bere maximální výkon (plyn dává méně) a počítá spotřeba a cena paliva. Obvykle se přepíná tlačítky Benzín / Plyn v detailu Generátoru.",
+  gen_max_benzin_W: "Kolik W smí River dohromady brát, když generátor jede na benzín (štítek 1800 W). Hlídač z toho odečte Rezervu. Vyšší = rychlejší nabíjení, ale riziko, že generátor vypadne.",
+  gen_max_lpg_W: "Totéž pro plyn (štítek 1600 W). Generátor sám hlásí svůj limit (v eko režimu jen 1100 W) – platí to nižší.",
+  gen_rezerva_W: "Kolik W nechá hlídač generátoru volných pod jeho maximem (River občas na chvíli vezmou víc). Nižší = rychlejší nabíjení, ale při 0 generátor vypadával. Doporučeno 100 W.",
+  gen_po_behu_W: "Nabíjecí výkon velkých River mimo nabíjení z generátoru (a hned po startu). Nízký, aby start generátoru nic nepřetížil. Rozsah River Pro 200–940 W.",
+  gen_mala_po_behu_W: "Totéž pro malou River (rozsah 100–360 W).",
+  zasuvky_stale: "Čísla zásuvek, které mají mít proud a být vidět pořád (220 V, lednice, router, Flip). Když je Flip nepřečte, přijde „🔌 (N) není vidět“. Zásuvka měniče se nehlídá, když je měnič vypnutý.",
+  zasuvky_stale_min: "Jak dlouho smí zásuvka chybět, než přijde upozornění. Přepnutí chaty solár ↔ River chvíli trvá – kratší čas = víc zbytečných zpráv.",
+  river_auto: "Když je solární baterie plná (Float) a slunce dává víc, hlídač zapne zásuvku nabíjení River (8) a přebytek jde do River. Jakmile se solární baterie začne vybíjet, hned ji vypne – solární baterie má vždy přednost. Vypnuto = zásuvka se nepřepíná.",
+  river_auto_ip: "Číslo zásuvky, přes kterou se River nabíjí ze soláru (za měničem).",
+  river_auto_pv_on: "Nabíjení River se zapne jen když panely dávají aspoň tolik. Vyšší = zapne se jen za silného slunce.",
+  river_auto_pv_off: "Nabíjení River se vypne, když panely klesnou pod tuto hodnotu (měřeno až po zapnutí).",
+  river_auto_v_drzet: "Když napětí solární baterie při nabíjení River klesne pod tuto hranici, baterie se vybíjí → nabíjení River se hned vypne. Vyšší = opatrnější (solární baterie má větší přednost).",
+  river_auto_boost: "Nabíjet River už ve fázi Boost (regulátor drží nabíjecí napětí, baterie dostává plnou dávku). Vypnuto = River jen ve Float, tj. až je solární baterie úplně plná.",
+  boost_V: "Nabíjecí napětí fáze Boost podle nastavení regulátoru. Hlídač podle něj pozná, že regulátor napětí drží (a dopočítá teplotní kompenzaci). Musí odpovídat regulátoru.",
+  river_auto_notifikace: "Zpráva při každém zapnutí / vypnutí nabíjení River ze soláru. Vypnuto = jen záznam v Deníku a ve večerním souhrnu.",
+  float_V: "Napětí fáze Float podle nastavení regulátoru. Když ve Float napětí klesne o 0,4 V pod tuto hodnotu, baterie se vybíjí a nabíjení River se vypne.",
+  odber_hlidat: "Přes den upozorní, když se solární baterie vybíjí kvůli odběru navíc (nabíjení zařízení, něco zapnutého) – ne kvůli běžné lednici a světlům. Vypnuto = nehlásí se.",
+  odber_z_baterie_A: "Od jakého proudu z baterie se to bere jako vybíjení (pro upozornění na odběr navíc a pro vypnutí nabíjení River). Nižší = citlivější.",
+  odber_navic_W: "Upozornění na odběr navíc jen když je odběr za měničem aspoň o tolik W nad běžný (lednice + světla, kamery, wifi). Vyšší = jen větší spotřebiče.",
+  lednice_max_W: "Když zásuvka lednice nepošle hodnotu, počítá se, že lednice jede naplno s tolika W – aby běžící kompresor nevypadal jako odběr navíc.",
+  river_auto_v_off: "Další hranice pro nabíjení River ze soláru: pod tímto napětím se nabíjení vypne a znovu se zapne až o 0,3 V výš.",
+  pocasi: "Předpověď výroby panelů podle předpovědi počasí (učí se z historie tvých panelů) – výhled na další dny, kdy přepnout zima ↔ léto. Vypnuto = bez výhledu.",
+  rezim: "Letní provoz = chata jede ze soláru, zimní = z River (solár jen přes den, když vydrží). Automaticky to hlídač pozná podle měniče a zásuvek River. Ruční volba přebije automatiku.",
+  zima_pripojit_od_V: "Zimní rada „chatu půjde přes den připojit na solár“: ráno musí mít solární baterie v klidu aspoň toto napětí. Vyšší = opatrnější, radí méně často.",
+  zima_pripojit_do_V: "…a podle předpovědi musí po dni s chatou zbýt aspoň toto napětí. Vyšší = baterie zůstane víc nabitá.",
+  sezona_upozornit: "Zpráva (nejvýš jednou za 14 dní), že podle předpovědi je čas přejít ze zimního na letní provoz nebo naopak.",
+  panely_pocet: "Kolik panelů je teď zapojeno. Podle toho se počítá předpověď výroby a rady k pojistce. Přepni po fyzickém přepojení.",
+  panely_doporucit: "Večer poradí, jestli přidat nebo odpojit druhý panel – podle síly slunce a nejvyššího proudu proti pojistce.",
+  pojistka_A: "Pojistka mezi regulátorem a baterií. Když se nabíjecí proud blíží k ní (nad 110 %), přijde varování. Musí odpovídat skutečné pojistce.",
+  panel_Wp: "Štítkový výkon jednoho panelu – pro předpověď výroby a rady k panelům.",
+  brana_hlidat: "Upozornění, když Flip (brána na chatě) přestane posílat data – vybitý, bez Wi‑Fi, spadlá aplikace.",
+  brana_ticho_min: "Jak dlouho smí Flip mlčet, než přijde upozornění. Kratší = rychlejší zpráva, ale i při krátkém výpadku Wi‑Fi.",
+  telefon_baterie_pod: "Pod tímto % se baterie Flipu na webu zobrazí červeně.",
+  zasuvka_menic: "Číslo zásuvky „220V měnič“ – měří všechno, co jde ze solární baterie přes měnič. Z ní se počítá odběr, noční spotřeba a předpovědi.",
+  zasuvky_river: "Čísla zásuvek, ze kterých chata jede z River (zimní provoz), oddělená čárkou. Podle nich hlídač pozná, že chata jede z River.",
+  zasuvka_generator: "Číslo zásuvky, přes kterou jde proud z generátoru (7). Když bere proud, běží nabíjení z generátoru.",
+  zasuvka_lednice: "Číslo zásuvky lednice. Hlídá se podle ní kompresor a odečítá se od odběru za měničem (zbytek = světla, kamery, wifi).",
+  ostatni_hlidat: "Upozorní, když se noční odběr bez lednice (světla, kamery, wifi) výrazně změní proti posledním nocím – např. něco zůstalo zapnuté nebo vypadla kamera.",
+  lednice_hlidat: "Hlídání lednice podle její zásuvky: kompresor dlouho stojí (nechladí / bez proudu) nebo běží bez přestávky (otevřené dveře, porucha).",
+  lednice_ticho_h: "Jak dlouho smí kompresor stát, než přijde upozornění. V zimě se hranice sama prodlouží podle posledních 7 dní (lednice v chladu běží méně).",
+  lednice_bezi_h: "Jak dlouho smí kompresor běžet bez přestávky, než přijde upozornění. Přizpůsobí se posledním 7 dnům.",
+  mraz_hlidat: "Hlídání mrazu u solární baterie: nabitá AGM mráz vydrží, vybitá může zamrznout. Upozorní při prvním mrazu v sezóně a když je mráz a baterie vybitá.",
+  mraz_C: "Pod touto teplotou u baterie se bere jako mráz.",
+  mraz_hash: "Při mrazu upozorní, když nabití solární baterie (náš vlastní odhad v #, ne % regulátoru) klesne pod tuto hodnotu.",
+  plne_nabiti_dni: "AGM nemá dlouho stát nedobitá. Když regulátor tolik dní nepřešel do Float (plně nabito), přijde klidná připomínka. V zimě je to normální.",
+  teplomer_baterie: "Jméno teploměru Xiaomi u solární baterie (přesně jako ve Flipu). Jeho teplota se bere pro mráz a pro menší kapacitu v chladu.",
+  teplomer_lednice: "Jméno teploměru Xiaomi v lednici. Podle něj se hlídá „lednice teplejší než“ a ukazuje teplota v dlaždici Lednice.",
+  teplomery: "Jména teploměrů, které mají hlásit, oddělená čárkou. Když některý déle nehlásí, přijde upozornění (vybitá baterie, daleko od Flipu).",
+  teplomery_ticho_min: "Jak dlouho smí teploměr nehlásit, než přijde upozornění.",
+  teplomery_baterie: "Při jakých procentech baterie teploměru přijde upozornění (každá hranice jednou), např. „10, 5“.",
+  vlhkost_hlidat: "Teploměry v obytných místnostech, kde se hlídá suchý vzduch (při topení v kamnech vzduch vysychá). Prázdné = nehlídá se.",
+  vlhkost_min: "Pod touto vlhkostí se vzduch bere jako suchý – zvýrazní se v tabulce teplot a přijde upozornění. Doporučeno 40–60 %.",
+  lednice_max_C: "Když je v lednici podle teploměru tepleji déle než 30 min, přijde upozornění a teplota svítí červeně.",
+  river_sn: "Která zásuvka patří ke které River v EcoFlow: „číslo zásuvky:konec SN“. Podle toho se u zásuvky ukazují % River. Většinou se spáruje samo podle jména.",
+  zasuvka_flip: "Číslo zásuvky s nabíječkou Flipu (9). Prázdné = nabíjení Flipu se neřídí.",
+  flip_nabijeni_rizeni: "Flip si zásuvkou řídí nabíjení: na soláru jen ze slunce (přebytek), na River kdykoli; pod 20 % vždy, od 80 % vypne, nad 42 °C nikdy. Při vypnutí pojistka „za 3 h zapnout“. Vypnuto = zásuvka se nepřepíná.",
+  zasuvka_router: "Číslo zásuvky, ze které se napájí router M7000 (5). Prázdné = nabíjení routeru se neřídí (zásuvka zůstane, jak je).",
+  router_nabijeni_rizeni: "Flip (1.9) řídí zásuvku routeru: pod 40 % nabíjí, od 80 % vypne a router jede z baterie (šetří proud); na River / při přebytku nabíjí; když baterii nejde přečíst, nabíjí. Před vypnutím pojistka „za 2 h zapnout“. Vypnuto = zásuvka se nepřepíná.",
+  flip_teplota_max_C: "Upozornění, když má baterie Flipu víc (na slunci, u kamen). Nad 42 °C Flip nabíjení vypne sám.",
+  baterie_slabne_reset_V: "Varování „slábne“ přijde znovu až poté, co napětí vystoupá nad tuto hodnotu a pak zase klesne. Brání opakovaným zprávám kolem hranice.",
+  baterie_kriticka_reset_V: "Totéž pro „Odpoj spotřebiče“.",
+  odpojeni_reset_V: "Totéž pro „Měnič se vypíná“.",
+  regulator_offline_min: "Po kolika minutách bez dat z regulátoru (Solar Guardian) se údaje berou jako neaktuální – web zčervená a přijde upozornění.",
+};
+const qh = k => SET_HELP[k] ? `<button type="button" class="qh" data-qh="${k}" aria-label="Co to je">?</button>` : "";
+const qb = k => SET_HELP[k] ? `<div class="qb" id="qb_${k}" hidden>${SET_HELP[k]}</div>` : "";
 const GH = "https://api.github.com/repos/"+REPO+"/contents/nastaveni.txt";
 let SET = {text:"", sha:null, vals:{}};
 const utf8b64 = { dec:s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,"")),c=>c.charCodeAt(0))),
@@ -3157,36 +3252,39 @@ function renderSettings(){
       const val = v[k] ?? "";
       if(type==="sel"){
         const opts = unit.map((o,i)=>`<option value="${o}" ${String(val||unit[0])===o?"selected":""}>${step[i]}</option>`).join("");
-        html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><select data-k="${k}" data-t="sel" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)">${opts}</select></div></div>`;
+        html += `<div class="row"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><select data-k="${k}" data-t="sel" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)">${opts}</select></div></div>`;
       } else if(type==="str"){   // 4.61: volný text (jména, SN) – „txt“ nechává jen čísla
-        html += `<div class="row" style="display:block"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><input type="text" data-k="${k}" data-t="str" value="${String(val).replace(/"/g,"&quot;")}" style="width:100%;margin-top:6px"></div>`;
+        html += `<div class="row" style="display:block"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><input type="text" data-k="${k}" data-t="str" value="${String(val).replace(/"/g,"&quot;")}" style="width:100%;margin-top:6px"></div>`;
       } else if(type==="txt"){
-        html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="text" data-k="${k}" data-t="txt" value="${String(val)}" style="width:110px"></div></div>`;
+        html += `<div class="row"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="text" data-k="${k}" data-t="txt" value="${String(val)}" style="width:110px"></div></div>`;
       } else if(type==="time" || type==="timeopt"){
         const on = type==="time" || !isOff(val), tv = /\d{1,2}:\d{2}/.test(String(val)) ? String(val).trim().padStart(5,"0") : "22:00";
-        html += `<div class="row ${on?"":"off"}" id="r_${k}"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num">${timeSel(`data-k="${k}" data-t="time"`, tv)}</div>${type==="timeopt"?`<label class="sw" title="Zapnout / vypnout"><input type="checkbox" data-opt="${k}" ${on?"checked":""}><i></i></label>`:""}</div>`;
+        html += `<div class="row ${on?"":"off"}" id="r_${k}"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><div class="num">${timeSel(`data-k="${k}" data-t="time"`, tv)}</div>${type==="timeopt"?`<label class="sw" title="Zapnout / vypnout"><input type="checkbox" data-opt="${k}" ${on?"checked":""}><i></i></label>`:""}</div>`;
       } else if(type==="week"){
         const DN = [["po","pondělí"],["út","úterý"],["st","středa"],["čt","čtvrtek"],["pá","pátek"],["so","sobota"],["ne","neděle"]], cur = {};
         for(const part of String(val).split(",")){ const b = part.trim().split(/\s+/); if(b.length===2 && /\d{1,2}:\d{2}/.test(b[1])) cur[b[0].toLowerCase().slice(0,2)] = b[1].padStart(5,"0"); }
         const sum = DN.filter(([d])=>cur[d]).map(([d])=>`${d} ${cur[d].replace(/^0/,"")}`).join(" · ") || "vypnuto";
-        html += `<details class="row" data-k="${k}" data-t="week" style="display:block"><summary style="cursor:pointer;list-style:none"><div class="t"><b>${label} ›</b><span>${help}</span><span style="color:var(--text);margin-top:4px">${sum}</span></div></summary>
+        html += `<details class="row" data-k="${k}" data-t="week" style="display:block"><summary style="cursor:pointer;list-style:none"><div class="t"><b>${label}${qh(k)} ›</b><span>${help}</span><span style="color:var(--text);margin-top:4px">${sum}</span></div></summary>
           <div style="padding:6px 0 4px">${DN.map(([d,n])=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-top:1px solid var(--line)">
             <label class="sw"><input type="checkbox" data-wd="${d}" ${cur[d]?"checked":""}><i></i></label>
             <span style="flex:1">${n}</span>
             ${timeSel(`data-wt="${d}"`, cur[d]||"7:00")}</div>`).join("")}</div></details>`;
       } else if(type==="sw"){
-        html += `<label class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><span class="sw"><input type="checkbox" data-k="${k}" data-t="sw" ${isOn(val)?"checked":""}><i></i></span></label>`;
+        html += `<label class="row"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><span class="sw"><input type="checkbox" data-k="${k}" data-t="sw" ${isOn(val)?"checked":""}><i></i></span></label>`;
       } else if(type==="opt"){
         const on = !isOff(val);
-        html += `<div class="row ${on?"":"off"}" id="r_${k}"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="number" inputmode="numeric" step="${step}" min="0" max="23" data-k="${k}" data-t="num" value="${on?val:20}"><small>${unit}</small></div><label class="sw" title="Zapnout / vypnout"><input type="checkbox" data-opt="${k}" ${on?"checked":""}><i></i></label></div>`;
+        html += `<div class="row ${on?"":"off"}" id="r_${k}"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="number" inputmode="numeric" step="${step}" min="0" max="23" data-k="${k}" data-t="num" value="${on?val:20}"><small>${unit}</small></div><label class="sw" title="Zapnout / vypnout"><input type="checkbox" data-opt="${k}" ${on?"checked":""}><i></i></label></div>`;
       } else {
-        html += `<div class="row"><div class="t"><b>${label}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="number" inputmode="decimal" step="${step}" data-k="${k}" data-t="num" value="${String(val).replace(",",".")}"><small>${unit}</small></div></div>`;
+        html += `<div class="row"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="number" inputmode="decimal" step="${step}" data-k="${k}" data-t="num" value="${String(val).replace(",",".")}"><small>${unit}</small></div></div>`;
       }
+      html += qb(k);
     }
     html += `</div>`;
   }
   html += `<p class="sub" style="margin:16px 4px">Změny se projeví do 10 minut. Uložením se zároveň spustí kontrola.</p>`;
   $("setbody").innerHTML = html;
+  for(const q of $("setbody").querySelectorAll(".qh")) q.onclick = e => { e.preventDefault(); e.stopPropagation();
+    const bx = $("qb_"+q.dataset.qh); if(bx){ bx.hidden = !bx.hidden; q.classList.toggle("on", !bx.hidden); } };
   for(const cb of $("setbody").querySelectorAll("[data-opt]")) cb.onchange=()=>$("r_"+cb.dataset.opt).classList.toggle("off",!cb.checked);
 }
 function collectSettings(){

@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.35 – 24. 10. 2026
+- Nastavení: u každé položky otazník ⓘ – po klepnutí se rozbalí, co nastavení dělá, co řídí a co znamená změna.
+- Sekce „Zásuvky (konec IP adresy)“ přejmenována na „Zásuvky, lednice, teploměry a Flip“ (zásuvky se zadávají číslem).
+
 ## 5.34 / Flip 1.9.0 – 24. 10. 2026
 - Nabíjení routeru M7000 zásuvkou (5): pod 40 % nabíjí, od 80 % zásuvku vypne a router jede z baterie, mezi tím nechá jak je. Chata na River nebo přebytek ze slunce → nabíjí. Baterii nejde přečíst (nebo údaj starší než 25 min) → nabíjí.
 - Pojistka: před vypnutím se v zásuvce nastaví odpočet „za 2 h zapnout“; když ho zásuvka nepřijme, zásuvku nevypne.
