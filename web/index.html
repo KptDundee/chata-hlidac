@@ -1627,7 +1627,7 @@ function tileUseRiver(d, h){
 /* 4.53: Flip (brána) – baterie, nabíjení zásuvkou, teplota, výdrž */
 function tileFlip(d, h){
   const g = d.inverter, ph = g && g.ph; if(!ph || ph.b==null) return null;
-  const old = h.now - g.t > 1800, ff = d.flip_fc, fc = g.fc, ch = d.flip_chg || {};
+  const old = h.now - g.t > 1800, ff = d.flip_fc, fc = g.fc && !g.fc.miss ? g.fc : null, ch = d.flip_chg || {};
   const hot = ph.t!=null && ph.t >= (d.cfg?.flip_teplota_max_C ?? 40);
   const cls = old ? "warn" : hot || ph.b <= 20 ? "bad" : (!ph.c && ff && ff.t15 - h.now < 12*3600) ? "warn" : "ok";
   const rows = [["nabíjení", ph.c ? `<span style="color:var(--good)">nabíjí se ⚡</span>` : "nenabíjí se"]];
@@ -1673,7 +1673,7 @@ function flipCtlMiss(d){
   return "čeká na první měření";
 }
 function detFlip(body){
-  const d = DATA, g = d.inverter || {}, ph = g.ph || {}, ff = d.flip_fc, ch = d.flip_chg || {}, fc = g.fc;
+  const d = DATA, g = d.inverter || {}, ph = g.ph || {}, ff = d.flip_fc, ch = d.flip_chg || {}, fc = g.fc && !g.fc.miss ? g.fc : null;
   const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
   body.insertAdjacentHTML("beforeend", chartCard("df_b", "Baterie Flipu", "% · 48 h · šedé pozadí = nabíjí se")
     + chartCard("df_t", "Teplota baterie Flipu", `°C · 48 h · červeně ${d.cfg?.flip_teplota_max_C ?? 40} °C = upozornění, nad 42 °C Flip nabíjení vypne`)
