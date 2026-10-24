@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.21", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.22", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1969,7 +1969,8 @@ function detUse(body, src="a"){
   // 4.38: výroba a spotřeba chaty celkem po dnech – pokryla výroba spotřebu? (stejný graf jako v detailu Solár)
   const pu = src==="a" ? chartCard("u_pu", long ? "Výroba a spotřeba po měsících" : "Výroba a spotřeba po dnech",
     `kWh · <span style="color:var(--s2)">■</span> výroba · spotřeba celkem: <span style="color:var(--s3)">■</span> ze soláru (i se ztrátami měniče) <span style="color:var(--s1)">■</span> z River · ťukni na den`) : "";
-  let html = segHtml() + pu
+  const ud = src==="a" ? chartCard("u_days", "Spotřeba chaty po dnech", "kWh za den (měřeno na zásuvkách) · čárkovaně obvyklá = medián předchozích 14 dní (velké výkyvy se neprojeví)") : "";
+  let html = segHtml() + pu + ud
     + chartCard("u_sum", `Odběr chaty ${SRCN[src]}`, long ? `kWh za den${srcCap}` : `W${src==="a" ? " · 220 V + River · šedé pozadí = chata na River" : src==="s" ? " · zásuvka 220 V za měničem" : " · zásuvky na výstupu River"}`);
   if(src!=="r") html += chartCard("u_220", "220 V – zásuvka za měničem", long ? `kWh za den · v bublině i se ztrátami měniče` : `W · <span style="color:var(--s2)">━ změřeno na zásuvce</span> · <span style="color:var(--s1)">╍ vzato z baterie (+12 % ztráty měniče, +${nf(U.idle,1)} W měnič a desulfátor)</span>`);
   for(const x of U.devs) html += chartCard("u_d"+x.id, x.name, `${long ? "kWh za den" + srcCap : "W"}${only}${x.hist ? "" : " · historie od 14. 10."}`);
@@ -1996,6 +1997,11 @@ function detUse(body, src="a"){
     <b>Nabíjení River ze soláru</b> (zásuvka 8) neměří – když běží, schová se v „ostatní“.</div></div>`;
   body.insertAdjacentHTML("beforeend", html);
   if(src==="a") prodUse($("u_pu"), long ? "m" : "d");
+  if(src==="a"){ const all = Object.keys(d.days||{}).sort().map(k=>useDay(k, U)).filter(Boolean).map(q=>({k:q.k, v:q.a._sum/1000}));
+    const med = a => { const x = a.slice().sort((p,q)=>p-q); return x.length >= 3 ? x[Math.floor(x.length/2)] : null; };
+    const ser = all.map((q,i)=>({...q, m: med(all.slice(Math.max(0,i-14), i).map(r=>r.v))})).slice(-30);
+    barChart($("u_days"), ser, "v", css("--s3"), {unit:"kWh",dec:2,label:k=>dayLabel(k), line:"m",
+      tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>${q.m ? `<br>obvykle ${nf(q.m,2)} kWh (${q.v>=q.m?"+":"−"}${nf(Math.abs(q.v/q.m-1)*100,0)} %)` : ""}`}); }
   if(long){
     bars($("u_sum"), "_sum");
     if(src!=="r") barChart($("u_220"), dd.map(q=>({k:q.k, v:(q.s._sum||0)/1000})), "v", css("--s2"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b> změřeno<br>z baterie ~${nf(q.v/0.88 + U.idle*24/1000,2)} kWh`});
@@ -2011,8 +2017,14 @@ function detUse(body, src="a"){
 function tileUseTotal(d, h){
   USE_SH = null; const U = useModel(d), td = useDay(dkey(h.now), U);
   const nowW = h.invF ? (h.inv.mw||0) + (h.inv.rw||0) : null;
-  return {k:"use", icon:"🏠", label:"Chata celkem", wide:true, cls:"ok", v:`${nf((td ? td.a._sum : 0)/1000,2)}<small>kWh</small>`,
-    st: nowW!=null ? `teď ${nf(nowW)} W` : "teď bez dat (Flip)"};
+  // 5.22: proti obvyklé (medián posledních 7 dní do stejné denní doby – hlídač)
+  const cc = d.cons_cmp && h.now - d.cons_cmp.t < 3600 ? d.cons_cmp : null, pc = (a,b) => b ? `${a>=b?"+":"−"}${nf(Math.abs(a/b-1)*100,0)} %` : "";
+  const rows = [];
+  if(cc && cc.typ_wh) rows.push(["obvykle do teď", `${nf(cc.typ_wh/1000,2)} kWh · <b style="color:var(${cc.now_wh > cc.typ_wh*1.3 ? "--warn" : "--text"})">${pc(cc.now_wh, cc.typ_wh)}</b>`]);
+  if(cc && cc.day_typ_wh) rows.push(["obvykle za den", `${nf(cc.day_typ_wh/1000,2)} kWh`]);
+  if(cc && cc.night_wh!=null && cc.night_typ_wh) rows.push(["minulá noc", `${nf(cc.night_wh/1000,2)} kWh · obvykle ${nf(cc.night_typ_wh/1000,2)} (${pc(cc.night_wh, cc.night_typ_wh)})`]);
+  return {k:"use", icon:"🏠", label:"Chata celkem", wide:true, cls: cc && cc.typ_wh && cc.now_wh > cc.typ_wh*1.5 && cc.now_wh - cc.typ_wh > 150 ? "warn" : "ok", v:`${nf((td ? td.a._sum : 0)/1000,2)}<small>kWh</small>`,
+    st: nowW!=null ? `teď ${nf(nowW)} W` : "teď bez dat (Flip)", rows};
 }
 /* ================= OKNO RIVER: 3 baterie + generátor – co se s nimi děje teď a dělo v historii (v3.65) ================= */
 /* barva River podle jména: žlutý = žlutá, červený = červená, malý = modrá (ostatní podle pořadí) */
@@ -2511,11 +2523,17 @@ function prodUse(el, mode){
     if(q.u!=null){ s += bar(cx+1, 0, q.s, css("--s3")) + bar(cx+1, q.s, q.r, css("--s1")); }
     s += `<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
     if(i%Math.ceil(rows.length/6)===0 || i===rows.length-1) s += `<text x="${cx}" y="${H-6}" text-anchor="middle">${M_ ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"}) : dayLabel(q.k)}</text>`; });
+  // 5.22: kolik musí solár vyrobit, aby pokryl obvyklou spotřebu (medián 14 celých dní ÷ účinnost nabíjení 85 %)
+  const NEED = (()=>{ if(M_) return null; const today = dkey(Date.now()/1000), us = rows.filter(r=>r.k < today && r.u!=null).slice(-14).map(r=>r.u).sort((a,b)=>a-b);
+    return us.length >= 3 ? us[Math.floor(us.length/2)] / 0.85 : null; })();
+  if(NEED){ s += `<line x1="${M.l}" x2="${W-M.r}" y1="${y(NEED)}" y2="${y(NEED)}" stroke="var(--text2)" stroke-width="1.5" stroke-dasharray="6 4"/>`
+    + `<text x="${W-M.r}" y="${y(NEED)-4}" text-anchor="end" style="font-size:11px;fill:var(--text2)">potřeba ~${nf(NEED,2)} kWh</text>`; }
   svg.insertAdjacentHTML("beforeend", s);
   hover(svg, rows, q=>{ const b = q.u!=null ? q.p - q.u : null;
     return `${M_ ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"}) : dTxt(q.k)}<br><span style="color:var(--s2)">■</span> výroba <b>${nf(q.p,2)} kWh</b>`
       + (q.u!=null ? `<br>spotřeba celkem <b>${nf(q.u,2)} kWh</b><br><span style="color:var(--s3)">■</span> ze soláru ${nf(q.s,2)} · <span style="color:var(--s1)">■</span> z River ${nf(q.r,2)}`
-        + `<br><b style="color:var(${b>=0?"--good":"--crit"})">${b>=0?"výroba pokryla spotřebu (+"+nf(b,2)+" kWh)":"chybělo "+nf(-b,2)+" kWh"}</b>` : "<br>spotřeba –"); });
+        + `<br><b style="color:var(${b>=0?"--good":"--crit"})">${b>=0?"výroba pokryla spotřebu (+"+nf(b,2)+" kWh)":"chybělo "+nf(-b,2)+" kWh"}</b>` : "<br>spotřeba –")
+      + (NEED ? `<br><span class="sub">obvyklá potřeba ~${nf(NEED,2)} kWh (spotřeba + ztráty nabíjení)</span>` : ""); });
 }
 /* ---------- rozbor nocí: proč je ranní minimum nižší (posledních 5 nocí vs předtím) ---------- */
 function nightRows(d){
@@ -2737,6 +2755,8 @@ function barChart(el, dd, key, color, o){
     s+=`<path d="M${cx-w/2},${y(0)}V${top+r}Q${cx-w/2},${top} ${cx-w/2+r},${top}H${cx+w/2-r}Q${cx+w/2},${top} ${cx+w/2},${top+r}V${y(0)}Z" fill="${o.color?o.color(q):color}"${o.op?` fill-opacity="${o.op(q)}"`:""}/>`;
     s+=`<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
     if(i%Math.ceil(p.length/6)===0||i===p.length-1)s+=`<text x="${cx}" y="${H-6}" text-anchor="middle">${(o.label||dayLabel)(q.k)}</text>`;});
+  if(o.line){ const pts_ = p.map((q,i)=>q[o.line]!=null ? `${M.l+bw*i+bw/2},${y(q[o.line])}` : null).filter(Boolean);   // 5.22: čára (obvyklá hodnota)
+    if(pts_.length > 1) s += `<polyline points="${pts_.join(" ")}" fill="none" stroke="${o.lineColor||"var(--text2)"}" stroke-width="2" stroke-dasharray="5 4"/>`; }
   svg.insertAdjacentHTML("beforeend",s);
   hover(svg,p,o.tip||(q=>`${dTxt(q.k)}<br><b>${nf(q[key],o.dec)} ${o.unit}</b>`));
 }

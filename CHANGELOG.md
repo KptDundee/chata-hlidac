@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.22 – 24. 10. 2026
+- Spotřeba proti obvyklé: dlaždice Chata celkem – „obvykle do teď 0,26 kWh · +15 %“ (medián posledních 7 dní do stejné denní doby), „obvykle za den“, „minulá noc 0,35 kWh · obvykle 0,30 (+17 %)“ (18–6 h). Oranžová, když je dnes o 50 % a 0,15 kWh víc než obvykle; pak jedno upozornění za den „Chata dnes bere víc než obvykle – nezůstalo něco zapnuté?“. Večerní souhrn má řádek „🏠 Chata dnes … obvykle … · minulá noc …“.
+- Graf „Výroba a spotřeba po dnech“: čárkovaná čára „potřeba ~X kWh“ = obvyklá spotřeba (medián 14 dní) + ztráty nabíjení (÷ 0,85) – kolik musí solár vyrobit, aby baterie stačila.
+- Detail Chata celkem: nový graf „Spotřeba chaty po dnech“ s čárkovanou obvyklou spotřebou (klouzavý medián 14 dní – velké výkyvy se neprojeví), v bublině odchylka v %.
+
 ## 5.21 – 24. 10. 2026
 - Suchý vzduch: hranice 40 % (dřív 35 %) – upozornění s rezervou, než vzduch opravdu vyschne. Znovu až po návratu nad 45 %.
 

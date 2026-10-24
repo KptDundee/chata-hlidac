@@ -1542,6 +1542,7 @@ def main():
                          ("Upozornění #", lambda: hash_alert(data, st, now, topic, cfg)),
                          ("Lednice", lambda: fridge_check(data, st, now, topic, cfg)),
                          ("Lednice po dnech", lambda: fridge_days(data, now, cfg)),
+                         ("Spotřeba proti obvyklé", lambda: cons_compare(data, st, now, topic, cfg)),
                          ("River po dnech", lambda: river_days(data, now, cfg)),
                          ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
                          ("Teploměry", lambda: thermo_check(data, st, now, topic, cfg)),
@@ -1791,6 +1792,12 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
     ft = forecast_text(st.get("_forecast"))
     if ft:
         L.append(f"🌙 {ft}")
+    cc = data.get("cons_cmp") or {}                    # 5.22: spotřeba chaty proti obvyklé
+    if cc.get("now_wh") is not None:
+        pc = lambda a, b: f" ({'+' if a >= b else '−'}{fmt(abs(a / b - 1) * 100, 0)} %)" if b else ""
+        L.append(f"🏠 Chata dnes {fmt(cc['now_wh'] / 1000, 2)} kWh" + (f", obvykle do teď {fmt(cc['typ_wh'] / 1000, 2)}{pc(cc['now_wh'], cc['typ_wh'])}" if cc.get("typ_wh") else "")
+                 + (f" · minulá noc {fmt(cc['night_wh'] / 1000, 2)} kWh, obvykle {fmt(cc['night_typ_wh'] / 1000, 2)}{pc(cc['night_wh'], cc['night_typ_wh'])}"
+                    if cc.get("night_wh") is not None and cc.get("night_typ_wh") else ""))
     if day.get("on") is not None:
         L.append(f"💡 Světla, kamery, wifi dnes mezi 0 a 5 h ~{fmt(day['on'])} W")
     wxo = data.get("wxo") or {}
@@ -2921,6 +2928,76 @@ def river_days(data, now, cfg):
         d["rh"] = {i: round(v / 3600, 2) for i, v in a["c"].items()}
         d["rhs"] = {i: round(v / 3600, 2) for i, v in a["s"].items()}
         d["rhh"] = round(a["tot"] / 3600, 1)
+
+
+def cons_compare(data, st, now, topic, cfg):
+    """5.22: spotřeba chaty proti obvyklé. Odběr chaty = zásuvka měniče (220 V ze solární baterie) + zásuvky na výstupu
+    River (W, jak je měří zásuvky), integrováno mezi body (mezery nad 30 min se nepočítají).
+    • dnes do teď vs medián posledních 7 dní do stejné denní doby (medián = velké výkyvy se neprojeví)
+    • noc (18–6 h) vs medián předchozích 7 nocí
+    • upozornění 1× za den, když je dnes do teď o 50 % a aspoň o 0,15 kWh víc než obvykle (po 10:00)
+    data["cons_cmp"] = {now_wh, typ_wh, day_typ_wh, night_wh, night_typ_wh, n}"""
+    import statistics as _stt
+    rids = ips(cfg.get("zasuvky_river"))
+    mip = str(cfg.get("zasuvka_menic") or (data.get("inverter") or {}).get("mip") or "1")
+    pts = [p for p in data.get("points", []) if p.get("tp")]
+    if len(pts) < 10:
+        return
+    def w_of(p):
+        tp = p["tp"]
+        a = tp.get(mip) if tp.get(mip) is not None else p.get("mw")
+        return (a or 0) + sum(tp.get(i) or 0 for i in rids)
+    def energy(t0, t1):
+        """Wh mezi t0 a t1 + pokryté hodiny."""
+        wh = cov = 0.0
+        for a, b in zip(pts, pts[1:]):
+            if b["t"] <= t0 or a["t"] >= t1:
+                continue
+            dt = b["t"] - a["t"]
+            if dt <= 0 or dt > 1800:
+                continue
+            lo, hi = max(a["t"], t0), min(b["t"], t1)
+            if hi > lo:
+                wh += w_of(a) * (hi - lo) / 3600
+                cov += (hi - lo) / 3600
+        return wh, cov
+    ts = now.timestamp()
+    mid = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    sec = (now - mid).total_seconds()
+    now_wh, cov = energy(mid.timestamp(), ts)
+    typ, typ_day = [], []
+    for i in range(1, 8):
+        m_i = mid - timedelta(days=i)
+        e, c = energy(m_i.timestamp(), m_i.timestamp() + sec)
+        if sec < 3600 or c >= 0.8 * sec / 3600:
+            typ.append(e)
+        e2, c2 = energy(m_i.timestamp(), (m_i + timedelta(days=1)).timestamp())
+        if c2 >= 20:
+            typ_day.append(e2)
+    n0 = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    if now < n0:
+        n0 -= timedelta(days=1)
+    night_wh, ncov = energy((n0 - timedelta(hours=12)).timestamp(), n0.timestamp())
+    nights = []
+    for i in range(1, 8):
+        e, c = energy((n0 - timedelta(days=i, hours=12)).timestamp(), (n0 - timedelta(days=i)).timestamp())
+        if c >= 10:
+            nights.append(e)
+    med = lambda x: _stt.median(x) if len(x) >= 3 else None
+    cc = {"t": int(ts), "now_wh": round(now_wh), "cov": round(cov, 1), "typ_wh": round(med(typ)) if med(typ) is not None else None,
+          "day_typ_wh": round(med(typ_day)) if med(typ_day) is not None else None,
+          "night_wh": round(night_wh) if ncov >= 10 else None, "night_typ_wh": round(med(nights)) if med(nights) is not None else None,
+          "n": len(typ_day)}
+    data["cons_cmp"] = cc
+    # velká odchylka → jedno upozornění za den
+    day = now.strftime("%Y-%m-%d")
+    t_ = cc["typ_wh"]
+    if t_ and now.hour >= 10 and cov >= 0.8 * sec / 3600 and now_wh > t_ * 1.5 and now_wh - t_ > 150 \
+            and st.get("cons_warn") != day:
+        ntfy(topic, "🏠 Chata dnes bere víc než obvykle",
+             f"Dnes do teď {fmt(now_wh / 1000, 2)} kWh, obvykle touhle dobou {fmt(t_ / 1000, 2)} kWh (+{fmt((now_wh / t_ - 1) * 100, 0)} %). "
+             "Nezůstalo něco zapnuté?", 3, "house,warning")
+        st["cons_warn"] = day
 
 
 def fridge_days(data, now, cfg):
