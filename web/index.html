@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.05", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.06", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1594,9 +1594,11 @@ function tileProdGen(d, h){
   if(GP) return {k:"gen", icon:"⛽", label:"Generátor", cls:"ok", info:true,
     v:`${nf(Math.max((L.gen||0), GP.wh||0)/1000,2)}<small>kWh</small>`, st:`běží od ${hmT(GP.t_on)} · ${nf(GP.gw ?? GP.tot_in)} W`,
     rows:(GP.rv||[]).map(r=>[`→ ${pn(r.n).replace(/^River\s*/i,"")}`, `${nf(r.in)} W`])};
-  return {k:"gen", icon:"⛽", label:"Generátor", cls: (live && live.w > 5) || gc ? "ok" : "na", info:true, /* 4.79: šedý, když neběží  */ v: L.gen!=null ? `${nf(L.gen/1000,2)}<small>kWh</small>` : `0<small>kWh</small>`,
+  const gq = (((d.days||{})[dkey(h.now)]||{}).gq);     // 5.06: z EcoFlow (součet příjmů River), když zásuvka (7) nic nemá
+  const genWh = Math.max(L.gen||0, gq||0);
+  return {k:"gen", icon:"⛽", label:"Generátor", cls: (live && live.w > 5) || gc ? "ok" : "na", info:true, /* 4.79: šedý, když neběží  */ v: `${nf(genWh/1000,2)}<small>kWh</small>`,
     st: gc ? `běží od ${hmT(gc.t0)}${live && live.w>5 ? ` · ${nf(live.w)} W` : ""}` : last ? `naposledy ${relDay(last.t0)} ${hmT(last.t0)}–${hmT(last.t1)}` : "dnes neběžel",
-    rows: rv.length ? rv.map(r=>[`→ ${pn(r.n).replace(/^River\s*/i,"")}`, kWh(r.i)]) : [["→ River", "až z EcoFlow"]]};
+    rows: rv.length ? rv.map(r=>[`→ ${pn(r.n).replace(/^River\s*/i,"")}`, kWh(r.i)]) : [["→ River", "dnes nic"]]};
 }
 /* ---- spotřeba dnes ---- */
 function tileUseSolar(d, h){
@@ -2524,8 +2526,10 @@ function detGen(body){
   body.insertAdjacentHTML("beforeend", genPlanHtml(d));    // 4.101: běžící nabíjení nahoře
   body.insertAdjacentHTML("beforeend", chartCard("dg_w", "Výkon generátoru", "W · zásuvka generátoru · 48 h")
     + chartCard("dg_d", "Dodal po dnech", "kWh za den · zásuvka generátoru · 14 dní"));
-  lineChart($("dg_w"), pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})), "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
-  barChart($("dg_d"), dd.map(k=>({k, v:(dayTp(k)[U.gen]||0)/1000})), "v", css("--s7"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
+  // 5.06: výkon i z EcoFlow (po 30 s během nabíjení) – graf není prázdný, když zásuvka (7) chyběla
+  const gsr = pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})).concat((d.gen_pts||[]).map(x=>({t:x[0], w:x[1] ?? x[2]}))).sort((a,b)=>a.t-b.t);
+  lineChart($("dg_w"), gsr, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
+  barChart($("dg_d"), dd.map(k=>({k, v:Math.max(dayTp(k)[U.gen]||0, ((d.days||{})[k]||{}).gq||0)/1000})), "v", css("--s7"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
   body.insertAdjacentHTML("beforeend", `<div class="card">${rows || '<span class="sub">Zatím žádný zaznamenaný běh generátoru.</span>'}</div>
   <div class="sub" style="margin:0 4px 12px;line-height:1.5">Dodáno = energie přes zásuvku Tapo generátoru. Nabito = změna % River × kapacita (${cap} Wh). Účinnost = nabito ÷ dodáno (ztráty nabíječky River a odběr během nabíjení).</div>`);
 }

@@ -3959,8 +3959,15 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # 4.101: kolik dodal do River za toto nabíjení (součet příjmů River × čas, z EcoFlow – nezávisle na Flipu)
         tot_in = round(sum(acw(r) for r in con) + small_w)
         if gs.get("e_t") and 0 < tnow - gs["e_t"] <= 300:
-            gs["wh"] = gs.get("wh", 0.0) + (gs.get("e_w", 0) + tot_in) / 2 * (tnow - gs["e_t"]) / 3600
+            de = (gs.get("e_w", 0) + tot_in) / 2 * (tnow - gs["e_t"]) / 3600
+            gs["wh"] = gs.get("wh", 0.0) + de
+            dk = datetime.fromtimestamp(tnow, TZ).strftime("%Y-%m-%d")      # 5.06: denní součet i bez zásuvky (7)
+            dd_ = data.setdefault("days", {}).setdefault(dk, {})
+            dd_["gq"] = round(dd_.get("gq", 0.0) + de, 1)
         gs["e_t"], gs["e_w"] = tnow, tot_in
+        gp_ = data.setdefault("gen_pts", [])                # 5.06: výkon generátoru po 30 s (graf i bez Flipu)
+        gp_.append([tnow, round(gw) if gw is not None else None, tot_in])
+        gp_[:] = [x for x in gp_ if x[0] >= tnow - 7 * 86400][-3000:]
         data["gen_plan"] = {"t": tnow, "fuel": fuel, "tot_in": tot_in, "wh": round(gs.get("wh", 0.0)), "gmax": gmax_eff, "gmax_set": gmax, "gmax_gen": gm, "budget": budget_eff, "gw": round(gw) if gw is not None else None,
                             "small": round(small_w), "small_soc": round(small["soc"]) if small and small.get("soc") is not None else None,
                             "avail": round(avail), "rv": rv, "fin": int(max(fins)) if fins else None, "t_on": gs.get("t_on"),

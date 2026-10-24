@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.06 – 24. 10. 2026
+- Generátor i bez zásuvky (7): během nabíjení si hlídač každých 30 s ukládá výkon generátoru a kolik berou River (z EcoFlow) a počítá denní součet (kWh). Graf „Výkon generátoru“ a „Dodal po dnech“ i dlaždice Generátor to používají, když zásuvka (7) data nemá (např. včera, když se ztrácela data z Flipu). Dlaždice Generátor: „→ River dnes nic“ místo matoucího „až z EcoFlow“.
+
 ## 5.05 – 24. 10. 2026
 - Dlaždice EcoFlow: % nabití vybrané River velkým písmem (hlavní údaj), výkon zásuvky na jejím výstupu do řádku pod tím. Generátor dál ve W.
 
