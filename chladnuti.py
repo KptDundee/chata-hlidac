@@ -3,8 +3,8 @@
 dT/dt = −k · (T_pokoj − T_venku)    k [1/h] = vlastnost chaty (izolace, větrání netěsnostmi)
 
 Učení: z teplot pokoje (teploměr Xiaomi, body po 10 min, 14 dní) se hledají úseky chladnutí – od nejvyšší
-teploty (dotopeno) dokud teplota znovu nestoupne o 0,3 °C (zase se topí / konec). Prvních 60 min se vynechá
-(kamna ještě hřejí). Větrání = prudký pokles (≥ 0,5 °C mezi dvěma měřeními do 15 min) – ten kus a 60 min po něm
+teploty (dotopeno) dokud teplota znovu nestoupne o 0,3 °C (zase se topí / konec); výpadek teploměru do 70 min úsek nepřeruší. Prvních 60 min se vynechá
+(kamna ještě hřejí). Větrání = prudký pokles (≥ 0,5 °C, rychlostí od poslední změny hodnoty aspoň 2× rychlejší než nejrychlejší běžné chladnutí) – ten kus a 60 min po něm
 se vynechá. Z každého použitelného úseku (≥ 3 h, pokles ≥ 0,8 °C, pokoj aspoň o 4 °C tepleji než venku):
     k = (T_začátek − T_konec) / ∫ (T_pokoj − T_venku) dt
 Venkovní teplota: Open-Meteo po hodinách (Praha-Hrdlořezy, venku_sirka / venku_delka), historie se drží 15 dní.
@@ -71,19 +71,19 @@ def _segments(R):
     while i < n - 1:
         s = i                                         # vrchol: dokud teplota roste, posouvat
         j = i + 1
-        while j < n and R[j][1] >= R[s][1] and R[j][0] - R[j - 1][0] <= 2400:
+        while j < n and R[j][1] >= R[s][1] and R[j][0] - R[j - 1][0] <= 4200:
             s = j
             j += 1
         mn = s
         j = s + 1
-        while j < n and R[j][0] - R[j - 1][0] <= 2400 and R[j][1] <= R[mn][1] + 0.3:
+        while j < n and R[j][0] - R[j - 1][0] <= 4200 and R[j][1] <= R[mn][1] + 0.3:
             if R[j][1] < R[mn][1]:
                 mn = j
             j += 1
         if mn > s:
             segs.append((s, mn, j >= n))              # True = ještě chladne (poslední data)
         i = max(mn, s + 1) if j < n else n
-        if j < n and R[j][0] - R[j - 1][0] > 2400:    # mezera v datech
+        if j < n and R[j][0] - R[j - 1][0] > 4200:    # mezera v datech
             i = j
     return segs
 
@@ -92,9 +92,19 @@ def _fit(R, s, e, tout):
     """Úsek chladnutí → použitelné kousky bez větrání a bez první hodiny → [(k, ta, tb, Ta, Tb, To, h, okna)]."""
     t_peak = R[s][0]
     bad_until, wins, pieces, cur = 0, 0, [], []
+    first = R[s][0]                                   # kdy se předchozí hodnota poprvé objevila
     for i in range(s, e + 1):
         t, T = R[i]
-        if i > s and R[i - 1][1] - T >= 0.5 and t - R[i - 1][0] <= 900:   # větrání: prudký pokles
+        if i > s and R[i][1] != R[i - 1][1]:
+            prev_first, first = first, t
+        else:
+            prev_first = first
+        # větrání: prudký pokles. Teploměr někdy chvíli nevysílá a do bodů se opakuje poslední hodnota –
+        # pokles se proto měří od chvíle, kdy se předchozí hodnota poprvé objevila; hranice = 2× nejrychlejší běžné chladnutí
+        drop = R[i - 1][1] - T if i > s else 0
+        o_ = tout(t) if i > s else None
+        lim_rate = max(2.5, 0.3 * (R[i - 1][1] - o_)) if o_ is not None else 2.5   # 2× nejrychlejší běžné chladnutí
+        if i > s and drop >= 0.5 and t - R[i - 1][0] <= 900 and drop / max(t - prev_first, 600) * 3600 >= lim_rate:
             wins += 1
             bad_until = t + 3600
             if len(cur) >= 2:

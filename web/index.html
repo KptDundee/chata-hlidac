@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.36", FLIP_VER = "1.9.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.37", FLIP_VER = "1.9.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1945,7 +1945,7 @@ function coolCard(body, d, h){
     ${c.half_h!=null ? rowI("Chata", `rozdíl proti venku se zmenší na polovinu za ~${nf(c.half_h,1)} h <span class="sub">(k = ${nf(c.k,3)}/h, ${c.n} večerů)</span>`) : ""}
     ${evRows}</div>`
     + chartCard("dt_out", "Venku – Hrdlořezy", "°C · 48 h (Open-Meteo)")
-    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to funguje:</b> pokoj chladne tím rychleji, čím větší je rozdíl proti venku. Hlídač hledá večery, kdy teplota po dotopení plynule klesá (prvních 60 min vynechá – kamna ještě hřejí), a z nich se učí rychlost chladnutí chaty <i>k</i>. Větrání (prudký pokles ≥ 0,5 °C za 10 min) a hodinu po něm vynechá – v tabulce 🪟. Předpověď je až od ${c.need} večerů a počítá s předpovědí venkovní teploty; kamna po dotopení ještě chvíli hřejí, takže skutečnost bývá spíš o něco tepleji. Teploměr, ranní čas a cílovou teplotu změníš v Nastavení.</div>`);
+    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to funguje:</b> pokoj chladne tím rychleji, čím větší je rozdíl proti venku. Hlídač hledá večery, kdy teplota po dotopení plynule klesá (prvních 60 min vynechá – kamna ještě hřejí), a z nich se učí rychlost chladnutí chaty <i>k</i>. Větrání (prudký pokles) a hodinu po něm vynechá – v tabulce 🪟. Předpověď je až od ${c.need} večerů a počítá s předpovědí venkovní teploty; kamna po dotopení ještě chvíli hřejí, takže skutečnost bývá spíš o něco tepleji. Teploměr, ranní čas a cílovou teplotu změníš v Nastavení.</div>`);
   const el = $("dt_out"); if(el && (c.out||[]).length) lineChart(el, c.out.filter(([t])=>t <= h.now).map(([t,v])=>({t, c:v})), "c", css("--s3"), {unit:"°C",dec:1,hours:48});
 }
 function detTemps(body){

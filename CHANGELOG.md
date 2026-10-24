@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.37 – 25. 10. 2026
+- Chladnutí: výpadek teploměru do 70 min úsek chladnutí nepřeruší (dřív 40 min); větrání se pozná podle rychlosti poklesu od chvíle, kdy se předchozí hodnota poprvé objevila (opakovaná stará hodnota z mlčícího teploměru už nevypadá jako větrání), hranice = 2× nejrychlejší běžné chladnutí.
+
 ## 5.36 – 24. 10. 2026
 - Chladnutí pokoje (nový modul chladnuti.py): hlídač z teplot pokoje po dotopení a venkovní teploty (Open-Meteo, Praha-Hrdlořezy) učí rychlost chladnutí chaty k (Newtonův zákon). Prvních 60 min po vrcholu se vynechá (kamna hřejí), větrání (prudký pokles) a hodina po něm taky.
 - Od 5 večerů předpověď: „ráno v 7:00 bude ~X °C“ a „aby bylo 21 °C, musí být při dotopení ~Z °C“. Zatím jen v detailu Teploty, žádná upozornění.
