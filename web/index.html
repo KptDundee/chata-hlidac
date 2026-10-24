@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.27", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.28", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1804,12 +1804,30 @@ async function fuelAdd(f){
     alert("Zapsáno ✓ – hlídač od teď počítá energii na " + (f==="lpg" ? "tuhle lahev." : "tohle tankování."));
   }catch(e){ alert("Nejde zapsat: "+e.message); }
 }
+/* 5.28: upravit cenu poslední lahve / tankování (např. když si ji Petr upřesní) */
+async function fuelEdit(f){
+  const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
+  try{
+    const r = await fetch(GHF+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+    if(!r.ok) throw new Error("GitHub odpověděl "+r.status);
+    const j = await r.json(), lines = utf8b64.dec(j.content).split("\n");
+    const i = lines.map((l,k)=>[l,k]).filter(([l])=>{ const b = l.split("#")[0].split("|").map(x=>x.trim()); return b.length >= 3 && (f==="lpg" ? /^(lpg|plyn|pb)/i.test(b[1]) : /^benz/i.test(b[1])); }).pop();
+    if(!i) return alert("Zatím žádný záznam.");
+    const b = i[0].split("#")[0].split("|").map(x=>x.trim());
+    const price = prompt(`Cena ${f==="lpg" ? "lahve" : "tankování"} z ${b[0]} v Kč:`, b[2]); if(price === null || !price.trim()) return;
+    b[2] = price.replace(/[^0-9.,]/g,""); lines[i[1]] = b.join(" | ");
+    const w = await fetch(GHF,{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
+      body:JSON.stringify({message:`Palivo: cena upravena (${b[0]})`, content:utf8b64.enc(lines.join("\n")), sha:j.sha, branch:"main"})});
+    if(!w.ok) throw new Error("GitHub odpověděl "+w.status);
+    alert("Cena upravena ✓");
+  }catch(e){ alert("Nejde upravit: "+e.message); }
+}
 function fuelHtml(d){
   const F = d.fuel || {}, P = d.gen_plan, run = P && !P.end && Date.now()/1000 - P.t < 900;
   const blk = (f, nm, btn) => { const x = F[f] || {}, c = x.cur;
     const cost = x.czk_kwh ? `1 kWh ≈ <b>${nf(x.czk_kwh,0)} Kč</b>${x.avg_kwh ? ` · ${f==="lpg" ? "lahev" : "tankování"} ≈ ${nf(x.avg_kwh,1)} kWh` : ""} <span class="sub">(${x.n}× plná)</span>`
       : `<span class="sub">cena za kWh až po spotřebování první plné ${f==="lpg" ? "lahve" : "nádrže"}</span>`;
-    const curT = c ? `${f==="lpg" ? "lahev" : "tankováno"} ${relDay(c.t)} ${hmT(c.t)} · ${nf(c.price,0)} Kč${c.l ? ` · ${nf(c.l,1)} l` : ""}${c.full ? "" : " · <span style='color:var(--warn)'>částečně</span>"} → zatím <b>${nf(c.wh/1000,2)} kWh</b>${c.left_pct!=null ? ` · zbývá ~${c.left_pct} %` : ""}${!x.czk_kwh && c.full && c.wh > 100 ? ` · zatím ${nf(c.price/(c.wh/1000),0)} Kč/kWh (klesá, jak lahev dojíždí)` : ""}` : `<span class="sub">zatím nic nezapsáno</span>`;
+    const curT = c ? `${f==="lpg" ? "lahev" : "tankováno"} ${relDay(c.t)} ${hmT(c.t)} · ${nf(c.price,0)} Kč${c.l ? ` · ${nf(c.l,1)} l` : ""}${c.full ? "" : " · <span style='color:var(--warn)'>částečně</span>"} → zatím <b>${nf(c.wh/1000,2)} kWh</b>${c.left_pct!=null ? ` · zbývá ~${c.left_pct} %` : ""}${!x.czk_kwh && c.full && c.wh > 100 ? ` · zatím ${nf(c.price/(c.wh/1000),0)} Kč/kWh (klesá, jak lahev dojíždí)` : ""} · <a href="#" onclick="event.preventDefault();fuelEdit('${f}')">upravit cenu</a>` : `<span class="sub">zatím nic nezapsáno</span>`;
     return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${nm}</b><button onclick="fuelAdd('${f}')" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer">${btn}</button></div>
       <div style="font-size:13.5px;margin-top:3px">${curT}</div><div style="font-size:13.5px">${cost}</div></div>`; };
   const runs = (d.fuel_runs||[]).slice(-6).reverse();

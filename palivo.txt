@@ -1,1 +1,2 @@
 # lahve PB a tankování benzínu: čas | palivo | cena Kč | plna/castecna | litry (zapisuje web)
+2026-10-23 21:00 | lpg | 460 | plna   # cena zatím odhad (Petr si nepamatuje přesně) – upřesnit

@@ -4163,7 +4163,9 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         for sn in list(insess):
             rr = byid(sn)
             # 5.27: plná až když přestane brát (dřív při 99 % → 200 W a poslední procento se zdrželo)
-            if not rr or (sn in low and tnow - low[sn] >= 120) or not rr.get("online"):
+            # 5.28: na 99–100 % a nebere → hned plná (bez čekání); jinak 2 min (krátký „náběh“ po změně výkonu)
+            full_ = (rr.get("soc") or 0) >= 99 and sn in low
+            if not rr or full_ or (sn in low and tnow - low[sn] >= 120) or not rr.get("online"):
                 insess.remove(sn)
                 low.pop(sn, None)
         con = [r for r in ctl if r["sn"] in insess]
@@ -4274,6 +4276,10 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                             "set": out or (data.get("gen_plan") or {}).get("set"), "gd": gd or None, "fwh": round(gs.get("fwh") or 0)}
         # konec relace: tlačítko, nebo 10 min nic nenabíjí (po tlačítku bez nabíjení až po 30 min)
         idle_lim = 1800 if gs.get("btn") and not gs.get("ever") else 600
+        # 5.28: všechny River plné (≥ 99 %) a nic nenabíjí → konec hned („vypni generátor“), ne až za 10 min
+        if gs.get("ever") and not con and ctl and all((r.get("soc") or 0) >= 99 for r in ctl) and small_w <= 0:
+            idle_lim = 0
+            gs["idle"] = gs.get("idle") or tnow
         if charging:
             gs["ever"] = True
         if gs.get("stop") or (gs.get("idle") and tnow - gs["idle"] >= idle_lim):
