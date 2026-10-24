@@ -64,8 +64,11 @@ public final class Collector {
             try {
                 JSONArray th = new JSONArray();
                 for (BleListener.Thermo t : ble.thermo()) {
-                    if (t.ageSec < 0 || t.ageSec > 3600 || (t.t == null && t.h == null)) continue;
-                    JSONObject x = new JSONObject().put("n", t.name).put("age", t.ageSec);
+                    // 1.7.7: posílat i teploměry bez dat – s diagnostikou (zachyceno / přečteno), ať je vidět proč
+                    boolean has = !(t.ageSec < 0 || t.ageSec > 3600 || (t.t == null && t.h == null));
+                    JSONObject x = new JSONObject().put("n", t.name).put("sn", t.seen).put("ok", t.ok);
+                    if (!has) { th.put(x); continue; }
+                    x.put("age", t.ageSec);
                     if (t.t != null) x.put("t", t.t);
                     if (t.h != null) x.put("h", t.h);
                     if (t.b != null) x.put("b", t.b);

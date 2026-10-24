@@ -40,7 +40,9 @@ public final class BleListener {
     private final java.util.Map<String, double[]> thVal = new java.util.HashMap<>();   // t, h, b, kdy (elapsedRealtime)
     private String thSig = "";
 
-    public static final class Thermo { public String name, mac; public Double t, h; public Integer b; public long ageSec; }
+    public static final class Thermo { public String name, mac; public Double t, h; public Integer b; public long ageSec; public int seen, ok; }
+    /** 1.7.7: diagnostika – kolik zpráv od teploměru Flip zachytil a kolik šlo přečíst (MAC → [zachyceno, přečteno]). */
+    private final java.util.Map<String, int[]> thStat = new java.util.HashMap<>();
 
     /** Načte seznam teploměrů z nastavení (řádky „MAC KLÍČ jméno“). */
     private void loadThermo() {
@@ -64,6 +66,8 @@ public final class BleListener {
             double[] v = thVal.get(e.getKey());
             Thermo t = new Thermo();
             t.mac = e.getKey(); t.name = (String) e.getValue()[0];
+            int[] stc = thStat.get(e.getKey());
+            if (stc != null) { t.seen = stc[0]; t.ok = stc[1]; }
             if (v != null) {
                 if (!Double.isNaN(v[0])) t.t = v[0];
                 if (!Double.isNaN(v[1])) t.h = v[1];
@@ -97,9 +101,14 @@ public final class BleListener {
             Object[] c = thCfg.get(r.getDevice().getAddress().toUpperCase(java.util.Locale.ROOT));
             byte[] sd = c == null ? null : r.getScanRecord().getServiceData(MI_UUID);
             if (sd != null) {
+                int[] stc = thStat.get(r.getDevice().getAddress().toUpperCase(java.util.Locale.ROOT));
+                if (stc == null) { stc = new int[2]; thStat.put(r.getDevice().getAddress().toUpperCase(java.util.Locale.ROOT), stc); }
+                boolean hasObj = sd.length >= 2 && ((sd[0] & 0x40) != 0);
+                if (hasObj) stc[0]++;
                 try {
                     XiaomiParser.Reading x = XiaomiParser.parse(sd, r.getDevice().getAddress(), (byte[]) c[1]);
                     if (x != null) {
+                        stc[1]++;
                         double[] v = thVal.get(r.getDevice().getAddress().toUpperCase(java.util.Locale.ROOT));
                         if (v == null) v = new double[]{Double.NaN, Double.NaN, Double.NaN, 0};
                         if (x.temp != null) v[0] = x.temp;

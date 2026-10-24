@@ -2297,7 +2297,8 @@ def inv_from_msg(last, now, cfg=None):
     if isinstance(th, list):
         import re as _re                                  # 5.10: jméno bez čárek / středníků na krajích („, ,Lednice“)
         inv["th"] = [{"n": _re.sub(r"^[\s,;:.]+|[\s,;:.]+$", "", str(x.get("n")))[:30], "t": x.get("t"), "h": x.get("h"), "b": x.get("b"),
-                      "tm": int(inv.get("t") or 0) - int(x.get("age") or 0)} for x in th if isinstance(x, dict) and x.get("n")]
+                      "tm": int(inv.get("t") or 0) - int(x.get("age") or 0), "sn": x.get("sn"), "ok": x.get("ok")}
+                     for x in th if isinstance(x, dict) and x.get("n")]   # 1.7.7: sn/ok = zachyceno/přečteno
     tp = body.get("tp")
     if isinstance(tp, list):
         inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d", "lt") if p.get(k) is not None}

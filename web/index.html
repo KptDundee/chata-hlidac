@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.10", FLIP_VER = "1.7.6";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.11", FLIP_VER = "1.7.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1791,13 +1791,21 @@ async function genCmd(cmd, el, fel){
 }
 const escH = t => String(t).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 /* 4.52: teploměry Xiaomi (přes Flip 1.5) */
+/* 5.11: proč teploměr nemá data (Flip 1.7.7 posílá zachyceno / přečteno) */
+function thWhy(x){
+  if(x.t!=null || x.h!=null) return "";
+  if(x.sn==null) return "zatím bez dat";
+  if(!x.sn) return "Flip ho neslyší – mimo dosah Bluetooth (nebo vybitý)";
+  if(!x.ok) return `Flip ho slyší (${x.sn}×), ale nejde přečíst – zkontroluj klíč (BLE KEY) a MAC`;
+  return "zatím bez hodnot";
+}
 function tileTemps(d, h){
   const th = (d.inverter && d.inverter.th) || []; if(!th.length) return null;
   const cfg = d.cfg || {}, lim = cfg.lednice_max_C ?? 8;
   const rows = th.map(x=>{ const old = h.now - x.tm > 1800, fr = x.n === cfg.teplomer_lednice;
     const col = old ? "--muted" : fr && x.t > lim ? "--crit" : x.t!=null && x.t <= 0 ? "--s1" : "--text";
     return [x.n + (x.n === cfg.teplomer_baterie ? " (baterie)" : fr ? " (lednice)" : ""),
-      `<span style="color:var(${col})">${x.t!=null ? nf(x.t,1)+" °C" : "–"}</span>${x.h!=null ? ` · ${nf(x.h)} %` : ""}${x.b!=null && x.b < 20 ? ` · 🪫${x.b} %` : ""}${old ? ` · ${agoS(x.tm)}` : ""}`]; });
+      thWhy(x) ? `<span class="sub" style="white-space:normal">${thWhy(x)}</span>` : `<span style="color:var(${col})">${x.t!=null ? nf(x.t,1)+" °C" : "–"}</span>${x.h!=null ? ` · ${nf(x.h)} %` : ""}${x.b!=null && x.b < 20 ? ` · 🪫${x.b} %` : ""}${old ? ` · ${agoS(x.tm)}` : ""}`]; });
   return {k:"temps", icon:"🌡️", label:"Teploty", wide:true, cls:"ok", v:"", st:"teploměry Xiaomi · teplota · vlhkost", rows};
 }
 /* 5.09: detail Teploty – graf teploty každého teploměru (48 h), teď, vlhkost, baterie teploměru */
@@ -1811,7 +1819,7 @@ function detTemps(body){
   const role = n => n === cfg.teplomer_baterie ? " – u solární baterie" : n === cfg.teplomer_lednice ? " – v lednici" : "";
   const id = n => "dt_" + String(n).replace(/[^a-z0-9]/gi, "_");
   body.insertAdjacentHTML("beforeend", names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · 48 h${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
-    + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, `${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %` : ""} · ${agoS(x.tm)}`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
+    + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, thWhy(x) ? thWhy(x) : `${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %` : ""} · ${agoS(x.tm)}`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Teploměry Xiaomi vysílají přes Bluetooth, Flip je zachytí a pošle s ostatními daty. Který teploměr je u baterie a který v lednici, nastavíš v Nastavení (jménem jako ve Flipu). Teplota u baterie se bere pro hlídání mrazu a menší kapacitu v chladu, teplota v lednici pro upozornění nad ${lim} °C.</div>`);
   for(const n of names){ const el = $(id(n)); if(!el) continue;
     const ser = pts.map(p=>({t:p.t, c:val(p, n)}));
