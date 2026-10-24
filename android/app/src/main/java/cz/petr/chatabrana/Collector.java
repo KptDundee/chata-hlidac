@@ -200,7 +200,12 @@ public final class Collector {
 
             // 1.7: baterie routeru M7000 (jen čtení)
             String rpass = Prefs.get(ctx).getString(Prefs.ROUTER_PASS, "");
-            if (!rpass.isEmpty()) {
+            // 1.8: nejvýš 1× za 9 min (router dovolí jen jedno přihlášení správce; při generátoru měří Flip po 2 min)
+            boolean rtDue = System.currentTimeMillis() - Prefs.get(ctx).getLong("rt_t", 0) > 9 * 60_000L;
+            if (!rpass.isEmpty() && !rtDue) {
+                try { String lr = Prefs.get(ctx).getString("rt_last", ""); if (!lr.isEmpty()) o.put("rt", new JSONObject(lr)); } catch (Exception ignored) { }
+            } else if (!rpass.isEmpty()) {
+                Prefs.get(ctx).edit().putLong("rt_t", System.currentTimeMillis()).apply();
                 RouterM7000.Result rr = RouterM7000.read(gateway(), rpass);
                 JSONObject rt = new JSONObject();
                 if (rr.pct != null) { rt.put("b", rr.pct); if (rr.charging != null) rt.put("c", rr.charging ? 1 : 0); sum.append(", router ").append(rr.pct).append(" %"); }
@@ -208,7 +213,7 @@ public final class Collector {
                     rt.put("err", rr.err);
                     if (!rr.err.equals(Prefs.get(ctx).getString("rt_err", ""))) Prefs.log(ctx, "Router: " + rr.err);
                 }
-                Prefs.get(ctx).edit().putString("rt_err", rr.err == null ? "" : rr.err).apply();
+                Prefs.get(ctx).edit().putString("rt_err", rr.err == null ? "" : rr.err).putString("rt_last", rt.toString()).apply();
                 o.put("rt", rt);
             }
             if (o.has("th")) sum.append(", teploměry ").append(o.getJSONArray("th").length());

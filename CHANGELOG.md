@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.31 – 24. 10. 2026 · Flip 1.8.0
+- Flip 1.8.0: baterie routeru M7000 – přihlášení přepsané na šifrovaný protokol, který router opravdu používá (AES-128-CBC + RSA podpis, jako jeho webová stránka; postup podle projektů tplink-battery-monitor a mimif-battery). Dřív „router nevrátil nonce“. % baterie je v jeho údaji „voltage“ (0–100), nabíjení „charging“. Po přečtení se odhlásí (router dovolí jen jedno přihlášení správce) a čte nejvýš 1× za 9 min.
+
 ## 5.30 – 24. 10. 2026
 - Naléhavé „TEĎ přepni chatu na River“ (od 22:00) má tlačítka **Přepínám / Za 30 min / Za 1 h** – odložení ztiší upozornění do zvoleného času, pak se ozve znovu (když chata pořád jede ze soláru a baterie do rána nevydrží); další noc zase od 22:00. Připomenutí s každým během hlídače (~10 min) místo naplánovaného za 5 min.
 
