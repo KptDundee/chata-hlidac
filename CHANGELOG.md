@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.30 – 24. 10. 2026
+- Naléhavé „TEĎ přepni chatu na River“ (od 22:00) má tlačítka **Přepínám / Za 30 min / Za 1 h** – odložení ztiší upozornění do zvoleného času, pak se ozve znovu (když chata pořád jede ze soláru a baterie do rána nevydrží); další noc zase od 22:00. Připomenutí s každým během hlídače (~10 min) místo naplánovaného za 5 min.
+
 ## 5.29 – 24. 10. 2026
 - Oprava: web 5.26–5.28 zůstal prázdný (chyba při načtení – adresa souboru paliva se skládala dřív, než byla známá adresa repozitáře).
 

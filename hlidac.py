@@ -768,12 +768,12 @@ def flush_log(data):
 #   3 Výchozí  = doporučení / informace s radou (kabely, kapacita, sezóna, panely, pod 50 #…)
 #   2 Malá     = jen pro informaci (nabito / Float, zase posílá, nabíjení River zapnuto, souhrn dne bez chyb)
 #   1 Nejnižší = data pro hodinky a probouzení Flipu (jiná témata)
-def ntfy(topic, title, msg, prio=3, tags="", note=None, actions=None, delay=None):
+def ntfy(topic, title, msg, prio=3, tags="", note=None, actions=None, delay=None, view=True):
     body = {"topic": topic, "title": title, "message": msg, "priority": prio}
     if tags:
         body["tags"] = tags.split(",")
-    # ťuknutí otevře zprávu v aplikaci ntfy; přehled je tlačítko pod notifikací
-    body["actions"] = (actions or []) + [{"action": "view", "label": "Přehled", "url": DASHBOARD, "clear": False}]
+    # ťuknutí otevře zprávu v aplikaci ntfy; přehled je tlačítko pod notifikací (ntfy dovolí nejvýš 3 tlačítka)
+    body["actions"] = (actions or []) + ([{"action": "view", "label": "Přehled", "url": DASHBOARD, "clear": False}] if view else [])
     if delay:
         body["delay"] = delay                      # ntfy doručí později (např. "5m")
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(body).encode(),
@@ -4514,21 +4514,35 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
     on_river = fresh and (inv.get("mw") or 0) <= 3 and any(
         str(p.get("ip")) in rids and (p.get("w") or 0) > 3 for p in inv.get("tp", []))
     active = st.get("ur_active") == key
-    # potvrzení tlačítkem
+    # potvrzení tlačítkem („ok“) nebo odložení („30“ / „60“ minut – 5.30)
     if active:
         try:
             u = f"https://ntfy.sh/{topic}-ack/json?poll=1&since={int(st.get('ur_t0', ts))}"
             got = urllib.request.urlopen(u, timeout=15).read().decode()
-            if '"event":"message"' in got:
-                st["ur_done"], st["ur_active"] = key, None
-                log("ev", "Přepnutí na River potvrzeno")
-                return
+            for ln in got.splitlines():
+                try:
+                    m = json.loads(ln)
+                except ValueError:
+                    continue
+                if m.get("event") != "message":
+                    continue
+                txt = str(m.get("message") or "").strip()
+                if txt.isdigit():
+                    until = int(m.get("time") or ts) + int(txt) * 60
+                    if until > (st.get("ur_snooze") or 0):
+                        st["ur_snooze"] = until
+                        log("ev", f"Přepnutí na River odloženo do {datetime.fromtimestamp(until, TZ).strftime('%H:%M')}")
+                else:
+                    st["ur_done"], st["ur_active"] = key, None
+                    log("ev", "Přepnutí na River potvrzeno")
+                    return
         except Exception as e:
             print("Potvrzení (ntfy):", e)
     if on_river:
         if active:
             ntfy(topic, "✓ Chata jede z River", "Solární baterie je teď v klidu – díky.", 2, "white_check_mark")
         st["ur_done"], st["ur_active"] = key, None
+        st.pop("ur_snooze", None)
         return
     f = st.get("_forecast") or {}
     if not active and not f.get("t_crit"):
@@ -4537,6 +4551,8 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
         return                                                     # 4.50: ještě je čas snížit odběr (rada už odešla)
     if active and ts - st.get("ur_last", 0) < 4 * 60:
         return                                                     # nejvýš jednou za ~5 min
+    if ts < (st.get("ur_snooze") or 0):
+        return                                                     # 5.30: odloženo tlačítkem „+30 min / +1 h“
     if not active:
         st["ur_active"], st["ur_t0"] = key, int(ts)
     st["ur_last"] = int(ts)
@@ -4548,12 +4564,12 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
            + f"Teď {fmt(bv, 2)} V" + (f" · {hq} #" if hq is not None else "") + ".\n"
            + "Přepoj chatu na River. Upozornění se opakuje, dokud neťukneš na „Přepínám“ nebo dokud chata nepřejde na River.") if f.get("t_crit") else (
            "Přepoj chatu na River – solární baterie do rána nevydrží. Upozornění se opakuje, dokud neťukneš na „Přepínám“.")
-    ack = [{"action": "http", "label": "Přepínám", "url": f"https://ntfy.sh/{topic}-ack", "method": "POST",
-            "body": "ok", "clear": True}]
-    ntfy(topic, "⚠️ TEĎ přepni chatu na River", msg, 5, "rotating_light,warning", actions=ack)
-    # další připomenutí za 5 min (hlídač běží po ~10 min) – po potvrzení může jedno ještě dorazit
-    ntfy(topic, "⚠️ TEĎ přepni chatu na River", msg, 5, "rotating_light,warning", actions=ack, delay="5m",
-         note="Připomenutí za 5 min naplánováno")
+    # 5.30: tlačítka Přepínám / za 30 min / za 1 h (ntfy dovolí 3 – „Přehled“ tu vynechán). Připomenutí s každým během
+    # hlídače (~10 min); naplánované připomenutí za 5 min zrušeno – po odložení by stejně dorazilo.
+    act = lambda lb, b: {"action": "http", "label": lb, "url": f"https://ntfy.sh/{topic}-ack", "method": "POST", "body": b, "clear": True}
+    ack = [act("Přepínám", "ok"), act("Za 30 min", "30"), act("Za 1 h", "60")]
+    ntfy(topic, "⚠️ TEĎ přepni chatu na River", msg + "\nNechceš teď? Odlož o 30 min nebo 1 h – zítra se ozve zase ve " + hhmm + ".",
+         5, "rotating_light,warning", actions=ack, view=False)
 
 
 
