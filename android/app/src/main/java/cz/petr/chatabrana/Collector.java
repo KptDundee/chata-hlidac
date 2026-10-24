@@ -321,6 +321,7 @@ public final class Collector {
                     try { nick = new String(Base64.decode(nick, Base64.DEFAULT), StandardCharsets.UTF_8); } catch (Exception ignored) {}
                     names.put(ip, nick.isEmpty() ? ip : nick);
                     models.put(ip, info.optString("model", ""));
+                    if (info.has("device_on")) p.put("on", info.optBoolean("device_on") ? 1 : 0);   // 1.7.8: i měřicí zásuvky (P110)
                 }
             }
             p.put("n", names.containsKey(ip) ? names.get(ip) : ip);
@@ -548,6 +549,8 @@ public final class Collector {
         if (cur == null || cur.has("off") || cur.has("err") || !cur.has("on")) {
             if (!P.getBoolean("fc_miss", false)) Prefs.log(ctx, "Nabíjení Flipu: zásuvka (" + id + ") nenalezena / nejde přečíst");
             P.edit().putBoolean("fc_miss", true).putBoolean("fc_hot", hot).apply();
+            o.put("fc", new JSONObject().put("miss", 1).put("ip", id)
+                    .put("why", cur == null ? "zásuvka nenalezena" : cur.has("off") ? "zásuvka nedostupná" : cur.has("err") ? "zásuvka hlásí chybu" : "zásuvka neposílá stav zapnuto/vypnuto"));
             return;
         }
         P.edit().putBoolean("fc_miss", false).apply();
