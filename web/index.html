@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.14", FLIP_VER = "1.7.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.15", FLIP_VER = "1.7.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -173,6 +173,17 @@ details.sec>.in{margin-top:8px}
 .verdict{background:color-mix(in srgb,var(--vc) 11%,var(--surface));border-color:color-mix(in srgb,var(--vc) 35%,var(--line))}
 .hh{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 4px 8px;font-weight:700}
 .hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hsec{margin:10px 0 0}
+.hsec>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;padding:10px 4px 8px;border-top:1px solid var(--line)}
+.hsec>summary::-webkit-details-marker{display:none}
+.hsec>summary::after{content:"›";margin-left:auto;color:var(--muted);font-size:18px;transition:transform .15s}
+.hsec[open]>summary::after{transform:rotate(90deg)}
+.hsec .hst{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;white-space:nowrap}
+.hsec .hss{font-size:13px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.hsec .hss .w{color:var(--warn);font-weight:600}.hsec .hss .b{color:var(--crit);font-weight:600}
+.hsec[open] .hss{display:none}
+.hsub{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:4px 4px 6px}
+.hsec .hsub+.hgrid+.hsub{margin-top:12px}
 .abar{border-radius:14px;padding:10px 14px;display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;font-size:14.5px;margin-bottom:2px}
 .abar .dot{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:800;flex:none;background:var(--ac)}
 .abar.ok{--ac:var(--good)}.abar.warn{--ac:var(--warn)}.abar.bad{--ac:var(--crit)}
@@ -256,17 +267,13 @@ details.sec>.in{margin-top:8px}
     <div class="abar" id="alerts" data-det="alerts" role="button"></div>
     <h2 class="hh">Teď</h2>
     <div class="hgrid" id="h_src"></div>
-    <h2 class="hh">Výroba dnes</h2>
-    <div class="hgrid" id="h_day"></div>
-    <h2 class="hh">Spotřeba dnes</h2>
-    <div class="hgrid" id="h_use"></div>
-    <div class="hgrid" id="h_dev" style="margin-top:10px"></div>
-    <h2 class="hh">Výhled</h2>
-    <div class="hgrid" id="h_now"></div>
-    <h2 class="hh">Uplynulé</h2>
-    <div class="hgrid" id="h_past"></div>
-    <h2 class="hh">Dlouhodobě</h2>
-    <div class="hgrid small" id="h_long"></div>
+    <!-- 5.15: sekce rozbalovací; s červeným / oranžovým příznakem se rozbalí samy -->
+    <details class="hsec" id="hs_chata"><summary><span class="hst">Chata</span><span class="hss" id="hss_chata"></span></summary><div class="hgrid" id="h_dev"></div></details>
+    <details class="hsec" id="hs_energy"><summary><span class="hst">Energie dnes</span><span class="hss" id="hss_energy"></span></summary>
+      <div class="hsub">Výroba</div><div class="hgrid" id="h_day"></div><div class="hsub">Spotřeba</div><div class="hgrid" id="h_use"></div></details>
+    <details class="hsec" id="hs_out"><summary><span class="hst">Výhled</span><span class="hss" id="hss_out"></span></summary><div class="hgrid" id="h_now"></div></details>
+    <details class="hsec" id="hs_past"><summary><span class="hst">Uplynulé</span><span class="hss" id="hss_past"></span></summary><div class="hgrid" id="h_past"></div></details>
+    <details class="hsec" id="hs_long"><summary><span class="hst">Dlouhodobě</span><span class="hss" id="hss_long"></span></summary><div class="hgrid small" id="h_long"></div></details>
   </section>
 
   <!-- původní obsah – zobrazuje se v detailu dlaždic -->
@@ -2198,16 +2205,43 @@ function alertItems(d, h){
   { const lf = d.last_full, lim = h.cfg.plne_nabiti_dni ?? 14; if(lf && (h.now - lf)/86400 >= lim) A.push({s:0, q:true, t:`baterie ${Math.floor((h.now-lf)/86400)} dní bez plného nabití`, k:"health"}); }   // 4.49: tiché
   return A.sort((a,b)=>b.s-a.s);
 }
+/* 5.15: rozbalovací sekce hlavní stránky. Sekce s červeným nebo oranžovým příznakem se rozbalí vždy, jinak podle toho,
+   jak ji naposledy nechal Petr (pamatuje prohlížeč). Sbalená sekce má v záhlaví krátký souhrn dlaždic. */
+const HS_FORCED = {};
+function homeSections(G){
+  const strip = x => String(x||"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
+  const quietBad = t => t.k === "health";          // výměna baterie je známá věc – sekci kvůli ní nerozbalovat
+  for(const [id, tiles] of Object.entries(G)){
+    const el = $("hs_"+id); if(!el) continue;
+    const alarm = tiles.filter(t=>(t.cls==="bad" || t.cls==="warn") && !quietBad(t));
+    const sum = tiles.map(t=>{ const lb = strip(t.label), v = strip(t.v) || (t.k === "fridge" ? strip(t.st) : t.rows && t.rows[0] ? strip(t.rows[0][0]) + " " + strip(t.rows[0][1]) : strip(t.st)), c = alarm.includes(t) ? (t.cls==="bad" ? "b" : "w") : "";
+      return v ? `${c ? `<span class="${c}">${c==="b"?"⚠ ":""}` : ""}${lb} ${v.length > 26 ? v.slice(0,25)+"…" : v}${c ? "</span>" : ""}` : ""; }).filter(Boolean);
+    alarm.forEach(t=>{ const i = sum.findIndex(x=>x.includes(strip(t.label))); if(i > 0) sum.unshift(sum.splice(i,1)[0]); });
+    $("hss_"+id).innerHTML = sum.join(" · ");
+    let pref = null; try{ pref = localStorage.getItem("hs_"+id); }catch(e){}
+    HS_FORCED[id] = alarm.length > 0;
+    el.open = alarm.length > 0 || pref === "1";
+    if(!el._hs){ el._hs = true; el.addEventListener("click", e=>{ if(!e.target.closest("summary")) return;
+      setTimeout(()=>{ try{ localStorage.setItem("hs_"+id, el.open ? "1" : "0"); }catch(_){} }, 0); }); }
+  }
+}
 function renderHome(d){
   const h = homeData(d);
   // chata jede z River → River první (jde o chatu), po přepojení na solár zase solární baterie první
   $("h_src").innerHTML = (h.rvOn ? [tileRivers(d, h), tileSolar(d, h)] : [tileSolar(d, h), tileRivers(d, h)]).map(tileHtml).join("");
-  $("h_day").innerHTML = [tileProdSolar(d, h), tileProdGen(d, h)].map(tileHtml).join("");
-  $("h_use").innerHTML = [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)].map(tileHtml).join("");
-  $("h_dev").innerHTML = [tileDevices(d, h), tileFlip(d, h), tileFridge(d, h), tileTemps(d, h)].filter(Boolean).map(tileHtml).join("");
-  $("h_now").innerHTML = [tileNight(d,h), tileTomorrow(d,h)].map(tileHtml).join("");
-  $("h_past").innerHTML = [tilePastNight(d,h), tileYesterday(d,h)].map(tileHtml).join("");
-  $("h_long").innerHTML = [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)].map(tileHtml).join("");   // 4.46: kabely trvale
+  // 5.15: sekce – Chata (teploty, lednice, Flip, spotřebiče), Energie dnes (výroba + spotřeba), Výhled, Uplynulé, Dlouhodobě
+  const T = {
+    chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h), tileDevices(d, h)].filter(Boolean),
+    prod: [tileProdSolar(d, h), tileProdGen(d, h)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
+    out: [tileNight(d,h), tileTomorrow(d,h)], past: [tilePastNight(d,h), tileYesterday(d,h)],
+    long: [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)] };
+  $("h_dev").innerHTML = T.chata.map(tileHtml).join("");
+  $("h_day").innerHTML = T.prod.map(tileHtml).join("");
+  $("h_use").innerHTML = T.use.map(tileHtml).join("");
+  $("h_now").innerHTML = T.out.map(tileHtml).join("");
+  $("h_past").innerHTML = T.past.map(tileHtml).join("");
+  $("h_long").innerHTML = T.long.map(tileHtml).join("");
+  homeSections({chata:T.chata, energy:[...T.prod, ...T.use], out:T.out, past:T.past, long:T.long});
   const A = alertItems(d, h), el = $("alerts"), top = A[0];
   const onlyQ = A.length && A.every(a=>a.q);
   el.className = "abar " + (!A.length || onlyQ ? "ok" : top.s >= 2 ? "bad" : "warn") + (onlyQ ? " quiet" : "");
