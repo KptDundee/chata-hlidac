@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.08", FLIP_VER = "1.7.6";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.09", FLIP_VER = "1.7.6";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1798,7 +1798,22 @@ function tileTemps(d, h){
     const col = old ? "--muted" : fr && x.t > lim ? "--crit" : x.t!=null && x.t <= 0 ? "--s1" : "--text";
     return [x.n + (x.n === cfg.teplomer_baterie ? " (baterie)" : fr ? " (lednice)" : ""),
       `<span style="color:var(${col})">${x.t!=null ? nf(x.t,1)+" °C" : "–"}</span>${x.h!=null ? ` · ${nf(x.h)} %` : ""}${x.b!=null && x.b < 20 ? ` · 🪫${x.b} %` : ""}${old ? ` · ${agoS(x.tm)}` : ""}`]; });
-  return {k:"use", icon:"🌡️", label:"Teploty", wide:true, cls:"ok", v:"", st:"teploměry Xiaomi · teplota · vlhkost", rows};
+  return {k:"temps", icon:"🌡️", label:"Teploty", wide:true, cls:"ok", v:"", st:"teploměry Xiaomi · teplota · vlhkost", rows};
+}
+/* 5.09: detail Teploty – graf teploty každého teploměru (48 h), teď, vlhkost, baterie teploměru */
+function detTemps(body){
+  const d = DATA, h = homeData(d), cfg = d.cfg || {}, th = (d.inverter && d.inverter.th) || [], lim = cfg.lednice_max_C ?? 8;
+  const pts = (d.points||[]).filter(p=>p.t >= h.now - 48*3600 && p.th);
+  const names = [...new Set([...th.map(x=>x.n), ...pts.flatMap(p=>Object.keys(p.th||{}))])];
+  const role = n => n === cfg.teplomer_baterie ? " – u solární baterie" : n === cfg.teplomer_lednice ? " – v lednici" : "";
+  const id = n => "dt_" + String(n).replace(/[^a-z0-9]/gi, "_");
+  body.insertAdjacentHTML("beforeend", names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · 48 h${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
+    + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, `${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %` : ""} · ${agoS(x.tm)}`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
+    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Teploměry Xiaomi vysílají přes Bluetooth, Flip je zachytí a pošle s ostatními daty. Který teploměr je u baterie a který v lednici, nastavíš v Nastavení (jménem jako ve Flipu). Teplota u baterie se bere pro hlídání mrazu a menší kapacitu v chladu, teplota v lednici pro upozornění nad ${lim} °C.</div>`);
+  for(const n of names){ const el = $(id(n)); if(!el) continue;
+    const ser = pts.map(p=>({t:p.t, c:p.th[n] ?? null}));
+    if(ser.some(q=>q.c!=null)) lineChart(el, ser, "c", css("--s1"), {unit:"°C",dec:1,hours:48, refs: n === cfg.teplomer_lednice ? [[lim,"--crit"]] : n === cfg.teplomer_baterie ? [[0,"--s1"]] : undefined});
+    else empty(el, "Zatím málo dat – graf se naplní během pár hodin."); }
 }
 function tileDevices(d, h){
   const cfg = d.cfg||{}, tpd = (((d.days||{})[dkey(h.now)]||{}).tp)||{}, names = d.plug_names||{};
@@ -2201,6 +2216,7 @@ const DET = {
   wx:    {t:"☀️ Počasí a výroba", s:"Předpověď na 7 dní", ids:["wxcard"]},
   alerts:{t:"⚠️ K řešení", s:"Jen mimořádné věci – pravidelné (noc, zítřek) jsou ve svých dlaždicích", build:detAlerts},
   gen:   {t:"⛽ Generátor", s:"Nabíjení River z generátoru – spustit, výkon, kam a kolik", build:detGen},
+  temps: {t:"🌡️ Teploty", s:"Teploměry Xiaomi – teplota a vlhkost, 48 h", build:detTemps},
   river: {t:"🔋 EcoFlow", s:"Přehled River – kolik mají, co dělají, jak dlouho vydrží", build:detRiver},
   plugs: {t:"🔌 River a zásuvky (původní)", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
   use:   {t:"🏠 Spotřeba celkem", s:"Co bralo a kdy – ze soláru i z River", build:b=>detUse(b,"a")},

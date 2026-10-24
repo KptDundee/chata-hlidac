@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.09 – 24. 10. 2026
+- Dlaždice Teploty otevírala detail „Chata celkem“. Teď vlastní detail Teploty: graf teploty každého teploměru (48 h, u lednice hranice upozornění, u baterie 0 °C), teď (teplota, vlhkost, baterie teploměru, stáří) a výklad.
+
 ## 5.08 – 24. 10. 2026 · Flip 1.7.6
 - Flip 1.7.6: pole „Teploměry Xiaomi“ víceřádkové (Enter = další teploměr) – dřív jednořádkové, víc teploměrů nešlo zadat. Teploměry jde oddělit i středníkem.
 
