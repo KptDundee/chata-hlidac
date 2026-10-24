@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.05 – 24. 10. 2026
+- Dlaždice EcoFlow: % nabití vybrané River velkým písmem (hlavní údaj), výkon zásuvky na jejím výstupu do řádku pod tím. Generátor dál ve W.
+
 ## 5.04 – 24. 10. 2026
 - Hodinky (a dlaždice Noc / River) „% až z EcoFlow“, i když EcoFlow % posílá: kterou River chata jede, se poznalo jen ze zásuvky na jejím výstupu a % se k ní nedoplnilo. Teď se zásuvka spáruje s River z EcoFlow (Nastavení „Spárování River s EcoFlow“, jinak podle prvních 3 písmen jména bez diakritiky) a doplní se %, výdrž a „vydrží do ~HH:MM ✓/✗“ – výdrž podle skutečného odběru ze zásuvky.
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.04", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.05", FLIP_VER = "1.7.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2034,9 +2034,10 @@ function tileRivers(d, h){
     : sel.ef ? `<span class="sub">EcoFlow % neposílá</span>` : es && es.devs.length ? `<span class="sub">EcoFlow nespárováno</span>` : "až z EcoFlow";   // 4.65
   const GP = genLive(d);
   return {...t, top:tabs, cls: act(sel) || (sel.gen && GP) ? "ok" : "na",
-    v: sel.gen && GP ? `${nf(GP.gw ?? GP.tot_in)}<small>W</small>` : sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–",
+    // 5.05: hlavní údaj River = % nabití (velkým písmem), výkon zásuvky do řádku
+    v: sel.gen && GP ? `${nf(GP.gw ?? GP.tot_in)}<small>W</small>` : soc!=null ? `${nf(soc)}<small>%</small>` : sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–",
     st: sel.gen && GP ? `běží od ${hmT(GP.t_on)} · ${GP.fuel==="lpg"?"plyn":"benzín"}` : rivState(sel, h, MM),
-    rows: sel.gen ? genRows(d, h, sel) : [["nabití", why]]};
+    rows: sel.gen ? genRows(d, h, sel) : soc!=null ? [["výstup (zásuvka)", sel.w!=null ? `${nf(sel.w)} W` : "–"]] : [["nabití", why]]};
 }
 /* časová osa: řádek pro každé zařízení, pruh = kdy bylo v činnosti */
 function timelineChart(el, pts, rows, hours){
