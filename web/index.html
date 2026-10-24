@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.26", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.27", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1759,7 +1759,7 @@ function genPlanHtml(d){
     h += `<div class="sub">Generátor neběží.${P && P.end ? ` Poslední nabíjení ${relDay(P.t_on||P.t)} ${hmT(P.t_on||P.t)}–${hmT(P.end)}.` : ""}</div>`;
   }
   if(P && P.set && P.set.length) h += `<div class="sub" style="margin-top:4px">Naposledy nastaveno: ${escH(P.set.join(", "))}</div>`;
-  h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${nf(c.gen_po_behu_W ?? 200)} W a malá ${nf(c.gen_mala_po_behu_W ?? 100)} W, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${nf(gmax)} W − rezerva ${nf(c.gen_rezerva_W ?? 100)} W − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná, vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
+  h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${nf(c.gen_po_behu_W ?? 200)} W a malá ${nf(c.gen_mala_po_behu_W ?? 100)} W, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${nf(gmax)} W − rezerva ${nf(c.gen_rezerva_W ?? 100)} W − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná (přestane brát), vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
   return h;
 }
 /* 4.87 / 4.91: tlačítka nabíjení z generátoru. „start:benzin“ / „start:lpg“ = zapsat palivo do nastavení + spustit,

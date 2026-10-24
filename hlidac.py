@@ -4162,7 +4162,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 low.setdefault(r["sn"], tnow)
         for sn in list(insess):
             rr = byid(sn)
-            if not rr or (rr.get("soc") or 0) >= 99 or (sn in low and tnow - low[sn] >= 120) or not rr.get("online"):
+            # 5.27: plná až když přestane brát (dřív při 99 % → 200 W a poslední procento se zdrželo)
+            if not rr or (sn in low and tnow - low[sn] >= 120) or not rr.get("online"):
                 insess.remove(sn)
                 low.pop(sn, None)
         con = [r for r in ctl if r["sn"] in insess]

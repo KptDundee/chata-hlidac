@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.27 – 24. 10. 2026
+- Nabíjení z generátoru: River dostane klidových 200 W až když opravdu přestane brát (plná – 2 min nic), ne už při 99 % – poslední procento se tím zdržovalo.
+
 ## 5.26 – 24. 10. 2026
 - Palivo a cena (detail Generátor): tlačítka „+ nová lahev“ (PB 10 kg) a „+ natankováno“ (benzín) – cena, u benzínu litry, plná / částečně. Hlídač měří energii generátoru podle paliva (výkon generátoru během nabíjení) → kWh na aktuální lahev, kolik zbývá (podle průměru), kWh na lahev a cena za 1 kWh (průměr jen z plných, už spotřebovaných lahví; částečná = odhad z průměru), cena každého nabíjení. Záznamy v palivo.txt.
 
