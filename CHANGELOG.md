@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.25 – 24. 10. 2026
+- Oprava: tlačítko Benzín / Plyn se občas „ztratilo“ – spouštělo hlídače na GitHubu, a když mezitím přišel běh z Flipu, GitHub čekající běh s povelem zahodil (čekat smí jen jeden). Teď web povel zapíše i do nastavení (gen_povel = start:lpg:čas) a převezme ho kterýkoli další běh hlídače.
+
 ## 5.24 – 24. 10. 2026
 - Postup nabíjení z generátoru doplněn: nechat generátor 1–2 min zahřát a pak v aplikaci Tapo ručně zapnout zásuvku (7) (v Tapo „Stav po obnovení napájení: Vypnuto“).
 

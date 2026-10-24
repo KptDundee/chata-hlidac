@@ -36,7 +36,7 @@ DEFAULTS = {
     "vlhkost_hlidat": "", "vlhkost_min": 35,
     "river_sn": "",
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_rezerva_W": 100,
-    "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100,
+    "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
@@ -3987,6 +3987,18 @@ def gen_charge_ctl(data, st, now, topic, cfg):
     gs = st.setdefault("gen_ctl", {})
     sets = gs.setdefault("w", {})                       # co hlídač naposledy nastavil (SN → W)
     cmd = os.environ.get("GEN_CMD", "").strip().lower()
+    # 5.25: povel z tlačítka i přes nastavení („gen_povel = start:lpg:čas“) – ruční spuštění hlídače GitHub zahodí, když
+    # mezitím přijde běh z Flipu (čekat smí jen jeden); nastavení si přečte každý další běh
+    pv_ = str(cfg.get("gen_povel") or "").strip().lower().split(":")
+    if len(pv_) == 3 and pv_[2].isdigit():
+        pt_ = int(pv_[2])
+        if pt_ > (gs.get("cmd_t") or 0) and now.timestamp() - pt_ < 2 * 3600:
+            gs["cmd_t"] = pt_
+            if not cmd:
+                cmd = pv_[0] + (":" + pv_[1] if pv_[1] else "")
+            log("ev", f"Nabíjení z generátoru: povel z webu „{pv_[0]}{(' ' + pv_[1]) if pv_[1] else ''}“")
+        elif cmd.startswith(pv_[0]) and pt_ > (gs.get("cmd_t") or 0):
+            gs["cmd_t"] = pt_
     if ":" in cmd:                                       # 4.91: „start:lpg“ – palivo rovnou z tlačítka
         cmd, f_ = cmd.split(":", 1)
         if f_ in ("lpg", "plyn", "benzin"):

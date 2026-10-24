@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.24", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.25", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1789,6 +1789,7 @@ async function genCmd(cmd, el, fel){
   if(el){ el.disabled = true; el.textContent = "Ukončuji…"; }
   try{
     if(fuel) await setCfgKey(tok, "gen_palivo", fuel);
+    if(c0 !== "fuel") await setCfgKey(tok, "gen_povel", `${c0}:${fuel||""}:${Math.floor(Date.now()/1000)}`);   // 5.25: povel se neztratí
     if(c0 !== "fuel"){
       const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{
         method:"POST", headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"},
