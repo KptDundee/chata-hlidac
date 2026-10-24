@@ -150,6 +150,11 @@ teplomer_lednice = Lednice        # jméno teploměru Xiaomi v lednici
 lednice_max_C = 8                # upozornit, když je v lednici tepleji déle než 30 min
 river_sn =                       # spárování zásuvek River s EcoFlow: „číslo zásuvky:konec SN“, např. 2:AB12, 3:CD34, 6:EF56 (konec SN viz detail EcoFlow)
 zasuvka_flip = 9                 # zásuvka s nabíječkou Flipu (číslo)
+chladnuti_teplomer = Pokoj        # teploměr, podle kterého se učí chladnutí místnosti po dotopení (prázdné = vypnuto)
+chladnuti_rano = 7:00             # předpověď „ráno bude ~X °C“ na tento čas
+chladnuti_cil_C = 21              # kolik °C chci ráno – z toho „musí být při dotopení ~Z °C“
+venku_sirka = 50.095              # venkovní teplota: Praha-Hrdlořezy
+venku_delka = 14.517
 zasuvka_router = 5               # zásuvka, ze které se napájí router M7000 (číslo; prázdné = neřídit)
 router_nabijeni_rizeni = zapnuto # řídit nabíjení routeru: pod 40 % nabíjet, od 80 % z baterie, na River / při přebytku nabíjet, pojistka 2 h (Flip 1.9)
 flip_nabijeni_rizeni = zapnuto   # řídit nabíjení Flipu: na soláru jen ze slunce, na River kdykoli; pod 20 % vždy, nad 42 °C nikdy (Flip 1.6)

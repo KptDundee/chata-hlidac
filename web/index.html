@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.35", FLIP_VER = "1.9.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.36", FLIP_VER = "1.9.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1926,6 +1926,28 @@ function tileTemps(d, h){
     sum: first ? `${first.n} ${nf(first.t,1)} °C` : ""};
 }
 /* 5.09: detail Teploty – graf teploty každého teploměru (48 h), teď, vlhkost, baterie teploměru */
+/* 5.36: chladnutí pokoje po dotopení (Newton) – učení z večerů + předpověď na ráno */
+function coolCard(body, d, h){
+  const c = d.cool; if(!c) return;
+  const ev = (c.ev||[]).slice().reverse(), learn = c.n < c.need;
+  const evRows = ev.length ? `<table class="ut" style="width:100%;margin-top:6px;font-size:13px"><tr><th style="text-align:left">večer</th><th>z → na</th><th>hodin</th><th>venku</th><th>k</th></tr>${ev.map(x=>`<tr><td style="text-align:left">${relDay(x.t0)} ${hmT(x.t0)}${x.live?" · chladne":""}${x.win?` · 🪟 ${x.win}×`:""}</td><td>${nf(x.Ta,1)} → ${nf(x.Tb,1)} °C</td><td>${nf(x.h,1)}</td><td>${nf(x.To,1)} °C</td><td>${nf(x.k,3)}</td></tr>`).join("")}</table>` : `<div class="sub">Zatím žádný večer s dotopením (aspoň 3 h chladnutí, pokles aspoň 0,8 °C).</div>`;
+  let pred = "";
+  if(learn) pred = rowI("Stav", `učím se – ${c.n} z ${c.need} večerů s dotopením`);
+  else if(c.pred!=null){
+    const heating = (c.trend ?? 0) > 0.2;
+    pred = rowI(`${heating ? "Kdybys teď přestal topit" : "Když se už netopí"}: ${relDay(c.morning)} ${hmT(c.morning)}`, `~${nf(c.pred,1)} °C`)
+      + rowI(`Aby bylo ${relDay(c.morning)} ${hmT(c.morning)} ${nf(c.target,0)} °C`, `musí být teď (při dotopení) ~${nf(c.need_T,1)} °C`);
+  }
+  body.insertAdjacentHTML("beforeend", `<div class="card"><h2 style="margin:0 0 6px">🌡️ Chladnutí – ${escH(c.room)}</h2>
+    ${c.T_now!=null ? rowI("Teď", `${nf(c.T_now,1)} °C${c.trend!=null ? ` (za hodinu ${c.trend>0?"+":""}${nf(c.trend,1)} °C)` : ""}`) : ""}
+    ${c.out_now!=null ? rowI("Venku (Hrdlořezy, předpověď)", `${nf(c.out_now,1)} °C`) : ""}
+    ${pred}
+    ${c.half_h!=null ? rowI("Chata", `rozdíl proti venku se zmenší na polovinu za ~${nf(c.half_h,1)} h <span class="sub">(k = ${nf(c.k,3)}/h, ${c.n} večerů)</span>`) : ""}
+    ${evRows}</div>`
+    + chartCard("dt_out", "Venku – Hrdlořezy", "°C · 48 h (Open-Meteo)")
+    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to funguje:</b> pokoj chladne tím rychleji, čím větší je rozdíl proti venku. Hlídač hledá večery, kdy teplota po dotopení plynule klesá (prvních 60 min vynechá – kamna ještě hřejí), a z nich se učí rychlost chladnutí chaty <i>k</i>. Větrání (prudký pokles ≥ 0,5 °C za 10 min) a hodinu po něm vynechá – v tabulce 🪟. Předpověď je až od ${c.need} večerů a počítá s předpovědí venkovní teploty; kamna po dotopení ještě chvíli hřejí, takže skutečnost bývá spíš o něco tepleji. Teploměr, ranní čas a cílovou teplotu změníš v Nastavení.</div>`);
+  const el = $("dt_out"); if(el && (c.out||[]).length) lineChart(el, c.out.filter(([t])=>t <= h.now).map(([t,v])=>({t, c:v})), "c", css("--s3"), {unit:"°C",dec:1,hours:48});
+}
 function detTemps(body){
   const d = DATA, h = homeData(d), cfg = d.cfg || {}, th = (d.inverter && d.inverter.th) || [], lim = cfg.lednice_max_C ?? 8;
   const pts = (d.points||[]).filter(p=>p.t >= h.now - 48*3600 && p.th);
@@ -1938,6 +1960,7 @@ function detTemps(body){
   body.insertAdjacentHTML("beforeend", names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · 48 h${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
     + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, thWhy(x) ? thWhy(x) : `${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %` : ""} · ${agoS(x.tm)}`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Teploměry Xiaomi vysílají přes Bluetooth, Flip je zachytí a pošle s ostatními daty. Který teploměr je u baterie a který v lednici, nastavíš v Nastavení (jménem jako ve Flipu). Teplota u baterie se bere pro hlídání mrazu a menší kapacitu v chladu, teplota v lednici pro upozornění nad ${lim} °C.</div>`);
+  coolCard(body, d, h);
   for(const n of names){ const el = $(id(n)); if(!el) continue;
     const ser = pts.map(p=>({t:p.t, c:val(p, n)}));
     if(ser.some(q=>q.c!=null)) lineChart(el, ser, "c", css("--s1"), {unit:"°C",dec:1,hours:48, refs: n === cfg.teplomer_lednice ? [[lim,"--crit"]] : n === cfg.teplomer_baterie ? [[0,"--s1"]] : undefined});
@@ -3107,6 +3130,9 @@ const SETTINGS = [
     ["teplomery_baterie","Upozornit na baterii teploměru při","Procenta oddělená čárkou","",0,"str"],
     ["vlhkost_hlidat","Hlídat suchý vzduch v","Teploměry (jména) v obytných místnostech – při topení v kamnech vysychá vzduch","",0,"str"],
     ["vlhkost_min","Suchý vzduch pod","Doporučeno 40–60 %, pod 35 % je vzduch suchý","%",5,"num"],
+    ["chladnuti_teplomer","Chladnutí – teploměr","Jméno teploměru v místnosti, kde se učí, jak rychle chladne (detail Teploty)","",0,"str"],
+    ["chladnuti_rano","Chladnutí – ráno v","Pro předpověď „ráno bude ~X °C“","",0,"time"],
+    ["chladnuti_cil_C","Chladnutí – ráno chci","Kolik má být ráno v místnosti","°C",0.5,"num"],
     ["lednice_max_C","Lednice teplejší než","Upozornit, když je v lednici tepleji déle než 30 min","°C",1,"num"],
     ["river_sn","Spárování River s EcoFlow","„číslo zásuvky:konec SN“, např. 2:AB12, 3:CD34, 6:EF56 – konec SN je v detailu EcoFlow","",0,"str"],
     ["zasuvka_flip","Zásuvka nabíječky Flipu","Číslo zásuvky (prázdné = neřídit)","",0,"txt"],
@@ -3200,6 +3226,9 @@ const SET_HELP = {
   teplomery_baterie: "Při jakých procentech baterie teploměru přijde upozornění (každá hranice jednou), např. „10, 5“.",
   vlhkost_hlidat: "Teploměry v obytných místnostech, kde se hlídá suchý vzduch (při topení v kamnech vzduch vysychá). Prázdné = nehlídá se.",
   vlhkost_min: "Pod touto vlhkostí se vzduch bere jako suchý – zvýrazní se v tabulce teplot a přijde upozornění. Doporučeno 40–60 %.",
+  chladnuti_teplomer: "Teploměr (jméno jako ve Flipu), podle kterého se hlídač učí, jak rychle místnost chladne po dotopení. Výsledek a předpověď na ráno jsou v detailu Teploty. Prázdné = vypnuto. Po změně se učí znovu z dat posledních 14 dní.",
+  chladnuti_rano: "Na kolik hodin se počítá předpověď „ráno bude v místnosti ~X °C“ a „aby bylo ráno 21 °C, musí být při dotopení ~Z °C“.",
+  chladnuti_cil_C: "Kolik °C chceš mít ráno v místnosti. Z toho se počítá, kolik musí být večer při dotopení. Vyšší = víc topit.",
   lednice_max_C: "Když je v lednici podle teploměru tepleji déle než 30 min, přijde upozornění a teplota svítí červeně.",
   river_sn: "Která zásuvka patří ke které River v EcoFlow: „číslo zásuvky:konec SN“. Podle toho se u zásuvky ukazují % River. Většinou se spáruje samo podle jména.",
   zasuvka_flip: "Číslo zásuvky s nabíječkou Flipu (9). Prázdné = nabíjení Flipu se neřídí.",
