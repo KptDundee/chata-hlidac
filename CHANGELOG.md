@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.14 – 24. 10. 2026
+- Teploty: „Baterie (baterie)“ / „Lednice (lednice)“ – role v závorce jen když ji jméno teploměru samo neříká.
+
 ## 5.13 – 24. 10. 2026
 - Hlídání teploměrů: seznam v Nastavení („Koupelna, Pokoj, Loznice, Kuchyne, Baterie, Lednice“). Když některý 60 min nepošle hodnotu, přijde „🌡️ Teploměr … nehlásí“ i s důvodem (Flip ho neslyší / slyší, ale nejde přečíst – s Flipem 1.7.7), po návratu „zase hlásí“. Baterie teploměru: upozornění při 10 % a 5 % (znovu až po výměně), na dlaždici 🔋 % u každého. Dlaždice Teploty ukazuje i chybějící teploměry ze seznamu a je oranžová, když některý chybí nebo má slabou baterii.
 

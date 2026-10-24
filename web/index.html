@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.13", FLIP_VER = "1.7.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.14", FLIP_VER = "1.7.7";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1808,7 +1808,9 @@ function tileTemps(d, h){
   const cfg = d.cfg || {}, lim = cfg.lednice_max_C ?? 8;
   const rows = th.map(x=>{ const old = h.now - x.tm > 1800, fr = x.n === cfg.teplomer_lednice;
     const col = old ? "--muted" : fr && x.t > lim ? "--crit" : x.t!=null && x.t <= 0 ? "--s1" : "--text";
-    return [x.n + (x.n === cfg.teplomer_baterie ? " (baterie)" : fr ? " (lednice)" : ""),
+    // 5.14: role (baterie / lednice) jen když ji jméno samo neříká
+    const rl = x.n === cfg.teplomer_baterie ? "baterie" : fr ? "lednice" : "";
+    return [x.n + (rl && !String(x.n).toLowerCase().includes(rl) ? ` (${rl})` : ""),
       x.miss ? `<span style="color:var(--warn);white-space:normal">${x.why || "chybí"}${x.tm ? ` · naposledy ${agoS(x.tm)}` : ""}</span>` :
       thWhy(x) ? `<span class="sub" style="white-space:normal">${thWhy(x)}</span>` : `<span style="color:var(${col})">${x.t!=null ? nf(x.t,1)+" °C" : "–"}</span>${x.h!=null ? ` · ${nf(x.h)} %` : ""}${x.b!=null ? (x.b <= 10 ? ` · <span style="color:var(--crit)">🪫${x.b} %</span>` : ` · 🔋${x.b} %`) : ""}${old ? ` · ${agoS(x.tm)}` : ""}`]; });
   const bad = tw.some(w=>w.quiet) || th.some(x=>x.b!=null && x.b <= 10);
@@ -1822,7 +1824,7 @@ function detTemps(body){
   const clean = n => String(n).replace(/^[\s,;:.]+|[\s,;:.]+$/g, "");
   const names = [...new Set([...th.map(x=>clean(x.n)), ...pts.flatMap(p=>Object.keys(p.th||{}).map(clean))])].filter(Boolean);   // 5.12: i ty, co teď chvíli mlčí
   const val = (p, n) => { for(const k in (p.th||{})) if(clean(k) === n) return p.th[k]; return null; };
-  const role = n => n === cfg.teplomer_baterie ? " – u solární baterie" : n === cfg.teplomer_lednice ? " – v lednici" : "";
+  const role = n => n === cfg.teplomer_baterie && !/bater/i.test(n) ? " – u solární baterie" : n === cfg.teplomer_lednice && !/lednic/i.test(n) ? " – v lednici" : "";
   const id = n => "dt_" + String(n).replace(/[^a-z0-9]/gi, "_");
   body.insertAdjacentHTML("beforeend", names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · 48 h${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
     + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, thWhy(x) ? thWhy(x) : `${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %` : ""} · ${agoS(x.tm)}`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
