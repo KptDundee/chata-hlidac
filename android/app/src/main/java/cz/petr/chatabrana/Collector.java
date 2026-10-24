@@ -216,6 +216,11 @@ public final class Collector {
                 Prefs.get(ctx).edit().putString("rt_err", rr.err == null ? "" : rr.err).putString("rt_last", rt.toString()).apply();
                 o.put("rt", rt);
             }
+            // 1.9: řízení nabíjení routeru zásuvkou (5)
+            if (!email.isEmpty() && !rpass.isEmpty()) {
+                try { routerCharge(email, pass, plugs, o); }
+                catch (Exception e) { Prefs.log(ctx, "Nabíjení routeru: " + e.getMessage()); }
+            }
             if (o.has("th")) sum.append(", teploměry ").append(o.getJSONArray("th").length());
             o.put("av", appVersion());
             // je Flip na Wi‑Fi? (po restartu routeru se umí přepnout na mobilní data a pak nevidí zásuvky)
@@ -543,7 +548,8 @@ public final class Collector {
             }
             if (last != null && last.optLong("id") * 1000 > P.getLong("fc_t", 0)) {
                 P.edit().putBoolean("fc_allow", last.optBoolean("allow", true)).putLong("fc_t", last.optLong("id") * 1000)
-                        .putString("fc_ip", last.optString("ip", "9")).putString("fc_why", last.optString("why", "")).apply();
+                        .putString("fc_ip", last.optString("ip", "9")).putString("fc_why", last.optString("why", ""))
+                        .putString("rc_ip", last.optString("rip", "")).apply();          // 1.9: zásuvka routeru
             }
         } catch (Exception e) { /* bez internetu – platí poslední povolení / záloha pod 40 % */ }
         String id = P.getString("fc_ip", "9");
@@ -598,6 +604,70 @@ public final class Collector {
         }
         P.edit().putBoolean("fc_hot", hot).apply();
         o.put("fc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("hot", hot ? 1 : 0).put("fresh", fresh ? 1 : 0).put("ip", id));
+    }
+
+    /**
+     * 1.9: zásuvka, ze které se napájí router M7000 (číslo posílá hlídač v povolení -fc jako „rip“; prázdné = neřídit).
+     * Router dělá Wi‑Fi, přes kterou Flip zásuvky ovládá – vybitý router už nikdo nezapne. Proto:
+     * • baterie routeru nejde přečíst (nebo je údaj starší než 25 min) → zapnout
+     * • pod 40 % → zapnout, od 80 % vypnout, mezi tím nechat jak je
+     * • chata na River nebo přebytek ze slunce (povolení od hlídače) → zapnout (šetřit není potřeba)
+     * Při vypnutí se v zásuvce nastaví odpočet „za 2 h zapnout“ – kdyby spadla aplikace, Flip nebo Wi‑Fi.
+     */
+    private void routerCharge(String email, String pass, JSONArray plugs, JSONObject o) throws Exception {
+        android.content.SharedPreferences P = Prefs.get(ctx);
+        String id = P.getString("rc_ip", "");
+        if (id.isEmpty() || plugs == null) return;
+        JSONObject cur = null;
+        for (int k = 0; k < plugs.length(); k++) { JSONObject p = plugs.optJSONObject(k); if (p != null && id.equals(p.optString("ip"))) cur = p; }
+        if (cur == null || cur.has("off") || cur.has("err") || !cur.has("on")) {
+            o.put("rc", new JSONObject().put("miss", 1).put("ip", id).put("why", cur == null ? "zásuvka nenalezena" : "zásuvka nejde přečíst"));
+            return;
+        }
+        int b = -1;
+        try {
+            JSONObject lr = new JSONObject(P.getString("rt_last", "{}"));
+            if (lr.has("b") && System.currentTimeMillis() - P.getLong("rt_t", 0) < 25 * 60_000L) b = lr.optInt("b", -1);
+        } catch (Exception ignored) { }
+        boolean fresh = System.currentTimeMillis() - P.getLong("fc_t", 0) < 3 * 3600_000L;
+        boolean free = fresh && P.getBoolean("fc_allow", false);
+        boolean isOn = cur.optInt("on", 0) == 1, want;
+        String why;
+        if (b < 0) { want = true; why = "baterie routeru nejde přečíst – pro jistotu nabíjí"; }
+        else if (b <= 40) { want = true; why = "pod 40 %"; }
+        else if (free) { want = true; why = P.getString("fc_why", "proud zadarmo"); }
+        else if (b >= 80) { want = false; why = "nabito 80 % – jede z baterie"; }
+        else { want = isOn; why = isOn ? "nabíjí do 80 %" : "jede z baterie do 40 %"; }
+        if (want != isOn) {
+            String ip = plugMap(email, pass).get(id);
+            if (ip == null) ip = id.matches("\\d+") ? null : id;
+            if (ip != null) {
+                TapoKlap t = tapo.get(ip);
+                if (t == null) { t = new TapoKlap(ip, email, pass); tapo.put(ip, t); }
+                if (!want) {                                             // pojistka napřed: za 2 h se zásuvka sama zapne
+                    try {
+                        JSONObject cr = new JSONObject(t.call("add_countdown_rule",
+                                "{\"delay\":7200,\"desired_states\":{\"on\":true},\"enable\":true,\"remain\":7200}"));
+                        if (cr.optInt("error_code", -1) != 0) {
+                            // bez pojistky routeru nevypínat – vybitý router by už nikdo nezapnul
+                            if (!P.getBoolean("rc_cd_log", false)) { Prefs.log(ctx, "Router: zásuvka nepřijala pojistku (odpočet) – nevypínám: " + cr); P.edit().putBoolean("rc_cd_log", true).apply(); }
+                            o.put("rc", new JSONObject().put("on", 1).put("why", "zásuvka nepřijala pojistku – nechávám zapnutou").put("ip", id));
+                            return;
+                        }
+                    } catch (Exception e) {
+                        if (!P.getBoolean("rc_cd_log", false)) { Prefs.log(ctx, "Router: pojistka (odpočet): " + e.getMessage() + " – nevypínám"); P.edit().putBoolean("rc_cd_log", true).apply(); }
+                        o.put("rc", new JSONObject().put("on", 1).put("why", "pojistku nejde nastavit – nechávám zapnutou").put("ip", id));
+                        return;
+                    }
+                }
+                JSONObject r = new JSONObject(t.call("set_device_info", "{\"device_on\":" + want + "}"));
+                if (r.optInt("error_code", -1) == 0) {
+                    Prefs.log(ctx, "Nabíjení routeru " + (want ? "ZAPNUTO" : "VYPNUTO") + " (" + b + " %, " + why + ")");
+                    isOn = want;
+                } else Prefs.log(ctx, "Nabíjení routeru: zásuvka odmítla " + r);
+            }
+        }
+        o.put("rc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("ip", id));
     }
 
     /** Adresa routeru = výchozí brána Wi-Fi (jinak 192.168.0.1). */

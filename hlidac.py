@@ -38,7 +38,7 @@ DEFAULTS = {
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_rezerva_W": 100,
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
-    "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
+    "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "zasuvka_router": "5", "router_nabijeni_rizeni": True, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
@@ -2302,6 +2302,10 @@ def inv_from_msg(last, now, cfg=None):
         inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
     if isinstance(body.get("fc"), dict):                 # 1.6: řízení nabíjení Flipu (stav zásuvky a proč)
         inv["fc"] = body["fc"]
+    if isinstance(body.get("rc"), dict):                 # 1.9: řízení nabíjení routeru (stav zásuvky a proč)
+        inv["rc"] = body["rc"]
+    else:
+        inv.pop("rc", None)
     if isinstance(body.get("rt"), dict):                 # 1.7: baterie routeru M7000 (jen čtení)
         inv["rt"] = {k: body["rt"].get(k) for k in ("b", "c", "err") if body["rt"].get(k) is not None}
     th = body.get("th")                                   # 1.5: teploměry Xiaomi [{n, t, h, b, age}]
@@ -3217,16 +3221,30 @@ def flip_charge_cmd(data, st, now, topic, cfg):
         allow, why = True, "chata na River"
     else:
         allow, why = True, "zdroj neznámý"
+    # 5.34: zásuvka routeru M7000 – Flip 1.9 ji řídí sám podle baterie routeru (40 / 80 %), povolení „allow“ =
+    # proud zadarmo (River / přebytek) → nabíjet. Prázdné = neřídit (zásuvka zůstane, jak je).
+    rip = str(cfg.get("zasuvka_router") or "").strip() if cfg.get("router_nabijeni_rizeni", True) else ""
     fs = st.setdefault("flip_chg", {})
-    if fs.get("allow") != allow or fs.get("ip") != pid or ts - fs.get("t", 0) >= 3600:
-        body = json.dumps({"allow": allow, "ip": pid, "why": why, "id": int(ts)})
+    if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or ts - fs.get("t", 0) >= 3600:
+        body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "why": why, "id": int(ts)})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
-            fs.update(allow=allow, ip=pid, t=int(ts), why=why)
+            fs.update(allow=allow, ip=pid, rip=rip, t=int(ts), why=why)
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc")}
+    data["router_chg"] = {"ip": rip, "rc": inv.get("rc")}
+    # 5.34: baterie routeru pod 25 % – vybitý router = chata bez Wi‑Fi a Flip už nic nezapne
+    rb = (inv.get("rt") or {}).get("b")
+    if fresh and rb is not None:
+        if rb < 25 and not fs.get("rlow"):
+            ntfy(topic, f"📶 Router na chatě má jen {rb:.0f} %",
+                 f"Baterie routeru M7000 {rb:.0f} % ({'nabíjí se' if (inv.get('rt') or {}).get('c') else 'nenabíjí se'}). "
+                 f"Až se vybije, chata je bez Wi‑Fi a bez dat. Zkontroluj zásuvku ({rip or '?'}) v aplikaci Tapo.", 4, "warning")
+            fs["rlow"] = True
+        elif fs.get("rlow") and rb >= 35:
+            fs["rlow"] = False
     # horká baterie Flipu
     ph = inv.get("ph") or {}
     lim = cfg.get("flip_teplota_max_C") or 40
