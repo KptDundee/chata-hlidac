@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.28", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.29", FLIP_VER = "1.7.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1783,7 +1783,7 @@ function genFuel(f, el, running){     // 4.92: přepínač paliva – vždy plat
   return genCmd("start:" + f, null, el);    // 4.93: vždy „spustit znovu na tomhle palivu“
 }
 /* 5.26: palivo – nová lahev PB / tankování benzínu (zapisuje se do palivo.txt), kWh na lahev a cena za kWh */
-const GHF = "https://api.github.com/repos/"+REPO+"/contents/palivo.txt";
+const GHF_ = () => "https://api.github.com/repos/"+REPO+"/contents/palivo.txt";   // 5.29: až při použití (REPO je níž)
 async function fuelAdd(f){
   const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
   const F = (DATA.fuel||{})[f] || {}, last = (F.hist||[]).slice(-1)[0];
@@ -1795,10 +1795,10 @@ async function fuelAdd(f){
   const now = new Date(), pad = n => String(n).padStart(2,"0");
   const line = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} | ${f} | ${price.replace(/[^0-9.,]/g,"")} | ${full ? "plna" : "castecna"}${f==="benzin" ? ` | ${lit.replace(/[^0-9.,]/g,"")}` : ""}`;
   try{
-    const r = await fetch(GHF+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+    const r = await fetch(GHF_()+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
     let txt = "# lahve PB a tankování benzínu: čas | palivo | cena Kč | plna/castecna | litry (zapisuje web)\n", sha;
     if(r.ok){ const j = await r.json(); txt = utf8b64.dec(j.content); sha = j.sha; }
-    const w = await fetch(GHF,{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
+    const w = await fetch(GHF_(),{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
       body:JSON.stringify({message:`Palivo: ${line}`, content:utf8b64.enc(txt.replace(/\n?$/,"\n")+line+"\n"), ...(sha?{sha}:{}), branch:"main"})});
     if(!w.ok) throw new Error("GitHub odpověděl "+w.status);
     alert("Zapsáno ✓ – hlídač od teď počítá energii na " + (f==="lpg" ? "tuhle lahev." : "tohle tankování."));
@@ -1808,7 +1808,7 @@ async function fuelAdd(f){
 async function fuelEdit(f){
   const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
   try{
-    const r = await fetch(GHF+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+    const r = await fetch(GHF_()+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
     if(!r.ok) throw new Error("GitHub odpověděl "+r.status);
     const j = await r.json(), lines = utf8b64.dec(j.content).split("\n");
     const i = lines.map((l,k)=>[l,k]).filter(([l])=>{ const b = l.split("#")[0].split("|").map(x=>x.trim()); return b.length >= 3 && (f==="lpg" ? /^(lpg|plyn|pb)/i.test(b[1]) : /^benz/i.test(b[1])); }).pop();
@@ -1816,7 +1816,7 @@ async function fuelEdit(f){
     const b = i[0].split("#")[0].split("|").map(x=>x.trim());
     const price = prompt(`Cena ${f==="lpg" ? "lahve" : "tankování"} z ${b[0]} v Kč:`, b[2]); if(price === null || !price.trim()) return;
     b[2] = price.replace(/[^0-9.,]/g,""); lines[i[1]] = b.join(" | ");
-    const w = await fetch(GHF,{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
+    const w = await fetch(GHF_(),{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
       body:JSON.stringify({message:`Palivo: cena upravena (${b[0]})`, content:utf8b64.enc(lines.join("\n")), sha:j.sha, branch:"main"})});
     if(!w.ok) throw new Error("GitHub odpověděl "+w.status);
     alert("Cena upravena ✓");

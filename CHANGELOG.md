@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.29 – 24. 10. 2026
+- Oprava: web 5.26–5.28 zůstal prázdný (chyba při načtení – adresa souboru paliva se skládala dřív, než byla známá adresa repozitáře).
+
 ## 5.28 – 24. 10. 2026
 - Nabíjení z generátoru: River na 99–100 %, která přestala brát, je hotová hned (dřív čekání 2 min). Když jsou všechny River plné a nic se nenabíjí, nabíjení končí hned a přijde „Generátor běží naprázdno – vypni ho“ (dřív až po 10 min).
 - Palivo: zapsána lahev PB od 23. 10. 21:00, cena 460 Kč (odhad – upřesnit). U aktuální lahve / tankování odkaz „upravit cenu“.
