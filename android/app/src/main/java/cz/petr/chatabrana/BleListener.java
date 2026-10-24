@@ -48,7 +48,7 @@ public final class BleListener {
         if (raw.equals(thSig)) return;
         thSig = raw;
         thCfg.clear();
-        for (String ln : raw.split("\\n")) {
+        for (String ln : raw.split("[\\n;]")) {                // 1.7.6: řádek nebo středník
             String[] w = ln.trim().split("\\s+", 3);
             if (w.length < 2) continue;
             String m = Prefs.normMac(w[0]), k = w[1].replaceAll("[^0-9a-fA-F]", "");

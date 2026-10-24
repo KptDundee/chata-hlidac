@@ -113,7 +113,11 @@ public class MainActivity extends Activity {
         pass = field(editBox, "Heslo účtu Tapo", Prefs.TAPO_PASSWORD, true);
         ips = field(editBox, "IP adresy (jen když hledání nenajde, např. 185, 106)", Prefs.TAPO_IPS, false);
         sub(editBox, "Teploměry Xiaomi (Bluetooth)");
-        xiaomi = field(editBox, "Každý na řádek: MAC  BLE-KLÍČ  jméno", Prefs.XIAOMI, false);
+        xiaomi = field(editBox, "Každý na řádek (nebo oddělit ;): MAC  BLE-KLÍČ  jméno", Prefs.XIAOMI, false);
+        xiaomi.setSingleLine(false);                                  // 1.7.6: víc řádků (Enter = další teploměr)
+        xiaomi.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        xiaomi.setMinLines(3);
+        xiaomi.setTextSize(13);
         xiaomi.setSingleLine(false);
         xiaomi.setMinLines(3);
         xiaomi.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
@@ -220,7 +224,7 @@ public class MainActivity extends Activity {
 
         // přehled nastavení (jen ke čtení)
         int nTh = 0;
-        for (String ln : Prefs.s(this, Prefs.XIAOMI).split("\n")) if (ln.trim().split("\\s+").length >= 2) nTh++;
+        for (String ln : Prefs.s(this, Prefs.XIAOMI).split("[\n;]")) if (ln.trim().split("\\s+").length >= 2) nTh++;
         String tp = Prefs.s(this, Prefs.NTFY_TOPIC);
         sumBox.setText("ntfy téma: " + (tp.isEmpty() ? "–" : tp.substring(0, Math.min(5, tp.length())) + "…") + "\n"
                 + "GitHub token: " + ok(Prefs.GH_TOKEN) + "\n"
