@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.37", FLIP_VER = "1.9.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.38", FLIP_VER = "1.9.0";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1916,7 +1916,8 @@ function tileTemps(d, h){
     const dry = x.h!=null && x.h < hmin && hrooms.includes(kk(x.n));
     html += `<span>${nm}</span><span class="r" style="color:var(${col})">${x.t!=null ? nf(x.t,1) : "–"}</span>`
       + `<span class="r" style="color:var(${dry ? "--warn" : old ? "--muted" : "--text2"})">${x.h!=null ? nf(x.h)+" %" : ""}</span>`
-      + `<span class="r" style="color:var(${x.b!=null && x.b <= 10 ? "--crit" : "--muted"})">${x.b!=null ? x.b+" %" : ""}</span>`;
+      + (()=>{ const bOld = x.b!=null && x.bt && h.now - x.bt > 3*86400;   // 5.38: poslední známá baterie; po 3 dnech bez nové šedě v závorce
+          return `<span class="r" style="color:var(${bOld ? "--muted" : x.b!=null && x.b <= 10 ? "--crit" : "--text2"})" ${x.bt ? `title="změřeno ${relDay(x.bt)} ${hmT(x.bt)}"` : ""}>${x.b!=null ? (bOld ? `(${x.b} %)` : x.b+" %") : ""}</span>`; })();
   }
   html += `</div>`;
   const dryAny = th.some(x=>x.h!=null && x.h < hmin && hrooms.includes(kk(x.n)));
@@ -1958,7 +1959,7 @@ function detTemps(body){
   const role = n => n === cfg.teplomer_baterie && !/bater/i.test(n) ? " – u solární baterie" : n === cfg.teplomer_lednice && !/lednic/i.test(n) ? " – v lednici" : "";
   const id = n => "dt_" + String(n).replace(/[^a-z0-9]/gi, "_");
   body.insertAdjacentHTML("beforeend", names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · 48 h${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
-    + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, thWhy(x) ? thWhy(x) : `${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %` : ""} · ${agoS(x.tm)}`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
+    + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, thWhy(x) ? thWhy(x) : `${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %${x.bt && Date.now()/1000 - x.bt > 3600 ? ` <span class="sub">(změřeno ${relDay(x.bt)} ${hmT(x.bt)})</span>` : ""}` : ""} · ${agoS(x.tm)}`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Teploměry Xiaomi vysílají přes Bluetooth, Flip je zachytí a pošle s ostatními daty. Který teploměr je u baterie a který v lednici, nastavíš v Nastavení (jménem jako ve Flipu). Teplota u baterie se bere pro hlídání mrazu a menší kapacitu v chladu, teplota v lednici pro upozornění nad ${lim} °C.</div>`);
   coolCard(body, d, h);
   for(const n of names){ const el = $(id(n)); if(!el) continue;

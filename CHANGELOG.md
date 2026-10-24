@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.38 – 25. 10. 2026
+- Baterie teploměrů: hlídač si pamatuje poslední známou hodnotu (Xiaomi ji vysílá jen občas) a ukazuje ji pořád; po 3 dnech bez nové hodnoty šedě v závorce. V detailu Teploty „(změřeno …)“.
+
 ## 5.37 – 25. 10. 2026
 - Chladnutí: výpadek teploměru do 70 min úsek chladnutí nepřeruší (dřív 40 min); větrání se pozná podle rychlosti poklesu od chvíle, kdy se předchozí hodnota poprvé objevila (opakovaná stará hodnota z mlčícího teploměru už nevypadá jako větrání), hranice = 2× nejrychlejší běžné chladnutí.
 

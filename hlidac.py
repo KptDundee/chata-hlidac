@@ -3385,6 +3385,15 @@ def thermo_check(data, st, now, topic, cfg):
     if not inv or ts - inv.get("t", 0) > 1800:
         return                                         # Flip mlčí – to hlídá jiná kontrola
     tw = st.setdefault("th_watch", {})
+    # 5.38: baterie teploměru se mění pomalu a Xiaomi ji vysílá jen občas → pamatovat poslední známou (bt = kdy změřena)
+    tb = st.setdefault("th_bat", {})
+    for x in inv.get("th") or []:
+        kb = key(x.get("n"))
+        if x.get("b") is not None:
+            tb[kb] = [x["b"], int(x.get("tm") or ts)]
+            x["bt"] = tb[kb][1]
+        elif kb in tb:
+            x["b"], x["bt"] = tb[kb][0], tb[kb][1]
     th = {key(x.get("n")): x for x in inv.get("th") or []}
     lim_min = cfg.get("teplomery_ticho_min") or 60
     levels = sorted((int(float(x)) for x in str(cfg.get("teplomery_baterie") or "").replace(";", ",").split(",") if x.strip()), reverse=True)
