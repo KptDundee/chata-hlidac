@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.42 – 25. 10. 2026
+- Detail Flipu: graf „Baterie routeru (Wi‑Fi)“ za 48 h, šedé pozadí = zásuvka routeru zapnutá (s Flipem 1.9), dřív = router hlásí nabíjení; čáry 40 % a 80 %. Hlídač ukládá do bodů rbc (router se nabíjí) a rcon (zásuvka routeru zapnutá).
+- Karta přejmenována na „Flip (brána) a Wi‑Fi“.
+
 ## 5.41 / Flip 1.9.2 – 25. 10. 2026
 - Nabíjení Flipu v noci na soláru: po poklesu pod 20 % se dobije jen na cíl, aby vydržel do doby, kdy panely mají přebytek (východ + 3 h, typická rychlost vybíjení za 24 h, rezerva 5 %, 25–80 %). Dřív zásuvka vypnula hned nad 20 % a celou noc se přepínala kolem 20 %. Bez spojení s hlídačem dobije na 40 %.
 - Detail Flipu: řádek „Při poklesu pod 20 % – dobít jen na X %“.

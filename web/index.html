@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.41", FLIP_VER = "1.9.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.42", FLIP_VER = "1.9.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1643,7 +1643,7 @@ function tileFlip(d, h){
   if(ph.t!=null) rows.push(["teplota baterie", `<span style="color:var(${hot?"--crit":"--text"})">${nf(ph.t,1)} °C</span>`]);
   if(ff && !ph.c) rows.push(["vydrží do", `${relDay(ff.t_empty)} ~${hmT(ff.t_empty)} <span class="sub">(−${nf(ff.rate,1)} %/h)</span>`]);
   { const rt = g.rt, rc = g.rc && !g.rc.miss ? g.rc : null; rows.push(["router M7000", rt && rt.b!=null ? `${nf(rt.b)} %${rt.c ? " ⚡" : ""}${rc ? ` <span class="sub">· ${rc.on ? "zásuvka zapnutá" : "z baterie"}</span>` : ""}` : `<span class="sub">${routerTxt(g).slice(0,70)}</span>`, rt && rt.b!=null ? 0 : 1]); }   // 4.56 / 5.33: vždy
-  return {k:"flip", icon:"📱", label:"Flip (brána)", wide:true, cls, v:`${nf(ph.b)}<small>%</small>`, st: old ? `bez dat ${agoS(g.t)}` : "teď", rows};
+  return {k:"flip", icon:"📱", label:"Flip (brána) a Wi‑Fi", wide:true, cls, v:`${nf(ph.b)}<small>%</small>`, st: old ? `bez dat ${agoS(g.t)}` : "teď", rows};
 }
 /* 4.53: lednice – kompresor (zásuvka) + teploměr, pokud je */
 function fridgeStats(d, hrs){
@@ -1704,6 +1704,7 @@ function detFlip(body){
   const d = DATA, g = d.inverter || {}, ph = g.ph || {}, ff = d.flip_fc, ch = d.flip_chg || {}, fc = g.fc && !g.fc.miss ? g.fc : null;
   const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
   body.insertAdjacentHTML("beforeend", chartCard("df_b", "Baterie Flipu", "% · 48 h · šedé pozadí = nabíjí se")
+    + chartCard("df_r", "Baterie routeru (Wi‑Fi)", "% · 48 h · šedé pozadí = zásuvka routeru zapnutá (nabíjí se)")
     + chartCard("df_t", "Teplota baterie Flipu", `°C · 48 h · červeně ${d.cfg?.flip_teplota_max_C ?? 40} °C = upozornění, nad 42 °C Flip nabíjení vypne`)
     + `<div class="card">
       ${rowI("Baterie", `${nf(ph.b)} %${ph.c?" · nabíjí se ⚡":""}`)}
@@ -1718,6 +1719,11 @@ function detFlip(body){
     <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se nabíjení řídí</b> (Flip 1.6, zásuvka (${ch.ip||d.cfg?.zasuvka_flip||9})): chata na <b>River</b> → nabíjí kdykoli; chata na <b>soláru</b> → jen když panely dodávají (přes den, ≥ 30 W). Vždy: <b>pod 20 %</b> nabíjí – na soláru bez slunce (v noci) jen na tolik, aby Flip vydržel do doby, kdy panely mají přebytek (východ + 3 h, rezerva 5 %, Flip 1.9.2), jinak <b>do 80 %</b>. <b>Od 80 %</b> vypne (Flip má limit 80 %, znovu pod 75 %), <b>nad 42 °C</b> vypne kvůli bezpečnosti (zpět pod 36 °C). Bez spojení s hlídačem nabíjí pod 40 %. Při každém vypnutí se v zásuvce nastaví odpočet „za 3 h zapnout“ – kdyby aplikace spadla, telefon se nevybije.<br><br><b>Router</b> (Flip 1.9, zásuvka (${(d.router_chg||{}).ip ?? d.cfg?.zasuvka_router ?? 5})): <b>pod 40 %</b> nabíjí, <b>od 80 %</b> zásuvku vypne a router jede z vlastní baterie. Přebytek ze slunce → nabíjí (z River ne – ta musí vydržet noc). Když baterii routeru nejde přečíst → nabíjí. Před každým vypnutím se v zásuvce nastaví odpočet „za 2 h zapnout“ (bez něj zásuvku nevypne) – vybitý router by už nikdo nezapnul, protože Flip zásuvky ovládá přes jeho Wi‑Fi. Pod 25 % přijde upozornění.</div>`);
   const bands = []; let b0 = null; for(const p of pts){ if(p.pc && b0==null) b0 = p.t; if(!p.pc && b0!=null){ bands.push([b0, p.t]); b0 = null; } } if(b0!=null) bands.push([b0, Date.now()/1000]);
   lineChart($("df_b"), pts.map(p=>({t:p.t, b:p.pb ?? null})), "b", css("--s1"), {unit:"%",dec:0,zero:true,hours:48,bands,refs:[[20,"--crit"],[80,"--muted"]]});
+  { const rb = []; let r0 = null;                                   // 5.42: pás = zásuvka routeru zapnutá (Flip 1.9), jinak router hlásí nabíjení
+    const on = p => p.rcon != null ? p.rcon : p.rbc;
+    for(const p of pts){ if(on(p) && r0==null) r0 = p.t; if(!on(p) && r0!=null){ rb.push([r0, p.t]); r0 = null; } } if(r0!=null) rb.push([r0, Date.now()/1000]);
+    if(pts.some(p=>p.rb!=null)) lineChart($("df_r"), pts.map(p=>({t:p.t, b:p.rb ?? null})), "b", css("--s3"), {unit:"%",dec:0,zero:true,hours:48,bands:rb,refs:[[40,"--warn"],[80,"--muted"]]});
+    else empty($("df_r"), "Zatím žádná data z routeru."); }
   lineChart($("df_t"), pts.map(p=>({t:p.t, c:p.pt ?? null})), "c", css("--s8"), {unit:"°C",dec:1,hours:48,refs:[[d.cfg?.flip_teplota_max_C ?? 40,"--crit"]]});
 }
 function detFridge(body){
@@ -2412,7 +2418,7 @@ const DET = {
   river: {t:"🔋 EcoFlow", s:"Přehled River – kolik mají, co dělají, jak dlouho vydrží", build:detRiver},
   plugs: {t:"🔌 River a zásuvky (původní)", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
   use:   {t:"🏠 Spotřeba celkem", s:"Co bralo a kdy – ze soláru i z River", build:b=>detUse(b,"a")},
-  flip:  {t:"📱 Flip (brána)", s:"Baterie, nabíjení, teplota", build:detFlip},
+  flip:  {t:"📱 Flip (brána) a Wi‑Fi", s:"Baterie Flipu a routeru, nabíjení, teplota", build:detFlip},
   fridge:{t:"🧊 Lednice", s:"Kompresor, teplota, spotřeba", build:detFridge},
   use_s: {t:"🔆 Spotřeba ze solární baterie", s:"Jen doba, kdy chatu napájela solární baterie (přes měnič)", build:b=>detUse(b,"s")},
   use_r: {t:"🔋 Spotřeba z River", s:"Jen doba, kdy chatu (nebo něco) napájela River", build:b=>detUse(b,"r")},

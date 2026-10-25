@@ -1416,6 +1416,10 @@ def main():
                 pt["fc"] = inv["fc"].get("on")
             if (inv.get("rt") or {}).get("b") is not None:
                 pt["rb"] = inv["rt"]["b"]      # baterie routeru (graf, později řízení nabíjení)
+                if inv["rt"].get("c") is not None:
+                    pt["rbc"] = 1 if inv["rt"]["c"] else 0      # 5.42: router se nabíjí (hlásí router)
+            if isinstance(inv.get("rc"), dict) and not inv["rc"].get("miss") and inv["rc"].get("on") is not None:
+                pt["rcon"] = 1 if inv["rc"]["on"] else 0        # 5.42: zásuvka routeru zapnutá (Flip 1.9)
             ths = {x["n"]: x["t"] for x in inv.get("th", []) if x.get("t") is not None and now.timestamp() - x["tm"] < 1800}
             if ths:
                 pt["th"] = ths                 # 1.5: teploty z teploměrů Xiaomi
