@@ -268,6 +268,15 @@ def update(data, st, now, cfg, log=print):
                        "avg": round((pts[0][1] - pts[-1][1]) / hrs, 2) if hrs > 0 else None,
                        "To": round(sum(os_) / len(os_), 1) if os_ else None, "heat": 1 if mx_rise >= 0.5 else 0})
     c["nights"] = nights
+    # 5.51: dokud se model nenaučí z úseků, hrubý odhad rychlosti přímo z nocí bez topení: k ≈ pokles/h ÷ (průměr uvnitř − venku)
+    if not ks:
+        kn = sorted(x["avg"] / ((x["Ta"] + x["Tb"]) / 2 - x["To"]) for x in nights
+                    if not x["heat"] and x.get("avg") and x["avg"] > 0 and x.get("To") is not None and (x["Ta"] + x["Tb"]) / 2 - x["To"] > 3)
+        if kn:
+            k = kn[len(kn) // 2]
+            c.update(k=round(k, 4), half_h=round(math.log(2) / k, 1), r10=round(k * 10, 2), k_src="noci", k_n=len(kn))
+            if c.get("T_now") is not None and c.get("out_now") is not None:
+                c["loss_now"] = round(k * (c["T_now"] - c["out_now"]), 2)
     c["win"] = [cfg.get("chladnuti_noc_od") or "0:00", cfg.get("chladnuti_noc_do") or "7:00"]
     for x in c["ev"]:
         x["r10"] = round(x["k"] * 10, 2)              # °C/h při rozdílu 10 °C proti venku
