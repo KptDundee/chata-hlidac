@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.41 / Flip 1.9.2 – 25. 10. 2026
+- Nabíjení Flipu v noci na soláru: po poklesu pod 20 % se dobije jen na cíl, aby vydržel do doby, kdy panely mají přebytek (východ + 3 h, typická rychlost vybíjení za 24 h, rezerva 5 %, 25–80 %). Dřív zásuvka vypnula hned nad 20 % a celou noc se přepínala kolem 20 %. Bez spojení s hlídačem dobije na 40 %.
+- Detail Flipu: řádek „Při poklesu pod 20 % – dobít jen na X %“.
+
 ## 5.40 / Flip 1.9.1 – 25. 10. 2026
 - Nabíjení routeru: chata na River už není důvod nabíjet (proud z River zadarmo není, River musí vydržet noc). Navíc nabíjí jen z přebytku ze slunce, a to jen do 100 %. Hlídač posílá v povolení -fc nový příznak „rfree“.
 

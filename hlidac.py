@@ -3228,17 +3228,36 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     # proud zadarmo (River / přebytek) → nabíjet. Prázdné = neřídit (zásuvka zůstane, jak je).
     rip = str(cfg.get("zasuvka_router") or "").strip() if cfg.get("router_nabijeni_rizeni", True) else ""
     fs = st.setdefault("flip_chg", {})
+    # 5.41: noční dobití Flipu (na soláru bez přebytku): při poklesu pod 20 % dobít jen na „ftgt“ – tolik, aby
+    # vydržel do doby, kdy panely obvykle začnou mít přebytek (východ + 3 h), s rezervou 5 %. Rychlost vybíjení
+    # = typická z posledních 24 h (flip_check), jinak 2 %/h.
+    ff = data.get("flip_fc") or {}
+    if ff.get("rate"):
+        st["flip_rate"] = ff["rate"]
+    rate = st.get("flip_rate") or 2.0
+    ftgt, f_until = None, None
+    if not (on_solar and allow):
+        r0, _ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+        light = r0 + timedelta(hours=3) if r0 else None
+        if light and now >= light:
+            r1, _ = sun_times(cfg["sirka"], cfg["delka"], now.date() + timedelta(days=1))
+            light = r1 + timedelta(hours=3) if r1 else None
+        if light:
+            hrs = (light - now).total_seconds() / 3600
+            ftgt = int(max(25, min(80, round(20 + rate * hrs + 5))))
+            f_until = int(light.timestamp())
     # 5.40: router nabíjet „zadarmo“ jen z přebytku slunce – proud z River zadarmo není (River musí vydržet noc)
     rfree = bool(on_solar and allow)
-    if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree or ts - fs.get("t", 0) >= 3600:
-        body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "rfree": rfree, "why": why, "id": int(ts)})
+    if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
+            or ts - fs.get("t", 0) >= 3600:
+        body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0, "why": why, "id": int(ts)})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
-            fs.update(allow=allow, ip=pid, rip=rip, rfree=rfree, t=int(ts), why=why)
+            fs.update(allow=allow, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, t=int(ts), why=why)
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
-    data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc")}
+    data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc"), "ftgt": fs.get("ftgt"), "f_until": f_until, "rate": rate}
     data["router_chg"] = {"ip": rip, "rc": inv.get("rc")}
     # 5.34: baterie routeru pod 25 % – vybitý router = chata bez Wi‑Fi a Flip už nic nezapne
     rb = (inv.get("rt") or {}).get("b")

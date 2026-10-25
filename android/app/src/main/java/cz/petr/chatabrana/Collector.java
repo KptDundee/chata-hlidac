@@ -522,7 +522,7 @@ public final class Collector {
      * 1.6: zásuvka s nabíječkou Flipu. Povolení posílá hlídač do ntfy <téma>-fc ({"allow", "ip", "why", "id"}):
      * na soláru nabíjet jen přes den, když panely dodávají; na River kdykoli. Místně (i bez internetu):
      * • teplota baterie ≥ 42 °C → vypnout (bezpečnost), zpět až pod 36 °C
-     * • pod 20 % → nabíjet vždy (pokud není horko)
+     * • pod 20 % → nabíjet vždy (pokud není horko) – 1.9.2: bez povolení jen na cíl „ftgt“ od hlídače (vydrží do slunce)
      * • od 80 % vypnout (telefon má limit 80 %), znovu až pod 75 %
      * • bez spojení s hlídačem (povolení starší než 3 h) → nabíjet pod 40 %
      * Při vypnutí se v zásuvce nastaví odpočet „za 3 h zapnout“ – kdyby aplikace spadla, telefon se nevybije.
@@ -550,7 +550,8 @@ public final class Collector {
                 P.edit().putBoolean("fc_allow", last.optBoolean("allow", true)).putLong("fc_t", last.optLong("id") * 1000)
                         .putString("fc_ip", last.optString("ip", "9")).putString("fc_why", last.optString("why", ""))
                         .putString("rc_ip", last.optString("rip", ""))                   // 1.9: zásuvka routeru
-                        .putBoolean("rc_free", last.optBoolean("rfree", false)).apply();  // 1.9.1: přebytek ze slunce
+                        .putBoolean("rc_free", last.optBoolean("rfree", false))           // 1.9.1: přebytek ze slunce
+                        .putInt("fc_tgt", last.optInt("ftgt", 0)).apply();                 // 1.9.2: dobít na (noc)
             }
         } catch (Exception e) { /* bez internetu – platí poslední povolení / záloha pod 40 % */ }
         String id = P.getString("fc_ip", "9");
@@ -573,11 +574,19 @@ public final class Collector {
         boolean isOn = cur.optInt("on", 0) == 1, want;
         String why;
         if (hot) { want = false; why = String.format(Locale.US, "baterie Flipu %.1f °C – bezpečnost", tempC); }
-        else if (pct <= 20) { want = true; why = "pod 20 %"; }
+        else if (pct <= 20) { want = true; why = "pod 20 %"; P.edit().putBoolean("fc_low", true).apply(); }
         else if (pct >= 80) { want = false; why = "nabito 80 %"; }
         else if (pct >= 75 && !isOn) { want = false; why = "nabito (pod 75 % znovu)"; }
-        else if (fresh) { want = P.getBoolean("fc_allow", true); why = P.getString("fc_why", ""); }
+        else if (fresh && P.getBoolean("fc_allow", true)) { want = true; why = P.getString("fc_why", ""); }
+        else if (P.getBoolean("fc_low", false) && isOn) {
+            // 1.9.2: po poklesu pod 20 % dobít jen na cíl od hlídače (vydrží do slunce), ne do plna; bez spojení na 40 %
+            int tgt = fresh && P.getInt("fc_tgt", 0) > 0 ? P.getInt("fc_tgt", 0) : 40;
+            want = pct < tgt;
+            why = want ? "dobíjí na " + tgt + " % (vydrží do slunce)" : "dobito na " + tgt + " % – vydrží do slunce";
+        }
+        else if (fresh) { want = false; why = P.getString("fc_why", ""); }
         else { want = pct < 40; why = "bez spojení s hlídačem – nabíjí pod 40 %"; }
+        if (!want || pct >= 80) P.edit().putBoolean("fc_low", false).apply();
         if (want != isOn) {
             String ip = plugMap(email, pass).get(id);
             if (ip == null) ip = id.matches("\\d+") ? null : id;

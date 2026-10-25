@@ -255,3 +255,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.39**: `river_supply` (větev EcoFlow): průměr `avg` jen ze souvislého úseku bodů s `rv[k=SN].o` > 3 W (od konce, max 3 h; body bez EcoFlow se přeskočí); `now` = aktuální out − in, `t0`, `wh` jako u zásuvkové větve. Hodinky 🏠 = `rv.now`.
 
 **5.40 / Flip 1.9.1**: povolení -fc má `rfree` = chata na soláru a přebytek (`on_solar and allow`); Flip `rc_free` → router „zadarmo“ jen při `rfree` a b < 100. Chata na River → router jen podle 40 / 80 %.
+
+**5.41 / Flip 1.9.2**: `flip_charge_cmd` – když ne (na soláru a přebytek): `ftgt` = clamp(20 + rate·h + 5, 25, 80), h = do (východ + 3 h), rate = `flip_fc.rate` (`st.flip_rate`, jinak 2 %/h); v -fc `ftgt`, znovu poslat při změně ≥ 5 %. `data.flip_chg.ftgt/f_until/rate`. Flip: `fc_low` (nastaví se pod 20 %), dokud zásuvka zapnutá a není povolení → nabíjet do `fc_tgt` (bez spojení 40 %), pak vypnout a `fc_low` smazat.
