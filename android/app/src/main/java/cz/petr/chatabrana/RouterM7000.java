@@ -30,7 +30,9 @@ import javax.crypto.spec.SecretKeySpec;
 public final class RouterM7000 {
     private RouterM7000() {}
 
-    public static final class Result { public Integer pct; public Boolean charging; public String err; }
+    public static final class Result { public Integer pct; public Boolean charging; public String err;
+        public JSONObject net;                                         // 1.9.3: přenesená data (wan.*Statistics) + seznam klíčů
+    }
 
     private static final String AB = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -62,6 +64,32 @@ public final class RouterM7000 {
             // 4) stav
             try {
                 JSONObject st = call(s, base, "/cgi-bin/web_cgi", new JSONObject().put("module", "status").put("action", 0).put("token", token), false);
+                // 1.9.3: přenesená data – wan.totalStatistics / dailyStatistics / … (bajty); a pro jistotu názvy klíčů,
+                // ať je vidět, co router posílá, kdyby se to jmenovalo jinak
+                try {
+                    JSONObject net = new JSONObject();
+                    JSONObject wan = st.optJSONObject("wan");
+                    if (wan != null) {
+                        java.util.Iterator<String> it = wan.keys();
+                        StringBuilder wk = new StringBuilder();
+                        while (it.hasNext()) {
+                            String k = it.next(); wk.append(k).append(',');
+                            String kl = k.toLowerCase(java.util.Locale.ROOT);
+                            if (kl.contains("statistic") || kl.contains("flow") || kl.contains("speed")) {
+                                double dv = wan.optDouble(k, Double.NaN);
+                                if (!Double.isNaN(dv)) net.put(k, dv);
+                            }
+                        }
+                        net.put("_wk", trim(wk.toString()));
+                    }
+                    java.util.Iterator<String> it2 = st.keys();
+                    StringBuilder tk = new StringBuilder();
+                    while (it2.hasNext()) tk.append(it2.next()).append(',');
+                    net.put("_k", trim(tk.toString()));
+                    JSONObject cd = st.optJSONObject("connectedDevices");
+                    if (cd != null && cd.has("number")) net.put("dev", cd.optInt("number"));
+                    r.net = net;
+                } catch (Exception ignored) { }
                 JSONObject bat = st.optJSONObject("battery");
                 if (bat == null) { r.err = "router: ve stavu není baterie (" + trim(st.toString()) + ")"; return r; }
                 double pv = bat.has("voltage") ? bat.optDouble("voltage", -1) : bat.optDouble("percent", -1);   // M7000: „voltage“ = %

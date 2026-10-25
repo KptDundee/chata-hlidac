@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.44 / Flip 1.9.3 – 25. 10. 2026
+- Data internetu: Flip čte z routeru M7000 přenesená data (wan.totalStatistics a další čítače, počet připojených zařízení) a měří, kolik dat přenesl celý telefon přes Wi‑Fi a z toho aplikace Brána. Hlídač počítá přírůstky po dnech (days.net = rt / ph / app).
+- Detail „Flip (brána) a Wi‑Fi“: karta „Data internetu – dnes“ (router, z toho Flip, z toho Brána, ostatní = kamery a jiná zařízení) a graf dat za den (14 dní). Rozbalovací „Co router posílá“ pro kontrolu názvů čítačů.
+
 ## 5.43 – 25. 10. 2026
 - Upozornění s radou pro chatu na soláru se nepošlou, když chata jede z River (nová kontrola cabin_on_river, s pamětí 30 min):
   - „Solární baterie pod 50 # / 30 # – omez odběr nebo přepni na River“ – počká, až chata zase pojede ze soláru;

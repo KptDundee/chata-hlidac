@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.43", FLIP_VER = "1.9.2";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.44", FLIP_VER = "1.9.3";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1700,11 +1700,28 @@ function routerTxt(g){
   if(!v18) return `nečte se – potřeba Flip ${FLIP_VER} (teď ${g.av||"?"})`;
   return "nečte se – v aplikaci Brána (Upravit) vyplň „Heslo správce routeru“";
 }
+/* 5.44: data internetu na chatě (router M7000 – mobilní data) a kolik z toho Flip / aplikace Brána */
+function netCard(d){
+  const n = d.net, MB = b => b==null ? "–" : b >= 1e9 ? `${nf(b/1e9,2)} GB` : `${nf(b/1e6, b < 1e7 ? 1 : 0)} MB`;
+  if(!n) return `<div class="card"><h2 style="margin:0 0 6px">📶 Data internetu</h2><span class="sub">Měří Flip ${FLIP_VER} – po jeho nahrání se tady objeví, kolik dat přenesl router a kolik z toho Flip.</span></div>`;
+  const x = n.day || {}, other = x.rt!=null && x.ph!=null ? Math.max(0, x.rt - x.ph) : null;
+  const vals = n.info && n.info.vals ? Object.entries(n.info.vals).map(([k,v])=>`${k}=${v}`).join(", ") : "";
+  return `<div class="card"><h2 style="margin:0 0 6px">📶 Data internetu – dnes</h2>
+    ${rowI("Router celkem (internet chaty)", x.rt!=null ? MB(x.rt) : `<span class="sub">router čítač nehlásí${n.info ? "" : " – čeká na Flip 1.9.3"}</span>`)}
+    ${rowI("z toho Flip (telefon přes Wi‑Fi)", MB(x.ph))}
+    ${rowI("&nbsp;&nbsp;z toho aplikace Brána", MB(x.app))}
+    ${other!=null ? rowI("ostatní (kamery, jiná zařízení)", MB(other)) : ""}
+    ${n.dev!=null ? rowI("Připojená zařízení k Wi‑Fi", `${n.dev}`) : ""}
+    ${n.info ? `<details style="margin-top:6px"><summary class="sub" style="cursor:pointer">Co router posílá (pro kontrolu)</summary><div class="sub" style="font-size:11.5px;word-break:break-all;margin-top:4px">wan: ${escH(n.info.wk||"–")}<br>stav: ${escH(n.info.k||"–")}${vals ? `<br>${escH(vals)}` : ""}</div></details>` : ""}
+  </div>`;
+}
 function detFlip(body){
   const d = DATA, g = d.inverter || {}, ph = g.ph || {}, ff = d.flip_fc, ch = d.flip_chg || {}, fc = g.fc && !g.fc.miss ? g.fc : null;
   const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
   body.insertAdjacentHTML("beforeend", chartCard("df_b", "Baterie Flipu", "% · 48 h · šedé pozadí = nabíjí se")
     + chartCard("df_r", "Baterie routeru (Wi‑Fi)", "% · 48 h · šedé pozadí = zásuvka routeru zapnutá (nabíjí se)")
+    + netCard(d)
+    + chartCard("df_net", "Data za den – router (internet chaty)", "MB · 14 dní · po klepnutí na sloupec i kolik z toho Flip")
     + chartCard("df_t", "Teplota baterie Flipu", `°C · 48 h · červeně ${d.cfg?.flip_teplota_max_C ?? 40} °C = upozornění, nad 42 °C Flip nabíjení vypne`)
     + `<div class="card">
       ${rowI("Baterie", `${nf(ph.b)} %${ph.c?" · nabíjí se ⚡":""}`)}
@@ -1724,6 +1741,10 @@ function detFlip(body){
     for(const p of pts){ if(on(p) && r0==null) r0 = p.t; if(!on(p) && r0!=null){ rb.push([r0, p.t]); r0 = null; } } if(r0!=null) rb.push([r0, Date.now()/1000]);
     if(pts.some(p=>p.rb!=null)) lineChart($("df_r"), pts.map(p=>({t:p.t, b:p.rb ?? null})), "b", css("--s3"), {unit:"%",dec:0,zero:true,hours:48,bands:rb,refs:[[40,"--warn"],[80,"--muted"]]});
     else empty($("df_r"), "Zatím žádná data z routeru."); }
+  { const D = d.days||{}, dk = Object.keys(D).sort().filter(k=>D[k].net && (D[k].net.rt!=null || D[k].net.ph!=null)).slice(-14);   // 5.44
+    if(dk.length) barChart($("df_net"), dk.map(k=>({k, v: (D[k].net.rt ?? D[k].net.ph ?? 0)/1e6, p: (D[k].net.ph||0)/1e6})), "v", css("--s3"),
+      {unit:"MB", dec:0, label:k=>dayLabel(k), tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,0)} MB</b> router · Flip ${nf(q.p,0)} MB`});
+    else empty($("df_net"), "Zatím žádná data – po nahrání Flipu 1.9.3 se začnou počítat."); }
   lineChart($("df_t"), pts.map(p=>({t:p.t, c:p.pt ?? null})), "c", css("--s8"), {unit:"°C",dec:1,hours:48,refs:[[d.cfg?.flip_teplota_max_C ?? 40,"--crit"]]});
 }
 function detFridge(body){

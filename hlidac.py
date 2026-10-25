@@ -1552,6 +1552,7 @@ def main():
                          ("River po dnech", lambda: river_days(data, now, cfg)),
                          ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
                          ("Teploměry", lambda: thermo_check(data, st, now, topic, cfg)),
+                         ("Data internetu", lambda: net_usage(data, st, now, cfg)),
                          ("Chladnutí pokoje", lambda: chladnuti.update(data, st, now, cfg)),
                          ("Plné nabití", lambda: full_charge_check(data, st, now, topic, cfg)),
                          ("Flip – výdrž", lambda: flip_check(data, st, now, topic, cfg)),
@@ -2301,6 +2302,51 @@ def cabin_on_river(data, cfg, now, st=None):
     return on
 
 
+def net_usage(data, st, now, cfg):
+    """5.44: kolik dat přenesl router M7000 (mobilní internet chaty) a kolik z toho Flip (celý telefon přes Wi‑Fi,
+    z toho aplikace Brána). Router: čítač wan.totalStatistics (bajty), Flip: TrafficStats od zapnutí telefonu.
+    Přírůstky po dnech → days[k]["net"] = {rt, ph, app} (bajty); při restartu / vynulování čítače se bere nová hodnota.
+    data["net"] = {dnes…, info: klíče, které router posílá}."""
+    inv = data.get("inverter") or {}
+    ts = now.timestamp()
+    if not inv or ts - inv.get("t", 0) > 1800 or inv.get("t") == st.get("net_t"):
+        return
+    st["net_t"] = inv.get("t")
+    c = st.setdefault("netc", {})
+    day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {}).setdefault("net", {})
+
+    def add(name, cur, reset=False):
+        if cur is None:
+            return
+        last = c.get(name)
+        if last is None:
+            d = 0                                   # první hodnota – jen zapamatovat
+        elif reset or cur < last:
+            d = cur                                 # restart / vynulování čítače
+        else:
+            d = cur - last
+        c[name] = cur
+        if d > 0:
+            day[name] = round(day.get(name, 0) + d)
+
+    net = (inv.get("rt") or {}).get("net") or {}
+    tot = next((net[k] for k in net if k.lower() == "totalstatistics"), None)
+    if tot is None:
+        tot = next((net[k] for k in net if "total" in k.lower() and isinstance(net[k], (int, float))), None)
+    add("rt", tot)
+    nb = inv.get("nb") or {}
+    reboot = nb.get("up") is not None and c.get("up") is not None and nb["up"] < c["up"]
+    if nb.get("up") is not None:
+        c["up"] = nb["up"]
+    if nb.get("ph") is not None:
+        add("ph", nb["ph"] - (nb.get("mob") or 0), reboot)      # jen Wi‑Fi (bez mobilních dat Flipu)
+    add("app", nb.get("app"), reboot)
+    data["net"] = {"day": dict(day), "dev": net.get("dev"),
+                   "rt_day": next((net[k] for k in net if k.lower() == "dailystatistics"), None),
+                   "info": {"wk": net.get("_wk"), "k": net.get("_k"),
+                            "vals": {k: v for k, v in net.items() if not k.startswith("_")}} if net else None}
+
+
 def ips(txt):
     import re
     return [x for x in re.split(r"[,;\s]+", str(txt or "")) if x]
@@ -2342,7 +2388,11 @@ def inv_from_msg(last, now, cfg=None):
     else:
         inv.pop("rc", None)
     if isinstance(body.get("rt"), dict):                 # 1.7: baterie routeru M7000 (jen čtení)
-        inv["rt"] = {k: body["rt"].get(k) for k in ("b", "c", "err") if body["rt"].get(k) is not None}
+        inv["rt"] = {k: body["rt"].get(k) for k in ("b", "c", "err", "net") if body["rt"].get(k) is not None}
+    if isinstance(body.get("nb"), dict):                 # 1.9.3: data přenesená Flipem (aplikace Brána / celý telefon)
+        inv["nb"] = {k: body["nb"].get(k) for k in ("up", "app", "ph", "mob") if body["nb"].get(k) is not None}
+    else:
+        inv.pop("nb", None)
     th = body.get("th")                                   # 1.5: teploměry Xiaomi [{n, t, h, b, age}]
     if isinstance(th, list):
         import re as _re                                  # 5.10: jméno bez čárek / středníků na krajích („, ,Lednice“)

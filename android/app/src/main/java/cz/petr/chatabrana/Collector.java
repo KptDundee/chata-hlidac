@@ -209,6 +209,7 @@ public final class Collector {
                 RouterM7000.Result rr = RouterM7000.read(gateway(), rpass);
                 JSONObject rt = new JSONObject();
                 if (rr.pct != null) { rt.put("b", rr.pct); if (rr.charging != null) rt.put("c", rr.charging ? 1 : 0); sum.append(", router ").append(rr.pct).append(" %"); }
+                if (rr.net != null) rt.put("net", rr.net);                 // 1.9.3: data přenesená routerem
                 if (rr.err != null) {
                     rt.put("err", rr.err);
                     if (!rr.err.equals(Prefs.get(ctx).getString("rt_err", ""))) Prefs.log(ctx, "Router: " + rr.err);
@@ -223,6 +224,18 @@ public final class Collector {
             }
             if (o.has("th")) sum.append(", teploměry ").append(o.getJSONArray("th").length());
             o.put("av", appVersion());
+            // 1.9.3: kolik dat přenesla aplikace Brána a celý telefon (bajty od zapnutí telefonu; hlídač počítá přírůstky)
+            try {
+                int uid = android.os.Process.myUid();
+                long ar = android.net.TrafficStats.getUidRxBytes(uid), at = android.net.TrafficStats.getUidTxBytes(uid);
+                long pr = android.net.TrafficStats.getTotalRxBytes(), pt = android.net.TrafficStats.getTotalTxBytes();
+                long mr = android.net.TrafficStats.getMobileRxBytes(), mt = android.net.TrafficStats.getMobileTxBytes();
+                JSONObject nb = new JSONObject().put("up", android.os.SystemClock.elapsedRealtime() / 1000);
+                if (ar >= 0 && at >= 0) nb.put("app", ar + at);
+                if (pr >= 0 && pt >= 0) nb.put("ph", pr + pt);
+                if (mr >= 0 && mt >= 0) nb.put("mob", mr + mt);
+                o.put("nb", nb);
+            } catch (Exception ignored) { }
             // je Flip na Wi‑Fi? (po restartu routeru se umí přepnout na mobilní data a pak nevidí zásuvky)
             try {
                 android.net.ConnectivityManager cm = ctx.getSystemService(android.net.ConnectivityManager.class);
