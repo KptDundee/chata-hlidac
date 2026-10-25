@@ -259,3 +259,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.41 / Flip 1.9.2**: `flip_charge_cmd` – když ne (na soláru a přebytek): `ftgt` = clamp(20 + rate·h + 5, 25, 80), h = do (východ + 3 h), rate = `flip_fc.rate` (`st.flip_rate`, jinak 2 %/h); v -fc `ftgt`, znovu poslat při změně ≥ 5 %. `data.flip_chg.ftgt/f_until/rate`. Flip: `fc_low` (nastaví se pod 20 %), dokud zásuvka zapnutá a není povolení → nabíjet do `fc_tgt` (bez spojení 40 %), pak vypnout a `fc_low` smazat.
 
 **5.42**: body `rbc` (router hlásí nabíjení), `rcon` (zásuvka routeru zapnutá, `inverter.rc.on`). Web `detFlip` graf `df_r` z `rb`, pásy z `rcon` (jinak `rbc`).
+
+**5.43**: `cabin_on_river(data, cfg, now, st)` – měnič ≤ 3 W a zásuvka River > 3 W, nebo `river_sup.w`; paměť `st.onriv_t` 30 min (zruší se hned, když měnič dodává > 3 W). Použito v `hash_alert` (nic), `check` – úrovně napětí (warn přeskočí, crit/off jiný text), noční předpověď (f = None). `other_load` vrací None při mw ≤ 3; `other_load_check` bere jen body s mw > 3, jednorázově (`st.on_fix1`) smaže `days.on` za 14 dní.

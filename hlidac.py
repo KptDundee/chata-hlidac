@@ -2236,6 +2236,8 @@ def other_load(data, st, cfg, now, topic, inv, ra_on):
     """Ostatní odběr za měničem (světla, kamery, wifi) = zásuvka měniče − lednice (bez doby nabíjení River)."""
     if not inv or now.timestamp() - inv["t"] > 1200 or inv.get("mw") is None or ra_on:
         return None
+    if (inv.get("mw") or 0) <= 3:
+        return None                              # 5.43: měnič nedodává (chata na River) – ostatní odběr za měničem nejde spočítat
     fr = next((p for p in inv.get("tp", []) if p.get("ip") == str(cfg.get("zasuvka_lednice") or "").strip()), None)
     if not fr or fr.get("w") is None:
         return None
@@ -2247,6 +2249,12 @@ def other_load_check(data, st, cfg, now, topic):
     """Noční medián ostatního odběru (0–5 h) po dnech; upozornit na výraznou změnu."""
     pts = data.get("points", [])
     today = now.strftime("%Y-%m-%d")
+    if not st.get("on_fix1"):                    # 5.43: noci na River dávaly 0 W – přepočítat dny, pro které máme body
+        cut = (now - timedelta(days=14)).strftime("%Y-%m-%d")
+        for k, d_ in data["days"].items():
+            if k >= cut:
+                d_.pop("on", None)
+        st["on_fix1"] = 1
     for k in sorted(data["days"])[-8:]:
         day = data["days"][k]
         if "on" in day:
@@ -2254,7 +2262,8 @@ def other_load_check(data, st, cfg, now, topic):
         a0 = datetime.strptime(k, "%Y-%m-%d").replace(tzinfo=TZ).timestamp()
         if k == today and now.hour < 5:
             continue
-        vals = sorted(p["ow"] for p in pts if a0 <= p["t"] < a0 + 5 * 3600 and p.get("ow") is not None)
+        vals = sorted(p["ow"] for p in pts if a0 <= p["t"] < a0 + 5 * 3600 and p.get("ow") is not None
+                      and (p.get("mw") or 0) > 3)        # 5.43: jen body, kdy měnič dodával (ne chata na River)
         if len(vals) >= 12:
             day["on"] = vals[len(vals) // 2]
     if not cfg.get("ostatni_hlidat"):
@@ -2271,6 +2280,25 @@ def other_load_check(data, st, cfg, now, topic):
              f"Ostatní odběr za měničem dnes mezi 0 a 5 h ~{fmt(cur)} W, obvykle ~{fmt(med)} W."
              + (" Nezůstalo něco zapnuté?" if cur > med else " Nevypadla kamera nebo wifi?"), 3, "bulb")
         st["on_sent"] = k
+
+
+def cabin_on_river(data, cfg, now, st=None):
+    """5.43: chata teď jede z River (měnič nedodává, některá zásuvka River ano, nebo EcoFlow hlásí River napájí chatu).
+    S pamětí 30 min (st["onriv_t"]), ať krátký výkyv odběru nespustí upozornění určená pro chatu na soláru."""
+    inv = data.get("inverter") or {}
+    ts = now.timestamp()
+    fresh = inv and ts - inv.get("t", 0) < 1800
+    rids = ips(cfg.get("zasuvky_river"))
+    on = bool(fresh and (inv.get("mw") or 0) <= 3 and any(
+        str(p.get("ip")) in rids and (p.get("w") or 0) > 3 for p in inv.get("tp", [])))
+    on = on or bool((data.get("river_sup") or {}).get("w"))
+    if st is not None:
+        if on:
+            st["onriv_t"] = int(ts)
+        elif fresh and (inv.get("mw") or 0) > 3:
+            st.pop("onriv_t", None)                   # měnič dodává = chata na soláru – hned
+        on = on or ts - st.get("onriv_t", 0) < 1800
+    return on
 
 
 def ips(txt):
@@ -3694,6 +3722,8 @@ def hash_alert(data, st, now, topic, cfg):
     if pct >= 60 and sent:
         st["hash_sent"] = []
         return
+    if cabin_on_river(data, cfg, now, st):
+        return                                   # 5.43: chata jede z River – solární baterii nevybíjí, rada nedává smysl
     for lim in lims:
         if pct < lim and lim not in sent:
             ntfy(topic, f"🔋 Solární baterie pod {lim} #",
@@ -4523,12 +4553,19 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
          "Napětí pod {lim} V (~50 %). Šetři spotřebu.", 4),
     )
     worse = False
+    riv = cabin_on_river(data_ref, cfg, now, st) if data_ref else False      # 5.43
     for key, name, title, text, prio in levels:
         lim, reset = cfg[name + "_V"], cfg[name + "_reset_V"]
         if lim is None:
             continue
         st[key + "_n"] = min(st.get(key + "_n", 0) + 1, 2) if bv < lim else 0
         if st[key + "_n"] >= 2 and not st.get(key + "_sent"):
+            if riv and key == "warn":
+                continue                         # chata na River: „šetři spotřebu“ nedává smysl (pošle se po návratu na solár)
+            if riv:
+                title = f"⚠️ Solární baterie pod {fmt(lim, 2)} V, i když chata jede z River"
+                text = ("Chata jede z River, a solární baterie přesto klesla pod {lim} V – něco ji vybíjí "
+                        "(měnič zapnutý naprázdno?) nebo je poškozená.")
             if not worse:
                 ntfy(topic, title, text.format(lim=fmt(lim, 2), reset=fmt(reset or lim, 2)) + "\n" + line, prio, "warning")
             st[key + "_sent"] = True
@@ -4544,6 +4581,8 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
             st["night_warned"] = False
             st["night_cut"] = False
         f = st.get("_forecast")
+        if data_ref and cabin_on_river(data_ref, cfg, now, st):
+            f = None                             # 5.43: chata jede z River – „solár nevydrží / sniž odběr“ nedává smysl
         hold = bool(f and f.get("ok_base") and f.get("cut_by") and now.timestamp() < f["cut_by"] - 600)
         if night and f and f.get("t_crit") and hold and not st.get("night_cut") and not st.get("night_warned"):
             # 4.50: nejdřív rada (zvýšený odběr je možná jen chvilkový), „nevydrží“ až když se do té doby nesníží

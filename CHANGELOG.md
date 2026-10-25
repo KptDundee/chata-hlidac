@@ -3,6 +3,14 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.43 – 25. 10. 2026
+- Upozornění s radou pro chatu na soláru se nepošlou, když chata jede z River (nová kontrola cabin_on_river, s pamětí 30 min):
+  - „Solární baterie pod 50 # / 30 # – omez odběr nebo přepni na River“ – počká, až chata zase pojede ze soláru;
+  - „⚠️ Solární baterie slábne – šetři spotřebu“ – stejně;
+  - „🛑 Odpoj spotřebiče“ / „Měnič se vypíná“ – místo toho „Solární baterie pod X V, i když chata jede z River“ (něco ji vybíjí);
+  - noční „sniž odběr do …“ / „solár do rána nevydrží – přepni na River“.
+- Ostatní odběr (světla, kamery, wifi): noci na River dávaly 0 W (měnič nedodává) → falešné „šlo míň proudu“ a nižší běžný odběr v dalších výpočtech. Teď jen z doby, kdy měnič dodává; posledních 14 dní přepočítáno.
+
 ## 5.42 – 25. 10. 2026
 - Detail Flipu: graf „Baterie routeru (Wi‑Fi)“ za 48 h, šedé pozadí = zásuvka routeru zapnutá (s Flipem 1.9), dřív = router hlásí nabíjení; čáry 40 % a 80 %. Hlídač ukládá do bodů rbc (router se nabíjí) a rcon (zásuvka routeru zapnutá).
 - Karta přejmenována na „Flip (brána) a Wi‑Fi“.
