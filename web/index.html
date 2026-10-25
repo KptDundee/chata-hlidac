@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.47", FLIP_VER = "1.9.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.48", FLIP_VER = "1.9.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -716,7 +716,13 @@ function hideAllTips(){ hideTip(); document.querySelectorAll("svg .ch, svg .cd")
 document.addEventListener("pointerdown", e=>{ if(!e.target.closest || !e.target.closest("svg")) hideAllTips(); }, true);
 addEventListener("scroll", hideAllTips, {passive:true, capture:true});
 let TIPOFF=false;   // při posouvání stránky prstem přes graf hodnotu neukazovat
-function showTip(ev,html){if(TIPOFF)return;tip.innerHTML=html;tip.style.opacity=1;const r=tip.getBoundingClientRect();let px=ev.clientX+12,py=ev.clientY-r.height-12;if(px+r.width>innerWidth-8)px=ev.clientX-r.width-12;if(py<8)py=ev.clientY+16;tip.style.left=px+"px";tip.style.top=py+"px";}
+function showTip(ev,html){if(TIPOFF)return;tip.innerHTML=html;tip.style.opacity=1;const r=tip.getBoundingClientRect();
+  if(ev.pointerType && ev.pointerType!=="mouse"){   // 5.48: prst – bublina nad graf (nad prstem, ne pod ním), vodorovně u prstu
+    const sv=ev.target.closest && ev.target.closest("svg"), g=sv ? sv.getBoundingClientRect() : {top:ev.clientY-90};
+    let px=Math.min(Math.max(8, ev.clientX-r.width/2), innerWidth-r.width-8), py=g.top-r.height-8;
+    if(py<8) py=Math.max(8, ev.clientY-r.height-70);
+    tip.style.left=px+"px"; tip.style.top=py+"px"; return; }
+  let px=ev.clientX+12,py=ev.clientY-r.height-12;if(px+r.width>innerWidth-8)px=ev.clientX-r.width-12;if(py<8)py=ev.clientY+16;tip.style.left=px+"px";tip.style.top=py+"px";}
 function hideTip(){tip.style.opacity=0;}
 
 /* východ / západ slunce (NOAA, jako hlídač) → [t_východ, t_západ] v sekundách; null při polárním dni/noci */
@@ -1960,8 +1966,10 @@ function coolCard(body, d, h){
   const c = d.cool; if(!c) return;
   const ev = (c.ev||[]).slice().reverse(), learn = c.n < c.need, W = c.win || ["0:00","7:00"];
   const r10 = v => `${nf(v,1)} °C/h`;
-  const evRows = ev.length ? `<table class="ut" style="width:100%;margin-top:6px;font-size:13px"><tr><th style="text-align:left">noc</th><th>z → na</th><th>hodin</th><th>venku</th><th>na 10 °C</th></tr>${ev.map(x=>`<tr><td style="text-align:left">${relDay(x.ta)} ${hmT(x.ta)}${x.live?" · chladne":""}${x.win?` · 🪟 ${x.win}×`:""}</td><td>${nf(x.Ta,1)} → ${nf(x.Tb,1)} °C</td><td>${nf(x.h,1)}</td><td>${nf(x.To,1)} °C</td><td>${nf(x.r10 ?? x.k*10,2)}</td></tr>`).join("")}</table>` : `<div class="sub">Zatím žádná noc (${W[0]}–${W[1]}) s plynulým chladnutím aspoň 3 h.</div>`;
+  const evRows = ev.length ? `<table class="ut" style="width:100%;margin-top:6px;font-size:13px"><tr><th style="text-align:left">noc</th><th>z → na</th><th>hodin</th><th>venku</th><th>°C/h</th><th>na 10 °C</th></tr>${ev.map(x=>`<tr><td style="text-align:left">${relDay(x.ta)} ${hmT(x.ta)}${x.live?" · chladne":""}${x.win?` · 🪟 ${x.win}×`:""}</td><td>${nf(x.Ta,1)} → ${nf(x.Tb,1)} °C</td><td>${nf(x.h,1)}</td><td>${nf(x.To,1)} °C</td><td>${x.avg!=null ? nf(x.avg,2) : "–"}</td><td>${nf(x.r10 ?? x.k*10,2)}</td></tr>`).join("")}</table>` : `<div class="sub">Zatím žádná noc (${W[0]}–${W[1]}) s plynulým chladnutím aspoň 3 h.</div>`;
   let rows = "";
+  const last = ev.find(x=>!x.live && x.avg!=null);      // 5.48: nejnázornější – jak rychle klesala minulá noc
+  if(last) rows += rowI(`Noc ${relDay(last.ta)} ${hmT(last.ta)}–${hmT(last.tb)}`, `<b>klesala ${nf(last.avg,1)} °C za hodinu</b> <span class="sub">(${nf(last.Ta,1)} → ${nf(last.Tb,1)} °C, venku ~${nf(last.To,0)} °C)</span>`);
   if(c.T_now!=null) rows += rowI("Teď", `${nf(c.T_now,1)} °C${c.out_now!=null ? ` · venku ${nf(c.out_now,1)} °C · rozdíl ${nf(c.T_now-c.out_now,1)} °C` : ""}${c.trend!=null ? ` <span class="sub">(za hodinu ${c.trend>0?"+":""}${nf(c.trend,1)} °C)</span>` : ""}`);
   if(c.live) rows += rowI("Právě teď chladne", `${r10(c.live.rate)} <span class="sub">= ${nf(c.live.r10,2)} °C/h na 10 °C rozdílu</span>`);
   if(c.r10!=null){
@@ -1977,9 +1985,9 @@ function coolCard(body, d, h){
   }
   body.insertAdjacentHTML("beforeend", `<div class="card"><h2 style="margin:0 0 6px">🌡️ Chladnutí – ${escH(c.room)}</h2>${rows}${evRows}</div>`
     + chartCard("dt_out", "Venku – Hrdlořezy", "°C · 48 h (Open-Meteo)")
-    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to číst:</b> pokoj chladne tím rychleji, čím větší je rozdíl proti venku. „0,8 °C za hodinu na 10 °C rozdílu“ znamená: při 20 °C uvnitř a 10 °C venku klesá ~0,8 °C/h, při 20 °C a 0 °C venku (rozdíl 20) ~1,6 °C/h; jak se teploty přibližují, chladnutí zpomaluje. Čím menší číslo, tím líp chata drží teplo. Učí se jen z noci ${W[0]}–${W[1]} (přes den se topí udržovacím topením) a jen z plynulého poklesu – hodinu po dotopení a větrání (prudký pokles, 🪟) vynechá. Předpověď na ráno až od ${c.need} nocí; kamna po dotopení ještě hřejí, takže skutečnost bývá spíš o něco tepleji.</div>`);
+    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to číst:</b> pokoj chladne tím rychleji, čím větší je rozdíl proti venku. „0,8 °C za hodinu na 10 °C rozdílu“ znamená: při 20 °C uvnitř a 10 °C venku klesá ~0,8 °C/h, při 20 °C a 0 °C venku (rozdíl 20) ~1,6 °C/h; jak se teploty přibližují, chladnutí zpomaluje. Čím menší číslo, tím líp chata drží teplo. „°C/h“ v tabulce = skutečný průměrný pokles té noci. Číslo „na 10 °C“ se bere z posledních 3 h noci – na začátku ještě hřejí kamna, takže tam teplota klesá pomaleji, než odpovídá chatě. Učí se jen z noci ${W[0]}–${W[1]} (přes den se topí udržovacím topením) a jen z plynulého poklesu – hodinu po dotopení a větrání (prudký pokles, 🪟) vynechá. Předpověď na ráno až od ${c.need} nocí; kamna po dotopení ještě hřejí, takže skutečnost bývá spíš o něco tepleji.</div>`);
   const el = $("dt_out"), ou = (c.out||[]).filter(([t])=>t <= h.now);
-  if(el && ou.length) lineChart(el, ou.map(([t,v])=>({t, c:v})), "c", css("--s3"), {unit:"°C",dec:1,hours:48});
+  if(el && ou.length) lineChart(el, ou.map(([t,v])=>({t, c:v})), "c", css("--s3"), {unit:"°C",dec:1,hours:48,gap:7300});   // 5.48: body po hodině
   else if(el) empty(el, c.out_err ? `Venkovní teplotu nejde stáhnout: ${escH(String(c.out_err).slice(0,140))}` : "Venkovní teplota zatím nepřišla – zkusí se znovu do hodiny.");
 }
 function detTemps(body){
@@ -2304,7 +2312,10 @@ function detRiver(body){
   // 2) grafy
     + segHtml()
     + (long ? "" : chartCard("rv_tl", "Co se dělo", `plný pruh = napájí chatu · světlejší = napájí jen spotřebič (chata jela ze soláru) · <span style="color:var(--s7)">■</span> generátor běží`))
-    + (anyEF ? (d.rivers||[]).filter(r=>!r.gen).map(r=>chartCard("rv_soc_"+String(r.sn||"").slice(-6), `${escH(pn(r.name)||"River")} – kolik má v baterii`, "% nabití, jak ho ukazuje displej River a aplikace EcoFlow · 100 % = plná")).join("") : "")
+    + (anyEF ? (d.rivers||[]).filter(r=>!r.gen).map(r=>{ const k6 = String(r.sn||"").slice(-6);
+        const has = r.soc!=null || pts.some(p=>(p.rv||[]).some(q=>q.k===k6 && q.s!=null));   // 5.48: bez % od EcoFlow jen věta
+        return has ? chartCard("rv_soc_"+k6, `${escH(pn(r.name)||"River")} – kolik má v baterii`, "% nabití, jak ho ukazuje displej River a aplikace EcoFlow · 100 % = plná")
+          : `<div class="card"><b>${escH(pn(r.name)||"River")} – kolik má v baterii</b><div class="sub" style="margin-top:4px">Nemáme – EcoFlow u této River nabití % neposílá${r.online===0 ? " (je offline – vypnutá nebo bez Wi‑Fi)" : ""}.</div></div>`; }).join("") : "")
     + chartCard("rv_out", "Z River do chaty", long ? `kWh za den · ${RL.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ")}` : "W · součet zásuvek na výstupu River")
   // 3) po dnech – která River kdy jela (střídání River přes zimu)
     + chartCard("rv_hd", "Kolik hodin která River napájela chatu", `po dnech · ${RL.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ")}`)

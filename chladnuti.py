@@ -146,10 +146,21 @@ def _fit(R, s, e, tout, inwin=lambda t: True):
             integ += ((T0 - o0) + (T1 - o1)) / 2 * (t1 - t0) / 3600
         if not ok or not outs or Ta - outs[0] < 4 or integ <= 0:
             continue
-        k = (Ta - Tb) / integ
+        k_all = (Ta - Tb) / integ
+        # 5.48: kamna po dotopení ještě dlouho hřejí → začátek noci chladne pomaleji, než odpovídá chatě. Rychlost
+        # chladnutí chaty se proto bere z posledních 3 h noci (kamna už studená); celá noc jen pro srovnání.
+        k = k_all
+        late = [q for q in pc if q[0] >= tb - 3 * 3600]
+        if h >= 4 and len(late) >= 4 and late[0][1] - late[-1][1] >= 0.3:
+            il = 0.0
+            for (t0, T0), (t1, T1) in zip(late, late[1:]):
+                il += ((T0 - tout(t0)) + (T1 - tout(t1))) / 2 * (t1 - t0) / 3600
+            if il > 0:
+                k = (late[0][1] - late[-1][1]) / il
         if 0.003 < k < 1.0:
             out.append({"t0": t_peak, "ta": ta, "tb": tb, "T0": round(R[s][1], 1), "Ta": round(Ta, 1), "Tb": round(Tb, 1),
-                        "To": round(sum(outs) / len(outs), 1), "k": round(k, 4), "h": round(h, 1), "win": wins})
+                        "To": round(sum(outs) / len(outs), 1), "k": round(k, 4), "k_all": round(k_all, 4),
+                        "avg": round((Ta - Tb) / h, 2), "h": round(h, 1), "win": wins})
     return out
 
 
@@ -181,9 +192,9 @@ def update(data, st, now, cfg, log=print):
         return
     O = _outdoor(st, cfg, now, log)
     tout = lambda t: _interp(O, t)
-    if st.get("cool_ver") != 2:                       # 5.46: učí se jen z noci (bez udržovacího topení) – přepočítat
+    if st.get("cool_ver") != 3:                       # 5.46: učí se jen z noci (bez udržovacího topení) – přepočítat
         st["cool_ev"] = {}
-        st["cool_ver"] = 2
+        st["cool_ver"] = 3
     ev = st.setdefault("cool_ev", {})
     seen_live = set()
 

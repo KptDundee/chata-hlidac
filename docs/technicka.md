@@ -267,3 +267,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.45**: `river_supply` – řada (t, soc) z `points[].rv[k=SN].s` od konce, nejvýš 12 h, stop při nabíjení (i > 20 W) nebo když % zpátky v čase klesne o > 1; rate = Δ% / h (≥ 1,5 h, ≥ 3 %) → h = (soc − rezerva) / rate. `river_sup.rate`, `r_t0`. Web `riverMorning` socM podle rate.
 
 **5.46**: `chladnuti._fit(..., inwin)` – body jen v okně `chladnuti_noc_od`–`chladnuti_noc_do` (místní čas); `st.cool_ver` 2 smaže staré úseky. `data.cool` + `r10` (= k·10 °C/h), `loss_now` (k·(T − Tvenku)), `live` {rate, dif, r10} z trendu za hodinu, `out_err`, `win`. `_outdoor`: pokus unixtime, pak ISO GMT; chyba → `wo.err`, další pokus za 10 min. Web `coolCard` přepsána; EcoFlow graf % – důvod prázdného grafu.
+
+**5.48**: `showTip` – dotyk: bublina nad horní hranou SVG (nebo 70 px nad prstem), vodorovně na střed u prstu. `coolCard` graf venku `gap:7300`. `detRiver` – River bez `soc` (ani v bodech) → karta s větou místo grafu. `chladnuti._fit`: `k` z posledních 3 h kousku (≥ 4 h), `k_all` celý, `avg` = (Ta − Tb)/h; `cool_ver` 3.

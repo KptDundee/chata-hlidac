@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.48 – 25. 10. 2026
+- Grafy: na mobilu (prst) se bublina s hodnotami ukazuje nad grafem u prstu, ne pod prstem.
+- Venkovní teplota: graf byl prázdný – body po hodině se kreslily jako přerušená čára (mezera > 40 min); opraveno.
+- EcoFlow: River, u které EcoFlow neposílá %, nemá prázdný graf, jen větu „Nemáme – EcoFlow neposílá“.
+- Chladnutí: v kartě „Noc … klesala X °C za hodinu (z → na, venku)“ a v tabulce sloupec °C/h (skutečný průměr noci). Rychlost chladnutí chaty („na 10 °C“) se bere z posledních 3 h noci – na začátku ještě hřejí kamna a výsledek vycházel moc malý. Úseky přepočítány.
+
 ## 5.47 / Flip 1.9.4 – 25. 10. 2026
 - Flip 1.9.3 nešel přeložit (RouterM7000: proměnná „k“ dvakrát) – opraveno.
 
