@@ -2314,6 +2314,7 @@ def net_usage(data, st, now, cfg):
     st["net_t"] = inv.get("t")
     c = st.setdefault("netc", {})
     day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {}).setdefault("net", {})
+    pd = {}                                         # 5.52: přírůstky do posledního bodu (graf po hodinách)
 
     def add(name, cur, reset=False):
         if cur is None:
@@ -2328,6 +2329,7 @@ def net_usage(data, st, now, cfg):
         c[name] = cur
         if d > 0:
             day[name] = round(day.get(name, 0) + d)
+            pd[name] = d
 
     net = (inv.get("rt") or {}).get("net") or {}
     tot = next((net[k] for k in net if k.lower() == "totalstatistics"), None)
@@ -2341,6 +2343,12 @@ def net_usage(data, st, now, cfg):
     if nb.get("ph") is not None:
         add("ph", nb["ph"] - (nb.get("mob") or 0), reboot)      # jen Wi‑Fi (bez mobilních dat Flipu)
     add("app", nb.get("app"), reboot)
+    pts = data.get("points") or []
+    if pts and ts - pts[-1]["t"] < 900:
+        if pd.get("rt"):
+            pts[-1]["nr"] = round(pd["rt"])
+        if pd.get("ph"):
+            pts[-1]["np"] = round(pd["ph"])
     data["net"] = {"day": dict(day), "dev": net.get("dev"),
                    "rt_day": next((net[k] for k in net if k.lower() == "dailystatistics"), None),
                    "info": {"wk": net.get("_wk"), "k": net.get("_k"),

@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.52 – 25. 10. 2026
+- Detail „Flip (brána) a Wi‑Fi“ rozdělen na záložky 📱 Flip a 📶 Wi‑Fi a data (pamatuje si poslední).
+- Wi‑Fi: nový graf „Data po hodinách – router“ (48 h) – kdy se data přenáší; hlídač ukládá přírůstky dat do bodů (nr router, np Flip). Čítače, které router hlásí (celkem od vynulování, dnes…), přehledně v MB/GB.
+
 ## 5.51 – 25. 10. 2026
 - Chladnutí: prostřední číslo je rovnou pro dnešní rozdíl teplot – „kdyby se teď netopilo −X °C/h (rozdíl 14 °C)“. „Na 10 °C rozdílu“ jen v řádku „Jak chata drží teplo“. Dokud se model nenaučí z úseků, hrubý odhad přímo z nocí bez topení (pokles/h ÷ rozdíl uvnitř − venku).
 
