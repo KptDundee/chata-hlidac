@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.40 / Flip 1.9.1 – 25. 10. 2026
+- Nabíjení routeru: chata na River už není důvod nabíjet (proud z River zadarmo není, River musí vydržet noc). Navíc nabíjí jen z přebytku ze slunce, a to jen do 100 %. Hlídač posílá v povolení -fc nový příznak „rfree“.
+
 ## 5.39 – 25. 10. 2026
 - Chata na River (podle EcoFlow): odběr a výdrž River se počítají jen od chvíle, kdy River chatu napájí (nejvýš 3 h). Dřív se průměrovaly celé 3 h včetně doby před přepnutím ze soláru → hodinky ukazovaly „🏠 4 W“ místo skutečných ~19 W a výdrž „vydrží do“ vycházela moc optimisticky. Hodinky teď v 🏠 ukazují aktuální odběr z River.
 

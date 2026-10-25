@@ -3228,12 +3228,14 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     # proud zadarmo (River / přebytek) → nabíjet. Prázdné = neřídit (zásuvka zůstane, jak je).
     rip = str(cfg.get("zasuvka_router") or "").strip() if cfg.get("router_nabijeni_rizeni", True) else ""
     fs = st.setdefault("flip_chg", {})
-    if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or ts - fs.get("t", 0) >= 3600:
-        body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "why": why, "id": int(ts)})
+    # 5.40: router nabíjet „zadarmo“ jen z přebytku slunce – proud z River zadarmo není (River musí vydržet noc)
+    rfree = bool(on_solar and allow)
+    if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree or ts - fs.get("t", 0) >= 3600:
+        body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "rfree": rfree, "why": why, "id": int(ts)})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
-            fs.update(allow=allow, ip=pid, rip=rip, t=int(ts), why=why)
+            fs.update(allow=allow, ip=pid, rip=rip, rfree=rfree, t=int(ts), why=why)
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc")}

@@ -549,7 +549,8 @@ public final class Collector {
             if (last != null && last.optLong("id") * 1000 > P.getLong("fc_t", 0)) {
                 P.edit().putBoolean("fc_allow", last.optBoolean("allow", true)).putLong("fc_t", last.optLong("id") * 1000)
                         .putString("fc_ip", last.optString("ip", "9")).putString("fc_why", last.optString("why", ""))
-                        .putString("rc_ip", last.optString("rip", "")).apply();          // 1.9: zásuvka routeru
+                        .putString("rc_ip", last.optString("rip", ""))                   // 1.9: zásuvka routeru
+                        .putBoolean("rc_free", last.optBoolean("rfree", false)).apply();  // 1.9.1: přebytek ze slunce
             }
         } catch (Exception e) { /* bez internetu – platí poslední povolení / záloha pod 40 % */ }
         String id = P.getString("fc_ip", "9");
@@ -611,7 +612,7 @@ public final class Collector {
      * Router dělá Wi‑Fi, přes kterou Flip zásuvky ovládá – vybitý router už nikdo nezapne. Proto:
      * • baterie routeru nejde přečíst (nebo je údaj starší než 25 min) → zapnout
      * • pod 40 % → zapnout, od 80 % vypnout, mezi tím nechat jak je
-     * • chata na River nebo přebytek ze slunce (povolení od hlídače) → zapnout (šetřit není potřeba)
+     * • přebytek ze slunce (povolení od hlídače „rfree“) → zapnout; z River ne (1.9.1)
      * Při vypnutí se v zásuvce nastaví odpočet „za 2 h zapnout“ – kdyby spadla aplikace, Flip nebo Wi‑Fi.
      */
     private void routerCharge(String email, String pass, JSONArray plugs, JSONObject o) throws Exception {
@@ -630,12 +631,13 @@ public final class Collector {
             if (lr.has("b") && System.currentTimeMillis() - P.getLong("rt_t", 0) < 25 * 60_000L) b = lr.optInt("b", -1);
         } catch (Exception ignored) { }
         boolean fresh = System.currentTimeMillis() - P.getLong("fc_t", 0) < 3 * 3600_000L;
-        boolean free = fresh && P.getBoolean("fc_allow", false);
+        // 1.9.1: „zadarmo“ = jen přebytek ze slunce (River zadarmo není – musí vydržet noc)
+        boolean free = fresh && P.getBoolean("rc_free", false);
         boolean isOn = cur.optInt("on", 0) == 1, want;
         String why;
         if (b < 0) { want = true; why = "baterie routeru nejde přečíst – pro jistotu nabíjí"; }
         else if (b <= 40) { want = true; why = "pod 40 %"; }
-        else if (free) { want = true; why = P.getString("fc_why", "proud zadarmo"); }
+        else if (free && b < 100) { want = true; why = "přebytek ze slunce"; }
         else if (b >= 80) { want = false; why = "nabito 80 % – jede z baterie"; }
         else { want = isOn; why = isOn ? "nabíjí do 80 %" : "jede z baterie do 40 %"; }
         if (want != isOn) {
