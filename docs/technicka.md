@@ -291,3 +291,6 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 
 **5.60**: `data.flip_chg.t_hit` (kdy Flip při rate klesne na flip_min_pct), `tgt_hit` (cíl dobití v tu chvíli), `ok_until` (vydrží do světla bez nabíjení).
+
+
+**5.61**: `tileFlip` – záložky `data-ftab` (flip / wifi, localStorage `df_tab` společné s detailem), klik v `#home` → `renderHome`.
