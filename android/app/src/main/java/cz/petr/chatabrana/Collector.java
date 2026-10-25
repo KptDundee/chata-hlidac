@@ -564,7 +564,8 @@ public final class Collector {
                         .putString("fc_ip", last.optString("ip", "9")).putString("fc_why", last.optString("why", ""))
                         .putString("rc_ip", last.optString("rip", ""))                   // 1.9: zásuvka routeru
                         .putBoolean("rc_free", last.optBoolean("rfree", false))           // 1.9.1: přebytek ze slunce
-                        .putInt("fc_tgt", last.optInt("ftgt", 0)).apply();                 // 1.9.2: dobít na (noc)
+                        .putInt("fc_tgt", last.optInt("ftgt", 0))                          // 1.9.2: dobít na (noc)
+                        .putInt("fc_min", last.optInt("fmin", 30)).apply();                // 1.9.6: spodní hranice (Nastavení)
             }
         } catch (Exception e) { /* bez internetu – platí poslední povolení / záloha pod 40 % */ }
         String id = P.getString("fc_ip", "9");
@@ -587,13 +588,13 @@ public final class Collector {
         boolean isOn = cur.optInt("on", 0) == 1, want;
         String why;
         if (hot) { want = false; why = String.format(Locale.US, "baterie Flipu %.1f °C – bezpečnost", tempC); }
-        else if (pct <= 20) { want = true; why = "pod 20 %"; P.edit().putBoolean("fc_low", true).apply(); }
+        else if (pct <= P.getInt("fc_min", 30)) { want = true; why = "pod " + P.getInt("fc_min", 30) + " %"; P.edit().putBoolean("fc_low", true).apply(); }
         else if (pct >= 80) { want = false; why = "nabito 80 %"; }
         else if (pct >= 75 && !isOn) { want = false; why = "nabito (pod 75 % znovu)"; }
         else if (fresh && P.getBoolean("fc_allow", true)) { want = true; why = P.getString("fc_why", ""); }
         else if (P.getBoolean("fc_low", false) && isOn) {
             // 1.9.2: po poklesu pod 20 % dobít jen na cíl od hlídače (vydrží do slunce), ne do plna; bez spojení na 40 %
-            int tgt = fresh && P.getInt("fc_tgt", 0) > 0 ? P.getInt("fc_tgt", 0) : 40;
+            int tgt = fresh && P.getInt("fc_tgt", 0) > 0 ? P.getInt("fc_tgt", 0) : Math.max(40, P.getInt("fc_min", 30) + 10);
             want = pct < tgt;
             why = want ? "dobíjí na " + tgt + " % (vydrží do slunce)" : "dobito na " + tgt + " % – vydrží do slunce";
         }
@@ -654,7 +655,7 @@ public final class Collector {
         String why;
         if (b < 0) { want = true; why = "baterie routeru nejde přečíst – pro jistotu nabíjí"; }
         else if (b <= 40) { want = true; why = "pod 40 %"; }
-        else if (free && b < 100) { want = true; why = "přebytek ze slunce"; }
+        else if (free && b < 90) { want = true; why = "přebytek ze slunce"; }
         else if (b >= 80) { want = false; why = "nabito 80 % – jede z baterie"; }
         else { want = isOn; why = isOn ? "nabíjí do 80 %" : "jede z baterie do 40 %"; }
         if (want != isOn) {

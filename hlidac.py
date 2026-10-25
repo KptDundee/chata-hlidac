@@ -40,7 +40,7 @@ DEFAULTS = {
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_rezerva_W": 100,
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
-    "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
+    "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
@@ -3338,21 +3338,24 @@ def flip_charge_cmd(data, st, now, topic, cfg):
             light = r1 + timedelta(hours=3) if r1 else None
         if light:
             hrs = (light - now).total_seconds() / 3600
-            ftgt = int(max(25, min(80, round(20 + rate * hrs + 5))))
+            fmin = int(cfg.get("flip_min_pct") or 30)
+            ftgt = int(max(fmin + 5, min(80, round(fmin + rate * hrs + 5))))
             f_until = int(light.timestamp())
     # 5.40: router nabíjet „zadarmo“ jen z přebytku slunce – proud z River zadarmo není (River musí vydržet noc)
     rfree = bool(on_solar and (pv - (inv.get("mw") or 0) >= 20 or (pv >= 30 and last.get("status") == 1)))   # 5.54/5.55: přebytek nebo Float
-    if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
+    if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
+            or fs.get("fmin") != int(cfg.get("flip_min_pct") or 30) or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
             or ts - fs.get("t", 0) >= 3600:
-        body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0, "why": why, "id": int(ts)})
+        body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0,
+                           "fmin": int(cfg.get("flip_min_pct") or 30), "why": why, "id": int(ts)})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
-            fs.update(allow=allow, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, t=int(ts), why=why)
+            fs.update(allow=allow, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), t=int(ts), why=why)
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc"), "ftgt": fs.get("ftgt"), "f_until": f_until, "rate": rate}
-    data["router_chg"] = {"ip": rip, "rc": inv.get("rc")}
+    data["router_chg"] = {"ip": rip, "rc": inv.get("rc"), "rfree": rfree, "pv": round(pv), "load": round(inv.get("mw") or 0)}
     # 5.34: baterie routeru pod 25 % – vybitý router = chata bez Wi‑Fi a Flip už nic nezapne
     rb = (inv.get("rt") or {}).get("b")
     if fresh and rb is not None:

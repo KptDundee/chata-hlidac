@@ -279,3 +279,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.53 / Flip 1.9.5**: `Collector.countdownOn(t, sec)` – add_countdown_rule, při chybě get_countdown_rules → edit_countdown_rule (id prvního pravidla); vrací null / text chyby. `routerCharge`: vypnout → odpočet 7200 s → při chybě hned zapnout (`rc.err`). `flipCharge` používá stejný pomocník (10800 s).
 
 **5.54**: `thermo_check` – `st.th_last` {klíč: t, h, tm}; teploměr bez hodnot dostane poslední (≤ 7 dní) s `old: 1` a původním `tm` (body grafů jen tm < 30 min). Web: šedě + stáří; `tileFridge` ignoruje `old`. `flip_charge_cmd`: `rfree` = na soláru a pv − mw ≥ 20 W.
+
+**5.56 / Flip 1.9.6**: -fc `fmin` (cfg `flip_min_pct`, 30) → Flip `fc_min` místo pevných 20 %; `ftgt` = clamp(fmin + rate·h + 5, fmin + 5, 80); bez spojení cíl max(40, fmin + 10). Router „zadarmo“ jen b < 90. `data.router_chg.rfree/pv/load`.

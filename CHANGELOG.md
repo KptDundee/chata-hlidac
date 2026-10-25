@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.56 / Flip 1.9.6 – 25. 10. 2026
+- Flip: spodní hranice nabíjení 30 % (dřív pevně 20 %) – nastavitelná (flip_min_pct), posílá ji hlídač, takže příště bez nové verze Flipu. Větší rezerva pro výpadek proudu v chatě.
+- Router: z přebytku slunce se nabíjí jen do 90 % (nabíjení 98 → 100 % nemá smysl). V detailu u „přebytek ze slunce“ i aktuální výkon panelů a odběr chaty.
+
 ## 5.55 – 25. 10. 2026
 - Nabíjení Flipu: do 80 % jen ze skutečného přebytku slunce (panely − odběr ≥ 15 W, nebo Float). Dřív stačil Boost a na River se nabíjel kdykoli → telefon byl pořád skoro plný i když chatě chyběl proud. Jinak (i na River) jen pod 20 % a jen na tolik, aby vydržel do slunce (Flip 1.9.2+).
 
