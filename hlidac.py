@@ -3375,6 +3375,16 @@ def flip_charge_cmd(data, st, now, topic, cfg):
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc"), "ftgt": fs.get("ftgt"), "f_until": f_until, "rate": rate}
+    # 5.60: pro web – kdy Flip při téhle rychlosti klesne na spodní hranici a na kolik se pak dobije (ftgt se počítá
+    # „kdyby klesl teď“; Flipu se posílá průběžně, takže v okamžiku poklesu platí ten správný)
+    pb = (inv.get("ph") or {}).get("b")
+    fmin_ = int(cfg.get("flip_min_pct") or 30)
+    if pb is not None and f_until and rate and not (inv.get("ph") or {}).get("c") and pb > fmin_:
+        t_hit = ts + (pb - fmin_) / rate * 3600
+        if t_hit < f_until:
+            data["flip_chg"].update(t_hit=int(t_hit), tgt_hit=int(max(fmin_ + 5, min(80, round(fmin_ + rate * (f_until - t_hit) / 3600 + 5)))))
+        else:
+            data["flip_chg"].update(t_hit=None, ok_until=True)
     data["router_chg"] = {"ip": rip, "rc": inv.get("rc"), "rfree": rfree, "pv": round(pv), "load": round(inv.get("mw") or 0)}
     data["sun_free"] = {"free": free_sun, "eve": eve, "eve_flip": eve_flip, "set": int(set_d.timestamp()) if set_d else None, "status": status, "bv": bv, "boost_v": round(boost_v, 2), "float_v": float_v,
                         "net_w": round(net_w), "pv": round(pv), "load": round(load)}

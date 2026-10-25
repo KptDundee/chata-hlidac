@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.60 – 25. 10. 2026
+- Detail Flipu: místo matoucího „Při poklesu pod 30 % dobít na 80 % – vydrží do 9:41“ (počítané, jako by klesl teď) nově „Pod 30 % klesne ~HH:MM → pak se dobije na ~X %, aby vydržel do …“, nebo „Bez nabíjení vydrží nad 30 % až do …“.
+
 ## 5.59 – 25. 10. 2026
 - Flip a router se odpoledne (3 h až 1 h před západem) nabíjí do plna (Flip 80 %, router 90 %) přímo z panelů, když panely pokryjí chatu i nabíječku (po ztrátách měniče). Energie uložená v telefonu / routeru přeskočí ztrátu nabití a vybití solární baterie (~15–20 %) – v noci ji stejně spotřebují. Když panely nestíhají, nenabíjí se (šlo by to ze solární baterie). Detail Flipu: řádek „Odpoledne z panelů do plna“.
 

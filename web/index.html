@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.59", FLIP_VER = "1.9.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.60", FLIP_VER = "1.9.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1739,7 +1739,11 @@ function detFlip(body){
       ${rowI("Zásuvka nabíječky", fc ? `${fc.on?"zapnutá":"vypnutá"}${fc.why?` – ${fc.why}`:""}${fc.err ? `<br><span class="sub" style="font-size:11.5px;word-break:break-all">pojistku (odpočet) zásuvka nepřijala: ${escH(fc.err)}</span>` : ""}` : ch.ip ? flipCtlMiss(d) : "řízení vypnuté")}
       ${(()=>{ const sf = d.sun_free; if(!sf) return ""; return (sf.set ? rowI("Odpoledne z panelů do plna", sf.eve ? (sf.eve_flip ? `<span style="color:var(--good)">teď ano</span> – panely pokryjí chatu i nabíjení` : `teď ne – panely nepokryjí chatu i nabíjení <span class="sub">(${nf(sf.pv)} W, chata ${nf(sf.load)} W)</span>`) : `${hmT(sf.set-3*3600)}–${hmT(sf.set-3600)} <span class="sub">(3 h až 1 h před západem)</span>`) : "") + rowI("Slunce navíc", sf.free ? `<span style="color:var(--good)">ano</span> – ${sf.status===1 ? "solární baterie plná (Float)" : "regulátor drží nabíjecí napětí"}` : `ne <span class="sub">(${sf.status===1 ? "Float" : sf.status===2 ? `Boost ${nf(sf.bv,2)} V, škrtí až od ~${nf(sf.boost_v-0.1,2)} V` : "regulátor nenabíjí naplno"} · panely ${nf(sf.pv)} W, chata ${nf(sf.load)} W)</span>`); })()}
       ${rowI("Povolení od hlídače", ch.allow==null ? "–" : `${ch.allow ? "nabíjet" : "nenabíjet"} – ${ch.why}`)}
-      ${ch.ftgt ? rowI(`Při poklesu pod ${d.cfg?.flip_min_pct ?? 30} %`, `dobít jen na ${ch.ftgt} % – vydrží do ~${hmT(ch.f_until)} ${relDay(ch.f_until)} <span class="sub">(−${nf(ch.rate,1)} %/h)</span>`) : ""}
+      ${(()=>{ const fm = d.cfg?.flip_min_pct ?? 30;          // 5.60: srozumitelně – kdy klesne na spodní hranici a co pak
+        if(!ch.f_until) return "";
+        if(ch.ok_until) return rowI("Bez nabíjení", `vydrží nad ${fm} % až do ~${hmT(ch.f_until)} ${relDay(ch.f_until)} (kdy bývá zase slunce) <span class="sub">(−${nf(ch.rate,1)} %/h)</span>`);
+        if(ch.t_hit) return rowI(`Pod ${fm} %`, `klesne ~${hmT(ch.t_hit)} ${relDay(ch.t_hit)} → pak se dobije na ~${ch.tgt_hit} %, aby vydržel do ~${hmT(ch.f_until)} ${relDay(ch.f_until)} <span class="sub">(−${nf(ch.rate,1)} %/h)</span>`);
+        return ch.ftgt ? rowI(`Pod ${fm} %`, `dobíjí se na ${ch.ftgt} %, aby vydržel do ~${hmT(ch.f_until)} ${relDay(ch.f_until)}`) : ""; })()}
     </div>
     <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se nabíjení Flipu řídí</b> (zásuvka (${ch.ip||d.cfg?.zasuvka_flip||9})). Cíl: šetřit solární baterii i River, ale Flip nikdy nenechat vybít.<br>
       • <b>Do 80 %</b> jen když je <b>slunce navíc</b> – regulátor panely škrtí, protože solární baterie je plná (Float) nebo ji drží na nabíjecím napětí. Jen tehdy nabíjení Flipu solární baterii nic nebere.<br>

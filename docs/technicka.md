@@ -288,3 +288,6 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.58 / Flip 1.9.8**: `flip_charge_cmd` – `free_sun` = na soláru, data regulátoru < 30 min, (status 1 a U ≥ float_V − 0,3) nebo (status 2 a U ≥ boost_V(komp.) − 0,1), pv ≥ 20 W a net_w = 0,95·pv − (mw/0,88 + menic_vlastni_W) ≥ −5 W. `allow` (Flip) = `rfree` (router) = `free_sun` na soláru, jinak False. `data.sun_free` pro web. Flip: `fc_allow` výchozí false; router po neúspěšné pojistce 6 h nevypíná (`rc_cd_fail_t`); `fc.err` = chyba pojistky Flipu.
 
 **5.59**: `flip_charge_cmd` – okno `eve` = západ − 3 h … západ − 1 h; `eve_flip` = na soláru, regulátor čerstvý, net_w − 15 W (když zásuvka Flipu vypnutá) ≥ 0 (zapnutá: net_w ≥ −10); `allow` = free_sun nebo eve_flip; `rfree` = free_sun nebo (okno a net_w − 8 W − (15 W, když se Flip teprve zapne) ≥ 0). `data.sun_free.eve/eve_flip/set`.
+
+
+**5.60**: `data.flip_chg.t_hit` (kdy Flip při rate klesne na flip_min_pct), `tgt_hit` (cíl dobití v tu chvíli), `ok_until` (vydrží do světla bez nabíjení).
