@@ -294,3 +294,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 
 **5.61**: `tileFlip` – záložky `data-ftab` (flip / wifi, localStorage `df_tab` společné s detailem), klik v `#home` → `renderHome`.
+
+**5.62**: `hash_soc` – kotvy klidu `rests` (t, qr, Ah od plné = −(100 − soc_from_v(U))/100·cap): úsek ≥ 60 min s |i_net| < 0,8 A a pv < 5 W (i_net z odběru měniče), konec úseku. Bod bez Float do 3 dnů: h = Ah kotvy + (qr − qr kotvy), kotva ≤ 4 dny před (nebo ≤ 1 den po); jinak dřívější „nejlepší stav za 2 dny“. `data.hq.kind` = full / rest / best, `ref_t` = čas kotvy.

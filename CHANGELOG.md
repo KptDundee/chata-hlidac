@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.62 – 25. 10. 2026
+- Nabití #: když 3 dny nebylo plné nabití (Float – v zimě běžné), bralo se jako „100 #“ nejlepší stav za 2 dny → # vycházelo moc vysoko (43 # při 11,75 V). Teď se # srovná podle klidového napětí: poslední chvíle, kdy baterie byla aspoň 60 min bez slunce a s proudem do ±0,8 A (typicky chata na River nebo noc bez odběru), nejvýš 4 dny zpět; od ní se počítají ampérhodiny. Na webu „srovnáno podle klidového napětí …“.
+
 ## 5.61 – 25. 10. 2026
 - Dlaždice „Flip (brána) a Wi‑Fi“: přepínač 📱 Flip / 📶 Wi‑Fi přímo na dlaždici (s % obou). Wi‑Fi ukazuje baterii routeru, nabíjení, zásuvku (5) a data dnes. Volba je společná s detailem.
 

@@ -2924,6 +2924,7 @@ def hash_soc(data, st, now, cfg):
             else:
                 load = idle + 30                # bez dat o odběru: běžná chata
             i_net = a["bat_a"] - load / a["bat_v"]
+            a["_in"] = i_net
             qr += i_net * dt / 3600 * (eff if i_net > 0 else 1.0)
         b["qr"] = round(qr, 2)
         # plná = regulátor přešel do Float (jeho vlastní kritérium konce nabíjení) – i když ve Float vydrží jen chvíli
@@ -2934,6 +2935,27 @@ def hash_soc(data, st, now, cfg):
                     fulls.append((fl_since, b["t"]))
         else:
             fl_since = 0
+    # 5.62: kotva z klidového napětí – když dlouho nebylo plné nabití (v zimě běžné), „nejlepší stav za 2 dny“ jako
+    # 100 # dával nesmysl (43 # při 11,75 V). Klid = aspoň 60 min bez slunce a s proudem baterie do ±0,8 A (typicky
+    # chata na River nebo noc bez odběru) → nabití z klidového napětí (soc_from_v) = Ah od plné v tu chvíli.
+    cap0 = eff_cap(data, cfg)
+    rests = []                                   # (t, qr, Ah od plné)
+    run0 = None
+    for a, b in zip(pts, pts[1:]):
+        quiet = a.get("_in") is not None and abs(a["_in"]) < 0.8 and (a.get("pv_w") or 0) < 5 and 0 < b["t"] - a["t"] <= 2400
+        if quiet:
+            run0 = run0 or a["t"]
+            if b["t"] - run0 >= 3600 and (b.get("pv_w") or 0) < 5:
+                soc_r = soc_from_v(b["bat_v"])
+                if not rests or b["t"] - rests[-1][0] >= 1800:
+                    rests.append((b["t"], b["qr"], -(100 - soc_r) / 100 * cap0))
+                else:
+                    rests[-1] = (b["t"], b["qr"], -(100 - soc_r) / 100 * cap0)   # konec klidu = nejpřesnější
+        else:
+            run0 = None
+    for p in pts:
+        p.pop("_in", None)
+    rtimes = [r[0] for r in rests]
     # kotva pro každý bod
     import bisect
     ftimes = [f[1] for f in fulls]
@@ -2952,8 +2974,14 @@ def hash_soc(data, st, now, cfg):
         elif next_f and next_f - t <= 3 * 86400:
             h = min(0.0, p["qr"] - qr_at[next_f])
         else:
-            win = [x["qr"] for x in pts[max(0, idx - 300):idx + 1] if x["t"] >= t - 2 * 86400]
-            h = min(0.0, p["qr"] - max(win))
+            j = bisect.bisect_right(rtimes, t)
+            ra = rests[j - 1] if j and t - rtimes[j - 1] <= 4 * 86400 else (rests[j] if j < len(rests) and rtimes[j] - t <= 86400 else None)
+            if ra:                               # 5.62: od klidového napětí
+                h = ra[2] + (p["qr"] - ra[1])
+                p["_rk"] = ra[0]
+            else:
+                win = [x["qr"] for x in pts[max(0, idx - 300):idx + 1] if x["t"] >= t - 2 * 86400]
+                h = min(0.0, p["qr"] - max(win))
         p["q"] = p["hq"] = round(min(0.0, h), 2)
     full_t = ftimes[-1] if ftimes else 0
     st["hq_full_t"] = full_t
@@ -2970,11 +2998,14 @@ def hash_soc(data, st, now, cfg):
         data["days"][k_]["hq_max"] = maxs[k_]
     last = pts[-1]
     ts = now.timestamp()
-    kind = "full" if full_t and ts - full_t <= 3 * 86400 else "best"
+    rk = last.get("_rk")
+    kind = "full" if full_t and ts - full_t <= 3 * 86400 else "rest" if rk else "best"
+    for p in pts:
+        p.pop("_rk", None)
     nqc = sum(1 for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok"))
     capsrc = "testy z Ah" if cap != (cfg["kapacita_Ah"] or 200) else "štítek – zatím bez 2 testů"
     data["hq"] = {"capsrc": capsrc, "nqc": nqc, "ah": round(last["hq"], 1), "cap": round(cap), "kind": kind,
-                  "ref_t": int(full_t if kind == "full" else last["t"]), "pct": round(max(0, 100 + last["hq"] / cap * 100)),
+                  "ref_t": int(full_t if kind == "full" else rk if kind == "rest" else last["t"]), "pct": round(max(0, 100 + last["hq"] / cap * 100)),
                   "full_t": int(full_t) if full_t else None, "fl_since": int(fl_since) if fl_since else None}
     for k_ in ("hq_t", "hq_q", "hq_fl"):
         st.pop(k_, None)

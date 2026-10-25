@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.61", FLIP_VER = "1.9.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.62", FLIP_VER = "1.9.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2619,7 +2619,7 @@ function detBat(body){
     (ac ? `<div class="card" style="border-left:4px solid var(--crit)"><b>⚠ ${ac}</b></div>` : "")
     + segHtml()
     + (detLong() ? chartCard("dc_hmin", "Nejnižší nabití # každého dne", "# · čárkovaně 50 # = doporučená spodní hranice pro AGM") :
-        `<div class="card" style="padding:0;margin-bottom:12px">${chartCard("dc_bal", "Do baterie (+) / z baterie (−)", `W · <span style="color:var(--s2)">■ nahoru: panely do baterie</span> · <span style="color:var(--s1)">■ dolů: odběr chaty</span> (i se ztrátami) · čára = výsledek (pod nulou červeně) · pozadí: oranžová Boost, zelená Float, šedá = River`).replace('class="card chart"', 'class="card chart" style="border:0;margin:0;background:none"')}${chartCard("dc_hash", "Nabití # – kam to vede", d.hq ? `# · spočítané z Ah, 100 # = ${d.hq.kind==="full" ? "skutečně plná" : "nejlepší stav za 2 dny"} · kapacita ${nf(d.hq.cap)} Ah (${d.hq.capsrc||"zdraví baterie"}) · čárkovaně 50 # = doporučená spodní hranice` : "spočítá se po prvních hodinách dat").replace('class="card chart"', 'class="card chart" style="border:0;margin:0;background:none"')}</div>`
+        `<div class="card" style="padding:0;margin-bottom:12px">${chartCard("dc_bal", "Do baterie (+) / z baterie (−)", `W · <span style="color:var(--s2)">■ nahoru: panely do baterie</span> · <span style="color:var(--s1)">■ dolů: odběr chaty</span> (i se ztrátami) · čára = výsledek (pod nulou červeně) · pozadí: oranžová Boost, zelená Float, šedá = River`).replace('class="card chart"', 'class="card chart" style="border:0;margin:0;background:none"')}${chartCard("dc_hash", "Nabití # – kam to vede", d.hq ? `# · spočítané z Ah, 100 # = ${d.hq.kind==="full" ? "skutečně plná" : d.hq.kind==="rest" ? "plná; srovnáno podle klidového napětí" : "nejlepší stav za 2 dny"} · kapacita ${nf(d.hq.cap)} Ah (${d.hq.capsrc||"zdraví baterie"}) · čárkovaně 50 # = doporučená spodní hranice` : "spočítá se po prvních hodinách dat").replace('class="card chart"', 'class="card chart" style="border:0;margin:0;background:none"')}</div>`
       + chartCard("dc_pv", "Výkon panelů", "W · pozadí podle režimu regulátoru")
       + chartCard("dc_v", "Napětí baterie", `V · <span style="color:var(--s1)">━ regulátor</span> · <span style="color:var(--s2)">╍ měnič (Victron)</span> · <span style="color:var(--crit)">○ nejnižší bod dne</span> · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
       + chartCard("dc_vd", "Úbytek napětí na kabelech", `V · regulátor − měnič, jen měření ze stejné chvíle, bez stálého rozdílu kalibrace přístrojů · roste s proudem, v klidu ~0 · červeně ${nf(cfg.kabely_ubytek_V ?? 0.35,2)} V = upozornění`)
@@ -2629,7 +2629,7 @@ function detBat(body){
     + sec(`Teď<span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500;margin-left:8px">${R.t ? `regulátor ${relDay(R.t)} ${hmT(R.t)}` : ""}</span>`, [
       rowI("Napětí", `<span style="font-size:20px">${V(h.bv)}</span>`),
       rowI("Nabití (podle regulátoru)", P(last.bat_soc)),
-      ...(d.hq ? [rowI("Nabití # (spočítané z Ah)", `<b>${nf(d.hq.pct)} #</b> <span class="sub">(${d.hq.ah < 0 ? `−${nf(-d.hq.ah,1)} Ah od ` : "plná · "}${d.hq.kind==="full" ? `plného nabití ${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)}` : "nejlepšího stavu za 2 dny (plné nabití zatím nebylo)"})</span>`)] : []),
+      ...(d.hq ? [rowI("Nabití # (spočítané z Ah)", `<b>${nf(d.hq.pct)} #</b> <span class="sub">(${d.hq.ah < 0 ? `−${nf(-d.hq.ah,1)} Ah od ` : "plná · "}${d.hq.kind==="full" ? `plného nabití ${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)}` : d.hq.kind==="rest" ? `plné; srovnáno podle klidového napětí ${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)}` : "nejlepšího stavu za 2 dny (plné nabití ani klid zatím nebyl)"})</span>`)] : []),
       ...(d.day_fc && h.now - d.day_fc.t < 1800 ? [dayFcBlock(d.day_fc)] : []),
       rowI("Panely", h.pv!=null ? `${nf(h.pv)} W` : "–"),
       rowI("Odběr z baterie", odb),
