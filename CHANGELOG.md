@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.64 – 25. 10. 2026
+- Nabití #: klidové napětí (≥ 2 h bez proudu) se převádí obecnou tabulkou AGM, ne naučeným převodem (ten bere „plnou“ z napětí na začátku noci pod odběrem – 12,57 V – a klidové 12,40 V pak dělal 77 % místo ~55 %). # tak odpovídá napětí.
+
 ## 5.63 – 25. 10. 2026
 - Nabití #: klid pro srovnání aspoň 2 h (po nabíjení drží baterie hodiny vyšší napětí a # vycházelo moc vysoko). Detail Solární baterie: řádek „Jak se # spočítalo“ – kdy byla baterie v klidu, jaké napětí, kolik % to podle převodu je, kolik Ah od té doby, a převod (plná / prázdná v klidu pro tvou baterii).
 

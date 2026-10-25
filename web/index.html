@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.63", FLIP_VER = "1.9.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.64", FLIP_VER = "1.9.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2630,7 +2630,7 @@ function detBat(body){
       rowI("Napětí", `<span style="font-size:20px">${V(h.bv)}</span>`),
       rowI("Nabití (podle regulátoru)", P(last.bat_soc)),
       ...(d.hq ? [rowI("Nabití # (spočítané z Ah)", `<b>${nf(d.hq.pct)} #</b> <span class="sub">(${d.hq.ah < 0 ? `−${nf(-d.hq.ah,1)} Ah od ` : "plná · "}${d.hq.kind==="full" ? `plného nabití ${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)}` : d.hq.kind==="rest" ? `plné; srovnáno podle klidového napětí ${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)}` : "nejlepšího stavu za 2 dny (plné nabití ani klid zatím nebyl)"})</span>`),
-        ...(d.hq.rest ? [rowI("Jak se # spočítalo", `${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)} v klidu (${nf(d.hq.rest.h,1)} h bez proudu) <b>${nf(d.hq.rest.v,2)} V</b> = ${nf(d.hq.rest.soc)} % · od té doby ${d.hq.rest.ah>=0?"+":""}${nf(d.hq.rest.ah,1)} Ah<br><span class="sub">převod napětí podle tvé baterie: plná v klidu ${nf(d.hq.vfull,2)} V, prázdná ${nf(d.hq.vempty,2)} V</span>`)] : []),] : []),
+        ...(d.hq.rest ? [rowI("Jak se # spočítalo", `${relDay(d.hq.ref_t)} ${hmT(d.hq.ref_t)} v klidu (${nf(d.hq.rest.h,1)} h bez proudu) <b>${nf(d.hq.rest.v,2)} V</b> = ${nf(d.hq.rest.soc)} % · od té doby ${d.hq.rest.ah>=0?"+":""}${nf(d.hq.rest.ah,1)} Ah<br><span class="sub">převod klidového napětí podle tabulky AGM (12,85 V = 100 %, 12,35 V = 50 %, 11,95 V = 10 %)</span>`)] : []),] : []),
       ...(d.day_fc && h.now - d.day_fc.t < 1800 ? [dayFcBlock(d.day_fc)] : []),
       rowI("Panely", h.pv!=null ? `${nf(h.pv)} W` : "–"),
       rowI("Odběr z baterie", odb),

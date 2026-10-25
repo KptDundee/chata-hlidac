@@ -298,3 +298,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.62**: `hash_soc` – kotvy klidu `rests` (t, qr, Ah od plné = −(100 − soc_from_v(U))/100·cap): úsek ≥ 60 min s |i_net| < 0,8 A a pv < 5 W (i_net z odběru měniče), konec úseku. Bod bez Float do 3 dnů: h = Ah kotvy + (qr − qr kotvy), kotva ≤ 4 dny před (nebo ≤ 1 den po); jinak dřívější „nejlepší stav za 2 dny“. `data.hq.kind` = full / rest / best, `ref_t` = čas kotvy.
 
 **5.63**: kotva klidu až po ≥ 2 h; `data.hq.rest` = {v, soc, h, ah}, `hq.vfull/vempty` (VCAL). Web `detBat` řádek „Jak se # spočítalo“.
+
+**5.64**: kotva klidu v `hash_soc` – `ocv_soc(U)` (AGM_OCV) místo `soc_from_v` (VCAL). Kapacitní testy a předpovědi zatím beze změny (používají VCAL).

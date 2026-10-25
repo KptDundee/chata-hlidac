@@ -2948,7 +2948,9 @@ def hash_soc(data, st, now, cfg):
             # 5.63: aspoň 2 h klidu – po nabíjení drží baterie ještě hodiny vyšší („povrchové“) napětí a nabití by
             # vycházelo moc vysoko
             if b["t"] - run0 >= 2 * 3600 and (b.get("pv_w") or 0) < 5:
-                soc_r = soc_from_v(b["bat_v"])
+                # 5.64: skutečný klid (≥ 2 h bez proudu) = klidové napětí → obecná tabulka AGM (ocv_soc). Naučený převod
+                # (soc_from_v, „plná“ = napětí na začátku noci pod odběrem) dával moc vysoko: 12,40 V = 77 % místo ~55 %
+                soc_r = ocv_soc(b["bat_v"] + (0.02 if abs(a["_in"]) > 0.3 else 0.0))
                 item = (b["t"], b["qr"], -(100 - soc_r) / 100 * cap0, b["bat_v"], round(soc_r), round((b["t"] - run0) / 3600, 1))
                 if not rests or b["t"] - rests[-1][0] >= 1800:
                     rests.append(item)
