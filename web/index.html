@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.64", FLIP_VER = "1.9.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.65", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1712,7 +1712,8 @@ function routerCtl(d){
   if(!rc) return `zásuvka (${rid}) – čeká na první měření`;
   if(rc.miss) return `zásuvka (${rid}) – ${rc.why||"nejde přečíst"}`;
   const rcg = d.router_chg || {};
-  return `zásuvka (${rc.ip||rid}) ${rc.on ? "zapnutá" : "vypnutá"}${rc.why ? ` – ${rc.why}` : ""}${rcg.pv!=null && /přebyt|navíc/.test(rc.why||"") ? ` <span class="sub">(teď panely ${nf(rcg.pv)} W, chata ${nf(rcg.load)} W${rcg.rfree ? "" : " – už bez přebytku, vypne při dalším měření"})</span>` : ""}${rc.err ? `<br><span class="sub" style="font-size:11.5px;word-break:break-all">${escH(rc.err)}</span>` : ""}${rc.err && (+String(g.av||"0").split(".")[2]||0) < 5 && String(g.av||"").startsWith("1.9") ? ` <span class="sub">– oprava ve Flipu ${FLIP_VER}</span>` : ""}`;
+  const rerr = /nejde přečíst/.test(rc.why||"") && g.rt && g.rt.err ? `<br><span class="sub" style="font-size:11.5px">proč: ${escH(String(g.rt.err).replace(/^router:\s*/,"").slice(0,100))}</span>` : "";   // 5.65
+  return `zásuvka (${rc.ip||rid}) ${rc.on ? "zapnutá" : "vypnutá"}${rc.why ? ` – ${rc.why}` : ""}${rerr}${rcg.pv!=null && /přebyt|navíc/.test(rc.why||"") ? ` <span class="sub">(teď panely ${nf(rcg.pv)} W, chata ${nf(rcg.load)} W${rcg.rfree ? "" : " – už bez přebytku, vypne při dalším měření"})</span>` : ""}${rc.err ? `<br><span class="sub" style="font-size:11.5px;word-break:break-all">${escH(rc.err)}</span>` : ""}${rc.err && (+String(g.av||"0").split(".")[2]||0) < 5 && String(g.av||"").startsWith("1.9") ? ` <span class="sub">– oprava ve Flipu ${FLIP_VER}</span>` : ""}`;
 }
 /* 5.33: baterie routeru – vždy s důvodem, proč se nečte */
 function routerTxt(g){
@@ -1778,7 +1779,7 @@ function detFlip(body){
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se nabíjení routeru řídí</b> (zásuvka (${(d.router_chg||{}).ip ?? d.cfg?.zasuvka_router ?? 5})). Router dělá Wi‑Fi, přes kterou Brána ovládá zásuvky – vybitý by už nikdo nezapnul, proto větší rezerva.<br>
       • <b>Pod 40 %</b> nabíjí vždy, <b>do 80 %</b>; pak zásuvku vypne a router jede z vlastní baterie.<br>
       • Když je <b>slunce navíc</b> nebo <b>odpoledne z panelů</b> (jako u Flipu), nabíjí do 90 %. Z River navíc ne.<br>
-      • Baterii nejde přečíst → nabíjí. Pod 25 % přijde upozornění.<br>
+      • Baterii nejde přečíst: do 60 min platí poslední přečtení (pokud bylo aspoň 50 %), pak pro jistotu nabíjí. Pod 25 % přijde upozornění.<br>
       • Pojistka: vypnout jen s odpočtem „za 2 h zapnout“ v zásuvce (obnovuje se každých 30 min, dokud Brána běží); když ho zásuvka nepřijme, zůstane zapnutá.</div></div>`);
   $("df_seg").onclick = e => { const bt = e.target.closest("button"); if(!bt) return; const t = bt.dataset.t;
     try{ localStorage.setItem("df_tab", t); }catch(_){}

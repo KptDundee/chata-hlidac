@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.65 / Flip 1.9.9 – 25. 10. 2026
+- Router: když se baterie routeru jednou nepřečte (přihlášení v aplikaci tpMiFi, router zaneprázdněný), Brána 60 min použije poslední úspěšné přečtení (pokud bylo ≥ 50 %) a nezapíná hned nabíjení „pro jistotu“. Dřív stačil jeden nepovedený pokus a zásuvka (5) se zapnula.
+
 ## 5.64 – 25. 10. 2026
 - Nabití #: klidové napětí (≥ 2 h bez proudu) se převádí obecnou tabulkou AGM, ne naučeným převodem (ten bere „plnou“ z napětí na začátku noci pod odběrem – 12,57 V – a klidové 12,40 V pak dělal 77 % místo ~55 %). # tak odpovídá napětí.
 

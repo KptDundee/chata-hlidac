@@ -300,3 +300,7 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.63**: kotva klidu až po ≥ 2 h; `data.hq.rest` = {v, soc, h, ah}, `hq.vfull/vempty` (VCAL). Web `detBat` řádek „Jak se # spočítalo“.
 
 **5.64**: kotva klidu v `hash_soc` – `ocv_soc(U)` (AGM_OCV) místo `soc_from_v` (VCAL). Kapacitní testy a předpovědi zatím beze změny (používají VCAL).
+
+
+**5.65 / Flip 1.9.9**: Flip ukládá poslední úspěšné přečtení routeru (`rt_good_b/t`); `routerCharge` ho 60 min použije, když je ≥ 50 
+**5.65 / Flip 1.9.9**: Flip ukládá poslední úspěšné přečtení routeru (`rt_good_b/t`); `routerCharge` ho 60 min použije, když je ≥ 50 procent. Web u „nejde přečíst“ ukáže `rt.err`.

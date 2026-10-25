@@ -208,7 +208,8 @@ public final class Collector {
                 Prefs.get(ctx).edit().putLong("rt_t", System.currentTimeMillis()).apply();
                 RouterM7000.Result rr = RouterM7000.read(gateway(), rpass);
                 JSONObject rt = new JSONObject();
-                if (rr.pct != null) { rt.put("b", rr.pct); if (rr.charging != null) rt.put("c", rr.charging ? 1 : 0); sum.append(", router ").append(rr.pct).append(" %"); }
+                if (rr.pct != null) { rt.put("b", rr.pct); if (rr.charging != null) rt.put("c", rr.charging ? 1 : 0); sum.append(", router ").append(rr.pct).append(" %");
+                    Prefs.get(ctx).edit().putInt("rt_good_b", rr.pct).putLong("rt_good_t", System.currentTimeMillis()).apply(); }   // 1.9.9
                 if (rr.net != null) rt.put("net", rr.net);                 // 1.9.3: data přenesená routerem
                 if (rr.err != null) {
                     rt.put("err", rr.err);
@@ -661,16 +662,24 @@ public final class Collector {
             return;
         }
         int b = -1;
+        String bNote = "";
         try {
             JSONObject lr = new JSONObject(P.getString("rt_last", "{}"));
             if (lr.has("b") && System.currentTimeMillis() - P.getLong("rt_t", 0) < 25 * 60_000L) b = lr.optInt("b", -1);
         } catch (Exception ignored) { }
+        // 1.9.9: občas se router nepřečte (přihlášený správce v aplikaci tpMiFi, router zaneprázdněný) – baterie routeru
+        // se mění pomalu, takže do 60 min platí poslední úspěšné přečtení; „pro jistotu nabíjet“ až potom, nebo pod 50 %
+        if (b < 0) {
+            long age = System.currentTimeMillis() - P.getLong("rt_good_t", 0);
+            int gb = P.getInt("rt_good_b", -1);
+            if (gb >= 50 && age < 60 * 60_000L) { b = gb; bNote = " (poslední přečtení před " + (age / 60_000L) + " min)"; }
+        }
         boolean fresh = System.currentTimeMillis() - P.getLong("fc_t", 0) < 3 * 3600_000L;
         // 1.9.1: „zadarmo“ = jen přebytek ze slunce (River zadarmo není – musí vydržet noc)
         boolean free = fresh && P.getBoolean("rc_free", false);
         boolean isOn = cur.optInt("on", 0) == 1, want;
         String why;
-        if (b < 0) { want = true; why = "baterie routeru nejde přečíst – pro jistotu nabíjí"; }
+        if (b < 0) { want = true; why = "baterie routeru nejde přečíst déle než hodinu – pro jistotu nabíjí"; }
         else if (b <= 40) { want = true; why = "pod 40 %"; }
         else if (free && b < 90) { want = true; why = "slunce navíc"; }
         else if (b >= 80) { want = false; why = "nabito 80 % – jede z baterie"; }
@@ -719,7 +728,7 @@ public final class Collector {
                 }
             } catch (Exception ignored) { }
         }
-        o.put("rc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("ip", id));
+        o.put("rc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why + bNote).put("ip", id));
     }
 
     /** 1.9.5: odpočet „za sec zapnout“ v zásuvce Tapo. Napřed add_countdown_rule; když už pravidlo existuje
