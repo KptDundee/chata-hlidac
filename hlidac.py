@@ -3308,12 +3308,16 @@ def flip_charge_cmd(data, st, now, topic, cfg):
         # ze slunce, ne ze solární baterie. Přes den co nejvíc, ať se nemusí nabíjet v noci (z baterie / River = ztráty).
         load = inv.get("mw") or 0
         surplus = pv - load
-        allow = surplus >= 15 or pv >= 30 and (last.get("status") in (1, 2))      # nebo regulátor Float / Boost
-        why = f"přebytek ze slunce {surplus:.0f} W" if allow else f"chata na soláru – panely {pv:.0f} W, odběr {load:.0f} W (čeká na přebytek)"
+        # 5.55: jen skutečný přebytek – panely dávají o 15 W víc, než chata bere, nebo Float (baterie plná, regulátor
+        # panely škrtí). Boost už ne: tehdy se solární baterie teprve nabíjí a Flip by jí bral.
+        allow = surplus >= 15 or (pv >= 30 and last.get("status") == 1)
+        why = f"přebytek ze slunce {surplus:.0f} W" if surplus >= 15 else "solární baterie plná (Float)" if allow \
+            else f"chata na soláru – panely {pv:.0f} W, odběr {load:.0f} W (čeká na přebytek)"
     elif on_river:
-        allow, why = True, "chata na River"
+        # 5.55: proud z River zadarmo není – Flip jen pod 20 % a jen na tolik, aby vydržel do slunce
+        allow, why = False, "chata na River – dobíjí jen pod 20 % (do slunce)"
     else:
-        allow, why = True, "zdroj neznámý"
+        allow, why = False, "zdroj neznámý – dobíjí jen pod 20 %"
     # 5.34: zásuvka routeru M7000 – Flip 1.9 ji řídí sám podle baterie routeru (40 / 80 %), povolení „allow“ =
     # proud zadarmo (River / přebytek) → nabíjet. Prázdné = neřídit (zásuvka zůstane, jak je).
     rip = str(cfg.get("zasuvka_router") or "").strip() if cfg.get("router_nabijeni_rizeni", True) else ""
@@ -3337,7 +3341,7 @@ def flip_charge_cmd(data, st, now, topic, cfg):
             ftgt = int(max(25, min(80, round(20 + rate * hrs + 5))))
             f_until = int(light.timestamp())
     # 5.40: router nabíjet „zadarmo“ jen z přebytku slunce – proud z River zadarmo není (River musí vydržet noc)
-    rfree = bool(on_solar and pv - (inv.get("mw") or 0) >= 20)    # 5.54: jen skutečný přebytek (ne „Boost“ při vybíjení)
+    rfree = bool(on_solar and (pv - (inv.get("mw") or 0) >= 20 or (pv >= 30 and last.get("status") == 1)))   # 5.54/5.55: přebytek nebo Float
     if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
             or ts - fs.get("t", 0) >= 3600:
         body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0, "why": why, "id": int(ts)})

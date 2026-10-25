@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.55 – 25. 10. 2026
+- Nabíjení Flipu: do 80 % jen ze skutečného přebytku slunce (panely − odběr ≥ 15 W, nebo Float). Dřív stačil Boost a na River se nabíjel kdykoli → telefon byl pořád skoro plný i když chatě chyběl proud. Jinak (i na River) jen pod 20 % a jen na tolik, aby vydržel do slunce (Flip 1.9.2+).
+
 ## 5.54 – 25. 10. 2026
 - Teploměr, který Flip zrovna neslyší, ukazuje poslední známou teplotu a vlhkost šedě s časem („před 2 h“) místo „Flip ho neslyší“ (nejvýš 7 dní stará). Lednice a mráz dál hlídají jen čerstvé hodnoty.
 - Router: „přebytek ze slunce“ jen při skutečném přebytku (panely − odběr ≥ 20 W). Dřív stačil Boost regulátoru a router se nabíjel, i když se solární baterie vybíjela.

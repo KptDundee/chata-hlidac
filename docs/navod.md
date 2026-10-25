@@ -334,3 +334,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Chladnutí – jak číst (5.46)**: hlavní číslo je „chata ztrácí X °C za hodinu na každých 10 °C rozdílu proti venku“. Při 20 °C uvnitř a 10 °C venku klesá teplota o X °C za hodinu, při rozdílu 20 °C o 2× X. Čím menší číslo, tím líp chata drží teplo. Učí se jen z noci 0:00–7:00 (Nastavení), kdy se netopí.
 
 **Graf noci (5.49)**: v detailu Teploty graf „Noc: Pokoj a venku“ – modře skutečná teplota v pokoji, čárkovaně předpověď (jen orientační), zeleně venku, vybarvený pás = rozdíl teplot, šedě noc bez topení. Tlačítky nad grafem se přepíná noc (poslední týden).
+
+**Nabíjení Flipu (5.55)**: do 80 % se Flip nabíjí jen ze skutečného přebytku slunce (panely dávají aspoň o 15 W víc, než chata bere, nebo je solární baterie plná). Jinak – i když chata jede z River – jen pod 20 % a jen na tolik, aby vydržel do doby, kdy slunce zase dává přebytek.
