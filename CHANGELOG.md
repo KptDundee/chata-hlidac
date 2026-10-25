@@ -3,6 +3,14 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.58 / Flip 1.9.8 – 25. 10. 2026
+Revize celého řízení nabíjení Flipu a routeru (cíl: šetřit solární baterii i River, nikdy neohrozit funkci):
+- „Slunce navíc“ (Flip do 80 %, router do 90 %) jen když regulátor panely škrtí: solární baterie plná (Float) nebo ji drží na nabíjecím napětí (Boost / absorpce, s teplotní kompenzací), a čistý výkon do baterie není záporný. Dřív stačilo „panely − odběr ≥ 15 W“ – jenže ve fázi Bulk jde každý watt navíc do solární baterie, takže nabíjení Flipu / routeru jí bralo. Stejná podmínka jako automatické nabíjení River.
+- Ztráty měniče a jeho vlastní spotřeba se počítají (odběr / 0,88 + 6 W).
+- Flip: bez povolení od hlídače se už nepředpokládá „smí nabíjet“ (výchozí ne).
+- Router: když zásuvka nepřijme pojistku, Brána ji nezkouší vypínat každých 10 min (přepínala by se), znovu až za 6 h.
+- Detail Flipu: řádek „Slunce navíc ano / ne“ s důvodem (Float / Boost a napětí, od kdy regulátor škrtí); u Flipu i chyba pojistky; vysvětlení přepsané.
+
 ## 5.57 / Flip 1.9.7 – 25. 10. 2026
 - Pojistka zásuvek Flipu (9) a routeru (5) se dokud Brána běží každých 30 min obnovuje („zapnout za 3 h / 2 h“ znovu od začátku). Dřív po 3 h zásuvku zapnula, i když Brána běžela, a Flip se nad 80 % zbytečně nabíjel, než ho Brána při dalším měření vypnula.
 

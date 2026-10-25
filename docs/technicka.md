@@ -284,3 +284,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 
 **5.57 / Flip 1.9.7**: dokud je zásuvka (9 / 5) vypnutá a má zůstat, Brána každých 30 min znovu nastaví odpočet (`countdownOn`, `fc_cd_t` / `rc_cd_t`) – pojistka zabere jen když Brána neběží.
+
+**5.58 / Flip 1.9.8**: `flip_charge_cmd` – `free_sun` = na soláru, data regulátoru < 30 min, (status 1 a U ≥ float_V − 0,3) nebo (status 2 a U ≥ boost_V(komp.) − 0,1), pv ≥ 20 W a net_w = 0,95·pv − (mw/0,88 + menic_vlastni_W) ≥ −5 W. `allow` (Flip) = `rfree` (router) = `free_sun` na soláru, jinak False. `data.sun_free` pro web. Flip: `fc_allow` výchozí false; router po neúspěšné pojistce 6 h nevypíná (`rc_cd_fail_t`); `fc.err` = chyba pojistky Flipu.

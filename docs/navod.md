@@ -336,3 +336,9 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Graf noci (5.49)**: v detailu Teploty graf „Noc: Pokoj a venku“ – modře skutečná teplota v pokoji, čárkovaně předpověď (jen orientační), zeleně venku, vybarvený pás = rozdíl teplot, šedě noc bez topení. Tlačítky nad grafem se přepíná noc (poslední týden).
 
 **Nabíjení Flipu (5.55)**: do 80 % se Flip nabíjí jen ze skutečného přebytku slunce (panely dávají aspoň o 15 W víc, než chata bere, nebo je solární baterie plná). Jinak – i když chata jede z River – jen pod 20 % a jen na tolik, aby vydržel do doby, kdy slunce zase dává přebytek.
+
+**Řízení nabíjení Flipu a routeru (5.58 / Flip 1.9.8)** – shrnutí:
+- Slunce navíc = regulátor panely škrtí (solární baterie plná, nebo ji drží na nabíjecím napětí). Jen tehdy se Flip nabíjí do 80 % a router do 90 %.
+- Jinak Flip jen pod spodní hranicí (30 %, Nastavení) a jen do slunce; router pod 40 % do 80 %.
+- Pojistky: v zásuvce odpočet „zapnout za 3 h (Flip) / 2 h (router)“, obnovuje se každých 30 min, dokud Brána běží. Router bez přijaté pojistky nevypne. Baterii routeru nejde přečíst → nabíjí. Nad 42 °C se Flip nenabíjí.
+- V detailu „Flip (brána) a Wi‑Fi“ řádek „Slunce navíc“ ukáže, proč se zrovna (ne)nabíjí.

@@ -560,7 +560,7 @@ public final class Collector {
                 if ("message".equals(m.optString("event"))) try { last = new JSONObject(m.optString("message")); } catch (Exception ignored) {}
             }
             if (last != null && last.optLong("id") * 1000 > P.getLong("fc_t", 0)) {
-                P.edit().putBoolean("fc_allow", last.optBoolean("allow", true)).putLong("fc_t", last.optLong("id") * 1000)
+                P.edit().putBoolean("fc_allow", last.optBoolean("allow", false)).putLong("fc_t", last.optLong("id") * 1000)
                         .putString("fc_ip", last.optString("ip", "9")).putString("fc_why", last.optString("why", ""))
                         .putString("rc_ip", last.optString("rip", ""))                   // 1.9: zásuvka routeru
                         .putBoolean("rc_free", last.optBoolean("rfree", false))           // 1.9.1: přebytek ze slunce
@@ -591,7 +591,7 @@ public final class Collector {
         else if (pct <= P.getInt("fc_min", 30)) { want = true; why = "pod " + P.getInt("fc_min", 30) + " %"; P.edit().putBoolean("fc_low", true).apply(); }
         else if (pct >= 80) { want = false; why = "nabito 80 %"; }
         else if (pct >= 75 && !isOn) { want = false; why = "nabito (pod 75 % znovu)"; }
-        else if (fresh && P.getBoolean("fc_allow", true)) { want = true; why = P.getString("fc_why", ""); }
+        else if (fresh && P.getBoolean("fc_allow", false)) { want = true; why = P.getString("fc_why", ""); }
         else if (P.getBoolean("fc_low", false) && isOn) {
             // 1.9.2: po poklesu pod 20 % dobít jen na cíl od hlídače (vydrží do slunce), ne do plna; bez spojení na 40 %
             int tgt = fresh && P.getInt("fc_tgt", 0) > 0 ? P.getInt("fc_tgt", 0) : Math.max(40, P.getInt("fc_min", 30) + 10);
@@ -613,6 +613,7 @@ public final class Collector {
                     isOn = want;
                     if (!want) {                                         // pojistka: za 3 h se zásuvka sama zapne
                         String cdErr = countdownOn(t, 10800);
+                        P.edit().putString("fc_cd_err", cdErr == null ? "" : cdErr).apply();
                         if (cdErr == null) P.edit().putLong("fc_cd_t", System.currentTimeMillis()).apply();
                         if (cdErr != null && !P.getBoolean("fc_cd_log", false)) {
                             Prefs.log(ctx, "Pojistka (odpočet zapnutí) zásuvka nepřijala: " + cdErr);
@@ -635,7 +636,10 @@ public final class Collector {
             } catch (Exception ignored) { }
         }
         P.edit().putBoolean("fc_hot", hot).apply();
-        o.put("fc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("hot", hot ? 1 : 0).put("fresh", fresh ? 1 : 0).put("ip", id));
+        JSONObject fco = new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("hot", hot ? 1 : 0).put("fresh", fresh ? 1 : 0).put("ip", id);
+        String fce = P.getString("fc_cd_err", "");
+        if (!fce.isEmpty()) fco.put("err", fce.length() > 120 ? fce.substring(0, 120) : fce);   // 1.9.8: pojistku zásuvka nepřijala
+        o.put("fc", fco);
     }
 
     /**
@@ -668,9 +672,16 @@ public final class Collector {
         String why;
         if (b < 0) { want = true; why = "baterie routeru nejde přečíst – pro jistotu nabíjí"; }
         else if (b <= 40) { want = true; why = "pod 40 %"; }
-        else if (free && b < 90) { want = true; why = "přebytek ze slunce"; }
+        else if (free && b < 90) { want = true; why = "slunce navíc"; }
         else if (b >= 80) { want = false; why = "nabito 80 % – jede z baterie"; }
         else { want = isOn; why = isOn ? "nabíjí do 80 %" : "jede z baterie do 40 %"; }
+        // 1.9.8: když zásuvka nepřijala pojistku, nezkoušet ji vypínat každých 10 min znovu (přepínala by se) – zkusit za 6 h
+        if (!want && isOn && !P.getString("rc_cd_err", "").isEmpty()
+                && System.currentTimeMillis() - P.getLong("rc_cd_fail_t", 0) < 6 * 3600_000L) {
+            o.put("rc", new JSONObject().put("on", 1).put("why", "zásuvka nepřijala pojistku – nechávám zapnutou, zkusím znovu za pár hodin")
+                    .put("err", P.getString("rc_cd_err", "")).put("ip", id));
+            return;
+        }
         if (want != isOn) {
             String ip = plugMap(email, pass).get(id);
             if (ip == null) ip = id.matches("\\d+") ? null : id;
@@ -688,7 +699,7 @@ public final class Collector {
                             JSONObject r2 = new JSONObject(t.call("set_device_info", "{\"device_on\":true}"));
                             isOn = r2.optInt("error_code", -1) == 0 ? true : isOn;
                             if (!cdErr.equals(P.getString("rc_cd_err", ""))) Prefs.log(ctx, "Router: zásuvka nepřijala pojistku (odpočet) – nechávám zapnutou: " + cdErr);
-                            P.edit().putString("rc_cd_err", cdErr).apply();
+                            P.edit().putString("rc_cd_err", cdErr).putLong("rc_cd_fail_t", System.currentTimeMillis()).apply();
                             o.put("rc", new JSONObject().put("on", isOn ? 1 : 0).put("why", "zásuvka nepřijala pojistku – nechávám zapnutou").put("err", cdErr.length() > 120 ? cdErr.substring(0, 120) : cdErr).put("ip", id));
                             return;
                         }
