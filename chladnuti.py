@@ -19,6 +19,8 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 
 FC_URL = "https://api.open-meteo.com/v1/forecast"
+from zoneinfo import ZoneInfo
+_TZ = ZoneInfo("Europe/Prague")
 
 
 def _outdoor(st, cfg, now, log=print):
@@ -102,7 +104,7 @@ def _segments(R):
     return segs
 
 
-def _fit(R, s, e, tout, inwin=lambda t: True):
+def _fit(R, s, e, tout, inwin=lambda t: True, why=None):
     """Úsek chladnutí → použitelné kousky bez větrání a bez první hodiny → [(k, ta, tb, Ta, Tb, To, h, okna)]."""
     t_peak = R[s][0]
     bad_until, wins, pieces, cur = 0, 0, [], []
@@ -135,6 +137,8 @@ def _fit(R, s, e, tout, inwin=lambda t: True):
         (ta, Ta), (tb, Tb) = pc[0], pc[-1]
         h = (tb - ta) / 3600
         if h < 3 or Ta - Tb < 0.8:
+            if why is not None and h >= 1:
+                why.append(f"{datetime.fromtimestamp(ta, _TZ).strftime('%d.%m. %H:%M')}: {h:.1f} h, pokles {Ta - Tb:.1f} °C – málo (aspoň 3 h a 0,8 °C)")
             continue
         integ, ok, outs = 0.0, True, []
         for (t0, T0), (t1, T1) in zip(pc, pc[1:]):
@@ -145,6 +149,8 @@ def _fit(R, s, e, tout, inwin=lambda t: True):
             outs += [o0, o1]
             integ += ((T0 - o0) + (T1 - o1)) / 2 * (t1 - t0) / 3600
         if not ok or not outs or Ta - outs[0] < 4 or integ <= 0:
+            if why is not None:
+                why.append(f"{datetime.fromtimestamp(ta, _TZ).strftime('%d.%m. %H:%M')}: " + ("chybí venkovní teplota" if not ok or not outs else "malý rozdíl proti venku"))
             continue
         k_all = (Ta - Tb) / integ
         # 5.48: kamna po dotopení ještě dlouho hřejí → začátek noci chladne pomaleji, než odpovídá chatě. Rychlost
@@ -157,6 +163,8 @@ def _fit(R, s, e, tout, inwin=lambda t: True):
                 il += ((T0 - tout(t0)) + (T1 - tout(t1))) / 2 * (t1 - t0) / 3600
             if il > 0:
                 k = (late[0][1] - late[-1][1]) / il
+        if not 0.003 < k < 1.0 and why is not None:
+            why.append(f"{datetime.fromtimestamp(ta, _TZ).strftime('%d.%m. %H:%M')}: nesmyslná rychlost {k:.3f}")
         if 0.003 < k < 1.0:
             out.append({"t0": t_peak, "ta": ta, "tb": tb, "T0": round(R[s][1], 1), "Ta": round(Ta, 1), "Tb": round(Tb, 1),
                         "To": round(sum(outs) / len(outs), 1), "k": round(k, 4), "k_all": round(k_all, 4),
@@ -192,11 +200,12 @@ def update(data, st, now, cfg, log=print):
         return
     O = _outdoor(st, cfg, now, log)
     tout = lambda t: _interp(O, t)
-    if st.get("cool_ver") != 3:                       # 5.46: učí se jen z noci (bez udržovacího topení) – přepočítat
+    if st.get("cool_ver") != 4:                       # 5.46: učí se jen z noci (bez udržovacího topení) – přepočítat
         st["cool_ev"] = {}
-        st["cool_ver"] = 3
+        st["cool_ver"] = 4
     ev = st.setdefault("cool_ev", {})
     seen_live = set()
+    why = []
 
     def _min(txt, dflt):
         try:
@@ -212,7 +221,7 @@ def update(data, st, now, cfg, log=print):
         m = lt.hour * 60 + lt.minute
         return w0 <= m < w1 if w0 <= w1 else (m >= w0 or m < w1)
     for s, e, live in _segments(R):
-        for f in _fit(R, s, e, tout, inwin):
+        for f in _fit(R, s, e, tout, inwin, why):
             key = str(f["ta"])
             # úsek, který ještě běží, se při dalším běhu přepočítá (jiný konec) – starý kus se stejným vrcholem pryč
             for k_ in [k_ for k_, x in ev.items() if x.get("t0") == f["t0"] and k_ != key and x.get("live")]:
@@ -239,6 +248,26 @@ def update(data, st, now, cfg, log=print):
         if prev:
             c["trend"] = round(R[-1][1] - sum(prev) / len(prev), 1)   # za poslední ~hodinu
     c["out_err"] = (st.get("wo") or {}).get("err")
+    c["why"] = why[-6:]
+    # 5.50: každá noc přímo z naměřených teplot (bez výpočtu modelu) – průměrný pokles v okně noci
+    nights = []
+    for dd in range(8, -1, -1):
+        day = (now - timedelta(days=dd)).replace(hour=0, minute=0, second=0, microsecond=0)
+        a = day + timedelta(minutes=w0) if w0 < w1 else day - timedelta(days=1) + timedelta(minutes=w0)
+        b = day + timedelta(minutes=w1)
+        ta_, tb_ = a.timestamp(), b.timestamp()
+        if tb_ > ts:
+            continue
+        pts = [(t, T) for t, T in R if ta_ <= t <= tb_]
+        if len(pts) < 6 or pts[0][0] - ta_ > 3600 or tb_ - pts[-1][0] > 3600:
+            continue
+        hrs = (pts[-1][0] - pts[0][0]) / 3600
+        mx_rise = max(0.0, max(pts[i][1] - min(T for _, T in pts[:i + 1]) for i in range(len(pts))))
+        os_ = [tout(t) for t, _ in pts[::6] if tout(t) is not None]
+        nights.append({"ta": int(pts[0][0]), "tb": int(pts[-1][0]), "Ta": pts[0][1], "Tb": pts[-1][1],
+                       "avg": round((pts[0][1] - pts[-1][1]) / hrs, 2) if hrs > 0 else None,
+                       "To": round(sum(os_) / len(os_), 1) if os_ else None, "heat": 1 if mx_rise >= 0.5 else 0})
+    c["nights"] = nights
     c["win"] = [cfg.get("chladnuti_noc_od") or "0:00", cfg.get("chladnuti_noc_do") or "7:00"]
     for x in c["ev"]:
         x["r10"] = round(x["k"] * 10, 2)              # °C/h při rozdílu 10 °C proti venku

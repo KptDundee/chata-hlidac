@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.50 – 25. 10. 2026
+- Chladnutí: „minulá noc“ se počítá přímo z naměřených teplot v okně noci (0–7 h) – číslo je hned, i když se z noci model nenaučí (označí „topilo se“, když teplota v noci stoupla). Když se model zatím z žádné noci nenaučil, rozbalovací „Proč se zatím neučí“ ukáže důvody. Úseky přepočítány.
+
 ## 5.49 – 25. 10. 2026
 - Chladnutí – přehledněji: nahoře 3 velká čísla (minulá noc °C/h · ztráta na 10 °C rozdílu · teď uvnitř / venku), tabulka nocí sbalená.
 - Nový graf „Noc: Pokoj a venku“ (20:00–8:00): skutečná teplota v pokoji, předpověď čárkovaně (od 0:00 z naměřené teploty, u probíhající noci od teď), venkovní teplota, vybarvený rozdíl teplot, šedě noc bez topení; přepínání nocí za poslední týden. Hlídač drží venkovní teplotu za 8 dní.

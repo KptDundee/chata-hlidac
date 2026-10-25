@@ -271,3 +271,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.48**: `showTip` – dotyk: bublina nad horní hranou SVG (nebo 70 px nad prstem), vodorovně na střed u prstu. `coolCard` graf venku `gap:7300`. `detRiver` – River bez `soc` (ani v bodech) → karta s větou místo grafu. `chladnuti._fit`: `k` z posledních 3 h kousku (≥ 4 h), `k_all` celý, `avg` = (Ta − Tb)/h; `cool_ver` 3.
 
 **5.49**: `data.cool.out` 8 dní zpět + 24 h dopředu. Web `coolCard` (dlaždice, řádky, tabulka v `<details>`), `coolNight(d, h, n)` – vlastní SVG: okno 20:00–8:00, pokoj z `points[].th`, venku interpolace `out`, předpověď Euler 10 min s `cool.k` od začátku okna `win[0]` (probíhající noc od teď), pás pokoj–venku, šedé okno učení, svislá čára teď.
+
+**5.50**: `data.cool.nights` = noci (okno `win`) za 8 dní přímo z bodů: {ta, tb, Ta, Tb, avg °C/h, To, heat (vzestup ≥ 0,5 °C)}; `data.cool.why` = důvody odmítnutých kousků (`_fit(..., why)`); `cool_ver` 4.
