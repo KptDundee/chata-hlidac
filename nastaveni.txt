@@ -152,6 +152,8 @@ river_sn =                       # spárování zásuvek River s EcoFlow: „č�
 zasuvka_flip = 9                 # zásuvka s nabíječkou Flipu (číslo)
 chladnuti_teplomer = Pokoj        # teploměr, podle kterého se učí chladnutí místnosti po dotopení (prázdné = vypnuto)
 chladnuti_rano = 7:00             # předpověď „ráno bude ~X °C“ na tento čas
+chladnuti_noc_od = 0:00          # učit se chladnutí jen z noci, kdy se netopí – od
+chladnuti_noc_do = 7:00          # … do
 chladnuti_cil_C = 21              # kolik °C chci ráno – z toho „musí být při dotopení ~Z °C“
 venku_sirka = 50.095              # venkovní teplota: Praha-Hrdlořezy
 venku_delka = 14.517

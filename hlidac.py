@@ -40,7 +40,7 @@ DEFAULTS = {
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_rezerva_W": 100,
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
-    "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
+    "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,

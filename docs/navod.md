@@ -330,3 +330,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Chata na River a upozornění (5.43)**: když chata jede z River, nechodí upozornění s radou „omez odběr / přepni na River“ (pod 50 #, slábne, noční předpověď). Pokud solární baterie i tak klesne pod kritické napětí, přijde „Solární baterie pod X V, i když chata jede z River“ – něco ji vybíjí. Po návratu na solár (30 min) platí upozornění zase normálně.
 
 **Data internetu (Flip 1.9.3, web 5.44)**: v detailu „Flip (brána) a Wi‑Fi“ je vidět, kolik dat dnes přenesl router (mobilní internet chaty), kolik z toho Flip (celý telefon přes Wi‑Fi), kolik z toho aplikace Brána a kolik ostatní zařízení (kamery…). Graf ukazuje data po dnech. První den se počítá od nahrání Flipu 1.9.3.
+
+**Chladnutí – jak číst (5.46)**: hlavní číslo je „chata ztrácí X °C za hodinu na každých 10 °C rozdílu proti venku“. Při 20 °C uvnitř a 10 °C venku klesá teplota o X °C za hodinu, při rozdílu 20 °C o 2× X. Čím menší číslo, tím líp chata drží teplo. Učí se jen z noci 0:00–7:00 (Nastavení), kdy se netopí.

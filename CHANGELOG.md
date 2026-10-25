@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.46 – 25. 10. 2026
+- Chladnutí: učí se jen z noci 0:00–7:00 (nastavitelné) – přes den se topí udržovacím topením a výsledek by zkreslilo; dosavadní úseky přepočítány.
+- Srozumitelné číslo hned (i před 5 nocemi, označené „zatím z N nocí“): „chata ztrácí X °C za hodinu na každých 10 °C rozdílu proti venku“, „kdyby se teď netopilo, klesala by ~Y °C/h“, „právě teď chladne Z °C/h“; tabulka nocí po °C/h na 10 °C.
+- Venkovní teplota: druhý pokus jiným formátem, při chybě znovu za 10 min; prázdný graf ukáže důvod.
+- EcoFlow: prázdný graf „kolik má v baterii“ vysvětlí, že EcoFlow u River neposílá % (případně je offline).
+
 ## 5.45 – 25. 10. 2026
 - Výdrž River („vydrží do“, hodinky, upozornění „do rána nevydrží“): podle skutečného úbytku % od chvíle, kdy River chatu napájí (nejvýš 12 h, aspoň 1,5 h a 3 %). Dřív podle výkonu v jednotlivých měřeních – ten nezachytil ztráty ani celý odběr (River s 24 % po 10 h „vydrží do 21:04“). Detail EcoFlow ukazuje „výdrž podle úbytku od … (−X %/h)“.
 

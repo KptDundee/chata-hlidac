@@ -16,7 +16,7 @@ import json
 import math
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 FC_URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -29,18 +29,32 @@ def _outdoor(st, cfg, now, log=print):
     if wo.get("ll") != [lat, lon]:
         wo.update(t=0, h={}, ll=[lat, lon])
     if ts - wo.get("t", 0) >= 3600:
-        try:
-            q = urllib.parse.urlencode({"latitude": lat, "longitude": lon, "hourly": "temperature_2m",
-                                        "past_days": 2, "forecast_days": 2, "timeformat": "unixtime"})
-            with urllib.request.urlopen(f"{FC_URL}?{q}", timeout=25) as r:
-                js = json.loads(r.read().decode())
-            h = js.get("hourly") or {}
-            for t, c in zip(h.get("time", []), h.get("temperature_2m", [])):
-                if c is not None:
+        errs = []
+        for extra in ({"timeformat": "unixtime"}, {"timezone": "GMT"}):
+            try:
+                q = urllib.parse.urlencode({"latitude": lat, "longitude": lon, "hourly": "temperature_2m",
+                                            "past_days": 2, "forecast_days": 2, **extra})
+                with urllib.request.urlopen(f"{FC_URL}?{q}", timeout=25) as r:
+                    js = json.loads(r.read().decode())
+                h = js.get("hourly") or {}
+                n = 0
+                for t, c in zip(h.get("time", []), h.get("temperature_2m", [])):
+                    if c is None:
+                        continue
+                    if isinstance(t, str):                  # ISO v GMT
+                        t = datetime.strptime(t, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc).timestamp()
                     wo["h"][str(int(t))] = round(float(c), 1)
-            wo["t"] = ts
-        except Exception as e:
-            log(f"Venkovní teplota: {e}")
+                    n += 1
+                if not n:
+                    raise ValueError(f"prázdná odpověď ({str(js)[:120]})")
+                wo["t"], wo["err"] = ts, None
+                break
+            except Exception as e:
+                errs.append(str(e)[:120])
+        else:
+            wo["err"] = " | ".join(errs)
+            wo["t"] = ts - 3000                           # zkusit znovu za 10 min
+            log(f"Venkovní teplota: {wo['err']}")
     wo["h"] = {k: v for k, v in wo["h"].items() if int(k) >= ts - 15 * 86400}
     return sorted((int(k), v) for k, v in wo["h"].items())
 
@@ -88,7 +102,7 @@ def _segments(R):
     return segs
 
 
-def _fit(R, s, e, tout):
+def _fit(R, s, e, tout, inwin=lambda t: True):
     """Úsek chladnutí → použitelné kousky bez větrání a bez první hodiny → [(k, ta, tb, Ta, Tb, To, h, okna)]."""
     t_peak = R[s][0]
     bad_until, wins, pieces, cur = 0, 0, [], []
@@ -111,7 +125,7 @@ def _fit(R, s, e, tout):
                 pieces.append(cur)
             cur = []
             continue
-        if t < t_peak + 3600 or t < bad_until:
+        if t < t_peak + 3600 or t < bad_until or not inwin(t):
             continue
         cur.append((t, T))
     if len(cur) >= 2:
@@ -167,10 +181,27 @@ def update(data, st, now, cfg, log=print):
         return
     O = _outdoor(st, cfg, now, log)
     tout = lambda t: _interp(O, t)
+    if st.get("cool_ver") != 2:                       # 5.46: učí se jen z noci (bez udržovacího topení) – přepočítat
+        st["cool_ev"] = {}
+        st["cool_ver"] = 2
     ev = st.setdefault("cool_ev", {})
     seen_live = set()
+
+    def _min(txt, dflt):
+        try:
+            a, b = (str(txt or dflt).split(":") + ["0"])[:2]
+            return int(a) * 60 + int(b)
+        except ValueError:
+            a, b = dflt.split(":")
+            return int(a) * 60 + int(b)
+    w0, w1 = _min(cfg.get("chladnuti_noc_od"), "0:00"), _min(cfg.get("chladnuti_noc_do"), "7:00")
+
+    def inwin(t):                                     # 5.46: jen noc, kdy se netopí (přes den se topí udržovacím topením)
+        lt = datetime.fromtimestamp(t, now.tzinfo)
+        m = lt.hour * 60 + lt.minute
+        return w0 <= m < w1 if w0 <= w1 else (m >= w0 or m < w1)
     for s, e, live in _segments(R):
-        for f in _fit(R, s, e, tout):
+        for f in _fit(R, s, e, tout, inwin):
             key = str(f["ta"])
             # úsek, který ještě běží, se při dalším běhu přepočítá (jiný konec) – starý kus se stejným vrcholem pryč
             for k_ in [k_ for k_, x in ev.items() if x.get("t0") == f["t0"] and k_ != key and x.get("live")]:
@@ -196,10 +227,20 @@ def update(data, st, now, cfg, log=print):
         prev = [T for t, T in R if R[-1][0] - 3600 <= t < R[-1][0] - 1200]
         if prev:
             c["trend"] = round(R[-1][1] - sum(prev) / len(prev), 1)   # za poslední ~hodinu
+    c["out_err"] = (st.get("wo") or {}).get("err")
+    c["win"] = [cfg.get("chladnuti_noc_od") or "0:00", cfg.get("chladnuti_noc_do") or "7:00"]
+    for x in c["ev"]:
+        x["r10"] = round(x["k"] * 10, 2)              # °C/h při rozdílu 10 °C proti venku
+    if c.get("trend") is not None and c["trend"] < -0.05 and c.get("out_now") is not None and c["T_now"] - c["out_now"] > 2:
+        dif = c["T_now"] - c["out_now"]                # 5.46: právě teď měřené chladnutí (za poslední hodinu)
+        c["live"] = {"rate": round(-c["trend"], 2), "dif": round(dif, 1), "r10": round(-c["trend"] / dif * 10, 2)}
     if ks:
         k = ks[len(ks) // 2]
         c["k"] = k
         c["half_h"] = round(math.log(2) / k, 1)
+        c["r10"] = round(k * 10, 2)
+        if c.get("T_now") is not None and c.get("out_now") is not None:
+            c["loss_now"] = round(k * (c["T_now"] - c["out_now"]), 2)
     if len(done) >= need and ks and c.get("T_now") is not None:
         k = c["k"]
         hh, mm = (str(cfg.get("chladnuti_rano") or "7:00").split(":") + ["0"])[:2]
