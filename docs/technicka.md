@@ -269,3 +269,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.46**: `chladnuti._fit(..., inwin)` – body jen v okně `chladnuti_noc_od`–`chladnuti_noc_do` (místní čas); `st.cool_ver` 2 smaže staré úseky. `data.cool` + `r10` (= k·10 °C/h), `loss_now` (k·(T − Tvenku)), `live` {rate, dif, r10} z trendu za hodinu, `out_err`, `win`. `_outdoor`: pokus unixtime, pak ISO GMT; chyba → `wo.err`, další pokus za 10 min. Web `coolCard` přepsána; EcoFlow graf % – důvod prázdného grafu.
 
 **5.48**: `showTip` – dotyk: bublina nad horní hranou SVG (nebo 70 px nad prstem), vodorovně na střed u prstu. `coolCard` graf venku `gap:7300`. `detRiver` – River bez `soc` (ani v bodech) → karta s větou místo grafu. `chladnuti._fit`: `k` z posledních 3 h kousku (≥ 4 h), `k_all` celý, `avg` = (Ta − Tb)/h; `cool_ver` 3.
+
+**5.49**: `data.cool.out` 8 dní zpět + 24 h dopředu. Web `coolCard` (dlaždice, řádky, tabulka v `<details>`), `coolNight(d, h, n)` – vlastní SVG: okno 20:00–8:00, pokoj z `points[].th`, venku interpolace `out`, předpověď Euler 10 min s `cool.k` od začátku okna `win[0]` (probíhající noc od teď), pás pokoj–venku, šedé okno učení, svislá čára teď.

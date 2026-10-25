@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.48", FLIP_VER = "1.9.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.49", FLIP_VER = "1.9.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1962,33 +1962,88 @@ function tileTemps(d, h){
 }
 /* 5.09: detail Teploty – graf teploty každého teploměru (48 h), teď, vlhkost, baterie teploměru */
 /* 5.36: chladnutí pokoje po dotopení (Newton) – učení z večerů + předpověď na ráno */
+/* 5.49: chladnutí – přehled (3 velká čísla), graf noci (pokoj · předpověď · venku, rozdíl vybarvený), tabulka nocí */
+let COOL_N = 0;                                       // vybraná noc v grafu (0 = poslední)
 function coolCard(body, d, h){
   const c = d.cool; if(!c) return;
   const ev = (c.ev||[]).slice().reverse(), learn = c.n < c.need, W = c.win || ["0:00","7:00"];
-  const r10 = v => `${nf(v,1)} °C/h`;
-  const evRows = ev.length ? `<table class="ut" style="width:100%;margin-top:6px;font-size:13px"><tr><th style="text-align:left">noc</th><th>z → na</th><th>hodin</th><th>venku</th><th>°C/h</th><th>na 10 °C</th></tr>${ev.map(x=>`<tr><td style="text-align:left">${relDay(x.ta)} ${hmT(x.ta)}${x.live?" · chladne":""}${x.win?` · 🪟 ${x.win}×`:""}</td><td>${nf(x.Ta,1)} → ${nf(x.Tb,1)} °C</td><td>${nf(x.h,1)}</td><td>${nf(x.To,1)} °C</td><td>${x.avg!=null ? nf(x.avg,2) : "–"}</td><td>${nf(x.r10 ?? x.k*10,2)}</td></tr>`).join("")}</table>` : `<div class="sub">Zatím žádná noc (${W[0]}–${W[1]}) s plynulým chladnutím aspoň 3 h.</div>`;
+  const last = ev.find(x=>!x.live && x.avg!=null);
+  const big = (v, lab, col) => `<div style="flex:1;min-width:0;padding:10px 8px;border:1px solid var(--line);border-radius:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(${col||"--text"});white-space:nowrap">${v}</div><div class="sub" style="font-size:11.5px;line-height:1.3;margin-top:2px">${lab}</div></div>`;
+  const tiles = `<div style="display:flex;gap:8px;margin:4px 0 10px">`
+    + big(last ? `−${nf(last.avg,1)}<small style="font-size:13px"> °C/h</small>` : "–", last ? `minulá noc ${hmT(last.ta)}–${hmT(last.tb)}<br>${nf(last.Ta,1)} → ${nf(last.Tb,1)} °C` : "minulá noc<br>zatím bez dat", "--s1")
+    + big(c.r10!=null ? `${nf(c.r10,2)}<small style="font-size:13px"> °C/h</small>` : "–", `ztráta na 10 °C rozdílu${learn && c.r10!=null ? `<br>zatím z ${c.n} ${c.n===1?"noci":"nocí"}` : "<br>(čím méně, tím líp)"}`, "--s4")
+    + big(c.T_now!=null ? `${nf(c.T_now,1)}<small style="font-size:13px"> °C</small>` : "–", c.out_now!=null ? `teď · venku ${nf(c.out_now,1)} °C<br>rozdíl ${nf((c.T_now??0)-c.out_now,0)} °C` : "teď", "--text")
+    + `</div>`;
   let rows = "";
-  const last = ev.find(x=>!x.live && x.avg!=null);      // 5.48: nejnázornější – jak rychle klesala minulá noc
-  if(last) rows += rowI(`Noc ${relDay(last.ta)} ${hmT(last.ta)}–${hmT(last.tb)}`, `<b>klesala ${nf(last.avg,1)} °C za hodinu</b> <span class="sub">(${nf(last.Ta,1)} → ${nf(last.Tb,1)} °C, venku ~${nf(last.To,0)} °C)</span>`);
-  if(c.T_now!=null) rows += rowI("Teď", `${nf(c.T_now,1)} °C${c.out_now!=null ? ` · venku ${nf(c.out_now,1)} °C · rozdíl ${nf(c.T_now-c.out_now,1)} °C` : ""}${c.trend!=null ? ` <span class="sub">(za hodinu ${c.trend>0?"+":""}${nf(c.trend,1)} °C)</span>` : ""}`);
-  if(c.live) rows += rowI("Právě teď chladne", `${r10(c.live.rate)} <span class="sub">= ${nf(c.live.r10,2)} °C/h na 10 °C rozdílu</span>`);
-  if(c.r10!=null){
-    rows += rowI(`Chata ztrácí${learn ? ` <span class="sub">(zatím z ${c.n} ${c.n===1?"noci":"nocí"})</span>` : ""}`, `<b>${nf(c.r10,2)} °C za hodinu na každých 10 °C rozdílu</b>`);
-    if(c.loss_now!=null && c.T_now - c.out_now > 1) rows += rowI("Kdyby se teď netopilo", `klesala by ~${r10(c.loss_now)} (rozdíl ${nf(c.T_now-c.out_now,0)} °C)`);
-    rows += rowI("Rozdíl proti venku na polovinu", `za ~${nf(c.half_h,1)} h`);
-  }
+  if(c.live) rows += rowI("Právě teď chladne", `${nf(c.live.rate,1)} °C/h`);
+  if(c.loss_now!=null && c.T_now - c.out_now > 1 && !c.live) rows += rowI("Kdyby se teď přestalo topit", `klesala by ~${nf(c.loss_now,1)} °C/h`);
   if(learn) rows += rowI("Předpověď na ráno", `<span class="sub">až po ${c.need} nocích (teď ${c.n})</span>`);
   else if(c.pred!=null){
     const heating = (c.trend ?? 0) > 0.2;
-    rows += rowI(`${heating ? "Kdybys teď přestal topit" : "Když se už netopí"}: ${relDay(c.morning)} ${hmT(c.morning)}`, `~${nf(c.pred,1)} °C`)
+    rows += rowI(`${heating ? "Kdybys teď přestal topit" : "Když se už netopí"} – ${relDay(c.morning)} ${hmT(c.morning)}`, `~${nf(c.pred,1)} °C`)
       + rowI(`Aby bylo ${relDay(c.morning)} ${hmT(c.morning)} ${nf(c.target,0)} °C`, `musí být teď ~${nf(c.need_T,1)} °C`);
   }
-  body.insertAdjacentHTML("beforeend", `<div class="card"><h2 style="margin:0 0 6px">🌡️ Chladnutí – ${escH(c.room)}</h2>${rows}${evRows}</div>`
-    + chartCard("dt_out", "Venku – Hrdlořezy", "°C · 48 h (Open-Meteo)")
-    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to číst:</b> pokoj chladne tím rychleji, čím větší je rozdíl proti venku. „0,8 °C za hodinu na 10 °C rozdílu“ znamená: při 20 °C uvnitř a 10 °C venku klesá ~0,8 °C/h, při 20 °C a 0 °C venku (rozdíl 20) ~1,6 °C/h; jak se teploty přibližují, chladnutí zpomaluje. Čím menší číslo, tím líp chata drží teplo. „°C/h“ v tabulce = skutečný průměrný pokles té noci. Číslo „na 10 °C“ se bere z posledních 3 h noci – na začátku ještě hřejí kamna, takže tam teplota klesá pomaleji, než odpovídá chatě. Učí se jen z noci ${W[0]}–${W[1]} (přes den se topí udržovacím topením) a jen z plynulého poklesu – hodinu po dotopení a větrání (prudký pokles, 🪟) vynechá. Předpověď na ráno až od ${c.need} nocí; kamna po dotopení ještě hřejí, takže skutečnost bývá spíš o něco tepleji.</div>`);
-  const el = $("dt_out"), ou = (c.out||[]).filter(([t])=>t <= h.now);
-  if(el && ou.length) lineChart(el, ou.map(([t,v])=>({t, c:v})), "c", css("--s3"), {unit:"°C",dec:1,hours:48,gap:7300});   // 5.48: body po hodině
-  else if(el) empty(el, c.out_err ? `Venkovní teplotu nejde stáhnout: ${escH(String(c.out_err).slice(0,140))}` : "Venkovní teplota zatím nepřišla – zkusí se znovu do hodiny.");
+  const evRows = ev.length ? `<details style="margin-top:8px"><summary class="sub" style="cursor:pointer">Noci, ze kterých se učí (${ev.length})</summary><table class="ut" style="width:100%;margin-top:6px;font-size:13px"><tr><th style="text-align:left">noc</th><th>z → na</th><th>venku</th><th>°C/h</th><th>na 10 °C</th></tr>${ev.map(x=>`<tr><td style="text-align:left">${relDay(x.ta)} ${hmT(x.ta)}–${hmT(x.tb)}${x.live?" · chladne":""}${x.win?` · 🪟`:""}</td><td>${nf(x.Ta,1)} → ${nf(x.Tb,1)}</td><td>${nf(x.To,0)} °C</td><td>${x.avg!=null ? nf(x.avg,2) : "–"}</td><td>${nf(x.r10 ?? x.k*10,2)}</td></tr>`).join("")}</table></details>` : `<div class="sub">Zatím žádná noc (${W[0]}–${W[1]}) s plynulým chladnutím aspoň 3 h.</div>`;
+  body.insertAdjacentHTML("beforeend", `<div class="card"><h2 style="margin:0 0 6px">🌡️ Chladnutí – ${escH(c.room)}</h2>${tiles}${rows}${evRows}</div>
+    <div class="card chart"><h2>Noc: ${escH(c.room)} a venku</h2>
+      <div class="cs"><span style="color:var(--s1)">━</span> ${escH(c.room)} · <span style="color:var(--s4)">┅</span> předpověď (od ${W[0]}, nebo od teď) · <span style="color:var(--s3)">━</span> venku · vybarvené = rozdíl teplot · šedé = noc bez topení</div>
+      <div class="seg" id="cool_nights" style="margin:6px 0;overflow-x:auto;flex-wrap:nowrap"></div><div id="cool_ch"></div></div>`
+    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to číst:</b> „ztráta na 10 °C rozdílu“ 0,8 °C/h znamená: při 20 °C uvnitř a 10 °C venku klesá ~0,8 °C za hodinu, při rozdílu 20 °C ~1,6 °C/h; jak se teploty přibližují, chladnutí zpomaluje. Čím menší číslo, tím líp chata drží teplo. Předpověď v grafu je jen orientační – nezná vaření, dýchání ani větrání. Učí se jen z noci ${W[0]}–${W[1]} (přes den se topí udržovacím topením), z konce noci (na začátku ještě hřejí kamna) a bez větrání (🪟).</div>`);
+  coolNight(d, h, 0);
+}
+function coolNight(d, h, n){
+  const c = d.cool, el = $("cool_ch"), bar = $("cool_nights"); if(!el || !c) return;
+  COOL_N = n;
+  const clean = s => String(s).replace(/^[\s,;:.]+|[\s,;:.]+$/g, "");
+  const room = (d.points||[]).map(p=>{ let v=null; for(const k in (p.th||{})) if(clean(k)===c.room) v=p.th[k]; return {t:p.t, v}; }).filter(q=>q.v!=null);
+  const out = (c.out||[]).map(([t,v])=>({t, v}));
+  const tOut = t => { let a=null,b=null; for(const q of out){ if(q.t<=t) a=q; else { b=q; break; } }
+    if(a&&b) return a.v + (b.v-a.v)*(t-a.t)/(b.t-a.t); const q=a||b; return q && Math.abs(q.t-t) < 3*3600 ? q.v : null; };
+  // noci: od 20:00 do 8:00; první = ta, která právě běží / přijde dnes
+  const now = Date.now()/1000, base = new Date(); base.setHours(20,0,0,0);
+  if(new Date().getHours() < 12) base.setDate(base.getDate()-1);
+  const nights = []; for(let i=0;i<8;i++){ const s0 = new Date(base); s0.setDate(base.getDate()-i); const t0 = s0.getTime()/1000, e0 = new Date(s0); e0.setDate(s0.getDate()+1); e0.setHours(8,0,0,0);
+    const t1 = e0.getTime()/1000; if(i>0 && !room.some(q=>q.t>=t0 && q.t<=t1)) continue; nights.push({t0, t1, lab: i===0 ? (now < t0 ? "dnes v noci" : now < t1 ? "tahle noc" : "minulá noc") : `${s0.toLocaleDateString("cs-CZ",{weekday:"short"})}→${e0.toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}`}); }
+  if(n >= nights.length) n = 0;
+  bar.innerHTML = nights.map((x,i)=>`<button type="button" data-n="${i}" aria-pressed="${i===n}" style="white-space:nowrap">${x.lab}</button>`).join("");
+  bar.onclick = e => { const b = e.target.closest("button"); if(b) coolNight(d, h, +b.dataset.n); };
+  const N = nights[n]; if(!N) return empty(el, "Zatím málo dat.");
+  const R = room.filter(q=>q.t>=N.t0-600 && q.t<=N.t1+600), O = out.filter(q=>q.t>=N.t0-3600 && q.t<=N.t1+3600);
+  // předpověď: od začátku okna (0:00) z naměřené teploty; když okno ještě nezačalo nebo běží, od teď
+  let P = []; const k = c.k;
+  if(k && R.length){
+    const [hh, mm] = String((c.win||["0:00"])[0]).split(":").map(Number), w0d = new Date(N.t1*1000); w0d.setHours(hh||0, mm||0, 0, 0);
+    let ts = w0d.getTime()/1000; if(ts > N.t1 || ts < N.t0) ts = N.t0 + 4*3600;
+    if(now < N.t1 && (now > ts || now < ts)) ts = Math.max(Math.min(now, N.t1), N.t0);
+    const st = R.reduce((b,q)=>Math.abs(q.t-ts)<Math.abs(b.t-ts)?q:b, R[0]);
+    if(Math.abs(st.t-ts) < 3600){ let T = st.v, t = st.t; P.push({t, v:T});
+      while(t < N.t1){ const o = tOut(t); if(o==null) break; T += -k*(T-o)*600/3600; t += 600; P.push({t, v:T}); } }
+  }
+  const all = [...R.map(q=>q.v), ...O.map(q=>q.v), ...P.map(q=>q.v)]; if(R.length < 2 && O.length < 2) return empty(el, "Pro tuhle noc nejsou data.");
+  let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi-lo)*.08 || 1; lo -= pad; hi += pad;
+  const {svg, y} = frame(el, lo, hi, 0), t0 = N.t0, t1 = N.t1, x = t => M.l + (W-M.l-M.r)*(Math.min(Math.max(t,t0),t1)-t0)/(t1-t0);
+  xLabels(svg, t0, t1, x);
+  const path = (pts, gap) => { let s="", pr=null; for(const q of pts){ s += (pr && q.t-pr.t < gap ? "L" : "M") + x(q.t).toFixed(1) + "," + y(q.v).toFixed(1); pr=q; } return s; };
+  // vybarvený rozdíl teplot (pokoj – venku)
+  let band = ""; const RR = R.filter(q=>tOut(q.t)!=null);
+  if(RR.length > 1) band = `<path d="M${RR.map(q=>`${x(q.t).toFixed(1)},${y(q.v).toFixed(1)}`).join("L")}L${RR.slice().reverse().map(q=>`${x(q.t).toFixed(1)},${y(tOut(q.t)).toFixed(1)}`).join("L")}Z" fill="var(--s1)" opacity=".10"/>`;
+  // okno, ze kterého se učí
+  const [a0, b0] = (c.win||["0:00","7:00"]).map(z=>{ const [H_,M_]=z.split(":").map(Number), dd = new Date(t1*1000); dd.setHours(H_||0, M_||0, 0, 0); return dd.getTime()/1000; });
+  const win = a0 < b0 && a0 >= t0 ? `<rect x="${x(a0)}" y="${M.t}" width="${x(Math.min(b0,t1))-x(a0)}" height="${H-M.t-M.b}" fill="var(--muted)" opacity=".07"/>` : "";
+  const nowL = now > t0 && now < t1 ? `<line x1="${x(now)}" x2="${x(now)}" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" stroke-dasharray="3 3"/>` : "";
+  svg.insertAdjacentHTML("beforeend", win + band + nowL
+    + `<path d="${path(O, 7300)}" fill="none" stroke="var(--s3)" stroke-width="2"/>`
+    + (P.length > 1 ? `<path d="${path(P, 1e9)}" fill="none" stroke="var(--s4)" stroke-width="2" stroke-dasharray="6 4"/>` : "")
+    + `<path d="${path(R, 4200)}" fill="none" stroke="var(--s1)" stroke-width="2.6" stroke-linejoin="round"/>`
+    + `<line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
+  const ch = svg.querySelector(".ch");
+  const near = (arr, t) => arr.length ? arr.reduce((b,q)=>Math.abs(q.t-t)<Math.abs(b.t-t)?q:b) : null;
+  const move = ev => { const r = svg.getBoundingClientRect(), tx = t0 + (t1-t0)*((ev.clientX-r.left)*W/r.width - M.l)/(W-M.l-M.r);
+    const a = near(R, tx), p = near(P, tx), o = tOut(tx); const X = x(tx); ch.setAttribute("x1", X); ch.setAttribute("x2", X); ch.setAttribute("opacity", .5);
+    const ra = a && Math.abs(a.t-tx) < 1800 ? a.v : null, pp = p && Math.abs(p.t-tx) < 900 ? p.v : null;
+    showTip(ev, `${hmT(tx)}${ra!=null ? `<br><span style="color:var(--s1)">■</span> ${escH(c.room)} <b>${nf(ra,1)} °C</b>` : ""}${pp!=null ? `<br><span style="color:var(--s4)">■</span> předpověď ${nf(pp,1)} °C` : ""}${o!=null ? `<br><span style="color:var(--s3)">■</span> venku ${nf(o,1)} °C` : ""}${ra!=null && o!=null ? `<br>rozdíl ${nf(ra-o,1)} °C` : ""}`); };
+  svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move);
+  svg.addEventListener("pointerleave", ev=>{ if(ev.pointerType==="mouse"){ ch.setAttribute("opacity",0); hideTip(); } });
 }
 function detTemps(body){
   const d = DATA, h = homeData(d), cfg = d.cfg || {}, th = (d.inverter && d.inverter.th) || [], lim = cfg.lednice_max_C ?? 8;

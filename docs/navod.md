@@ -332,3 +332,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Data internetu (Flip 1.9.3, web 5.44)**: v detailu „Flip (brána) a Wi‑Fi“ je vidět, kolik dat dnes přenesl router (mobilní internet chaty), kolik z toho Flip (celý telefon přes Wi‑Fi), kolik z toho aplikace Brána a kolik ostatní zařízení (kamery…). Graf ukazuje data po dnech. První den se počítá od nahrání Flipu 1.9.3.
 
 **Chladnutí – jak číst (5.46)**: hlavní číslo je „chata ztrácí X °C za hodinu na každých 10 °C rozdílu proti venku“. Při 20 °C uvnitř a 10 °C venku klesá teplota o X °C za hodinu, při rozdílu 20 °C o 2× X. Čím menší číslo, tím líp chata drží teplo. Učí se jen z noci 0:00–7:00 (Nastavení), kdy se netopí.
+
+**Graf noci (5.49)**: v detailu Teploty graf „Noc: Pokoj a venku“ – modře skutečná teplota v pokoji, čárkovaně předpověď (jen orientační), zeleně venku, vybarvený pás = rozdíl teplot, šedě noc bez topení. Tlačítky nad grafem se přepíná noc (poslední týden).

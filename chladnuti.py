@@ -232,7 +232,7 @@ def update(data, st, now, cfg, log=print):
     c = {"room": room, "n": len(done), "need": need,
          "ev": sorted(ev.values(), key=lambda x: x["ta"])[-8:],
          "out_now": None if tout(ts) is None else round(tout(ts), 1),
-         "out": [[t, v] for t, v in O if ts - 48 * 3600 <= t <= ts + 24 * 3600]}
+         "out": [[t, v] for t, v in O if ts - 8 * 86400 <= t <= ts + 24 * 3600]}      # 5.49: týden zpět pro graf nocí
     if R and ts - R[-1][0] < 1800:
         c["T_now"] = round(R[-1][1], 1)
         prev = [T for t, T in R if R[-1][0] - 3600 <= t < R[-1][0] - 1200]
