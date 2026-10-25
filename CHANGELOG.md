@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.57 / Flip 1.9.7 – 25. 10. 2026
+- Pojistka zásuvek Flipu (9) a routeru (5) se dokud Brána běží každých 30 min obnovuje („zapnout za 3 h / 2 h“ znovu od začátku). Dřív po 3 h zásuvku zapnula, i když Brána běžela, a Flip se nad 80 % zbytečně nabíjel, než ho Brána při dalším měření vypnula.
+
 ## 5.56 / Flip 1.9.6 – 25. 10. 2026
 - Flip: spodní hranice nabíjení 30 % (dřív pevně 20 %) – nastavitelná (flip_min_pct), posílá ji hlídač, takže příště bez nové verze Flipu. Větší rezerva pro výpadek proudu v chatě.
 - Router: z přebytku slunce se nabíjí jen do 90 % (nabíjení 98 → 100 % nemá smysl). V detailu u „přebytek ze slunce“ i aktuální výkon panelů a odběr chaty.

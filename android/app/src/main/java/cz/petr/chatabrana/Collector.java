@@ -613,6 +613,7 @@ public final class Collector {
                     isOn = want;
                     if (!want) {                                         // pojistka: za 3 h se zásuvka sama zapne
                         String cdErr = countdownOn(t, 10800);
+                        if (cdErr == null) P.edit().putLong("fc_cd_t", System.currentTimeMillis()).apply();
                         if (cdErr != null && !P.getBoolean("fc_cd_log", false)) {
                             Prefs.log(ctx, "Pojistka (odpočet zapnutí) zásuvka nepřijala: " + cdErr);
                             P.edit().putBoolean("fc_cd_log", true).apply();
@@ -620,6 +621,18 @@ public final class Collector {
                     }
                 } else Prefs.log(ctx, "Nabíjení Flipu: zásuvka odmítla " + r);
             }
+        }
+        // 1.9.7: dokud Brána běží a zásuvka má zůstat vypnutá, odpočet „zapnout za 3 h“ každých 30 min obnovit –
+        // jinak by po 3 h zásuvku zapnul a Flip by se zbytečně nabíjel (pojistka má zabrat jen když Brána nejede)
+        if (!isOn && !want && System.currentTimeMillis() - P.getLong("fc_cd_t", 0) > 30 * 60_000L) {
+            try {
+                String ip2 = plugMap(email, pass).get(id);
+                if (ip2 != null) {
+                    TapoKlap t2 = tapo.get(ip2);
+                    if (t2 == null) { t2 = new TapoKlap(ip2, email, pass); tapo.put(ip2, t2); }
+                    if (countdownOn(t2, 10800) == null) P.edit().putLong("fc_cd_t", System.currentTimeMillis()).apply();
+                }
+            } catch (Exception ignored) { }
         }
         P.edit().putBoolean("fc_hot", hot).apply();
         o.put("fc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("hot", hot ? 1 : 0).put("fresh", fresh ? 1 : 0).put("ip", id));
@@ -679,11 +692,21 @@ public final class Collector {
                             o.put("rc", new JSONObject().put("on", isOn ? 1 : 0).put("why", "zásuvka nepřijala pojistku – nechávám zapnutou").put("err", cdErr.length() > 120 ? cdErr.substring(0, 120) : cdErr).put("ip", id));
                             return;
                         }
-                        P.edit().putString("rc_cd_err", "").apply();
+                        P.edit().putString("rc_cd_err", "").putLong("rc_cd_t", System.currentTimeMillis()).apply();
                     }
                     Prefs.log(ctx, "Nabíjení routeru " + (want ? "ZAPNUTO" : "VYPNUTO") + " (" + b + " %, " + why + ")");
                 } else Prefs.log(ctx, "Nabíjení routeru: zásuvka odmítla " + r);
             }
+        }
+        if (!isOn && !want && System.currentTimeMillis() - P.getLong("rc_cd_t", 0) > 30 * 60_000L) {   // 1.9.7: obnovit pojistku
+            try {
+                String ip2 = plugMap(email, pass).get(id);
+                if (ip2 != null) {
+                    TapoKlap t2 = tapo.get(ip2);
+                    if (t2 == null) { t2 = new TapoKlap(ip2, email, pass); tapo.put(ip2, t2); }
+                    if (countdownOn(t2, 7200) == null) P.edit().putLong("rc_cd_t", System.currentTimeMillis()).apply();
+                }
+            } catch (Exception ignored) { }
         }
         o.put("rc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("ip", id));
     }
