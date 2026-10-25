@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.53", FLIP_VER = "1.9.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.54", FLIP_VER = "1.9.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1662,7 +1662,7 @@ function fridgeStats(d, hrs){
 function tileFridge(d, h){
   const fr = d.fridge, S = fridgeStats(d, 24); if(!fr && !S) return null;
   const nm = d.cfg?.teplomer_lednice, th = ((d.inverter||{}).th||[]).find(x=>nm && x.n===nm);
-  const lim = d.cfg?.lednice_max_C ?? 8, bad = fr && fr.state!=="ok", hotT = th && th.t > lim;
+  const lim = d.cfg?.lednice_max_C ?? 8, bad = fr && fr.state!=="ok", hotT = th && !th.old && th.t > lim;
   const tpd = (((d.days||{})[dkey(h.now)]||{}).tp||{})[String(d.cfg?.zasuvka_lednice ?? "4")];
   const rows = [];
   if(th) rows.push(["teplota", `<span style="color:var(${hotT?"--crit":"--text"})">${nf(th.t,1)} °C</span>`]);
@@ -1961,7 +1961,8 @@ function tileTemps(d, h){
     const old = h.now - x.tm > 1800, fr = x.n === cfg.teplomer_lednice;
     const col = old ? "--muted" : fr && x.t > lim ? "--crit" : x.t!=null && x.t <= 0 ? "--s1" : "--text";
     const rl = x.n === cfg.teplomer_baterie ? "baterie" : fr ? "lednice" : "";
-    const nm = escH(x.n) + (rl && !String(x.n).toLowerCase().includes(rl) ? ` <span class="sub">(${rl})</span>` : "");
+    const nm = escH(x.n) + (rl && !String(x.n).toLowerCase().includes(rl) ? ` <span class="sub">(${rl})</span>` : "")
+      + (old && !x.miss && x.tm ? ` <span class="sub" style="font-size:11px">${agoS(x.tm)}</span>` : "");   // 5.54: poslední známá hodnota
     if(x.miss || thWhy(x)){
       html += `<span>${nm}</span><span class="w3" style="color:var(${x.miss?"--warn":"--muted"})">${x.miss ? (x.why || "chybí") + (x.tm ? ` · ${agoS(x.tm)}` : "") : thWhy(x)}</span>`;
       continue;
@@ -2078,7 +2079,7 @@ function detTemps(body){
   const role = n => n === cfg.teplomer_baterie && !/bater/i.test(n) ? " – u solární baterie" : n === cfg.teplomer_lednice && !/lednic/i.test(n) ? " – v lednici" : "";
   const id = n => "dt_" + String(n).replace(/[^a-z0-9]/gi, "_");
   body.insertAdjacentHTML("beforeend", names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · 48 h${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
-    + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, thWhy(x) ? thWhy(x) : `${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %${x.bt && Date.now()/1000 - x.bt > 3600 ? ` <span class="sub">(změřeno ${relDay(x.bt)} ${hmT(x.bt)})</span>` : ""}` : ""} · ${agoS(x.tm)}`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
+    + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, thWhy(x) ? thWhy(x) : `${x.old ? `<span class="sub">Flip ho teď neslyší – poslední hodnota:</span> <span style="color:var(--muted)">` : "<span>"}${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %${x.bt && Date.now()/1000 - x.bt > 3600 ? ` <span class="sub">(změřeno ${relDay(x.bt)} ${hmT(x.bt)})</span>` : ""}` : ""} · ${agoS(x.tm)}</span>`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Teploměry Xiaomi vysílají přes Bluetooth, Flip je zachytí a pošle s ostatními daty. Který teploměr je u baterie a který v lednici, nastavíš v Nastavení (jménem jako ve Flipu). Teplota u baterie se bere pro hlídání mrazu a menší kapacitu v chladu, teplota v lednici pro upozornění nad ${lim} °C.</div>`);
   coolCard(body, d, h);
   for(const n of names){ const el = $(id(n)); if(!el) continue;

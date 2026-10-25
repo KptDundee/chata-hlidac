@@ -3337,7 +3337,7 @@ def flip_charge_cmd(data, st, now, topic, cfg):
             ftgt = int(max(25, min(80, round(20 + rate * hrs + 5))))
             f_until = int(light.timestamp())
     # 5.40: router nabíjet „zadarmo“ jen z přebytku slunce – proud z River zadarmo není (River musí vydržet noc)
-    rfree = bool(on_solar and allow)
+    rfree = bool(on_solar and pv - (inv.get("mw") or 0) >= 20)    # 5.54: jen skutečný přebytek (ne „Boost“ při vybíjení)
     if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
             or ts - fs.get("t", 0) >= 3600:
         body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0, "why": why, "id": int(ts)})
@@ -3545,6 +3545,15 @@ def thermo_check(data, st, now, topic, cfg):
             e["b"] = b
         out.append({"n": n, "last": last if e.get("last") else None, "why": why if quiet or not has else None, "b": e.get("b"), "quiet": quiet})
     data["th_watch"] = out
+    # 5.54: teploměr, který Flip zrovna neslyší (časté), ukázat s poslední známou hodnotou (šedě, „old“) – ne prázdný.
+    # Body grafů a hlídání (lednice, mráz) berou jen čerstvé hodnoty (tm), takže se tím nic nezkreslí.
+    tl = st.setdefault("th_last", {})
+    for x in inv.get("th") or []:
+        kx = key(x.get("n"))
+        if x.get("t") is not None or x.get("h") is not None:
+            tl[kx] = {"t": x.get("t"), "h": x.get("h"), "tm": int(x.get("tm") or ts)}
+        elif kx in tl and ts - tl[kx]["tm"] < 7 * 86400:
+            x.update(t=tl[kx]["t"], h=tl[kx]["h"], tm=tl[kx]["tm"], old=1)
     # 5.20: suchý vzduch v obytných místnostech (topení v kamnech na dřevo) – pod vlhkost_min dvě měření po sobě
     rooms = {key(w) for w in str(cfg.get("vlhkost_hlidat") or "").split(",") if w.strip()}
     hmin = cfg.get("vlhkost_min") or 35

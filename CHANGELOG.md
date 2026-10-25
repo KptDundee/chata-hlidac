@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.54 – 25. 10. 2026
+- Teploměr, který Flip zrovna neslyší, ukazuje poslední známou teplotu a vlhkost šedě s časem („před 2 h“) místo „Flip ho neslyší“ (nejvýš 7 dní stará). Lednice a mráz dál hlídají jen čerstvé hodnoty.
+- Router: „přebytek ze slunce“ jen při skutečném přebytku (panely − odběr ≥ 20 W). Dřív stačil Boost regulátoru a router se nabíjel, i když se solární baterie vybíjela.
+
 ## 5.53 / Flip 1.9.5 – 25. 10. 2026
 - Router se nevypínal („zásuvka nepřijala pojistku“): Tapo přijme „zapnout za …“ jen u vypnuté zásuvky. Teď Brána zásuvku vypne, hned nastaví odpočet „za 2 h zapnout“; když ho zásuvka nepřijme, okamžitě ji zase zapne. Když už odpočet v zásuvce je, upraví ho (edit_countdown_rule). Stejně pro pojistku nabíjení Flipu. Chyba zásuvky je vidět v detailu Wi‑Fi.
 
