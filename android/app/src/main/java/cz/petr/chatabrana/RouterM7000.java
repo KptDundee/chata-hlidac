@@ -73,11 +73,11 @@ public final class RouterM7000 {
                         java.util.Iterator<String> it = wan.keys();
                         StringBuilder wk = new StringBuilder();
                         while (it.hasNext()) {
-                            String k = it.next(); wk.append(k).append(',');
-                            String kl = k.toLowerCase(java.util.Locale.ROOT);
+                            String wkey = it.next(); wk.append(wkey).append(',');
+                            String kl = wkey.toLowerCase(java.util.Locale.ROOT);
                             if (kl.contains("statistic") || kl.contains("flow") || kl.contains("speed")) {
-                                double dv = wan.optDouble(k, Double.NaN);
-                                if (!Double.isNaN(dv)) net.put(k, dv);
+                                double dv = wan.optDouble(wkey, Double.NaN);
+                                if (!Double.isNaN(dv)) net.put(wkey, dv);
                             }
                         }
                         net.put("_wk", trim(wk.toString()));
