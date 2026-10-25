@@ -3967,8 +3967,31 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     res = cfg.get("river_rezerva_pct") or 5
     left = max(0.0, r["soc"] - res) / 100 * cap * 0.9          # 0,9 = ztráty měniče v River
     h = left / avg
+    # 5.45: výdrž hlavně podle skutečného úbytku % (od kdy River chatu napájí, nejvýš 12 h) – zahrnuje ztráty
+    # i lednici a vše, co výkon v jednotlivých měřeních nezachytí. Z výkonu (W) jen když úbytek ještě nejde změřit.
+    k6 = str(r.get("sn", ""))[-6:]
+    ser = []                                                    # (t, soc) od teď zpátky, dokud % neklesá zpátky v čase
+    for p in reversed(data.get("points", [])):
+        if p["t"] < now.timestamp() - 12 * 3600:
+            break
+        e_ = next((x for x in p.get("rv") or [] if x.get("k") == k6), None) if k6 else None
+        if not e_ or e_.get("s") is None:
+            continue
+        if (e_.get("i") or 0) > 20:                             # tehdy se nabíjela
+            break
+        if ser and e_["s"] < ser[-1][1] - 1:                    # dřív měla méně % = mezitím se nabila
+            break
+        ser.append((p["t"], e_["s"]))
+    rate, r_t0 = None, None
+    if len(ser) >= 3:
+        (t1, s1), (t0, s0) = ser[0], ser[-1]
+        hrs = (t1 - t0) / 3600
+        if hrs >= 1.5 and s0 - s1 >= 3:
+            rate, r_t0 = (s0 - s1) / hrs, t0
+            h = max(0.0, r["soc"] - res) / rate
     until = int(now.timestamp() + h * 3600)
     data["river_sup"] = {"name": r["name"], "soc": round(r["soc"]), "w": round(avg), "h": round(h, 1), "until": until,
+                         "rate": round(rate, 1) if rate else None, "r_t0": int(r_t0) if r_t0 else None,
                          "cap": cap, "res": res, "sn": str(r.get("sn", ""))[-6:], **plug_extra}
     # večer: vydrží do zítřejšího rána?
     if not (rise and set_):
