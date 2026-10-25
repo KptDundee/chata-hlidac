@@ -2945,12 +2945,15 @@ def hash_soc(data, st, now, cfg):
         quiet = a.get("_in") is not None and abs(a["_in"]) < 0.8 and (a.get("pv_w") or 0) < 5 and 0 < b["t"] - a["t"] <= 2400
         if quiet:
             run0 = run0 or a["t"]
-            if b["t"] - run0 >= 3600 and (b.get("pv_w") or 0) < 5:
+            # 5.63: aspoň 2 h klidu – po nabíjení drží baterie ještě hodiny vyšší („povrchové“) napětí a nabití by
+            # vycházelo moc vysoko
+            if b["t"] - run0 >= 2 * 3600 and (b.get("pv_w") or 0) < 5:
                 soc_r = soc_from_v(b["bat_v"])
+                item = (b["t"], b["qr"], -(100 - soc_r) / 100 * cap0, b["bat_v"], round(soc_r), round((b["t"] - run0) / 3600, 1))
                 if not rests or b["t"] - rests[-1][0] >= 1800:
-                    rests.append((b["t"], b["qr"], -(100 - soc_r) / 100 * cap0))
+                    rests.append(item)
                 else:
-                    rests[-1] = (b["t"], b["qr"], -(100 - soc_r) / 100 * cap0)   # konec klidu = nejpřesnější
+                    rests[-1] = item                 # konec klidu = nejpřesnější
         else:
             run0 = None
     for p in pts:
@@ -2978,7 +2981,7 @@ def hash_soc(data, st, now, cfg):
             ra = rests[j - 1] if j and t - rtimes[j - 1] <= 4 * 86400 else (rests[j] if j < len(rests) and rtimes[j] - t <= 86400 else None)
             if ra:                               # 5.62: od klidového napětí
                 h = ra[2] + (p["qr"] - ra[1])
-                p["_rk"] = ra[0]
+                p["_rk"] = ra
             else:
                 win = [x["qr"] for x in pts[max(0, idx - 300):idx + 1] if x["t"] >= t - 2 * 86400]
                 h = min(0.0, p["qr"] - max(win))
@@ -2998,7 +3001,8 @@ def hash_soc(data, st, now, cfg):
         data["days"][k_]["hq_max"] = maxs[k_]
     last = pts[-1]
     ts = now.timestamp()
-    rk = last.get("_rk")
+    rka = last.get("_rk")
+    rk = rka[0] if rka else None
     kind = "full" if full_t and ts - full_t <= 3 * 86400 else "rest" if rk else "best"
     for p in pts:
         p.pop("_rk", None)
@@ -3006,7 +3010,9 @@ def hash_soc(data, st, now, cfg):
     capsrc = "testy z Ah" if cap != (cfg["kapacita_Ah"] or 200) else "štítek – zatím bez 2 testů"
     data["hq"] = {"capsrc": capsrc, "nqc": nqc, "ah": round(last["hq"], 1), "cap": round(cap), "kind": kind,
                   "ref_t": int(full_t if kind == "full" else rk if kind == "rest" else last["t"]), "pct": round(max(0, 100 + last["hq"] / cap * 100)),
-                  "full_t": int(full_t) if full_t else None, "fl_since": int(fl_since) if fl_since else None}
+                  "full_t": int(full_t) if full_t else None, "fl_since": int(fl_since) if fl_since else None,
+                  "rest": {"v": rka[3], "soc": rka[4], "h": rka[5], "ah": round(last["qr"] - rka[1], 1)} if kind == "rest" else None,
+                  "vfull": round(VCAL["full"], 2), "vempty": VCAL["empty"]}
     for k_ in ("hq_t", "hq_q", "hq_fl"):
         st.pop(k_, None)
 
