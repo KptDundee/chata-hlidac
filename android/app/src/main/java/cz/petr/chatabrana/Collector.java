@@ -611,15 +611,10 @@ public final class Collector {
                     Prefs.log(ctx, "Nabíjení Flipu " + (want ? "ZAPNUTO" : "VYPNUTO") + " (" + why + ")");
                     isOn = want;
                     if (!want) {                                         // pojistka: za 3 h se zásuvka sama zapne
-                        try {
-                            JSONObject cr = new JSONObject(t.call("add_countdown_rule",
-                                    "{\"delay\":10800,\"desired_states\":{\"on\":true},\"enable\":true,\"remain\":10800}"));
-                            if (cr.optInt("error_code", -1) != 0 && !P.getBoolean("fc_cd_log", false)) {
-                                Prefs.log(ctx, "Pojistka (odpočet zapnutí) zásuvka nepřijala: " + cr);
-                                P.edit().putBoolean("fc_cd_log", true).apply();
-                            }
-                        } catch (Exception e) {
-                            if (!P.getBoolean("fc_cd_log", false)) { Prefs.log(ctx, "Pojistka (odpočet): " + e.getMessage()); P.edit().putBoolean("fc_cd_log", true).apply(); }
+                        String cdErr = countdownOn(t, 10800);
+                        if (cdErr != null && !P.getBoolean("fc_cd_log", false)) {
+                            Prefs.log(ctx, "Pojistka (odpočet zapnutí) zásuvka nepřijala: " + cdErr);
+                            P.edit().putBoolean("fc_cd_log", true).apply();
                         }
                     }
                 } else Prefs.log(ctx, "Nabíjení Flipu: zásuvka odmítla " + r);
@@ -668,30 +663,52 @@ public final class Collector {
             if (ip != null) {
                 TapoKlap t = tapo.get(ip);
                 if (t == null) { t = new TapoKlap(ip, email, pass); tapo.put(ip, t); }
-                if (!want) {                                             // pojistka napřed: za 2 h se zásuvka sama zapne
-                    try {
-                        JSONObject cr = new JSONObject(t.call("add_countdown_rule",
-                                "{\"delay\":7200,\"desired_states\":{\"on\":true},\"enable\":true,\"remain\":7200}"));
-                        if (cr.optInt("error_code", -1) != 0) {
-                            // bez pojistky routeru nevypínat – vybitý router by už nikdo nezapnul
-                            if (!P.getBoolean("rc_cd_log", false)) { Prefs.log(ctx, "Router: zásuvka nepřijala pojistku (odpočet) – nevypínám: " + cr); P.edit().putBoolean("rc_cd_log", true).apply(); }
-                            o.put("rc", new JSONObject().put("on", 1).put("why", "zásuvka nepřijala pojistku – nechávám zapnutou").put("ip", id));
-                            return;
-                        }
-                    } catch (Exception e) {
-                        if (!P.getBoolean("rc_cd_log", false)) { Prefs.log(ctx, "Router: pojistka (odpočet): " + e.getMessage() + " – nevypínám"); P.edit().putBoolean("rc_cd_log", true).apply(); }
-                        o.put("rc", new JSONObject().put("on", 1).put("why", "pojistku nejde nastavit – nechávám zapnutou").put("ip", id));
-                        return;
-                    }
-                }
+                // 1.9.5: Tapo přijme „zapnout za …“ jen u VYPNUTÉ zásuvky (jako v aplikaci Tapo) – proto napřed vypnout,
+                // hned nastavit odpočet; když ho zásuvka nepřijme, okamžitě zase zapnout (router bez pojistky nevypínat)
                 JSONObject r = new JSONObject(t.call("set_device_info", "{\"device_on\":" + want + "}"));
                 if (r.optInt("error_code", -1) == 0) {
-                    Prefs.log(ctx, "Nabíjení routeru " + (want ? "ZAPNUTO" : "VYPNUTO") + " (" + b + " %, " + why + ")");
                     isOn = want;
+                    if (!want) {
+                        String cdErr = countdownOn(t, 7200);
+                        if (cdErr != null) {
+                            JSONObject r2 = new JSONObject(t.call("set_device_info", "{\"device_on\":true}"));
+                            isOn = r2.optInt("error_code", -1) == 0 ? true : isOn;
+                            if (!cdErr.equals(P.getString("rc_cd_err", ""))) Prefs.log(ctx, "Router: zásuvka nepřijala pojistku (odpočet) – nechávám zapnutou: " + cdErr);
+                            P.edit().putString("rc_cd_err", cdErr).apply();
+                            o.put("rc", new JSONObject().put("on", isOn ? 1 : 0).put("why", "zásuvka nepřijala pojistku – nechávám zapnutou").put("err", cdErr.length() > 120 ? cdErr.substring(0, 120) : cdErr).put("ip", id));
+                            return;
+                        }
+                        P.edit().putString("rc_cd_err", "").apply();
+                    }
+                    Prefs.log(ctx, "Nabíjení routeru " + (want ? "ZAPNUTO" : "VYPNUTO") + " (" + b + " %, " + why + ")");
                 } else Prefs.log(ctx, "Nabíjení routeru: zásuvka odmítla " + r);
             }
         }
         o.put("rc", new JSONObject().put("on", isOn ? 1 : 0).put("why", why).put("ip", id));
+    }
+
+    /** 1.9.5: odpočet „za sec zapnout“ v zásuvce Tapo. Napřed add_countdown_rule; když už pravidlo existuje
+     *  (zásuvka má jen jedno), upraví ho přes edit_countdown_rule. → null = OK, jinak text chyby. */
+    private String countdownOn(TapoKlap t, int sec) {
+        String prm = "\"delay\":" + sec + ",\"desired_states\":{\"on\":true},\"enable\":true,\"remain\":" + sec;
+        String err;
+        try {
+            JSONObject cr = new JSONObject(t.call("add_countdown_rule", "{" + prm + "}"));
+            if (cr.optInt("error_code", -1) == 0) return null;
+            err = "add " + cr;
+        } catch (Exception e) { err = "add " + e.getMessage(); }
+        try {
+            JSONObject g = new JSONObject(t.call("get_countdown_rules"));
+            JSONObject res = g.optJSONObject("result");
+            org.json.JSONArray rl = res != null ? res.optJSONArray("rule_list") : null;
+            if (rl != null && rl.length() > 0) {
+                String rid = rl.getJSONObject(0).optString("id", "");
+                JSONObject er = new JSONObject(t.call("edit_countdown_rule", "{\"id\":\"" + rid + "\"," + prm + "}"));
+                if (er.optInt("error_code", -1) == 0) return null;
+                err += " | edit " + er;
+            } else err += " | get " + g;
+        } catch (Exception e) { err += " | " + e.getMessage(); }
+        return err;
     }
 
     /** Adresa routeru = výchozí brána Wi-Fi (jinak 192.168.0.1). */

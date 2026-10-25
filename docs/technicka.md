@@ -275,3 +275,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.50**: `data.cool.nights` = noci (okno `win`) za 8 dní přímo z bodů: {ta, tb, Ta, Tb, avg °C/h, To, heat (vzestup ≥ 0,5 °C)}; `data.cool.why` = důvody odmítnutých kousků (`_fit(..., why)`); `cool_ver` 4.
 
 **5.52**: `net_usage` zapisuje přírůstky do posledního bodu: `nr` (router, bajty), `np` (Flip Wi‑Fi). Web `detFlip` – záložky `df_seg` (localStorage `df_tab`), graf `df_nh` (součty po hodinách z `nr`), `netCard` vypíše `*Statistics` čítače routeru.
+
+**5.53 / Flip 1.9.5**: `Collector.countdownOn(t, sec)` – add_countdown_rule, při chybě get_countdown_rules → edit_countdown_rule (id prvního pravidla); vrací null / text chyby. `routerCharge`: vypnout → odpočet 7200 s → při chybě hned zapnout (`rc.err`). `flipCharge` používá stejný pomocník (10800 s).

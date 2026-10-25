@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.52", FLIP_VER = "1.9.4";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.53", FLIP_VER = "1.9.5";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1696,7 +1696,7 @@ function routerCtl(d){
   if(!v19) return `až s Flip ${FLIP_VER} (teď ${g.av||"?"}) – zásuvka (${rid}) zatím stále zapnutá`;
   if(!rc) return `zásuvka (${rid}) – čeká na první měření`;
   if(rc.miss) return `zásuvka (${rid}) – ${rc.why||"nejde přečíst"}`;
-  return `zásuvka (${rc.ip||rid}) ${rc.on ? "zapnutá" : "vypnutá"}${rc.why ? ` – ${rc.why}` : ""}`;
+  return `zásuvka (${rc.ip||rid}) ${rc.on ? "zapnutá" : "vypnutá"}${rc.why ? ` – ${rc.why}` : ""}${rc.err ? `<br><span class="sub" style="font-size:11.5px;word-break:break-all">${escH(rc.err)}</span>` : ""}${rc.err && (+String(g.av||"0").split(".")[2]||0) < 5 && String(g.av||"").startsWith("1.9") ? ` <span class="sub">– oprava ve Flipu ${FLIP_VER}</span>` : ""}`;
 }
 /* 5.33: baterie routeru – vždy s důvodem, proč se nečte */
 function routerTxt(g){

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.53 / Flip 1.9.5 – 25. 10. 2026
+- Router se nevypínal („zásuvka nepřijala pojistku“): Tapo přijme „zapnout za …“ jen u vypnuté zásuvky. Teď Brána zásuvku vypne, hned nastaví odpočet „za 2 h zapnout“; když ho zásuvka nepřijme, okamžitě ji zase zapne. Když už odpočet v zásuvce je, upraví ho (edit_countdown_rule). Stejně pro pojistku nabíjení Flipu. Chyba zásuvky je vidět v detailu Wi‑Fi.
+
 ## 5.52 – 25. 10. 2026
 - Detail „Flip (brána) a Wi‑Fi“ rozdělen na záložky 📱 Flip a 📶 Wi‑Fi a data (pamatuje si poslední).
 - Wi‑Fi: nový graf „Data po hodinách – router“ (48 h) – kdy se data přenáší; hlídač ukládá přírůstky dat do bodů (nr router, np Flip). Čítače, které router hlásí (celkem od vynulování, dnes…), přehledně v MB/GB.
