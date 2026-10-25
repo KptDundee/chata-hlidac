@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.58", FLIP_VER = "1.9.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.59", FLIP_VER = "1.9.8";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1737,12 +1737,13 @@ function detFlip(body){
       ${ph.t!=null ? rowI("Teplota baterie", `${nf(ph.t,1)} °C`) : ""}
       ${ff && !ph.c ? rowI("Vybíjí se", `−${nf(ff.rate,1)} %/h → pod 15 % ${relDay(ff.t15)} ~${hmT(ff.t15)}, vybitý ${relDay(ff.t_empty)} ~${hmT(ff.t_empty)}`) : ""}
       ${rowI("Zásuvka nabíječky", fc ? `${fc.on?"zapnutá":"vypnutá"}${fc.why?` – ${fc.why}`:""}${fc.err ? `<br><span class="sub" style="font-size:11.5px;word-break:break-all">pojistku (odpočet) zásuvka nepřijala: ${escH(fc.err)}</span>` : ""}` : ch.ip ? flipCtlMiss(d) : "řízení vypnuté")}
-      ${(()=>{ const sf = d.sun_free; if(!sf) return ""; return rowI("Slunce navíc", sf.free ? `<span style="color:var(--good)">ano</span> – ${sf.status===1 ? "solární baterie plná (Float)" : "regulátor drží nabíjecí napětí"}` : `ne <span class="sub">(${sf.status===1 ? "Float" : sf.status===2 ? `Boost ${nf(sf.bv,2)} V, škrtí až od ~${nf(sf.boost_v-0.1,2)} V` : "regulátor nenabíjí naplno"} · panely ${nf(sf.pv)} W, chata ${nf(sf.load)} W)</span>`); })()}
+      ${(()=>{ const sf = d.sun_free; if(!sf) return ""; return (sf.set ? rowI("Odpoledne z panelů do plna", sf.eve ? (sf.eve_flip ? `<span style="color:var(--good)">teď ano</span> – panely pokryjí chatu i nabíjení` : `teď ne – panely nepokryjí chatu i nabíjení <span class="sub">(${nf(sf.pv)} W, chata ${nf(sf.load)} W)</span>`) : `${hmT(sf.set-3*3600)}–${hmT(sf.set-3600)} <span class="sub">(3 h až 1 h před západem)</span>`) : "") + rowI("Slunce navíc", sf.free ? `<span style="color:var(--good)">ano</span> – ${sf.status===1 ? "solární baterie plná (Float)" : "regulátor drží nabíjecí napětí"}` : `ne <span class="sub">(${sf.status===1 ? "Float" : sf.status===2 ? `Boost ${nf(sf.bv,2)} V, škrtí až od ~${nf(sf.boost_v-0.1,2)} V` : "regulátor nenabíjí naplno"} · panely ${nf(sf.pv)} W, chata ${nf(sf.load)} W)</span>`); })()}
       ${rowI("Povolení od hlídače", ch.allow==null ? "–" : `${ch.allow ? "nabíjet" : "nenabíjet"} – ${ch.why}`)}
       ${ch.ftgt ? rowI(`Při poklesu pod ${d.cfg?.flip_min_pct ?? 30} %`, `dobít jen na ${ch.ftgt} % – vydrží do ~${hmT(ch.f_until)} ${relDay(ch.f_until)} <span class="sub">(−${nf(ch.rate,1)} %/h)</span>`) : ""}
     </div>
     <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se nabíjení Flipu řídí</b> (zásuvka (${ch.ip||d.cfg?.zasuvka_flip||9})). Cíl: šetřit solární baterii i River, ale Flip nikdy nenechat vybít.<br>
       • <b>Do 80 %</b> jen když je <b>slunce navíc</b> – regulátor panely škrtí, protože solární baterie je plná (Float) nebo ji drží na nabíjecím napětí. Jen tehdy nabíjení Flipu solární baterii nic nebere.<br>
+      • <b>Odpoledne</b> (3 h až 1 h před západem) do 80 %, když panely pokryjí chatu i nabíjení – energie uložená v telefonu přeskočí ztrátu nabití a vybití solární baterie (~15–20 %), v noci ji stejně spotřebuje.<br>
       • Jinak (noc, mrak, panely nestíhají, chata na River) jen <b>pod ${d.cfg?.flip_min_pct ?? 30} %</b> a jen na tolik, aby vydržel do doby, kdy slunce zase bývá navíc (východ + 3 h, rezerva 5 %).<br>
       • <b>Nad 42 °C</b> nikdy (zpět pod 36 °C). Bez spojení s hlídačem nabíjí pod 40 %.<br>
       • Pojistka: při vypnutí se v zásuvce nastaví „za 3 h zapnout“ a dokud Brána běží, každých 30 min se obnovuje – zabere jen když Brána nejede.</div></div>
@@ -1757,7 +1758,7 @@ function detFlip(body){
     + chartCard("df_net", "Data za den – router", "MB · 14 dní · po klepnutí na sloupec i kolik z toho Flip")
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se nabíjení routeru řídí</b> (zásuvka (${(d.router_chg||{}).ip ?? d.cfg?.zasuvka_router ?? 5})). Router dělá Wi‑Fi, přes kterou Brána ovládá zásuvky – vybitý by už nikdo nezapnul, proto větší rezerva.<br>
       • <b>Pod 40 %</b> nabíjí vždy, <b>do 80 %</b>; pak zásuvku vypne a router jede z vlastní baterie.<br>
-      • Když je <b>slunce navíc</b> (jako u Flipu), nabíjí do 90 %. Z River navíc ne.<br>
+      • Když je <b>slunce navíc</b> nebo <b>odpoledne z panelů</b> (jako u Flipu), nabíjí do 90 %. Z River navíc ne.<br>
       • Baterii nejde přečíst → nabíjí. Pod 25 % přijde upozornění.<br>
       • Pojistka: vypnout jen s odpočtem „za 2 h zapnout“ v zásuvce (obnovuje se každých 30 min, dokud Brána běží); když ho zásuvka nepřijme, zůstane zapnutá.</div></div>`);
   $("df_seg").onclick = e => { const bt = e.target.closest("button"); if(!bt) return; const t = bt.dataset.t;

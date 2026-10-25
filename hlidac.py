@@ -3318,9 +3318,19 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     reg_fresh = ts - last.get("t", 0) < 1800
     throttled = reg_fresh and ((status == 1 and bv >= float_v - 0.3) or (status == 2 and bv >= boost_v - 0.1))
     free_sun = bool(on_solar and throttled and pv >= 20 and net_w >= -5)
+    # 5.59: odpoledne (3 h až 1 h před západem) nabít Flip i router do plna přímo z panelů, když panely pokryjí chatu
+    # i nabíječku – energie uložená v telefonu / routeru přeskočí ztrátu nabití a vybití solární baterie (~15–20 %),
+    # v noci ji stejně spotřebují. Když panely nestíhají, šlo by to ze solární baterie → nic se neušetří → ne.
+    _, set_d = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    eve = bool(set_d and set_d - timedelta(hours=3) <= now <= set_d - timedelta(hours=1))
+    fc_on = (inv.get("fc") or {}).get("on") == 1
+    rc_on = (inv.get("rc") or {}).get("on") == 1
+    FLIP_W, ROUTER_W = 15, 8                           # odhad příkonu nabíječek i se ztrátou měniče
+    eve_flip = bool(on_solar and reg_fresh and eve and net_w - (0 if fc_on else FLIP_W) >= (-10 if fc_on else 0))
     if on_solar:
-        allow = free_sun
-        why = ("solární baterie plná (Float) – slunce navíc" if status == 1 else "regulátor drží nabíjecí napětí – slunce navíc") if allow \
+        allow = free_sun or eve_flip
+        why = ("solární baterie plná (Float) – slunce navíc" if status == 1 else "regulátor drží nabíjecí napětí – slunce navíc") if free_sun \
+            else f"odpoledne z panelů do plna (panely {pv:.0f} W pokryjí chatu {load:.0f} W i nabíjení)" if eve_flip \
             else f"chata na soláru – slunce navíc není (panely {pv:.0f} W, chata {load:.0f} W, {STATUS.get(status, '?')})"
     elif on_river:
         allow, why = False, "chata na River – jen při poklesu pod spodní hranici"
@@ -3350,7 +3360,9 @@ def flip_charge_cmd(data, st, now, topic, cfg):
             ftgt = int(max(fmin + 5, min(80, round(fmin + rate * hrs + 5))))
             f_until = int(light.timestamp())
     # 5.40: router nabíjet „zadarmo“ jen z přebytku slunce – proud z River zadarmo není (River musí vydržet noc)
-    rfree = free_sun                                   # 5.58: router stejně jako Flip – jen když regulátor škrtí panely
+    # 5.58: router stejně jako Flip – když regulátor škrtí panely; 5.59: odpoledne z panelů, když stačí i na Flip
+    rfree = free_sun or bool(on_solar and reg_fresh and eve and net_w - (0 if rc_on else ROUTER_W)
+                             - (FLIP_W if eve_flip and not fc_on else 0) >= (-10 if rc_on else 0))
     if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
             or fs.get("fmin") != int(cfg.get("flip_min_pct") or 30) or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
             or ts - fs.get("t", 0) >= 3600:
@@ -3364,7 +3376,7 @@ def flip_charge_cmd(data, st, now, topic, cfg):
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc"), "ftgt": fs.get("ftgt"), "f_until": f_until, "rate": rate}
     data["router_chg"] = {"ip": rip, "rc": inv.get("rc"), "rfree": rfree, "pv": round(pv), "load": round(inv.get("mw") or 0)}
-    data["sun_free"] = {"free": free_sun, "status": status, "bv": bv, "boost_v": round(boost_v, 2), "float_v": float_v,
+    data["sun_free"] = {"free": free_sun, "eve": eve, "eve_flip": eve_flip, "set": int(set_d.timestamp()) if set_d else None, "status": status, "bv": bv, "boost_v": round(boost_v, 2), "float_v": float_v,
                         "net_w": round(net_w), "pv": round(pv), "load": round(load)}
     # 5.34: baterie routeru pod 25 % – vybitý router = chata bez Wi‑Fi a Flip už nic nezapne
     rb = (inv.get("rt") or {}).get("b")

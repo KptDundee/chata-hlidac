@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.59 – 25. 10. 2026
+- Flip a router se odpoledne (3 h až 1 h před západem) nabíjí do plna (Flip 80 %, router 90 %) přímo z panelů, když panely pokryjí chatu i nabíječku (po ztrátách měniče). Energie uložená v telefonu / routeru přeskočí ztrátu nabití a vybití solární baterie (~15–20 %) – v noci ji stejně spotřebují. Když panely nestíhají, nenabíjí se (šlo by to ze solární baterie). Detail Flipu: řádek „Odpoledne z panelů do plna“.
+
 ## 5.58 / Flip 1.9.8 – 25. 10. 2026
 Revize celého řízení nabíjení Flipu a routeru (cíl: šetřit solární baterii i River, nikdy neohrozit funkci):
 - „Slunce navíc“ (Flip do 80 %, router do 90 %) jen když regulátor panely škrtí: solární baterie plná (Float) nebo ji drží na nabíjecím napětí (Boost / absorpce, s teplotní kompenzací), a čistý výkon do baterie není záporný. Dřív stačilo „panely − odběr ≥ 15 W“ – jenže ve fázi Bulk jde každý watt navíc do solární baterie, takže nabíjení Flipu / routeru jí bralo. Stejná podmínka jako automatické nabíjení River.
