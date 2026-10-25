@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.65", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.66", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2318,7 +2318,15 @@ function rivModel(d, h){
 /* stav zařízení teď (jedna věta) */
 /* minuty, kdy byla zásuvka nabíjení ze soláru zapnutá (z bodů; mezery > 40 min se nepočítají) */
 function rcMinutes(pts){ let m = 0; for(let i=1;i<pts.length;i++){ const a = pts[i-1], b = pts[i]; if(a.rc && b.t-a.t <= 2400) m += (b.t-a.t)/60; } return Math.round(m); }
+/* 5.66: malá River napájí 12V osvětlení (autozásuvka) – EcoFlow hlásí výstup, zásuvka na AC výstupu nic nevidí */
+function small12(x){
+  const e = x.ef; if(!e || !e.online || (e.wh||768) >= 500) return null;
+  const ow = (e.out_w||0) - 0, iw = e.in_w||0; if(ow <= 2 || iw > 20) return null;
+  const left = e.soc!=null ? Math.max(0, e.soc - 5)/100 * (e.wh||256) * 0.9 : null, hrs = left!=null ? left / ow : null;
+  return `napájí 12 V (světla) · ${nf(ow)} W${hrs!=null ? ` · vydrží ~${hrs >= 48 ? `${nf(hrs/24,0)} dní` : `${relDay(Date.now()/1000 + hrs*3600)} ${hmT(Date.now()/1000 + hrs*3600)}`}` : ""}`;
+}
 function rivState(x, h, M){
+  { const s12 = small12(x); if(s12) return s12; }
   if(x.chg) return !x.known ? "zásuvka bez dat" : x.on ? `nabíjí${x.tgt ? ` ${x.tgt.short}` : ""}` : "vypnuto";
   if(x.gen){ const P = DATA.gen_plan, fin = P && !P.end && P.fin && Date.now()/1000 - P.t < 1800 ? ` · vypnout ~${hmT(P.fin)}` : "";
     return (x.w||0) > 5 ? `běží · ${nf(x.w)} W${fin}` : "neběží"; }     // 4.77: jen podle zásuvky generátoru

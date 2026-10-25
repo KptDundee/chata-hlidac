@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.66 – 25. 10. 2026
+- Malá River: když dodává proud z 12V autozásuvky (osvětlení chaty), ukáže se „napájí 12 V (světla) · X W · vydrží ~HH:MM“ (podle výstupu z EcoFlow a %). Dřív „zapnutá · zásuvka (6) nečte“ – zásuvka (6) je na AC výstupu a 12 V nevidí; hranice „dodává“ byla 20 W.
+
 ## 5.65 / Flip 1.9.9 – 25. 10. 2026
 - Router: když se baterie routeru jednou nepřečte (přihlášení v aplikaci tpMiFi, router zaneprázdněný), Brána 60 min použije poslední úspěšné přečtení (pokud bylo ≥ 50 %) a nezapíná hned nabíjení „pro jistotu“. Dřív stačil jeden nepovedený pokus a zásuvka (5) se zapnula.
 

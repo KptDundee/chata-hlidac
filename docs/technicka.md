@@ -304,3 +304,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.65 / Flip 1.9.9**: Flip ukládá poslední úspěšné přečtení routeru (`rt_good_b/t`); `routerCharge` ho 60 min použije, když je ≥ 50 
 **5.65 / Flip 1.9.9**: Flip ukládá poslední úspěšné přečtení routeru (`rt_good_b/t`); `routerCharge` ho 60 min použije, když je ≥ 50 procent. Web u „nejde přečíst“ ukáže `rt.err`.
+
+**5.66**: web `small12(x)` – River s kapacitou < 500 Wh, online, výstup z EcoFlow > 2 W a nenabíjí se → „napájí 12 V (světla)“ + výdrž (soc − 5 %) · Wh · 0,9 / W. Volá se na začátku `rivState`.
