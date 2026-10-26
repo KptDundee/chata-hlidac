@@ -40,7 +40,7 @@ DEFAULTS = {
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_rezerva_W": 100,
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
-    "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
+    "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
@@ -2393,6 +2393,10 @@ def inv_from_msg(last, now, cfg=None):
         inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
     if isinstance(body.get("fc"), dict):                 # 1.6: řízení nabíjení Flipu (stav zásuvky a proč)
         inv["fc"] = body["fc"]
+    if isinstance(body.get("rst"), dict):                # 1.9.11: první měření po plánovaném restartu Brány
+        inv["rst"] = body["rst"]
+    else:
+        inv.pop("rst", None)
     if isinstance(body.get("rc"), dict):                 # 1.9: řízení nabíjení routeru (stav zásuvky a proč)
         inv["rc"] = body["rc"]
     else:
@@ -2691,6 +2695,43 @@ def check_gateway(inv, st, now, topic, cfg):
         if st.get("gw_silent"):
             ntfy(topic, "📱 Brána na chatě zase posílá", "Data z telefonu u měniče znovu chodí.", 2, "white_check_mark")
         st["gw_silent"] = False
+    # 5.77: plánovaný restart Brány (Flip 1.9.11) – po něm jedna zpráva: v pořádku (nízká priorita) / problém (vysoká)
+    rs = (inv or {}).get("rst") if inv else None
+    if rs and rs.get("t") and st.get("rst_rep") != rs["t"]:
+        st["rst_rep"] = rs["t"]
+        bad = []
+        if not rs.get("ble_ok"):
+            bad.append(f"Bluetooth (měnič Victron) nejde – {rs.get('ble_err') or 'žádná data'}")
+        # jen zásuvky, které mají být vidět pořád (zasuvky_stale) – zásuvky na výstupu River / generátoru bez proudu jsou normální
+        need = ips(cfg.get("zasuvky_stale"))
+        mip = str(cfg.get("zasuvka_menic") or "1")
+        by = {str(p.get("ip")): p for p in inv.get("tp", [])}
+        inv_off = str(inv.get("st") or "").upper() not in ("", "INVERTING")
+        miss = [f"({i})" for i in need if not (i == mip and inv_off)
+                and (i not in by or by[i].get("off") or by[i].get("err") is not None)]
+        if miss:
+            bad.append(f"nevidí zásuvky {', '.join(miss)}")
+        hm_ = datetime.fromtimestamp(rs["t"], TZ).strftime("%H:%M")
+        if bad:
+            ntfy(topic, "⚠️ Brána po restartu nefunguje celá", f"Restart {hm_}. " + "; ".join(bad), 4, "warning")
+        else:
+            ntfy(topic, "✓ Brána úspěšně restartována",
+                 f"Restart {hm_}: data chodí, Bluetooth ✓, zásuvky, které mají být vidět, vidí všechny.", 1, "white_check_mark")
+    # po čase restartu se Flip neozval (do 20 min)
+    rat = str(cfg.get("brana_restart") or "").strip()
+    _v = lambda x: tuple(int(y) for y in str(x).split(".") if y.isdigit())
+    if inv is not None and ":" in rat and inv.get("av") and _v(inv.get("av")) >= (1, 9, 11):
+        try:
+            hh, mm = (int(x) for x in rat.split(":")[:2])
+            t_r = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            if t_r + timedelta(minutes=25) <= now <= t_r + timedelta(hours=2) and inv.get("t", 0) < t_r.timestamp() \
+                    and st.get("rst_miss") != now.strftime("%Y-%m-%d"):
+                ntfy(topic, "🚨 Brána se po restartu neozvala",
+                     f"Plánovaný restart {rat}, od té doby žádná data z Flipu (naposledy {datetime.fromtimestamp(inv.get('t', 0), TZ).strftime('%H:%M')}).",
+                     5, "rotating_light,warning")
+                st["rst_miss"] = now.strftime("%Y-%m-%d")
+        except ValueError:
+            pass
     # 5.67: Flip posílá jen záložní cestou (ntfy), ne přes GitHub → hlídač běží jen podle plánu GitHubu (v noci po
     # 30–45 min) a v datech jsou díry. Typicky prošlý / odmítnutý GitHub token ve Flipu.
     gh_age = (now.timestamp() - (st.get("flip_gh") or 0)) / 60
@@ -3424,14 +3465,15 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     rfree = free_sun or bool(on_solar and reg_fresh and eve and net_w - (0 if rc_on else ROUTER_W)
                              - (FLIP_W if eve_flip and not fc_on else 0) >= (-10 if rc_on else 0))
     if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
-            or fs.get("fmin") != int(cfg.get("flip_min_pct") or 30) or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
+            or fs.get("fmin") != int(cfg.get("flip_min_pct") or 30) or fs.get("rst") != str(cfg.get("brana_restart") or "") or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
             or ts - fs.get("t", 0) >= 3600:
         body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0,
-                           "fmin": int(cfg.get("flip_min_pct") or 30), "why": why, "id": int(ts)})
+                           "fmin": int(cfg.get("flip_min_pct") or 30), "rst": str(cfg.get("brana_restart") or ""),
+                           "why": why, "id": int(ts)})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
-            fs.update(allow=allow, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), t=int(ts), why=why)
+            fs.update(allow=allow, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), rst=str(cfg.get("brana_restart") or ""), t=int(ts), why=why)
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc"), "ftgt": fs.get("ftgt"), "f_until": f_until, "rate": rate}

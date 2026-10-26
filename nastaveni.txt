@@ -149,6 +149,7 @@ teplomer_baterie = Baterie        # jméno teploměru Xiaomi u solární baterie
 teplomer_lednice = Lednice        # jméno teploměru Xiaomi v lednici
 lednice_max_C = 8                # upozornit, když je v lednici tepleji déle než 30 min
 river_sn =                       # spárování zásuvek River s EcoFlow: „číslo zásuvky:konec SN“, např. 2:AB12, 3:CD34, 6:EF56 (konec SN viz detail EcoFlow)
+brana_restart = 22:10            # denní restart Brány (Bluetooth, zásuvky); vypnuto = bez restartu
 flip_min_pct = 30                # pod tímhle % se Flip dobíjí vždy (i v noci a z River), jen do slunce
 zasuvka_flip = 9                 # zásuvka s nabíječkou Flipu (číslo)
 chladnuti_teplomer = Pokoj        # teploměr, podle kterého se učí chladnutí místnosti po dotopení (prázdné = vypnuto)

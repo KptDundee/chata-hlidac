@@ -225,6 +225,17 @@ public final class Collector {
             }
             if (o.has("th")) sum.append(", teploměry ").append(o.getJSONArray("th").length());
             o.put("av", appVersion());
+            // 1.9.11: první měření po plánovaném restartu → hlídač pošle zprávu, jestli je všechno v pořádku
+            long rstT = Prefs.get(ctx).getLong("rst_t", 0);
+            if (rstT > 0 && System.currentTimeMillis() - rstT < 30 * 60_000L && !Prefs.get(ctx).getBoolean("rst_sent", true)) {
+                JSONObject rs = new JSONObject().put("t", rstT / 1000).put("ble_ok", s.error == null || s.samples > 0 ? 1 : 0);
+                if (s.error != null && s.samples == 0) rs.put("ble_err", s.error);
+                if (o.has("tp")) { int rOk = 0, rTot = 0; JSONArray rTp = o.getJSONArray("tp");
+                    for (int ri = 0; ri < rTp.length(); ri++) { JSONObject rp = rTp.getJSONObject(ri); rTot++; if (!rp.has("off") && !rp.has("err")) rOk++; }
+                    rs.put("plugs_ok", rOk).put("plugs", rTot); }
+                o.put("rst", rs);
+                Prefs.get(ctx).edit().putBoolean("rst_sent", true).apply();
+            }
             // 1.9.3: kolik dat přenesla aplikace Brána a celý telefon (bajty od zapnutí telefonu; hlídač počítá přírůstky)
             try {
                 int uid = android.os.Process.myUid();
@@ -566,7 +577,8 @@ public final class Collector {
                         .putString("rc_ip", last.optString("rip", ""))                   // 1.9: zásuvka routeru
                         .putBoolean("rc_free", last.optBoolean("rfree", false))           // 1.9.1: přebytek ze slunce
                         .putInt("fc_tgt", last.optInt("ftgt", 0))                          // 1.9.2: dobít na (noc)
-                        .putInt("fc_min", last.optInt("fmin", 30)).apply();                // 1.9.6: spodní hranice (Nastavení)
+                        .putInt("fc_min", last.optInt("fmin", 30))                         // 1.9.6: spodní hranice (Nastavení)
+                        .putString("rst_at", last.optString("rst", "22:10")).apply();      // 1.9.11: čas denního restartu
             }
         } catch (Exception e) { /* bez internetu – platí poslední povolení / záloha pod 40 % */ }
         String id = P.getString("fc_ip", "9");
@@ -912,6 +924,12 @@ public final class Collector {
 
     /** Po hodině se znovu načtou názvy zásuvek (kdyby se přejmenovaly). */
     public void forgetNames() { names.clear(); models.clear(); }
+
+    /** 1.9.11: plánovaný restart Brány – zahodit spojení se zásuvkami (přihlášení se udělá znovu) a znovu prohledat síť. */
+    public synchronized void softReset() {
+        tapo.clear(); names.clear(); models.clear();
+        Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).putBoolean("tapo_force", true).apply();
+    }
 
     /** Spustí hlídače na GitHubu hned (GitHub plánovaná spuštění zdržuje na 30–45 min). Bez tokenu nic. */
     private void dispatchWatcher() {

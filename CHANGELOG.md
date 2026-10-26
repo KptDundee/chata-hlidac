@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.77 / Flip 1.9.11 – 26. 10. 2026
+- Oprava Bluetooth: po chybě „Bluetooth sken selhal“ zůstávala v systému stará registrace skenu a každý další pokus končil chybou 1 (sken už běží), dokud se Bluetooth ručně nevypnulo. Teď se stará registrace vždy zruší.
+- Denní restart Brány (nastavení brana_restart, výchozí 22:10): Bluetooth sken znovu, nová spojení se zásuvkami a prohledání sítě, znovu poslech probuzení – bez ukončení aplikace. Po prvním měření zpráva „✓ Brána úspěšně restartována“ (nízká priorita), nebo „⚠️ Brána po restartu nefunguje celá“ s výčtem (vysoká). Když se Flip do 25 min neozve, „🚨 Brána se po restartu neozvala“.
+
 ## 5.76 / Flip 1.9.10 – 26. 10. 2026
 - Router: chyba čtení ukazuje, ve kterém kroku (1 klíč, 2 přihlášení, 3 stav baterie), na jaké adrese a jaký typ chyby; čekání na odpověď 20 s (dřív 8 s).
 

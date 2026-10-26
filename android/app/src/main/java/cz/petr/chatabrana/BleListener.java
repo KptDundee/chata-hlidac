@@ -92,7 +92,13 @@ public final class BleListener {
 
     private final ScanCallback cb = new ScanCallback() {
         @Override public void onScanResult(int type, ScanResult r) { handle(r); }
-        @Override public void onScanFailed(int code) { lastError = "Bluetooth sken selhal (" + code + ")"; scanner = null; }
+        @SuppressLint("MissingPermission")
+        @Override public void onScanFailed(int code) {
+            lastError = "Bluetooth sken selhal (" + code + ")";
+            BluetoothLeScanner sc = scanner;                         // 1.9.11: zrušit registraci, ať další pokus projde
+            if (sc != null) try { sc.stopScan(this); } catch (Exception ignored) { }
+            scanner = null;
+        }
     };
 
     private synchronized void handle(ScanResult r) {
@@ -230,12 +236,16 @@ public final class BleListener {
         if (a == null || !a.isEnabled()) { lastError = "Bluetooth je vypnutý"; return; }
         scanner = a.getBluetoothLeScanner();
         if (scanner == null) { lastError = "Bluetooth sken není dostupný"; return; }
+        // 1.9.11: po „sken selhal“ se scanner nuloval bez stopScan → v systému zůstala stará registrace a každý další
+        // pokus končil chybou 1 (sken už běží) až do vypnutí Bluetooth. Teď se stará registrace vždy napřed zruší.
+        try { scanner.stopScan(cb); } catch (Exception ignored) { }
         ScanSettings s = new ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
                 .build();
         try {
             scanner.startScan(filters(), s, cb);
             startedAt = SystemClock.elapsedRealtime();
+            lastError = null;
         } catch (Exception e) {
             lastError = "Nejde spustit sken: " + e.getMessage();
             scanner = null;

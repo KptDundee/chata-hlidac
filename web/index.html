@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.76", FLIP_VER = "1.9.10";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.77", FLIP_VER = "1.9.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3299,6 +3299,7 @@ const SETTINGS = [
   ["Brána na chatě (telefon)", [
     ["brana_hlidat","Upozornit, když brána mlčí","Telefon u měniče přestal posílat data","","", "sw"],
     ["brana_ticho_min","Mlčí déle než","","min",10,"num"],
+    ["brana_restart","Denní restart Brány","Bluetooth, zásuvky a spojení znovu; pak zpráva, jestli je vše v pořádku (Flip 1.9.11)","",0,"timeopt"],
     ["telefon_baterie_pod","Baterie Flipu – červeně pod","","%",5,"num"],
   ]],
   ["Zásuvky, lednice, teploměry a Flip", [
@@ -3399,6 +3400,7 @@ const SET_HELP = {
   pojistka_A: "Pojistka mezi regulátorem a baterií. Když se nabíjecí proud blíží k ní (nad 110 %), přijde varování. Musí odpovídat skutečné pojistce.",
   panel_Wp: "Štítkový výkon jednoho panelu – pro předpověď výroby a rady k panelům.",
   brana_hlidat: "Upozornění, když Flip (brána na chatě) přestane posílat data – vybitý, bez Wi‑Fi, spadlá aplikace.",
+  brana_restart: "Každý den v tuhle dobu Brána sama restartuje své části (Bluetooth sken, spojení se zásuvkami, hledání v síti, poslech probuzení) – bez ukončení aplikace, aby se nemohla „neprobudit“. Při prvním měření po restartu přijde zpráva: ✓ v pořádku (nízká priorita), nebo co nefunguje (vysoká). Když se Flip po restartu do 25 min neozve, přijde naléhavé upozornění. Vypnuto = bez restartu.",
   brana_ticho_min: "Jak dlouho smí Flip mlčet, než přijde upozornění. Kratší = rychlejší zpráva, ale i při krátkém výpadku Wi‑Fi.",
   telefon_baterie_pod: "Pod tímto % se baterie Flipu na webu zobrazí červeně.",
   zasuvka_menic: "Číslo zásuvky „220V měnič“ – měří všechno, co jde ze solární baterie přes měnič. Z ní se počítá odběr, noční spotřeba a předpovědi.",

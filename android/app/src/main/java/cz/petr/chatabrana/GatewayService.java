@@ -163,6 +163,7 @@ public class GatewayService extends Service {
                 if (SystemClock.elapsedRealtime() - namesAt > 3600_000L) { collector.forgetNames(); namesAt = SystemClock.elapsedRealtime(); }
                 // první běh po startu: chvíli počkat, ať se stihne chytit měnič
                 if (Prefs.get(this).getLong(Prefs.LAST_SENT, 0) == 0) SystemClock.sleep(20_000);
+                dailyRestart();                          // 1.9.11
                 String res = collector.runOnce(dispatch);
                 scheduleAlarm(this);                    // 1.7.3: generátor → další měření za 2 min (nebo zpět na 10 min)
                 String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
@@ -174,6 +175,32 @@ public class GatewayService extends Service {
                 if (wl.isHeld()) wl.release();
             }
         });
+    }
+
+
+    /** 1.9.11: každý den v nastavený čas (výchozí 22:10, prázdné = vypnuto) restart Brány bez ukončení aplikace:
+     *  Bluetooth sken znovu (se zrušením staré registrace), nová spojení se zásuvkami a prohledání sítě, znovu poslech
+     *  probuzení. Aplikace se neukončuje – kdyby se po ukončení nespustila, Flip by z dálky nikdo nerozběhl. */
+    private void dailyRestart() {
+        android.content.SharedPreferences P = Prefs.get(this);
+        String at = P.getString("rst_at", "22:10").trim();
+        if (at.isEmpty() || !at.matches("\\d{1,2}:\\d{2}")) return;
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        String day = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(c.getTime());
+        if (day.equals(P.getString("rst_day", ""))) return;
+        String[] hm = at.split(":");
+        java.util.Calendar t = (java.util.Calendar) c.clone();
+        t.set(java.util.Calendar.HOUR_OF_DAY, Integer.parseInt(hm[0])); t.set(java.util.Calendar.MINUTE, Integer.parseInt(hm[1]));
+        t.set(java.util.Calendar.SECOND, 0);
+        long d = c.getTimeInMillis() - t.getTimeInMillis();
+        if (d < 0 || d > 2 * 3600_000L) return;                       // jen v čase restartu (do 2 h, kdyby měření chybělo)
+        Prefs.log(this, "Plánovaný restart Brány (Bluetooth, zásuvky, probuzení)");
+        P.edit().putString("rst_day", day).putLong("rst_t", System.currentTimeMillis()).putBoolean("rst_sent", false).apply();
+        try { collector.softReset(); } catch (Exception e) { Prefs.log(this, "Restart – zásuvky: " + e.getMessage()); }
+        try { ble.stop(); ble.ensureRunning(true); } catch (Exception e) { Prefs.log(this, "Restart – Bluetooth: " + e.getMessage()); }
+        Thread w = wakeThread; wakeThread = null; if (w != null) w.interrupt();
+        startWakeListener();
+        SystemClock.sleep(20_000);                                     // ať Bluetooth stihne chytit měnič a teploměry
     }
 
     private Notification notification(String text) {
