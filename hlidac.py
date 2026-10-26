@@ -3560,7 +3560,7 @@ def flip_check(data, st, now, topic, cfg):
     pp = next((p for p in inv.get("tp") or [] if str(p.get("ip")) == fid), None)
     ctl_ok = bool(cfg.get("flip_nabijeni_rizeni")) and pp is not None and not pp.get("off") and pp.get("err") is None
     data["flip_fc"]["ctl"] = ctl_ok
-    if ctl_ok and b >= 18:
+    if ctl_ok and b >= int(cfg.get("flip_min_pct") or 30) - 5:   # 5.78: řízení dobije pod spodní hranicí (30 %)
         return
     if t15 - ts < 12 * 3600 and not fp.get("early"):
         ntfy(topic, f"📱 Flip se nenabíjí – vydrží jen do {hm(t_empty)}",
