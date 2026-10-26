@@ -2955,6 +2955,10 @@ def read_ecoflow(data, st, now, topic, cfg):
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens
     data["rivers"] = rivers
+    rl = data.setdefault("rv_last", {})                   # 5.85: poslední známé % (web ho ukáže šedě, když River teď nevidíme)
+    for r in rivers:
+        if r.get("online") and r.get("soc") is not None:
+            rl[str(r.get("sn", ""))[-6:]] = {"soc": r["soc"], "t": int(now.timestamp())}
     # energie každé River za den (Wh): nabito (vstup) a dodáno (výstup) – lichoběžník mezi dvěma čteními (max 1 h mezera)
     tnow = now.timestamp()
     day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
@@ -4494,7 +4498,8 @@ def gen_sessions(data, st, now, topic, cfg):
         msg = (f"Běžel ~{fmt(dur, 1)} h, dodal {fmt((rec.get('wh') or 0) / 1000, 2)} kWh." if rec.get("wh") else f"Běžel ~{fmt(dur, 1)} h.") + \
               ("\n" + "\n".join(rv_txt) if rv_txt else "") + eff
         log("ev", "Generátor: konec – " + msg.replace("\n", " · "))
-        ntfy(topic, "⛽ Generátor doběhl", msg, 2, "fuelpump")
+        if ts - (st.get("gen_sum_t") or 0) > 7200:       # 5.85: souhrn už poslalo řízení nabíjení
+            ntfy(topic, "⛽ Generátor doběhl", msg, 2, "fuelpump")
 
 
 def plug_watch(data, st, now, topic, cfg):
@@ -4559,6 +4564,25 @@ def plug_watch(data, st, now, topic, cfg):
 
 PRO_CHG_W = (200, 940)     # River 2 Pro: rozsah nabíjecího výkonu ze sítě (AC)
 SMALL_CHG_W = (100, 360)   # River 2 (malá): rozsah nabíjecího výkonu ze sítě (AC) – ovládá se přes aplikaci
+
+
+def gen_sum_msg(gs, tnow, topic):
+    """5.85: po skončení nabíjení z generátoru – kolik dodal generátor a kolik dostala která River (% i kWh)."""
+    gwh, rwh, rs = gs.get("fwh") or 0.0, gs.get("rwh") or {}, gs.get("rs") or {}
+    t_on = gs.get("t_on") or tnow
+    fu = {"lpg": "plyn", "benzin": "benzín"}.get(gs.get("fuel"), gs.get("fuel") or "")
+    lines = [f"Generátor dodal {fmt(gwh / 1000, 2)} kWh · běželo ~{fmt((tnow - t_on) / 3600, 1)} h{(' · ' + fu) if fu else ''}."]
+    tot = 0.0
+    for k6, e in rs.items():
+        if not e.get("c") and not rwh.get(k6):
+            continue
+        wh = rwh.get(k6, 0.0)
+        tot += wh
+        lines.append(f"{e.get('n') or 'River'}: {fmt(e.get('s0'))} → {fmt(e.get('s1'))} % · +{fmt(wh / 1000, 2)} kWh")
+    if tot > 0:
+        lines.append(f"Do River celkem {fmt(tot / 1000, 2)} kWh" + (f" = {fmt(tot / gwh * 100)} % z toho, co dal generátor." if gwh > 50 else "."))
+    log("ev", "Nabíjení z generátoru – souhrn: " + " · ".join(lines))
+    ntfy(topic, "⛽ Nabíjení z generátoru skončilo", "\n".join(lines), 3, "fuelpump,white_check_mark")
 
 
 def gen_charge_ctl(data, st, now, topic, cfg):
@@ -4762,6 +4786,25 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                        "w": w, "in": round(acw(r)), "fin": int(fin)})
         # 4.101: kolik dodal do River za toto nabíjení (součet příjmů River × čas, z EcoFlow – nezávisle na Flipu)
         tot_in = round(sum(acw(r) for r in con) + small_w)
+        # 5.85: kolik dostala každá River za toto nabíjení (příjem z EcoFlow à ~30 s) a % na začátku / konci
+        rp, rwh, rs = gs.setdefault("rp", {}), gs.setdefault("rwh", {}), gs.setdefault("rs", {})
+        dk_ = datetime.fromtimestamp(tnow, TZ).strftime("%Y-%m-%d")
+        for r in rivers:
+            if r.get("gen") or not r.get("online"):
+                continue
+            k6, w_ = str(r.get("sn", ""))[-6:], acw(r) or 0
+            if r.get("soc") is not None:
+                e_ = rs.setdefault(k6, {"n": r.get("name"), "s0": r["soc"]})
+                e_["s1"] = r["soc"]
+                if w_ > 20:
+                    e_["c"] = True
+            if gs.get("e_t") and 0 < tnow - gs["e_t"] <= 300 and k6 in rp:
+                de_ = (rp[k6] + w_) / 2 * (tnow - gs["e_t"]) / 3600
+                if de_ > 0:
+                    rwh[k6] = round(rwh.get(k6, 0.0) + de_, 1)
+                    rvd_ = data.setdefault("days", {}).setdefault(dk_, {}).setdefault("rv", {}).setdefault(k6, {"n": r.get("name"), "i": 0.0, "o": 0.0})
+                    rvd_["gi"] = round(rvd_.get("gi", 0.0) + de_, 1)
+            rp[k6] = w_
         if gs.get("e_t") and 0 < tnow - gs["e_t"] <= 300:
             de = (gs.get("e_w", 0) + tot_in) / 2 * (tnow - gs["e_t"]) / 3600
             gs["wh"] = gs.get("wh", 0.0) + de
@@ -4806,9 +4849,14 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             if (gs.get("fwh") or 0) > 20:
                 fr_.append({"t0": gs.get("t_on"), "t1": tnow, "fuel": gs.get("fuel") or fuel, "wh": round(gs["fwh"])})
                 del fr_[:-30]
+            try:                                            # 5.85: souhrn po skončení nabíjení
+                gen_sum_msg(gs, tnow, topic)
+                st["gen_sum_t"] = tnow
+            except Exception as e:
+                print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs"):
                 gs.pop(k, None)
             return False
         return True
@@ -4866,16 +4914,19 @@ def check_river(r, st, topic, cfg):
     io = f"{name}: {fmt(soc)} %, nabíjení {fmt(r.get('in_w'))} W, odběr {fmt(r.get('out_w'))} W"
     # Skoro vybitá -> vyměnit
     lim = cfg["river_vymenit_pod"]
+    # 5.85: jen když River opravdu dodává (výstup > 20 W a nenabíjí se) – 26. 10. přišlo „5 % – přepoj chatu“
+    # během nabíjení z generátoru, kdy chata jela ze soláru
+    supplying = (r.get("out_w") or 0) > 20 and (r.get("in_w") or 0) <= 20
     if cfg["river_vymenit"] and lim is not None and (r.get("wh") or 768) >= 500:   # 4.82: malá chatu nenapájí
         mins = r.get("dsg_min")
         rest = f" Zbývá asi {fmt(mins / 60, 1)} h." if mins and mins < 6000 else ""
-        if soc <= lim and not st.get(k + "_low"):
+        if supplying and soc <= lim and not st.get(k + "_low"):
             ntfy(topic, f"🔄 Vyměň River ({fmt(soc)} %)", f"{io}.{rest}\nPřepoj spotřebiče na druhou River a tuhle nabij.", 4, "battery,warning")
             st[k + "_low"] = True
         # 5.68: další stupně – 10 % a 5 % (nejvyšší priorita), a když River přestane dodávat, protože je prázdná
         sent = set(st.get(k + "_lv") or [])
         for lv in (10, 5):
-            if lv < lim and soc <= lv and lv not in sent:
+            if supplying and lv < lim and soc <= lv and lv not in sent:
                 ntfy(topic, f"🚨 River {name} jen {fmt(soc)} % – brzy se vypne",
                      f"{io}.{rest}\nTeď přepoj chatu na druhou River (nebo solár), jinak zůstane bez 230 V.", 5, "rotating_light,battery")
                 sent.add(lv)

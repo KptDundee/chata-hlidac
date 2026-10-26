@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.85 – 26. 10. 2026
+- Upozornění „River jen X % – přepoj chatu“ (15 / 10 / 5 %) jen když River opravdu dodává (výstup > 20 W a nenabíjí se). Dřív přišlo i během nabíjení z generátoru.
+- Vypnutá / nedostupná River: šedě poslední známé % s časem (dlaždice EcoFlow i detail), stav „vypnutá · EcoFlow ji nevidí“.
+- Po skončení nabíjení z generátoru upozornění „⛽ Nabíjení z generátoru skončilo“: kolik dodal generátor, každá River % začátek → konec a kWh (příjem podle EcoFlow po ~30 s), celkem do River a kolik % z energie generátoru. Starší „Generátor doběhl“ se pak už neposílá.
+- Graf „Co se nabilo do které River“ bere nově příjem River měřený během nabíjení (~30 s); v Číslech generátoru „Do River dnes“.
+
 ## 5.84 – 26. 10. 2026
 - Záložky i v detailech spotřeby (Spotřeba celkem, ze solární baterie, z River, Spotřebiče): 📊 Grafy / 🔢 Čísla (čísla + výklad). Generátor: 📊 Data (grafy, běhy, čísla) / ▶️ Start (spuštění nabíjení, palivo). Volba se pamatuje.
 

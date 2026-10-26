@@ -353,3 +353,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Záložky v detailech (5.83)**: detail Teploty má záložky 🌡️ Data a ❄️ Chladnutí, detail Solární baterie 📊 Data (grafy) a ⏱ Teď a čísla. Web si pamatuje, kterou záložku jste měl otevřenou.
 
 **Záložky (5.84)**: i detaily spotřeby (celkem, ze solární baterie, z River, Spotřebiče) mají 📊 Grafy a 🔢 Čísla, Generátor 📊 Data a ▶️ Start (spuštění nabíjení a palivo).
+
+**River a generátor (5.85)**: vypnutá River ukazuje šedě poslední známé % s časem. Upozornění na málo nabitou River chodí jen když River opravdu dodává. Po skončení nabíjení z generátoru přijde souhrn: kolik dodal generátor, o kolik % a kWh se nabila která River a kolik z energie generátoru do River došlo.
