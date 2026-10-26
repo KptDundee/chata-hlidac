@@ -347,3 +347,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **River dochází (5.68)**: upozornění při 15 % (vyměň River), 10 % a 5 % (nejvyšší priorita) a „River se vypnula“, když pod 5 % přestane dodávat. Znovu až po nabití nad 25 %.
 
 **Denní restart Brány (Flip 1.9.11)**: každý den ve 22:10 (Nastavení → Brána) Brána sama restartuje Bluetooth, spojení se zásuvkami a hledání v síti. Aplikace se neukončuje. Po restartu přijde tichá zpráva „✓ Brána úspěšně restartována“, nebo s vysokou prioritou, co nefunguje. Když se Flip do 25 min neozve, přijde naléhavé upozornění.
+
+**Malá River a 12V světla (5.81)**: když malá River napájí 12V osvětlení, přijde upozornění při 20 %, 10 % a 5 % s časem, kdy světla zhasnou, a když se vypne.

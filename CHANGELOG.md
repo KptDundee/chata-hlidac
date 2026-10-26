@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.81 – 26. 10. 2026
+- Malá River: když napájí 12V osvětlení (výstup > 2 W, nenabíjí se), upozornění při 20 % a 10 % (vysoká priorita) a 5 % (nejvyšší) s časem, kdy světla zhasnou; a „Malá River se vypnula“, když pod 3 % přestane dodávat. Znovu až po nabití nad 30 %.
+
 ## 5.80 – 26. 10. 2026
 - Úbytek na kabelech: posuzuje se i odpor cesty regulátor → baterie → měnič (mΩ, od 5 A) – nezávisí na proudu, takže špatný spoj se pozná i v noci při malém odběru (dřív jen úbytek ≥ 0,35 V, který při malém proudu nenastane). Upozornění po 2 platných měřeních, když úbytek ≥ 0,35 V nebo odpor ≥ 20 mΩ. „Stálé slunce“ relativně: výkon panelů ± 10 % (aspoň ± 10 W). Denní odpor spojů od 5 A (dřív 8 A).
 

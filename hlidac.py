@@ -4890,6 +4890,28 @@ def check_river(r, st, topic, cfg):
         if soc > lim + 10:
             st[k + "_low"] = False
             st[k + "_lv"] = []
+    # 5.81: malá River napájí 12V světla (autozásuvka) – upozornit, když dochází (20 / 10 / 5 %) a když se vypne
+    if (r.get("wh") or 768) < 500:
+        out_w, in_w = r.get("out_w") or 0, r.get("in_w") or 0
+        sent = set(st.get(k + "_slv") or [])
+        if out_w > 2 and in_w <= 20:
+            left_h = max(0.0, soc - 2) / 100 * (r.get("wh") or 256) * 0.9 / out_w
+            until = datetime.now(TZ) + timedelta(hours=left_h)
+            ut = f"{rel_day(until.timestamp(), datetime.now(TZ))} ~{until.strftime('%H:%M')}"
+            for lv in (20, 10, 5):
+                if soc <= lv and lv not in sent:
+                    ntfy(topic, f"💡 Malá River {fmt(soc)} % – světla zhasnou {ut}",
+                         f"{io}.\nMalá River napájí 12V osvětlení a vydrží asi do {ut}. Připrav výměnu / nabij ji.",
+                         5 if lv <= 5 else 4, "bulb,battery")
+                    sent.add(lv)
+                    break
+        if soc <= 3 and st.get(k + "_sout", 0) > 2 and out_w <= 1 and "empty" not in sent:
+            ntfy(topic, f"🔴 Malá River se vypnula ({fmt(soc)} %)", f"{io}.\n12V osvětlení je bez proudu.", 5, "bulb,warning")
+            sent.add("empty")
+        st[k + "_sout"] = out_w
+        if soc > 30:
+            sent = set()
+        st[k + "_slv"] = sorted(sent, key=str)
     # Nabitá při nabíjení (generátor) -> vypnout generátor
     charging = (r.get("in_w") or 0) > 20
     if cfg["river_nabita"]:
