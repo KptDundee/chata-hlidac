@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.83", FLIP_VER = "1.9.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.84", FLIP_VER = "1.9.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2230,11 +2230,13 @@ function detUse(body, src="a"){
   const pu = src==="a" ? chartCard("u_pu", long ? "Výroba a spotřeba po měsících" : "Výroba a spotřeba po dnech",
     `kWh · <span style="color:var(--s2)">■</span> výroba · spotřeba celkem: <span style="color:var(--s3)">■</span> ze soláru (i se ztrátami měniče) <span style="color:var(--s1)">■</span> z River · ťukni na den`) : "";
   const ud = src==="a" ? chartCard("u_days", "Spotřeba chaty po dnech", "kWh za den (měřeno na zásuvkách) · čárkovaně obvyklá = medián předchozích 14 dní (velké výkyvy se neprojeví)") : "";
-  let html = segHtml() + pu + ud
+  const UT = tabsHead("us_tab", [["g","📊 Grafy"],["n","🔢 Čísla"]]);
+  let html = UT.html + `<div id="us_tab_g"${UT.cur==="g"?"":' style="display:none"'}>` + segHtml() + pu + ud
     + chartCard("u_sum", `Odběr chaty ${SRCN[src]}`, long ? `kWh za den${srcCap}` : `W${src==="a" ? " · 220 V + River · šedé pozadí = chata na River" : src==="s" ? " · zásuvka 220 V za měničem" : " · zásuvky na výstupu River"}`);
   if(src!=="r") html += chartCard("u_220", "220 V – zásuvka za měničem", long ? `kWh za den · v bublině i se ztrátami měniče` : `W · <span style="color:var(--s2)">━ změřeno na zásuvce</span> · <span style="color:var(--s1)">╍ vzato z baterie (+12 % ztráty měniče, +${nf(U.idle,1)} W měnič a desulfátor)</span>`);
   for(const x of U.devs) html += chartCard("u_d"+x.id, x.name, `${long ? "kWh za den" + srcCap : "W"}${only}${x.hist ? "" : " · historie od 14. 10."}`);
   html += chartCard("u_o", "Ostatní (neměřené)", `${long ? "kWh za den" + srcCap : "W"}${only} · odběr − měřené zásuvky: světla, kamery, TV a telefon z River…`);
+  html += `</div><div id="us_tab_n"${UT.cur==="n"?"":' style="display:none"'}>`;
   // čísla
   const td = useDay(dkey(h.now), U), yd = useDay(dkey(h.now-86400), U);
   const wk = useDays(7*24, U).filter(q=>q.k < dkey(h.now));
@@ -2254,8 +2256,9 @@ function detUse(body, src="a"){
     <b>Ztráty měniče</b> jen u 220 V: z baterie se bere ~12 % víc + ${nf(U.idle,1)} W (měnič naprázdno, desulfátor). U spotřebičů je změřený příkon.<br>
     <b>Denní kWh</b> jsou z počítadel zásuvek; rozdělení na solár / River podle průběhu po 10 min. Před 14. 10. 2026 vše ze soláru.<br>
     <b>Historie:</b> 220 V, lednice a Wi‑Fi zpětně${mig?` (stará jména přiřazena: ${mig})`:""}; ostatní zásuvky od 14. 10. 2026. Podrobný průběh po 10 min jen 14 dní, pak součty po dnech.<br>
-    <b>Nabíjení River ze soláru</b> (zásuvka 8) neměří – když běží, schová se v „ostatní“.</div></div>`;
+    <b>Nabíjení River ze soláru</b> (zásuvka 8) neměří – když běží, schová se v „ostatní“.</div></div></div>`;
   body.insertAdjacentHTML("beforeend", html);
+  tabsWire("us_tab", ["g","n"]);
   if(src==="a") prodUse($("u_pu"), long ? "m" : "d");
   if(src==="a"){ const all = Object.keys(d.days||{}).sort().map(k=>useDay(k, U)).filter(Boolean).map(q=>({k:q.k, v:q.a._sum/1000}));
     const med = a => { const x = a.slice().sort((p,q)=>p-q); return x.length >= 3 ? x[Math.floor(x.length/2)] : null; };
@@ -2965,7 +2968,8 @@ function detGen(body){
     return {id:String(r.sn||"").slice(-6), name:pn(r.name)||`River ${i+1}`, color: m ? m.color : rivColor(r.name, i)}; });
   const genWh = k => Math.max(dayTp(k)[U.gen]||0, ((d.days||{})[k]||{}).gq||0);
   const tk = dkey(h.now), wk = dd.slice(-7), gd = ((d.ef_gens||[]).find(g=>g.gd)||{}).gd || {};
-  body.insertAdjacentHTML("beforeend", genPlanHtml(d) + fuelHtml(d)
+  const GT = tabsHead("gn_tab", [["data","📊 Data"],["start","▶️ Start"]]), vis = k => GT.cur===k ? "" : ' style="display:none"';
+  body.insertAdjacentHTML("beforeend", GT.html + `<div id="gn_tab_start"${vis("start")}>` + genPlanHtml(d) + fuelHtml(d) + `</div><div id="gn_tab_data"${vis("data")}>`
     + chartCard("dg_w", "Výkon generátoru", "W · 48 h · zásuvka (7), během nabíjení i z EcoFlow")
     + chartCard("dg_rv", "Co se nabilo do které River", `kWh za den · ${efs.map(e=>`<span style="color:${e.color}">■</span> ${escH(e.name)}`).join(" · ")}`)
     + chartCard("dg_d", "Dodal po dnech", "kWh za den · 14 dní")
@@ -2974,7 +2978,8 @@ function detGen(body){
         ${rowI("Dodal dnes", kWh(genWh(tk)))}${rowI("Dodal za 7 dní", kWh(wk.reduce((a,k)=>a+genWh(k),0)))}
         ${rowI("Běhů za 7 dní", String((d.gen_log||[]).filter(r=>wk.includes(dkey(r.t0))).length))}
         ${gd.fuel!=null ? rowI("Palivo (generátor hlásí)", `${nf(gd.fuel)} %`) : ""}${gd.hours!=null ? rowI("Motohodiny (generátor hlásí)", escH(String(gd.hours))) : ""}</div>`
-    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Dodáno = energie přes zásuvku generátoru (7), během nabíjení i součet příjmů River z EcoFlow. Nabito = změna % River × kapacita. Účinnost = nabito ÷ dodáno (ztráty nabíječek River).</div>`);
+    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Dodáno = energie přes zásuvku generátoru (7), během nabíjení i součet příjmů River z EcoFlow. Nabito = změna % River × kapacita. Účinnost = nabito ÷ dodáno (ztráty nabíječek River).</div></div>`);
+  tabsWire("gn_tab", ["data","start"]);
   const gsr = pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})).concat((d.gen_pts||[]).map(x=>({t:x[0], w:x[1] ?? x[2]}))).sort((a,b)=>a.t-b.t);
   lineChart($("dg_w"), gsr, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
   stackBars($("dg_rv"), dd.map(k=>({k, v:Object.fromEntries(efs.map(e=>[e.id, ((((d.days||{})[k]||{}).rv||{})[e.id]||{}).i||0]))})), efs, {});

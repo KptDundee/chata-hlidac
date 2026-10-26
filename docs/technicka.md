@@ -320,3 +320,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.80**: `wiring_check` – `r_mo` = úbytek / (ir + ii) od 5 A; překročení = úbytek ≥ kabely_ubytek_V nebo r_mo ≥ kabely_odpor_mOhm; stálé slunce |Δpv| ≤ max(10 W, 10 %). Denní odpor od 5 A, ne do 24 h po akutním upozornění.
 
 **5.83**: obecné `tabsHead(key, tabs)` / `tabsWire(key, ids)` (tlačítka `#<key>_seg`, obsah `#<key>_<id>`, localStorage `<key>`). `detBat` – `bt_tab` (data / now), `detTemps` – `tt_tab` (data / cool, `coolCard(coolBox,…)`).
+
+**5.84**: `detUse` – `us_tab` (g / n, společné pro všechny zdroje), `detGen` – `gn_tab` (data / start: `genPlanHtml` + `fuelHtml`).

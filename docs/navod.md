@@ -351,3 +351,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Malá River a 12V světla (5.81)**: když malá River napájí 12V osvětlení, přijde upozornění při 20 %, 10 % a 5 % s časem, kdy světla zhasnou, a když se vypne.
 
 **Záložky v detailech (5.83)**: detail Teploty má záložky 🌡️ Data a ❄️ Chladnutí, detail Solární baterie 📊 Data (grafy) a ⏱ Teď a čísla. Web si pamatuje, kterou záložku jste měl otevřenou.
+
+**Záložky (5.84)**: i detaily spotřeby (celkem, ze solární baterie, z River, Spotřebiče) mají 📊 Grafy a 🔢 Čísla, Generátor 📊 Data a ▶️ Start (spuštění nabíjení a palivo).
