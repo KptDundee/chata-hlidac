@@ -1467,8 +1467,9 @@ def main():
                     raw[ip] = wh
             st["tp_v2"] = True
         if rivers:
-            data["points"][-1]["rv"] = [{"s": r.get("soc"), "i": r.get("in_w"), "o": r.get("out_w"), "k": str(r.get("sn", ""))[-6:]}
-                                        for r in rivers]       # 4.99: „k“ = konec SN (pořadí River se může změnit)
+            data["points"][-1]["rv"] = [{k_: v_ for k_, v_ in (("s", r.get("soc")), ("i", r.get("in_w")), ("o", r.get("out_w")),
+                                                             ("k", str(r.get("sn", ""))[-6:]), ("de", r.get("de"))) if v_ is not None or k_ != "de"}
+                                        for r in rivers]       # 4.99: „k“ = konec SN; 5.73: „de“ = počítadlo vybité energie
     try:
         backfill_flip(data, now, cfg)
     except Exception as e:
@@ -2801,6 +2802,14 @@ def read_ecoflow_app(rivers, data, st, now, force=False):
                 pass
         import ecoflow as _ef
         r["pw"] = _ef.power_keys(q)
+        # 5.73: počítadla baterie (celkem nabito / vybito, stav, cykly) – co EcoFlow posílá, i pod jakým jménem
+        import re as _re
+        bk = {k: q[k] for k in q if _re.search(r"accu|soh|cycle", k, _re.I) and isinstance(q[k], (int, float))}
+        if bk:
+            r["bat"] = bk
+            de = next((bk[k] for k in bk if _re.search(r"accu.*dsg.*energy|dsg.*accu.*energy", k, _re.I)), None)
+            if de is not None:
+                r["de"] = de                          # celkem vybito (jednotka podle EcoFlow – ukáže se v detailu)
         if not r.get("online"):
             for k in ("in_w", "out_w", "ac_in_w", "ac_out_w"):
                 if r.get(k):
@@ -4083,22 +4092,26 @@ def river_capacity(data, st, now, cfg):
             if not e or e.get("s") is None:
                 continue
             w = (p.get("tp") or {}).get(pid) if pid else None
-            ser.append((p["t"], float(e["s"]), e.get("i") or 0, w if w is not None else e.get("o"), w is not None))
+            ser.append((p["t"], float(e["s"]), e.get("i") or 0, w if w is not None else e.get("o"), w is not None, e.get("de")))
         sess, cur = [], None
-        for i, (t, s_, iw, w, isplug) in enumerate(ser):
+        for i, (t, s_, iw, w, isplug, de) in enumerate(ser):
             prev = ser[i - 1] if i else None
             brk = cur is None or prev is None or t - prev[0] > 3 * 3600 or iw > 20 or s_ > cur["min"] + 1
             if brk:
                 if cur and cur["s0"] - cur["s1"] >= 20:
                     sess.append(cur)
                 cur = None if iw > 20 else {"t0": t, "s0": s_, "min": s_, "t1": t, "s1": s_, "wh": 0.0, "wh_d": 0.0,
-                                            "plug": True, "gap": 0}
+                                            "plug": True, "gap": 0, "de0": de, "de1": de}
                 continue
             cur["wh"] += ((prev[3] or 0) + (w or 0)) / 2 * (t - prev[0]) / 3600
             cur["plug"] = cur["plug"] and isplug
             cur["gap"] = max(cur["gap"], t - prev[0])
             if s_ < cur["s1"]:
                 cur["t1"], cur["s1"], cur["wh_d"] = t, s_, cur["wh"]
+                if de is not None:
+                    cur["de1"] = de
+            if cur.get("de0") is None and de is not None:
+                cur["de0"] = de
             cur["min"] = min(cur["min"], s_)
         live = None
         if cur and cur["s0"] - cur["s1"] >= 5:
@@ -4122,6 +4135,8 @@ def river_capacity(data, st, now, cfg):
                 keep.pop(kk)                           # starší kratší úsek ze stejného vybíjení
             keep[str(int(x["t0"]))] = {"t0": int(x["t0"]), "t1": int(x["t1"]), "s0": round(x["s0"]), "s1": round(x["s1"]),
                                        "wh": round(wh), "cap": round(wh / (drop / 100)), "src": src}
+            if x.get("de0") is not None and x.get("de1") is not None and x["de1"] > x["de0"]:
+                keep[str(int(x["t0"]))]["bde"] = round(x["de1"] - x["de0"], 3)   # 5.73: dle počítadla EcoFlow (baterie)
         lst = sorted(keep.values(), key=lambda x: x["t0"])[-20:]
         ses_all[k6] = lst
         last8 = lst[-8:]
@@ -4131,7 +4146,9 @@ def river_capacity(data, st, now, cfg):
         if live:
             wh, src = energy(live)
             lv = {"t0": int(live["t0"]), "s0": round(live["s0"]), "s1": round(live["s1"]), "wh": round(wh)}
-        out[k6] = {"name": r.get("name"), "nom": nom, "ses": last8,
+            if live.get("de0") is not None and live.get("de1") is not None and live["de1"] > live["de0"]:
+                lv["bde"] = round(live["de1"] - live["de0"], 3)
+        out[k6] = {"name": r.get("name"), "nom": nom, "ses": last8, "bat": r.get("bat"),
                    "cap": caps[len(caps) // 2] if caps else None, "n": len(caps),
                    "drop_sum": sum(x["s0"] - x["s1"] for x in last8), "live": lv}
     data["rv_cap"] = out
