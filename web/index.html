@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.75", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.76", FLIP_VER = "1.9.10";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -825,7 +825,7 @@ function lineChart(el, pts, key, color, o){
 }
 let PROD = "d";
 function renderVers(d){
-  const cmp = (a,b) => { const x=String(a).split(".").map(Number), y=String(b).split(".").map(Number); return (x[0]-y[0]) || ((x[1]||0)-(y[1]||0)); };
+  const cmp = (a,b) => { const x=String(a).split(".").map(Number), y=String(b).split(".").map(Number); return (x[0]-y[0]) || ((x[1]||0)-(y[1]||0)) || ((x[2]||0)-(y[2]||0)); };
   const av = d.inverter && d.inverter.av;
   const flip = !d.inverter ? "Flip –" : !av ? `<span class="vbad">Flip stará verze – nahraj ${FLIP_VER}</span>`
     : cmp(av, FLIP_VER) < 0 ? `<span class="vbad">Flip ${av} – nahraj ${FLIP_VER}</span>` : `Flip ${av}`;
@@ -1556,7 +1556,7 @@ function tileSystem(d, h){
   if(d.state && d.state.err_n >= 3) probs.push("cloud nejde číst");
   if(!h.inv || h.now - h.inv.t > 3600) probs.push("Flip (brána) mlčí");
   else if(h.inv.v==null && !h.rvOn && !h.menicOff) warns.push("Victron neposílá");   // na River je měnič vypnutý
-  const cmp = (a,b) => { const x=String(a).split(".").map(Number), y=String(b).split(".").map(Number); return (x[0]-y[0]) || ((x[1]||0)-(y[1]||0)); };
+  const cmp = (a,b) => { const x=String(a).split(".").map(Number), y=String(b).split(".").map(Number); return (x[0]-y[0]) || ((x[1]||0)-(y[1]||0)) || ((x[2]||0)-(y[2]||0)); };
   if(h.inv && (!h.inv.av || cmp(h.inv.av, FLIP_VER) < 0)) warns.push(`nahraj Flip ${FLIP_VER}`);
   if(d.ver && d.ver !== WEB_VER) warns.push("obnov stránku");
   for(const m of (d.plug_miss||[])) if(h.now - m.since >= (d.cfg?.zasuvky_stale_min ?? 8)*60) probs.push(`${escH(m.n)} není vidět od ${hmT(m.since)}`);   // 4.72

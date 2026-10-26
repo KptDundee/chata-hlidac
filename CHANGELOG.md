@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.76 / Flip 1.9.10 – 26. 10. 2026
+- Router: chyba čtení ukazuje, ve kterém kroku (1 klíč, 2 přihlášení, 3 stav baterie), na jaké adrese a jaký typ chyby; čekání na odpověď 20 s (dřív 8 s).
+
 ## 5.75 – 26. 10. 2026
 - Kapacita River: počítadlo EcoFlow bms_bmsInfo.accuDsgEnergy je ve Wh – u vybíjení „z baterie X Wh → do chaty Y %“ a u River „měnič River: z baterie do chaty dojde Z %“ (počítá se od teď, body mají počítadlo od 5.73).
 

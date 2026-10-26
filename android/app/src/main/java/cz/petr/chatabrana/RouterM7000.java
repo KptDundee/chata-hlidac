@@ -40,6 +40,7 @@ public final class RouterM7000 {
         Result r = new Result();
         String base = "http://" + host;
         Session s = new Session();
+        String step = "1 (klíč pro přihlášení)";                      // 1.9.10: ve které fázi se to zaseklo
         try {
             // 1) nonce a veřejný klíč
             JSONObject a0 = decode(s, post(base, "/cgi-bin/auth_cgi",
@@ -55,6 +56,7 @@ public final class RouterM7000 {
             s.key = k.toString(); s.iv = v.toString();
             s.h = md5("admin" + password);
             // 3) přihlášení
+            step = "2 (přihlášení)";
             JSONObject a1 = call(s, base, "/cgi-bin/auth_cgi",
                     new JSONObject().put("module", "authenticator").put("action", 1).put("digest", md5(password + ":" + nonce)), true);
             int res = a1.optInt("result", -999);
@@ -62,6 +64,7 @@ public final class RouterM7000 {
             String token = a1.optString("token", "");
             if (res != 0 || token.isEmpty()) { r.err = "router: přihlášení odmítnuto (výsledek " + res + ")" + (res == -999 ? " " + trim(a1.toString()) : ""); return r; }
             // 4) stav
+            step = "3 (stav baterie)";
             try {
                 JSONObject st = call(s, base, "/cgi-bin/web_cgi", new JSONObject().put("module", "status").put("action", 0).put("token", token), false);
                 // 1.9.3: přenesená data – wan.totalStatistics / dailyStatistics / … (bajty); a pro jistotu názvy klíčů,
@@ -102,7 +105,7 @@ public final class RouterM7000 {
                 catch (Exception ignored) { }
             }
         } catch (Exception e) {
-            r.err = "router: " + e.getMessage();
+            r.err = "router: krok " + step + ", adresa " + host + ": " + e.getClass().getSimpleName() + " " + e.getMessage();
         }
         return r;
     }
@@ -119,8 +122,8 @@ public final class RouterM7000 {
 
     private static String post(String base, String path, String body) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(base + path).openConnection();
-        c.setConnectTimeout(6000);
-        c.setReadTimeout(8000);
+        c.setConnectTimeout(8000);
+        c.setReadTimeout(20000);                                         // 1.9.10: přihlášení (RSA) může routeru trvat
         c.setRequestMethod("POST");
         c.setDoOutput(true);
         c.setRequestProperty("Content-Type", "application/json");
