@@ -159,7 +159,7 @@ chladnuti_cil_C = 21              # kolik °C chci ráno – z toho „musí bý
 venku_sirka = 50.095              # venkovní teplota: Praha-Hrdlořezy
 venku_delka = 14.517
 zasuvka_router = 5               # zásuvka, ze které se napájí router M7000 (číslo; prázdné = neřídit)
-router_nabijeni_rizeni = zapnuto # řídit nabíjení routeru: pod 40 % nabíjet, od 80 % z baterie, při přebytku ze slunce nabíjet (z River ne), pojistka 2 h (Flip 1.9.1)
+router_nabijeni_rizeni = vypnuto # řídit nabíjení routeru: pod 40 % nabíjet, od 80 % z baterie, při přebytku ze slunce nabíjet (z River ne), pojistka 2 h (Flip 1.9.1)
 flip_nabijeni_rizeni = zapnuto   # řídit nabíjení Flipu: do 80 % jen ze skutečného přebytku slunce, jinak (i na River) jen pod 20 % do slunce; nad 42 °C nikdy
 flip_teplota_max_C = 40          # upozornit, když je baterie Flipu teplejší
 gen_rizeni = zapnuto             # řídit nabíjecí výkon velkých River z generátoru (skončí zároveň, generátor naplno)
