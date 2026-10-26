@@ -318,3 +318,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.79**: `wiring_check` – platný bod: pv < 5 W, nebo |pv − pv předchozího bodu| ≤ 10 W a |ivs| ≤ 60 s. Akutní upozornění až po 2 platných překročeních do 1 h (`st.wire_pend`), pak `wire_acute` s n = 2.
 
 **5.80**: `wiring_check` – `r_mo` = úbytek / (ir + ii) od 5 A; překročení = úbytek ≥ kabely_ubytek_V nebo r_mo ≥ kabely_odpor_mOhm; stálé slunce |Δpv| ≤ max(10 W, 10 %). Denní odpor od 5 A, ne do 24 h po akutním upozornění.
+
+**5.83**: obecné `tabsHead(key, tabs)` / `tabsWire(key, ids)` (tlačítka `#<key>_seg`, obsah `#<key>_<id>`, localStorage `<key>`). `detBat` – `bt_tab` (data / now), `detTemps` – `tt_tab` (data / cool, `coolCard(coolBox,…)`).
