@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.68", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.69", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2402,6 +2402,18 @@ function timelineChart(el, pts, rows, hours){
   const n0 = svg.querySelectorAll("text").length; xLabels(svg, t0, t1, x);
   [...svg.querySelectorAll("text")].slice(n0).forEach(e=>e.setAttribute("y", Hh-6));     // popisky času dole pod řádky
 }
+/* 5.69: skutečná kapacita River z vybíjení (kolik ze sebe dala mezi % začátku a konce) */
+function rvCapCard(d){
+  const C = d.rv_cap; if(!C || !Object.keys(C).length) return "";
+  const rows = Object.entries(C).map(([k,c])=>{
+    const nm = escH(pn(c.name)||"River"), hp = c.cap ? Math.round(c.cap / c.nom * 100) : null;
+    const head = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:8px"><b>${nm}</b><span>${c.cap ? `<b style="font-size:18px">${nf(c.cap)} Wh</b> <span class="sub">= ${hp} % z ${nf(c.nom)} Wh${c.n<3?` · zatím z ${c.n}`:""}</span>` : `<span class="sub">zatím žádné vybití o 20 % a víc</span>`}</span></div>`;
+    const live = c.live ? `<div class="sub" style="font-size:12.5px">teď: od ${relDay(c.live.t0)} ${hmT(c.live.t0)} ${c.live.s0} → ${c.live.s1} % dala ${nf(c.live.wh)} Wh${c.live.s0-c.live.s1>=10 ? ` (≈ ${nf(c.live.wh/((c.live.s0-c.live.s1)/100))} Wh na 100 %)` : ""}</div>` : "";
+    const ses = (c.ses||[]).slice().reverse().map(x=>`<tr><td style="text-align:left">${relDay(x.t0)} ${hmT(x.t0)}–${hmT(x.t1)}</td><td>${x.s0} → ${x.s1} %</td><td>${nf(x.wh)} Wh</td><td><b>${nf(x.cap)}</b></td></tr>`).join("");
+    return head + live + (ses ? `<table class="ut" style="width:100%;font-size:12.5px;margin-top:4px"><tr><th style="text-align:left">vybíjení</th><th>%</th><th>dala</th><th>na 100 %</th></tr>${ses}</table>` : "");
+  }).join("");
+  return `<div class="card"><h2 style="margin:0 0 2px">Skutečná kapacita</h2><div class="sub">Kolik River opravdu dala (střídavý proud do chaty, měřeno zásuvkou na jejím výstupu) při poklesu nabití – přepočteno na 100 %. Bere se medián posledních vybíjení o 20 % a víc.</div>${rows}</div>`;
+}
 function detRiver(body){
   // 5.07: EcoFlow = přehled River (co mají, co dělají, jak dlouho vydrží). Vše kolem nabíjení z generátoru je v detailu Generátor.
   const d = DATA, h = homeData(d), MM = rivModel(d, h), {U, R, G, C} = MM, hrs = detHours(), long = detLong() || hrs > 7*24;
@@ -2426,6 +2438,7 @@ function detRiver(body){
     return `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><span><b style="color:${x.color}">${escH(x.name)}</b><br><span class="sub" style="font-size:13px">${rivState(x, h, MM)}</span></span><span style="font-size:22px;font-weight:700;white-space:nowrap">${soc!=null ? nf(soc)+'<small style="font-size:13px"> %</small>' : "–"}</span></div>`; };
   const GP = genLive(d);
   let html = `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${head}</div>`
+    + rvCapCard(d)
     + `<div class="card">${R.map(rowR).join("")}<div style="display:flex;justify-content:space-between;padding:6px 0"><b style="color:${G.color}">Generátor</b><span>${GP ? `nabíjí · ${nf(GP.gw ?? GP.tot_in)} W` : "neběží"} · <a href="#" onclick="event.preventDefault();openDet('gen')">detail ›</a></span></div></div>`
   // 2) grafy
     + segHtml()
