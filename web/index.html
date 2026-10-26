@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.69", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.70", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2404,7 +2404,8 @@ function timelineChart(el, pts, rows, hours){
 }
 /* 5.69: skutečná kapacita River z vybíjení (kolik ze sebe dala mezi % začátku a konce) */
 function rvCapCard(d){
-  const C = d.rv_cap; if(!C || !Object.keys(C).length) return "";
+  const C = d.rv_cap;
+  if(!C || !Object.keys(C).length) return `<div class="card"><h2 style="margin:0 0 2px">Skutečná kapacita</h2><div class="sub">${!C ? "Hlídač ji zatím nespočítal (v Deníku případně chyba „Kapacita River“)." : "EcoFlow zatím neposlal žádnou River."}</div></div>`;
   const rows = Object.entries(C).map(([k,c])=>{
     const nm = escH(pn(c.name)||"River"), hp = c.cap ? Math.round(c.cap / c.nom * 100) : null;
     const head = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:8px"><b>${nm}</b><span>${c.cap ? `<b style="font-size:18px">${nf(c.cap)} Wh</b> <span class="sub">= ${hp} % z ${nf(c.nom)} Wh${c.n<3?` · zatím z ${c.n}`:""}</span>` : `<span class="sub">zatím žádné vybití o 20 % a víc</span>`}</span></div>`;

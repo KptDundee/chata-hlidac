@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.70 – 26. 10. 2026
+- Karta „Skutečná kapacita“ je vidět vždy – když chybí výpočet, napíše proč.
+
 ## 5.69 – 26. 10. 2026
 - Detail EcoFlow: nová karta „Skutečná kapacita“ – pro každou River z vybíjení (pokles aspoň o 20 %, bez nabíjení) kolik opravdu dala (zásuvka Tapo na jejím výstupu, jinak výstup z EcoFlow) a přepočet na 100 % (Wh i % ze jmenovité kapacity). Tabulka posledních vybíjení a právě probíhající. Úseky se pamatují i déle než 14 dní.
 
