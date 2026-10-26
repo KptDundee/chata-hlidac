@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.81", FLIP_VER = "1.9.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.82", FLIP_VER = "1.9.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2449,7 +2449,6 @@ function detRiver(body){
     return `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><span><b style="color:${x.color}">${escH(x.name)}</b><br><span class="sub" style="font-size:13px">${rivState(x, h, MM)}</span></span><span style="font-size:22px;font-weight:700;white-space:nowrap">${soc!=null ? nf(soc)+'<small style="font-size:13px"> %</small>' : "–"}</span></div>`; };
   const GP = genLive(d);
   let html = `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${head}</div>`
-    + rvCapCard(d)
     + `<div class="card">${R.map(rowR).join("")}<div style="display:flex;justify-content:space-between;padding:6px 0"><b style="color:${G.color}">Generátor</b><span>${GP ? `nabíjí · ${nf(GP.gw ?? GP.tot_in)} W` : "neběží"} · <a href="#" onclick="event.preventDefault();openDet('gen')">detail ›</a></span></div></div>`
   // 2) grafy
     + segHtml()
@@ -2490,7 +2489,15 @@ function detRiver(body){
     <b>Napájí chatu</b> = chata je přepojená na River (měnič nic nedává). <b>Napájí spotřebič</b> = chata jede ze soláru a River zároveň napájí něco samostatného (TV).<br>
     <b>Vydrží do</b> = nabití River nad rezervou ÷ odběr chaty za poslední hodiny (měří zásuvka na výstupu River).<br>
     Výstup River měří její zásuvka Tapo, nabití % a nabíjení posílá EcoFlow. Nabíjení z generátoru – detail Generátor.</div></div>`;
+  // 5.82: záložky Data / Skutečná kapacita (jako u Flipu a Wi‑Fi)
+  let rtab = "data"; try{ rtab = localStorage.getItem("rv_tab") || "data"; }catch(_){}
+  html = `<div class="seg" id="rv_seg" style="margin-bottom:12px"><button data-t="data" aria-pressed="${rtab==="data"}">📊 Data</button><button data-t="cap" aria-pressed="${rtab==="cap"}">🔋 Skutečná kapacita</button></div>`
+    + `<div id="rv_data" style="${rtab==="data"?"":"display:none"}">${html}</div><div id="rv_capt" style="${rtab==="cap"?"":"display:none"}">${rvCapCard(d)}</div>`;
   body.insertAdjacentHTML("beforeend", html);
+  $("rv_seg").onclick = e => { const bt = e.target.closest("button"); if(!bt) return; const t = bt.dataset.t;
+    try{ localStorage.setItem("rv_tab", t); }catch(_){}
+    for(const x of $("rv_seg").children) x.setAttribute("aria-pressed", x===bt);
+    $("rv_data").style.display = t==="data" ? "" : "none"; $("rv_capt").style.display = t==="cap" ? "" : "none"; };
   if(long) stackBars($("rv_out"), Object.keys(d.days||{}).sort().filter(k=>k >= dkey(Date.now()/1000 - hrs*3600) && k >= USE_FROM).map(k=>({k, v:Object.fromEntries(R.map(r=>[r.id, day(k)[r.id]||0]))})), RL, {});
   else {
     timelineChart($("rv_tl"), pts, rowsT, hrs);

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.82 – 26. 10. 2026
+- Detail EcoFlow: záložky 📊 Data a 🔋 Skutečná kapacita (pamatuje si poslední).
+
 ## 5.81 – 26. 10. 2026
 - Malá River: když napájí 12V osvětlení (výstup > 2 W, nenabíjí se), upozornění při 20 % a 10 % (vysoká priorita) a 5 % (nejvyšší) s časem, kdy světla zhasnou; a „Malá River se vypnula“, když pod 3 % přestane dodávat. Znovu až po nabití nad 30 %.
 
