@@ -35,7 +35,7 @@ vecerni_souhrn_hodina = 22
 
 # --- Předpověď do rána ---
 # po západu slunce spočítá z kapacity a noční spotřeby, jestli baterie vydrží do rána
-predpoved_noc = zapnuto
+predpoved_noc = zapnuto          # od 5.86 se nepoužívá (noc: jen „přepni na River“ od nutne_river_v a napětí)
 den_kontrola = po 8:00, út 5:45, st 8:00, čt 5:45, pá 8:00, so 9:00, ne 9:00   # výhled dne: kdy ráno zkontrolovat, jestli chata na soláru vydrží do večera (před odjezdem); den bez času = nekontrolovat
 den_do = 22:00                 # výhled dne: do kolika má chata na soláru vydržet
 nutne_river_v = 22:00          # od kdy naléhavě opakovat „TEĎ přepni chatu na River“ (po 5 min), když baterie do rána nevydrží a chata jede ze soláru; vypnuto = nikdy

@@ -355,3 +355,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Záložky (5.84)**: i detaily spotřeby (celkem, ze solární baterie, z River, Spotřebiče) mají 📊 Grafy a 🔢 Čísla, Generátor 📊 Data a ▶️ Start (spuštění nabíjení a palivo).
 
 **River a generátor (5.85)**: vypnutá River ukazuje šedě poslední známé % s časem. Upozornění na málo nabitou River chodí jen když River opravdu dodává. Po skončení nabíjení z generátoru přijde souhrn: kolik dodal generátor, o kolik % a kWh se nabila která River a kolik z energie generátoru do River došlo.
+
+**Noc – jen dvě pravidla (5.86)**: 1) Ve 22:00 (a dál do rána) hlídač spočítá, jestli solární baterie vydrží do rána nad 12,0 V. Když ne a chata jede ze soláru, přijde „⚠️ TEĎ přepni chatu na River“ a opakuje se, dokud nepřepneš nebo neťukneš „Přepínám“. 2) Podle skutečného napětí: pod 12,2 V varování, pod 12,0 V naléhavé. Večerní upozornění před 22:00 („nevydrží“, „sniž odběr“) už nechodí – předpověď je na webu v dlaždici Příští noc.

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.86 – 26. 10. 2026
+- Noc zjednodušena na dvě pravidla: (1) od 22:00 (`nutne_river_v`) – když předpověď říká, že solární baterie klesne do rána pod 12,0 V a chata jede ze soláru → „⚠️ TEĎ přepni chatu na River“ (opakuje se do přepnutí / „Přepínám“); (2) skutečné napětí 12,2 / 12,0 V. Zrušeno večerní „🌙 nevydrží – přepni“ (chodilo hodinu po západu) a „🌙 sniž odběr do …“; nastavení „Předpověď do příštího rána“ odstraněno. Souhrn ve 22:00 ukazuje stejný výpočet jako rozhodnutí ve 22:00.
+
 ## 5.85 – 26. 10. 2026
 - Upozornění „River jen X % – přepoj chatu“ (15 / 10 / 5 %) jen když River opravdu dodává (výstup > 20 W a nenabíjí se). Dřív přišlo i během nabíjení z generátoru.
 - Vypnutá / nedostupná River: šedě poslední známé % s časem (dlaždice EcoFlow i detail), stav „vypnutá · EcoFlow ji nevidí“.

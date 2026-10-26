@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.85", FLIP_VER = "1.9.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.86", FLIP_VER = "1.9.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3269,7 +3269,6 @@ const SETTINGS = [
   ["Upozornění", [
     ["nabito","Baterie nabitá na 100 %","Můžeš zapojit náročnější spotřebič","","", "sw"],
     ["panely_nevyrabi","Panely nevyrábí přes den","Sníh, stín nebo vypadlý kabel","","", "sw"],
-    ["predpoved_noc","Předpověď do příštího rána","Každý večer upozorní, když baterie nevydrží do příštího rána","","", "sw"],
     ["den_kontrola","Výhled dne – kontrola před odjezdem","Kdy ráno zkontrolovat, jestli chata na soláru vydrží do večera – pro každý den zvlášť (vypnutý den = nekontrolovat)","",0,"week"],
     ["den_do","Výhled dne – vydržet do","Do kolika má chata na soláru vydržet (pak řeší noc jiná upozornění)","",0,"time"],
     ["nutne_river_v","Naléhavě: přepni na River","Od tohoto času opakovat po 5 min, dokud chata nejede z River / nepotvrdíš","",0,"timeopt"],
@@ -3393,7 +3392,6 @@ const SETTINGS = [
 const SET_HELP = {
   nabito: "Zpráva, když regulátor přejde do Float (solární baterie plně nabitá). Hodí se, když chceš zapojit něco náročnějšího (vrtačka, nabíjení River). Vypnuto = zpráva nechodí, nic jiného se nemění.",
   panely_nevyrabi: "Zpráva, když panely přes den dlouho skoro nic nevyrábí (sníh, stín, vypadlý konektor). Kdy přesně, určují volby v sekci Panely. Vypnuto = nehlídá se.",
-  predpoved_noc: "Každý večer hlídač spočítá z napětí, kapacity baterie a odběru, jestli baterie vydrží do rána (do doby, kdy panely začnou nabíjet). Když ne, přijde upozornění. Vypnuto = večerní upozornění nechodí, výpočet je dál vidět na webu.",
   den_kontrola: "Ráno v nastavenou hodinu (pro každý den zvlášť) hlídač zkontroluje, jestli chata na soláru vydrží do večera („Výhled dne“). Hodí se jako kontrola před odjezdem. Vypnutý den = ten den se nekontroluje.",
   den_do: "Do kolika hodin má chata na soláru vydržet při ranní kontrole (Výhled dne). Pozdější čas = přísnější kontrola, častěji poradí River. Noc potom řeší předpověď do rána.",
   nutne_river_v: "Když solární baterie nevydrží noc, od tohoto času přichází každých 5 min naléhavé upozornění „přepni na River“, dokud chata nejede z River nebo to nepotvrdíš / neodložíš (Přepínám / Za 30 min / Za 1 h). Vypnuto = jen běžná upozornění.",

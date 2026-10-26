@@ -5069,29 +5069,8 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
             st[key + "_sent"] = False
         worse = worse or bool(st.get(key + "_sent"))
 
-    # Předpověď do rána (jednou za noc)
-    if cfg["predpoved_noc"] and set_:
-        from_t = set_ + timedelta(hours=1)
-        night = now >= from_t or (rise and now < rise)
-        if not night:
-            st["night_warned"] = False
-            st["night_cut"] = False
-        f = st.get("_forecast")
-        if data_ref and cabin_on_river(data_ref, cfg, now, st):
-            f = None                             # 5.43: chata jede z River – „solár nevydrží / sniž odběr“ nedává smysl
-        hold = bool(f and f.get("ok_base") and f.get("cut_by") and now.timestamp() < f["cut_by"] - 600)
-        if night and f and f.get("t_crit") and hold and not st.get("night_cut") and not st.get("night_warned"):
-            # 4.50: nejdřív rada (zvýšený odběr je možná jen chvilkový), „nevydrží“ až když se do té doby nesníží
-            cb = datetime.fromtimestamp(f["cut_by"], TZ).strftime("%H:%M")
-            ntfy(topic, f"🌙 Aby solár vydržel do rána, sniž odběr do {cb}",
-                 f"Teď chata bere ~{f['now_w']} W, běžně v noci ~{f['base_w']} W. Když do {cb} odběr vrátíš na běžný "
-                 f"(vypneš PC a podobně), solární baterie do rána vydrží. Jinak přijde upozornění, že nevydrží – a přepnout na River.\n{line}",
-                 3, "crescent_moon")
-            st["night_cut"] = True
-        if night and f and f.get("t_crit") and not hold and not st.get("night_warned"):
-            ntfy(topic, f"🌙 Solární baterie {do_rana(f['until'], now)} nevydrží – přepni chatu na River",
-                 f"{forecast_text(f)}.\nPřepoj chatu na River (nebo hned odpoj, co nejde nutně). Pokud chata ve {cfg.get('nutne_river_v') or '22:00'} pořád pojede ze solární baterie, přijde naléhavé opakované upozornění.\n{line}", 4, "crescent_moon,warning")
-            st["night_warned"] = True
+    # 5.86: noc má jen dvě pravidla – (1) od 22:00 (nutne_river_v) jedno rozhodnutí „přepni na River“ podle předpovědi
+    # (urgent_river), (2) napětí 12,2 / 12,0 V výše. Večerní „sniž odběr“ a „nevydrží“ před 22:00 zrušeny.
     if data_ref is not None:
         urgent_river(data_ref, st, now, topic, cfg, rise, set_)
 
@@ -5157,8 +5136,6 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
     f = st.get("_forecast") or {}
     if not active and not f.get("t_crit"):
         return                                                     # baterie do rána vydrží → nic
-    if not active and f.get("ok_base") and f.get("cut_by") and ts < f["cut_by"] - 600:
-        return                                                     # 4.50: ještě je čas snížit odběr (rada už odešla)
     if active and ts - st.get("ur_last", 0) < 4 * 60:
         return                                                     # nejvýš jednou za ~5 min
     if ts < (st.get("ur_snooze") or 0):
