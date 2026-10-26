@@ -2689,6 +2689,17 @@ def check_gateway(inv, st, now, topic, cfg):
         if st.get("gw_silent"):
             ntfy(topic, "📱 Brána na chatě zase posílá", "Data z telefonu u měniče znovu chodí.", 2, "white_check_mark")
         st["gw_silent"] = False
+    # 5.67: Flip posílá jen záložní cestou (ntfy), ne přes GitHub → hlídač běží jen podle plánu GitHubu (v noci po
+    # 30–45 min) a v datech jsou díry. Typicky prošlý / odmítnutý GitHub token ve Flipu.
+    gh_age = (now.timestamp() - (st.get("flip_gh") or 0)) / 60
+    if inv and age <= lim and st.get("flip_gh") and gh_age > 90 and not st.get("gw_nogh"):
+        ntfy(topic, "🐢 Flip neposílá data přes GitHub",
+             f"Data z Flipu chodí jen záložní cestou (naposledy přes GitHub před {gh_age / 60:.1f} h), hlídač proto běží jen "
+             "každých 30–45 min a v grafech jsou díry.\nV aplikaci Brána se podívej do záznamu na „GitHub odpověděl …“ – "
+             "nejspíš prošlý GitHub token (vytvoř nový s Actions: Read and write a vlož ho do Brány).", 4, "turtle,warning")
+        st["gw_nogh"] = True
+    elif gh_age <= 30:
+        st["gw_nogh"] = False
     # Flip mimo Wi‑Fi (na mobilních datech) → nevidí zásuvky
     if inv and age <= lim and inv.get("wifi") is not None:
         if inv["wifi"] == 0 and not st.get("gw_nowifi"):

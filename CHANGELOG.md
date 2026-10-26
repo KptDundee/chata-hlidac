@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.67 – 26. 10. 2026
+- Nové upozornění „🐢 Flip neposílá data přes GitHub“: když data z Flipu chodí přes 90 min jen záložní cestou (ntfy). Hlídač pak běží jen podle plánu GitHubu (v noci po 30–45 min) a v grafech jsou díry – „Brána neposílá data“ se přitom nespustí, protože data (opožděně) chodí.
+
 ## 5.66 – 25. 10. 2026
 - Malá River: když dodává proud z 12V autozásuvky (osvětlení chaty), ukáže se „napájí 12 V (světla) · X W · vydrží ~HH:MM“ (podle výstupu z EcoFlow a %). Dřív „zapnutá · zásuvka (6) nečte“ – zásuvka (6) je na AC výstupu a 12 V nevidí; hranice „dodává“ byla 20 W.
 
