@@ -573,11 +573,22 @@ def wiring_check(data, st, now, topic, cfg):
     ts = now.timestamp()
     idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
     rows = []
+    prev_pv = None
     for p in data.get("points", []):
+        pv_ = p.get("pv_w")
         if p["t"] < max(ts - 3 * 86400, fix_ts(cfg)) or p.get("ivs") is None or not p.get("bat_v") or not p.get("iv"):
+            prev_pv = pv_
             continue
         lw = p.get("lw", p.get("mw"))
         if lw is None:
+            prev_pv = pv_
+            continue
+        # 5.79: regulátor a měnič neměří přesně ve stejnou chvíli (až 150 s, regulátor s přesností na minuty). Když jdou
+        # mraky, nabíjecí proud a napětí se mění z vteřiny na vteřinu a rozdíl napětí je nesmysl. Platné je jen měření
+        # bez slunce (panely < 5 W – napětí se mění pomalu), nebo při stálém slunci (proti předchozímu bodu ± 10 W, posun ≤ 60 s).
+        ok = (pv_ or 0) < 5 or (prev_pv is not None and abs((pv_ or 0) - prev_pv) <= 10 and abs(p["ivs"]) <= 60)
+        prev_pv = pv_
+        if not ok:
             continue
         ir, ii = max(p.get("bat_a") or 0, 0), (lw / 0.88 + idle) / p["iv"]
         rows.append((p["t"], p["bat_v"] - p["iv"], ir, ii))
@@ -611,12 +622,19 @@ def wiring_check(data, st, now, topic, cfg):
             wa["active"], wa["end_t"] = False, int(ts)
         wa["drop"], wa["a"] = round(drop, 2), round(ir + ii)
     elif ts - t < 1800 and drop >= lim_v and ts - st.get("wire_acute_t", 0) > 6 * 3600:
-        ntfy(topic, "🔥 Velký úbytek napětí na kabelech",
-             f"Regulátor ukazuje o {fmt(drop, 2)} V víc než měnič (při ~{fmt(ir + ii, 0)} A).\n"
-             f"Na cestě regulátor → baterie → měnič je velký odpor – zkontroluj pojistku, pouzdro a spoje (nejsou horké / natavené?).\n"
-             "Z dalšího měření přijde potvrzení, nebo zpráva, že je to v normě.", 4, "fire,warning")
-        st["wire_acute_t"] = ts
-        st["wire_acute"] = wa = {"active": True, "t": int(ts), "last_t": t, "n": 1, "drop": round(drop, 2), "a": round(ir + ii)}
+        # 5.79: první platné překročení jen zapamatovat – upozornit až když ho potvrdí další platné měření
+        pend = st.get("wire_pend")
+        if pend and pend.get("t") != t and t - pend["t"] <= 3600:
+            ntfy(topic, "🔥 Velký úbytek napětí na kabelech",
+                 f"Dvě měření po sobě: regulátor ukazuje o {fmt(pend['drop'], 2)} a {fmt(drop, 2)} V víc než měnič (při ~{fmt(ir + ii, 0)} A).\n"
+                 f"Na cestě regulátor → baterie → měnič je velký odpor – zkontroluj pojistku, pouzdro a spoje (nejsou horké / natavené?).", 4, "fire,warning")
+            st["wire_acute_t"] = ts
+            st["wire_acute"] = wa = {"active": True, "t": int(pend["t"]), "last_t": t, "n": 2, "drop": round(drop, 2), "a": round(ir + ii)}
+            st.pop("wire_pend", None)
+        elif not pend or pend.get("t") != t:
+            st["wire_pend"] = {"t": t, "drop": round(drop, 2)}
+    elif ts - t < 1800 and drop < lim_v:
+        st.pop("wire_pend", None)
     if wa:
         data["wire_state"] = {k: wa.get(k) for k in ("active", "t", "n", "drop", "a", "end_t")}
     load = [(r[1] - off) / (r[2] + r[3]) for r in rows if r[0] >= ts - 86400 and r[2] + r[3] >= 8]

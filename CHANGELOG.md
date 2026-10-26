@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.79 – 26. 10. 2026
+- Úbytek na kabelech: počítají se jen měření, kde má rozdíl napětí regulátor − měnič smysl – bez slunce (panely < 5 W), nebo při stálém slunci (± 10 W proti předchozímu bodu a posun mezi měřeními ≤ 60 s). Když jdou mraky, napětí se mění z vteřiny na vteřinu a měření regulátoru a měniče nejsou ze stejné chvíle. Upozornění „Velký úbytek“ až po dvou platných měřeních po sobě (dřív hned po prvním, pak potvrzení / vyvrácení). Platí i pro denní odpor spojů.
+
 ## 5.78 – 26. 10. 2026
 - Lišta problémů: „Flip má X % a nenabíjí se“ jen když by se nabíjet měl (pod spodní hranicí, výchozí 30 %) a nenabíjí, nebo by se vybil a zásuvka nabíjení nejde ovládat. Dřív se hlásilo pod 50 % – v rozporu s pravidly nabíjení (nad hranicí se šetří).
 
