@@ -343,3 +343,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 - Pojistky: v zásuvce odpočet „zapnout za 3 h (Flip) / 2 h (router)“, obnovuje se každých 30 min, dokud Brána běží. Router bez přijaté pojistky nevypne. Baterii routeru nejde přečíst → nabíjí. Nad 42 °C se Flip nenabíjí.
 - V detailu „Flip (brána) a Wi‑Fi“ řádek „Slunce navíc“ ukáže, proč se zrovna (ne)nabíjí.
 - (5.59) Odpoledne, 3 h až 1 h před západem: Flip do 80 % a router do 90 % přímo z panelů, když panely pokryjí chatu i nabíjení – do noci jdou plné a solární baterie je v noci nemusí živit (ušetří ztrátu nabití a vybití).
+
+**River dochází (5.68)**: upozornění při 15 % (vyměň River), 10 % a 5 % (nejvyšší priorita) a „River se vypnula“, když pod 5 % přestane dodávat. Znovu až po nabití nad 25 %.

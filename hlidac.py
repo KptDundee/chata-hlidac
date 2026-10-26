@@ -4639,13 +4639,29 @@ def check_river(r, st, topic, cfg):
     # Skoro vybitá -> vyměnit
     lim = cfg["river_vymenit_pod"]
     if cfg["river_vymenit"] and lim is not None and (r.get("wh") or 768) >= 500:   # 4.82: malá chatu nenapájí
+        mins = r.get("dsg_min")
+        rest = f" Zbývá asi {fmt(mins / 60, 1)} h." if mins and mins < 6000 else ""
         if soc <= lim and not st.get(k + "_low"):
-            mins = r.get("dsg_min")
-            rest = f" Zbývá asi {fmt(mins / 60, 1)} h." if mins and mins < 6000 else ""
             ntfy(topic, f"🔄 Vyměň River ({fmt(soc)} %)", f"{io}.{rest}\nPřepoj spotřebiče na druhou River a tuhle nabij.", 4, "battery,warning")
             st[k + "_low"] = True
+        # 5.68: další stupně – 10 % a 5 % (nejvyšší priorita), a když River přestane dodávat, protože je prázdná
+        sent = set(st.get(k + "_lv") or [])
+        for lv in (10, 5):
+            if lv < lim and soc <= lv and lv not in sent:
+                ntfy(topic, f"🚨 River {name} jen {fmt(soc)} % – brzy se vypne",
+                     f"{io}.{rest}\nTeď přepoj chatu na druhou River (nebo solár), jinak zůstane bez 230 V.", 5, "rotating_light,battery")
+                sent.add(lv)
+                break
+        out_now = r.get("out_w") or 0
+        if soc <= 5 and st.get(k + "_out", 0) > 20 and out_now <= 3 and "empty" not in sent:
+            ntfy(topic, f"🔴 River {name} se vypnula ({fmt(soc)} %)",
+                 f"{io}.\nRiver přestala dodávat – pokud z ní jela chata, je teď bez 230 V (lednice, Wi‑Fi, Flip).", 5, "rotating_light,warning")
+            sent.add("empty")
+        st[k + "_out"] = out_now
+        st[k + "_lv"] = sorted(sent, key=str)
         if soc > lim + 10:
             st[k + "_low"] = False
+            st[k + "_lv"] = []
     # Nabitá při nabíjení (generátor) -> vypnout generátor
     charging = (r.get("in_w") or 0) > 20
     if cfg["river_nabita"]:

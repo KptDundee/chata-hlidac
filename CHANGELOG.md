@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.68 – 26. 10. 2026
+- River (velká): kromě „Vyměň River“ pod 15 % nově upozornění pod 10 % a pod 5 % (nejvyšší priorita, „brzy se vypne“) a „River se vypnula“, když River pod 5 % přestane dodávat. Dřív přišlo jen jedno upozornění při 15 % a pak nic.
+
 ## 5.67 – 26. 10. 2026
 - Nové upozornění „🐢 Flip neposílá data přes GitHub“: když data z Flipu chodí přes 90 min jen záložní cestou (ntfy). Hlídač pak běží jen podle plánu GitHubu (v noci po 30–45 min) a v grafech jsou díry – „Brána neposílá data“ se přitom nespustí, protože data (opožděně) chodí.
 
