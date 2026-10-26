@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.73", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.74", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2413,10 +2413,13 @@ function rvCapCard(d){
     const big = c.cap ? `<div style="font-size:24px;font-weight:700">pojme asi ${nf(c.cap)} Wh</div>
         <div class="sub">${rel} · nová by dala ~${nf(ac(c.nom))} Wh → tahle má ~${Math.round(c.cap / ac(c.nom) * 100)} %</div>`
       : `<div class="sub">zatím žádné vybití o 20 % a víc</div>`;
+    const ch = c.chg || {};                                 // 5.74: nabíjení – kolik River vzala na 100 %
+    const chgT = ch.per100 ? `<div class="sub" style="margin-top:2px">nabití 0 → 100 % potřebuje ~<b>${nf(ch.per100)} Wh</b> ze zásuvky (generátor / síť${ch.n<2?", zatím z 1 nabíjení":`, z ${ch.n} nabíjení`})${c.cap ? ` → zpátky dá ${Math.round(c.cap / ch.per100 * 100)} %` : ""}</div>`
+      + `<details><summary class="sub" style="cursor:pointer">nabíjení, ze kterých se počítá</summary><table class="ut" style="width:100%;font-size:12.5px;margin-top:4px"><tr><th style="text-align:left">kdy</th><th>%</th><th>vzala</th><th>na 100 %</th></tr>${(ch.ses||[]).slice().reverse().map(x=>`<tr><td style="text-align:left">${relDay(x.t0)} ${hmT(x.t0)}–${hmT(x.t1)}</td><td>${x.s0} → ${x.s1} %</td><td>${nf(x.wh)} Wh</td><td><b>${nf(x.per100)}</b></td></tr>`).join("")}</table></details>` : "";
     const live = c.live ? `<div class="sub" style="font-size:12.5px;margin-top:2px">právě se vybíjí: od ${relDay(c.live.t0)} ${hmT(c.live.t0)} ${c.live.s0} → ${c.live.s1} %, dala ${nf(c.live.wh)} Wh${c.live.bde!=null ? ` (baterie podle EcoFlow: ${nf(c.live.bde,3)})` : ""}</div>` : "";
     const ses = (c.ses||[]).slice().reverse().map(x=>`<tr><td style="text-align:left">${relDay(x.t0)} ${hmT(x.t0)}–${hmT(x.t1)}</td><td>${x.s0} → ${x.s1} %</td><td>${nf(x.wh)} Wh${x.bde!=null ? `<br><span class="sub" style="font-size:11px">baterie: ${nf(x.bde,3)}</span>` : ""}</td><td><b>${nf(x.cap)}</b></td><td class="sub" style="font-size:11px">${escH(x.src||"")}</td></tr>`).join("");
     const bat = c.bat ? `<details style="margin-top:2px"><summary class="sub" style="cursor:pointer">počítadla baterie od EcoFlow</summary><div class="sub" style="font-size:11.5px;word-break:break-all">${Object.entries(c.bat).map(([k,v])=>`${escH(k)} = ${v}`).join("<br>")}</div></details>` : "";   // 5.73
-    return `<div style="margin-top:10px"><b>${nm}</b>${big}${live}${bat}${ses ? `<details style="margin-top:2px"><summary class="sub" style="cursor:pointer">vybíjení, ze kterých se počítá</summary><table class="ut" style="width:100%;font-size:12.5px;margin-top:4px"><tr><th style="text-align:left">kdy</th><th>%</th><th>dala</th><th>na 100 %</th><th></th></tr>${ses}</table></details>` : ""}</div>`;
+    return `<div style="margin-top:10px"><b>${nm}</b>${big}${chgT}${live}${bat}${ses ? `<details style="margin-top:2px"><summary class="sub" style="cursor:pointer">vybíjení, ze kterých se počítá</summary><table class="ut" style="width:100%;font-size:12.5px;margin-top:4px"><tr><th style="text-align:left">kdy</th><th>%</th><th>dala</th><th>na 100 %</th><th></th></tr>${ses}</table></details>` : ""}</div>`;
   }).join("");
   return H + `<div class="sub">Kolik Wh by River dala do chaty ze 100 % na 0 % – spočítané z jejích vybíjení (co naměřila zásuvka na jejím výstupu ÷ o kolik % klesla).</div>${rows}</div>`;
 }

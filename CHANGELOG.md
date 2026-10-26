@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.74 – 26. 10. 2026
+- Skutečná kapacita: i nabíjení – kolik Wh River vzala ze zásuvky (vstup podle EcoFlow, generátor / síť) při nárůstu aspoň o 20 %, přepočet na 0 → 100 % a „zpátky dá X %“ (poměr toho, co dá do chaty, a co potřebuje na nabití). Tabulka nabíjení v rozbalení.
+
 ## 5.73 – 26. 10. 2026
 - EcoFlow: hlídač ukládá počítadla baterie, která EcoFlow posílá (klíče s accu / soh / cycle – celkem nabito / vybito, stav, cykly) a do bodů počítadlo vybité energie („de“). Karta Skutečná kapacita: rozbalovací „počítadla baterie od EcoFlow“ a u vybíjení i kolik dala baterie podle EcoFlow – z toho půjde spočítat ztráty měniče River (jednotku a název počítadla ověříme z prvních dat).
 

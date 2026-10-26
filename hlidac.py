@@ -4148,7 +4148,34 @@ def river_capacity(data, st, now, cfg):
             lv = {"t0": int(live["t0"]), "s0": round(live["s0"]), "s1": round(live["s1"]), "wh": round(wh)}
             if live.get("de0") is not None and live.get("de1") is not None and live["de1"] > live["de0"]:
                 lv["bde"] = round(live["de1"] - live["de0"], 3)
-        out[k6] = {"name": r.get("name"), "nom": nom, "ses": last8, "bat": r.get("bat"),
+        # 5.74: nabíjení (generátor / síť) – kolik Wh vzala River (vstup podle EcoFlow) při nárůstu aspoň o 20 %
+        chg, cc = [], None
+        for i, (t, s_, iw, w, isplug, de) in enumerate(ser):
+            prev = ser[i - 1] if i else None
+            if iw > 20 and prev is not None and t - prev[0] <= 2400 and cc is not None:
+                cc["wh"] += ((prev[2] or 0) + iw) / 2 * (t - prev[0]) / 3600
+                if s_ > cc["s1"]:
+                    cc["t1"], cc["s1"], cc["wh_u"] = t, s_, cc["wh"]
+                continue
+            if cc and cc["s1"] - cc["s0"] >= 20:
+                chg.append(cc)
+            cc = {"t0": t, "s0": s_, "t1": t, "s1": s_, "wh": 0.0, "wh_u": 0.0} if iw > 20 else None
+        if cc and cc["s1"] - cc["s0"] >= 20 and now.timestamp() - cc["t1"] > 1800:
+            chg.append(cc)
+        kc = {str(x["t0"]): x for x in st.setdefault("rv_chg", {}).get(k6, [])}
+        for x in chg:
+            rise = x["s1"] - x["s0"]
+            if x["wh_u"] <= 0:
+                continue
+            for kk in [kk for kk, y in kc.items() if y["t0"] < x["t1"] and y["t1"] > x["t0"]]:
+                kc.pop(kk)
+            kc[str(int(x["t0"]))] = {"t0": int(x["t0"]), "t1": int(x["t1"]), "s0": round(x["s0"]), "s1": round(x["s1"]),
+                                     "wh": round(x["wh_u"]), "per100": round(x["wh_u"] / (rise / 100))}
+        lc = sorted(kc.values(), key=lambda x: x["t0"])[-20:]
+        st["rv_chg"][k6] = lc
+        pc = sorted(x["per100"] for x in lc[-8:])
+        out_chg = {"per100": pc[len(pc) // 2] if pc else None, "n": len(pc), "ses": lc[-6:]}
+        out[k6] = {"name": r.get("name"), "nom": nom, "ses": last8, "bat": r.get("bat"), "chg": out_chg,
                    "cap": caps[len(caps) // 2] if caps else None, "n": len(caps),
                    "drop_sum": sum(x["s0"] - x["s1"] for x in last8), "live": lv}
     data["rv_cap"] = out
