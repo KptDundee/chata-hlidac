@@ -308,3 +308,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.66**: web `small12(x)` – River s kapacitou < 500 Wh, online, výstup z EcoFlow > 2 W a nenabíjí se → „napájí 12 V (světla)“ + výdrž (soc − 5 %) · Wh · 0,9 / W. Volá se na začátku `rivState`.
 
 **5.69**: `river_capacity` – pro každou River (SN) z bodů `rv[k].s/i/o` + zásuvka (`river_for_plug` → `tp[pid]`) úseky vybíjení (i ≤ 20 W, % neroste o > 1, mezera ≤ 40 min); energie lichoběžníkem do posledního poklesu %; hotový úsek = pokles ≥ 20 % a 3 h bez dalšího poklesu nebo ≤ 2 %. `st.rv_ses[SN]` (20), `data.rv_cap[SN]` = {name, nom, cap (medián 8), n, ses, live, src}. Web `rvCapCard` v `detRiver`.
+
+**5.72**: `river_capacity` – energie úseku z `tp_hist[pid][den]` (hodiny, poměrné krajní), jinak integrace W (src „s dírami“, když mezera > 40 min); úsek se přeruší až mezerou > 3 h; překrývající se starší úseky se nahradí; `st.rv_ses_v` 2. `rv_cap[SN].drop_sum`. Web `rvCapCard` – „pojme asi“, spolehlivost (n ≥ 2 a součet poklesů ≥ 80 %), nová ≈ 0,87 × štítek.

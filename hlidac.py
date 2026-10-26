@@ -4033,20 +4033,44 @@ def river_capacity_safe(data, st, now, cfg):
 
 
 def river_capacity(data, st, now, cfg):
-    """5.69: skutečná kapacita každé River z vybíjení: úsek, kdy % jen klesá (nenabíjí se, i ≤ 20 W), aspoň o 20 %.
-    Energie = co River dodala: zásuvka Tapo na jejím výstupu (AC do chaty), jinak výstup z EcoFlow. Kapacita =
-    Wh ÷ (pokles % / 100) = kolik Wh by River dala ze 100 % na 0 % (včetně ztrát jejího měniče).
-    st["rv_ses"][SN] = poslední úseky (drží se i po 14 dnech bodů), data["rv_cap"] pro web."""
+    """5.69/5.72: skutečná kapacita každé River z vybíjení: úsek, kdy % jen klesá (nenabíjí se, i ≤ 20 W), aspoň o 20 %.
+    Energie = co River dala do chaty: hodinová historie zásuvky Tapo na jejím výstupu (počítadlo zásuvky – přesné
+    i přes díry v datech), jinak měření po 10 min, jinak výstup z EcoFlow. Kapacita = Wh ÷ (pokles % / 100).
+    st["rv_ses"][SN] = poslední úseky, data["rv_cap"] pro web."""
     rivers = [r for r in (data.get("rivers") or []) if not r.get("gen") and r.get("sn")]
     data["rv_cap"] = {}
     if not rivers:
         return
+    if st.get("rv_ses_v") != 2:                       # 5.72: nová pravidla (díry do 3 h, historie zásuvky) → přepočítat
+        st["rv_ses"], st["rv_ses_v"] = {}, 2
     names = data.get("plug_names") or {}
+    hist = data.get("tp_hist") or {}
     plug_of = {}
     for pid in ips(cfg.get("zasuvky_river")):
         r = river_for_plug(pid, names.get(pid), rivers, cfg)
         if r:
             plug_of[str(r["sn"])[-6:]] = pid
+
+    def hist_wh(pid, a, b):
+        """Energie zásuvky mezi a a b z hodinové historie (poměrná část krajních hodin); None, když hodina chybí."""
+        h = hist.get(pid) or {}
+        tot, t = 0.0, a
+        while t < b:
+            lt = datetime.fromtimestamp(t, TZ)
+            dk = lt.strftime("%Y-%m-%d")
+            arr = h.get(dk)
+            if not arr:
+                return None
+            mid = datetime(lt.year, lt.month, lt.day, tzinfo=TZ).timestamp()
+            i = int((t - mid) // 3600)
+            if i >= len(arr) or arr[i] is None:
+                return None
+            h0 = mid + i * 3600
+            seg = min(b, h0 + 3600) - t
+            tot += arr[i] * seg / 3600
+            t = h0 + 3600
+        return tot
+
     pts = data.get("points") or []
     ses_all = st.setdefault("rv_ses", {})
     out = {}
@@ -4060,47 +4084,57 @@ def river_capacity(data, st, now, cfg):
                 continue
             w = (p.get("tp") or {}).get(pid) if pid else None
             ser.append((p["t"], float(e["s"]), e.get("i") or 0, w if w is not None else e.get("o"), w is not None))
-        # úseky vybíjení
         sess, cur = [], None
         for i, (t, s_, iw, w, isplug) in enumerate(ser):
             prev = ser[i - 1] if i else None
-            brk = cur is None or prev is None or t - prev[0] > 2400 or iw > 20 or s_ > cur["min"] + 1   # 5.71: po nabíjení cur None
+            brk = cur is None or prev is None or t - prev[0] > 3 * 3600 or iw > 20 or s_ > cur["min"] + 1
             if brk:
-                if cur and cur["s0"] - cur["min"] >= 20:
+                if cur and cur["s0"] - cur["s1"] >= 20:
                     sess.append(cur)
-                cur = None if iw > 20 else {"t0": t, "s0": s_, "min": s_, "t1": t, "s1": s_, "wh": 0.0, "wh_d": 0.0, "plug": True}
+                cur = None if iw > 20 else {"t0": t, "s0": s_, "min": s_, "t1": t, "s1": s_, "wh": 0.0, "wh_d": 0.0,
+                                            "plug": True, "gap": 0}
                 continue
             cur["wh"] += ((prev[3] or 0) + (w or 0)) / 2 * (t - prev[0]) / 3600
             cur["plug"] = cur["plug"] and isplug
-            if s_ < cur["s1"]:                       # konec úseku = poslední pokles % (energie do té chvíle)
+            cur["gap"] = max(cur["gap"], t - prev[0])
+            if s_ < cur["s1"]:
                 cur["t1"], cur["s1"], cur["wh_d"] = t, s_, cur["wh"]
             cur["min"] = min(cur["min"], s_)
-        for x in sess:
-            x["wh"] = x.get("wh_d", x["wh"])
         live = None
-        if cur and cur["s0"] - cur["min"] >= 5:
-            cur["wh"] = cur.get("wh_d", cur["wh"])
+        if cur and cur["s0"] - cur["s1"] >= 5:
             live = cur
-            if cur["s0"] - cur["min"] >= 20 and (now.timestamp() - cur["t1"] > 3 * 3600 or cur["s1"] <= 2):
+            if cur["s0"] - cur["s1"] >= 20 and (now.timestamp() - cur["t1"] > 3 * 3600 or cur["s1"] <= 2):
                 sess.append(cur)
                 live = None
+
+        def energy(x):
+            hw = hist_wh(pid, x["t0"], x["t1"]) if pid else None
+            if hw is not None and hw > 0:
+                return hw, "zásuvka – počítadlo"
+            return x["wh_d"], ("zásuvka – měření" if x["plug"] else "EcoFlow") + (" s dírami" if x["gap"] > 2400 else "")
         keep = {str(x["t0"]): x for x in ses_all.get(k6, [])}
         for x in sess:
             drop = x["s0"] - x["s1"]
-            if drop >= 20 and x["wh"] > 0:
-                keep[str(int(x["t0"]))] = {"t0": int(x["t0"]), "t1": int(x["t1"]), "s0": round(x["s0"]), "s1": round(x["s1"]),
-                                           "wh": round(x["wh"]), "cap": round(x["wh"] / (drop / 100)),
-                                           "src": "zásuvka" if x["plug"] else "EcoFlow"}
+            wh, src = energy(x)
+            if drop < 20 or wh <= 0:
+                continue
+            for kk in [kk for kk, y in keep.items() if y["t0"] < x["t1"] and y["t1"] > x["t0"]]:
+                keep.pop(kk)                           # starší kratší úsek ze stejného vybíjení
+            keep[str(int(x["t0"]))] = {"t0": int(x["t0"]), "t1": int(x["t1"]), "s0": round(x["s0"]), "s1": round(x["s1"]),
+                                       "wh": round(wh), "cap": round(wh / (drop / 100)), "src": src}
         lst = sorted(keep.values(), key=lambda x: x["t0"])[-20:]
         ses_all[k6] = lst
-        caps = sorted(x["cap"] for x in lst[-8:])
-        nom = r.get("wh") or (768 if (r.get("wh") or 768) >= 500 else 256)
-        out[k6] = {"name": r.get("name"), "nom": nom, "ses": lst[-8:],
+        last8 = lst[-8:]
+        caps = sorted(x["cap"] for x in last8)
+        nom = r.get("wh") or 768
+        lv = None
+        if live:
+            wh, src = energy(live)
+            lv = {"t0": int(live["t0"]), "s0": round(live["s0"]), "s1": round(live["s1"]), "wh": round(wh)}
+        out[k6] = {"name": r.get("name"), "nom": nom, "ses": last8,
                    "cap": caps[len(caps) // 2] if caps else None, "n": len(caps),
-                   "live": {"t0": int(live["t0"]), "s0": round(live["s0"]), "s1": round(live["s1"]), "wh": round(live["wh"])} if live else None,
-                   "src": "zásuvka" if pid else "EcoFlow"}
+                   "drop_sum": sum(x["s0"] - x["s1"] for x in last8), "live": lv}
     data["rv_cap"] = out
-
 
 def river_supply(data, st, now, topic, cfg, rise, set_):
     """Která River teď napájí chatu, kolik má a na jak dlouho vydrží při průměrném odběru (poslední 3 h).

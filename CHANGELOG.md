@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.72 – 26. 10. 2026
+- Skutečná kapacita River: energie z počítadla zásuvky (hodinová historie Tapo) – přesná i přes díry v datech; vybíjení se nepřeruší dírou do 3 h (dřív 40 min → noc červené se rozpadla a nezapočítala). Kratší úseky stejného vybíjení se nahradí celým. Úseky přepočítány.
+- Karta přehledně: u každé River „pojme asi X Wh“, spolehlivost (spolehlivé / zatím odhad), srovnání s novou River; tabulka vybíjení v rozbalení se zdrojem energie.
+
 ## 5.71 – 26. 10. 2026
 - Kapacita River: výpočet padal (po bodu, kdy se River nabíjela, chyběl začátek úseku – TypeError), takže se karta nespočítala. Opraveno; případná chyba výpočtu se teď ukáže přímo v kartě.
 

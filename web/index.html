@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.71", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.72", FLIP_VER = "1.9.9";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2402,18 +2402,22 @@ function timelineChart(el, pts, rows, hours){
   const n0 = svg.querySelectorAll("text").length; xLabels(svg, t0, t1, x);
   [...svg.querySelectorAll("text")].slice(n0).forEach(e=>e.setAttribute("y", Hh-6));     // popisky času dole pod řádky
 }
-/* 5.69: skutečná kapacita River z vybíjení (kolik ze sebe dala mezi % začátku a konce) */
+/* 5.69/5.72: skutečná kapacita River z vybíjení – jedno velké číslo na River, spolehlivost, tabulka v rozbalení */
 function rvCapCard(d){
-  const C = d.rv_cap;
-  if(!C || !Object.keys(C).length) return `<div class="card"><h2 style="margin:0 0 2px">Skutečná kapacita</h2><div class="sub">${d.rv_cap_err ? `Výpočet selhal: ${escH(d.rv_cap_err)}` : !C ? "Hlídač ji zatím nespočítal." : "EcoFlow zatím neposlal žádnou River."}</div></div>`;
+  const C = d.rv_cap, H = `<div class="card"><h2 style="margin:0 0 2px">Skutečná kapacita</h2>`;
+  if(!C || !Object.keys(C).length) return H + `<div class="sub">${d.rv_cap_err ? `Výpočet selhal: ${escH(d.rv_cap_err)}` : !C ? "Hlídač ji zatím nespočítal." : "EcoFlow zatím neposlal žádnou River."}</div></div>`;
+  const ac = nom => Math.round(nom * 0.87 / 10) * 10;      // nová River do zásuvky ~85–90 % ze štítku (ztráty měniče)
   const rows = Object.entries(C).map(([k,c])=>{
-    const nm = escH(pn(c.name)||"River"), hp = c.cap ? Math.round(c.cap / c.nom * 100) : null;
-    const head = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:8px"><b>${nm}</b><span>${c.cap ? `<b style="font-size:18px">${nf(c.cap)} Wh</b> <span class="sub">= ${hp} % z ${nf(c.nom)} Wh${c.n<3?` · zatím z ${c.n}`:""}</span>` : `<span class="sub">zatím žádné vybití o 20 % a víc</span>`}</span></div>`;
-    const live = c.live ? `<div class="sub" style="font-size:12.5px">teď: od ${relDay(c.live.t0)} ${hmT(c.live.t0)} ${c.live.s0} → ${c.live.s1} % dala ${nf(c.live.wh)} Wh${c.live.s0-c.live.s1>=10 ? ` (≈ ${nf(c.live.wh/((c.live.s0-c.live.s1)/100))} Wh na 100 %)` : ""}</div>` : "";
-    const ses = (c.ses||[]).slice().reverse().map(x=>`<tr><td style="text-align:left">${relDay(x.t0)} ${hmT(x.t0)}–${hmT(x.t1)}</td><td>${x.s0} → ${x.s1} %</td><td>${nf(x.wh)} Wh</td><td><b>${nf(x.cap)}</b></td></tr>`).join("");
-    return head + live + (ses ? `<table class="ut" style="width:100%;font-size:12.5px;margin-top:4px"><tr><th style="text-align:left">vybíjení</th><th>%</th><th>dala</th><th>na 100 %</th></tr>${ses}</table>` : "");
+    const nm = escH(pn(c.name)||"River");
+    const rel = !c.cap ? "" : c.n >= 2 && (c.drop_sum||0) >= 80 ? `spolehlivé – ${c.n} vybíjení` : `zatím odhad – ${c.n} ${c.n===1?"vybíjení":"vybíjení"}, celkem ${c.drop_sum||0} %`;
+    const big = c.cap ? `<div style="font-size:24px;font-weight:700">pojme asi ${nf(c.cap)} Wh</div>
+        <div class="sub">${rel} · nová by dala ~${nf(ac(c.nom))} Wh → tahle má ~${Math.round(c.cap / ac(c.nom) * 100)} %</div>`
+      : `<div class="sub">zatím žádné vybití o 20 % a víc</div>`;
+    const live = c.live ? `<div class="sub" style="font-size:12.5px;margin-top:2px">právě se vybíjí: od ${relDay(c.live.t0)} ${hmT(c.live.t0)} ${c.live.s0} → ${c.live.s1} %, dala ${nf(c.live.wh)} Wh</div>` : "";
+    const ses = (c.ses||[]).slice().reverse().map(x=>`<tr><td style="text-align:left">${relDay(x.t0)} ${hmT(x.t0)}–${hmT(x.t1)}</td><td>${x.s0} → ${x.s1} %</td><td>${nf(x.wh)} Wh</td><td><b>${nf(x.cap)}</b></td><td class="sub" style="font-size:11px">${escH(x.src||"")}</td></tr>`).join("");
+    return `<div style="margin-top:10px"><b>${nm}</b>${big}${live}${ses ? `<details style="margin-top:2px"><summary class="sub" style="cursor:pointer">vybíjení, ze kterých se počítá</summary><table class="ut" style="width:100%;font-size:12.5px;margin-top:4px"><tr><th style="text-align:left">kdy</th><th>%</th><th>dala</th><th>na 100 %</th><th></th></tr>${ses}</table></details>` : ""}</div>`;
   }).join("");
-  return `<div class="card"><h2 style="margin:0 0 2px">Skutečná kapacita</h2><div class="sub">Kolik River opravdu dala (střídavý proud do chaty, měřeno zásuvkou na jejím výstupu) při poklesu nabití – přepočteno na 100 %. Bere se medián posledních vybíjení o 20 % a víc.</div>${rows}</div>`;
+  return H + `<div class="sub">Kolik Wh by River dala do chaty ze 100 % na 0 % – spočítané z jejích vybíjení (co naměřila zásuvka na jejím výstupu ÷ o kolik % klesla).</div>${rows}</div>`;
 }
 function detRiver(body){
   // 5.07: EcoFlow = přehled River (co mají, co dělají, jak dlouho vydrží). Vše kolem nabíjení z generátoru je v detailu Generátor.
