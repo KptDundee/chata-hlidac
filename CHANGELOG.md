@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.80 – 26. 10. 2026
+- Úbytek na kabelech: posuzuje se i odpor cesty regulátor → baterie → měnič (mΩ, od 5 A) – nezávisí na proudu, takže špatný spoj se pozná i v noci při malém odběru (dřív jen úbytek ≥ 0,35 V, který při malém proudu nenastane). Upozornění po 2 platných měřeních, když úbytek ≥ 0,35 V nebo odpor ≥ 20 mΩ. „Stálé slunce“ relativně: výkon panelů ± 10 % (aspoň ± 10 W). Denní odpor spojů od 5 A (dřív 8 A).
+
 ## 5.79 – 26. 10. 2026
 - Úbytek na kabelech: počítají se jen měření, kde má rozdíl napětí regulátor − měnič smysl – bez slunce (panely < 5 W), nebo při stálém slunci (± 10 W proti předchozímu bodu a posun mezi měřeními ≤ 60 s). Když jdou mraky, napětí se mění z vteřiny na vteřinu a měření regulátoru a měniče nejsou ze stejné chvíle. Upozornění „Velký úbytek“ až po dvou platných měřeních po sobě (dřív hned po prvním, pak potvrzení / vyvrácení). Platí i pro denní odpor spojů.
 
