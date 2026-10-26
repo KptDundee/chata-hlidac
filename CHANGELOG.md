@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.83 – 26. 10. 2026
+- Detail Teploty: záložky 🌡️ Data a ❄️ Chladnutí. Detail Solární baterie: záložky 📊 Data (grafy) a ⏱ Teď a čísla (teď, dnes, včera, nejnižší stavy, výklad). Volba se pamatuje.
+
 ## 5.82 – 26. 10. 2026
 - Detail EcoFlow: záložky 📊 Data a 🔋 Skutečná kapacita (pamatuje si poslední).
 

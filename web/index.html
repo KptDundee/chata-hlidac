@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.82", FLIP_VER = "1.9.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.83", FLIP_VER = "1.9.11";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2109,10 +2109,14 @@ function detTemps(body){
   const val = (p, n) => { for(const k in (p.th||{})) if(clean(k) === n) return p.th[k]; return null; };
   const role = n => n === cfg.teplomer_baterie && !/bater/i.test(n) ? " – u solární baterie" : n === cfg.teplomer_lednice && !/lednic/i.test(n) ? " – v lednici" : "";
   const id = n => "dt_" + String(n).replace(/[^a-z0-9]/gi, "_");
-  body.insertAdjacentHTML("beforeend", names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · 48 h${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
+  const TT = tabsHead("tt_tab", [["data","🌡️ Data"],["cool","❄️ Chladnutí"]]);   // 5.83
+  body.insertAdjacentHTML("beforeend", TT.html + `<div id="tt_tab_data" style="${TT.cur==="data"?"":"display:none"}"></div><div id="tt_tab_cool" style="${TT.cur==="cool"?"":"display:none"}"></div>`);
+  tabsWire("tt_tab", ["data","cool"]);
+  const dataBox = $("tt_tab_data"), coolBox = $("tt_tab_cool");
+  dataBox.insertAdjacentHTML("beforeend", names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · 48 h${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
     + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, thWhy(x) ? thWhy(x) : `${x.old ? `<span class="sub">Flip ho teď neslyší – poslední hodnota:</span> <span style="color:var(--muted)">` : "<span>"}${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %${x.bt && Date.now()/1000 - x.bt > 3600 ? ` <span class="sub">(změřeno ${relDay(x.bt)} ${hmT(x.bt)})</span>` : ""}` : ""} · ${agoS(x.tm)}</span>`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Teploměry Xiaomi vysílají přes Bluetooth, Flip je zachytí a pošle s ostatními daty. Který teploměr je u baterie a který v lednici, nastavíš v Nastavení (jménem jako ve Flipu). Teplota u baterie se bere pro hlídání mrazu a menší kapacitu v chladu, teplota v lednici pro upozornění nad ${lim} °C.</div>`);
-  coolCard(body, d, h);
+  coolCard(coolBox, d, h);
   for(const n of names){ const el = $(id(n)); if(!el) continue;
     const ser = pts.map(p=>({t:p.t, c:val(p, n)}));
     if(ser.some(q=>q.c!=null)) lineChart(el, ser, "c", css("--s1"), {unit:"°C",dec:1,hours:48, refs: n === cfg.teplomer_lednice ? [[lim,"--crit"]] : n === cfg.teplomer_baterie ? [[0,"--s1"]] : undefined});
@@ -2647,6 +2651,19 @@ function dayExt(key, days, fn){
   return best;
 }
 const dTxt = k => `${relN(k)>=-1 ? relDay(k) : dayLabel(k)}`;
+/* 5.83: záložky v detailu – společné (Flip/Wi‑Fi a EcoFlow mají vlastní, stejně vypadají) */
+function tabsHead(key, tabs){
+  let cur = tabs[0][0]; try{ cur = localStorage.getItem(key) || cur; }catch(_){}
+  if(!tabs.some(t=>t[0]===cur)) cur = tabs[0][0];
+  return {cur, html:`<div class="seg" id="${key}_seg" style="margin-bottom:12px">${tabs.map(([id,lab])=>`<button data-t="${id}" aria-pressed="${id===cur}">${lab}</button>`).join("")}</div>`};
+}
+function tabsWire(key, ids){
+  const seg = $(key+"_seg"); if(!seg) return;
+  seg.onclick = e => { const bt = e.target.closest("button"); if(!bt) return; const t = bt.dataset.t;
+    try{ localStorage.setItem(key, t); }catch(_){}
+    for(const x of seg.children) x.setAttribute("aria-pressed", x===bt);
+    for(const id of ids) { const el = $(key+"_"+id); if(el) el.style.display = id===t ? "" : "none"; } };
+}
 function detBat(body){
   const d = DATA, h = homeData(d), last = d.last || {}, cfg = d.cfg || {};
   const s = batState(h.bv, d.state, h.status, h.netB), F = batFlow(h), ac = batAcute(d, h), R = regStale(d);
@@ -2659,7 +2676,8 @@ function detBat(body){
   const ext = (key, n, fn, f) => { const e = dayExt(key, n, fn); return e ? `${f(e.v)} <span class="sub">${dTxt(e.k)}</span>` : "–"; };
   const odb = h.loadB==null ? "–" : h.menicOff ? "0 W (měnič vypnutý)" : `${nf(h.loadB)} W <span class="sub">(měnič ${nf(h.inv.mw)} W + ztráty)</span>`;
   const sec = (t, rows) => `<div class="card"><h2 style="margin:0 0 4px">${t}</h2>${rows.join("")}</div>`;
-  body.insertAdjacentHTML("beforeend",
+  const TB = tabsHead("bt_tab", [["data","📊 Data"],["now","⏱ Teď a čísla"]]);   // 5.83
+  body.insertAdjacentHTML("beforeend", TB.html + `<div id="bt_tab_data" style="${TB.cur==="data"?"":"display:none"}">` +
     (ac ? `<div class="card" style="border-left:4px solid var(--crit)"><b>⚠ ${ac}</b></div>` : "")
     + segHtml()
     + (detLong() ? chartCard("dc_hmin", "Nejnižší nabití # každého dne", "# · čárkovaně 50 # = doporučená spodní hranice pro AGM") :
@@ -2670,6 +2688,7 @@ function detBat(body){
       + chartCard("dc_load", "Odběr z baterie", "W · měnič + jeho ztráty · šedě = chata jela z River"))
     + chartCard("dc_min", "Nejnižší napětí každého dne", `V · <span style="color:var(--s1)">●</span> noc se zátěží (chata na solární baterii) · <span style="color:var(--muted)">○</span> chata na River – baterie v klidu, nesrovnatelné · čárkovaně ${nf(WARN_V,1)} a ${nf(CRIT_V,1)} V`)
     + chartCard("dc_prod", detLong() ? "Výroba po měsících" : "Výroba po dnech", "kWh")
+    + `</div><div id="bt_tab_now" style="${TB.cur==="now"?"":"display:none"}">`
     + sec(`Teď<span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500;margin-left:8px">${R.t ? `regulátor ${relDay(R.t)} ${hmT(R.t)}` : ""}</span>`, [
       rowI("Napětí", `<span style="font-size:20px">${V(h.bv)}</span>`),
       rowI("Nabití (podle regulátoru)", P(last.bat_soc)),
@@ -2717,7 +2736,8 @@ function detBat(body){
         ${(()=>{ const T = Object.keys(d.days||{}).sort().filter(k=>d.days[k].qc).slice(-5).reverse(); return T.length ? "<br>Poslední testy: " + T.map(k=>{ const q = d.days[k].qc; return `${dayLabel(k)} ${q.ok ? `<b>${q.cap} Ah</b> (−${nf(q.ah,0)} Ah, ráno ${nf(q.v,2)} V ≈ ${q.soc} %)` : (q.why||"nepoužito")}`; }).join(" · ") : ""; })()}<br>
         <b>Nabití %</b> je jen odhad regulátoru z napětí (po nabití v klidu ~12,8 V ≈ 60 %) – rozhodující je napětí.<br>
         Když chata jede z River, solární baterie dává jen měniči (je‑li zapnutý) – grafy to ukazují šedě a spotřeba River se sem nepočítá.</div>
-      </div>`);
+      </div></div>`);
+  tabsWire("bt_tab", ["data","now"]);
   const hrs = detHours(), dhrs = Math.max(hrs, 30*24);
   dotChart($("dc_min"), dailyPts(dhrs).map(p=>({...p, k: dkey(p.t)})), "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   if(detLong()){ const hd = Object.keys(d.days||{}).sort().filter(k=>d.days[k].hq_min!=null && k >= dkey(Date.now()/1000 - hrs*3600)).map(k=>({t:new Date(k+"T12:00").getTime()/1000, h:d.days[k].hq_min}));
