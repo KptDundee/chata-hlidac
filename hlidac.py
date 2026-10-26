@@ -1550,7 +1550,7 @@ def main():
                          ("Lednice po dnech", lambda: fridge_days(data, now, cfg)),
                          ("Spotřeba proti obvyklé", lambda: cons_compare(data, st, now, topic, cfg)),
                          ("River po dnech", lambda: river_days(data, now, cfg)),
-                         ("Kapacita River", lambda: river_capacity(data, st, now, cfg)),
+                         ("Kapacita River", lambda: river_capacity_safe(data, st, now, cfg)),
                          ("Mráz", lambda: frost_check(data, st, now, topic, cfg)),
                          ("Teploměry", lambda: thermo_check(data, st, now, topic, cfg)),
                          ("Data internetu", lambda: net_usage(data, st, now, cfg)),
@@ -4020,12 +4020,25 @@ def river_for_plug(pid, pname, rivers, cfg):
     return hits[0] if len(hits) == 1 else None
 
 
+def river_capacity_safe(data, st, now, cfg):
+    """5.71: chybu výpočtu kapacity ukázat přímo v kartě na webu (ne jen v Deníku)."""
+    data.pop("rv_cap_err", None)
+    try:
+        river_capacity(data, st, now, cfg)
+    except Exception as e:
+        import traceback
+        tb = traceback.extract_tb(e.__traceback__)[-1]
+        data["rv_cap_err"] = f"{type(e).__name__}: {str(e)[:120]} (řádek {tb.lineno})"
+        raise
+
+
 def river_capacity(data, st, now, cfg):
     """5.69: skutečná kapacita každé River z vybíjení: úsek, kdy % jen klesá (nenabíjí se, i ≤ 20 W), aspoň o 20 %.
     Energie = co River dodala: zásuvka Tapo na jejím výstupu (AC do chaty), jinak výstup z EcoFlow. Kapacita =
     Wh ÷ (pokles % / 100) = kolik Wh by River dala ze 100 % na 0 % (včetně ztrát jejího měniče).
     st["rv_ses"][SN] = poslední úseky (drží se i po 14 dnech bodů), data["rv_cap"] pro web."""
     rivers = [r for r in (data.get("rivers") or []) if not r.get("gen") and r.get("sn")]
+    data["rv_cap"] = {}
     if not rivers:
         return
     names = data.get("plug_names") or {}
@@ -4051,7 +4064,7 @@ def river_capacity(data, st, now, cfg):
         sess, cur = [], None
         for i, (t, s_, iw, w, isplug) in enumerate(ser):
             prev = ser[i - 1] if i else None
-            brk = prev is None or t - prev[0] > 2400 or iw > 20 or (cur and s_ > cur["min"] + 1)
+            brk = cur is None or prev is None or t - prev[0] > 2400 or iw > 20 or s_ > cur["min"] + 1   # 5.71: po nabíjení cur None
             if brk:
                 if cur and cur["s0"] - cur["min"] >= 20:
                     sess.append(cur)

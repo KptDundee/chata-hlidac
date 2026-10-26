@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.71 – 26. 10. 2026
+- Kapacita River: výpočet padal (po bodu, kdy se River nabíjela, chyběl začátek úseku – TypeError), takže se karta nespočítala. Opraveno; případná chyba výpočtu se teď ukáže přímo v kartě.
+
 ## 5.70 – 26. 10. 2026
 - Karta „Skutečná kapacita“ je vidět vždy – když chybí výpočet, napíše proč.
 
