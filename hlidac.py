@@ -4131,8 +4131,8 @@ def river_capacity(data, st, now, cfg):
     data["rv_cap"] = {}
     if not rivers:
         return
-    if st.get("rv_ses_v") != 2:                       # 5.72: nová pravidla (díry do 3 h, historie zásuvky) → přepočítat
-        st["rv_ses"], st["rv_ses_v"] = {}, 2
+    if st.get("rv_ses_v") != 3:                       # 5.72: díry do 3 h, historie zásuvky; 5.89: dělení po stání → přepočítat
+        st["rv_ses"], st["rv_ses_v"] = {}, 3
     names = data.get("plug_names") or {}
     hist = data.get("tp_hist") or {}
     plug_of = {}
@@ -4177,7 +4177,9 @@ def river_capacity(data, st, now, cfg):
         sess, cur = [], None
         for i, (t, s_, iw, w, isplug, de) in enumerate(ser):
             prev = ser[i - 1] if i else None
-            brk = cur is None or prev is None or t - prev[0] > 3 * 3600 or iw > 20 or s_ > cur["min"] + 1
+            # 5.89: River aspoň 1 h stála (výstup ≤ 3 W) → nové vybíjení (dřív se slepila vybíjení přes celé dny)
+            stood = cur is not None and cur.get("idle0") is not None and t - cur["idle0"] >= 3600
+            brk = cur is None or prev is None or t - prev[0] > 3 * 3600 or iw > 20 or s_ > cur["min"] + 1 or stood
             if brk:
                 if cur and cur["s0"] - cur["s1"] >= 20:
                     sess.append(cur)
@@ -4194,6 +4196,10 @@ def river_capacity(data, st, now, cfg):
             if cur.get("de0") is None and de is not None:
                 cur["de0"] = de
             cur["min"] = min(cur["min"], s_)
+            if w is not None and w <= 3:
+                cur["idle0"] = cur.get("idle0") or t
+            elif w is not None:
+                cur["idle0"] = None
         live = None
         if cur and cur["s0"] - cur["s1"] >= 5:
             live = cur

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.89 – 27. 10. 2026
+- Skutečná kapacita River: vybíjení se rozdělí, když River aspoň 1 h stála (výstup ≤ 3 W). Dřív se slepila vybíjení přes celé dny („právě se vybíjí od předevčírem“) a do poklesu % se počítala i doba, kdy zásuvka nic nenaměřila. Vybíjení se přepočítají.
+
 ## 5.88 – 27. 10. 2026
 - Výhled dne („⚠️ Dnes ~HH:MM solární baterie dojde“): odběr přes den = obvyklý odběr chaty (medián posledních 7 dní za den ÷ 24 h), ne průměr za poslední 3 h. Ráno 27. 10. vzal špičku 57 W a počítal s ní celý den (obvykle ~24 W).
 
