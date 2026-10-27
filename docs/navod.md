@@ -361,3 +361,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Flip – upozornění na baterii (5.87)**: když nabíjení Flipu řídí hlídač, upozornění „Flip se nenabíjí“ přijde až pod 25 % (20 / 10 / 0 %). Nad 30 % se Flip nenabíjí schválně.
 
 **Výhled dne (5.88)**: počítá s obvyklým odběrem chaty (medián posledních 7 dní), ne s posledními 3 hodinami – krátká špička tak výhled nezkazí.
+
+**Nabíjení Flipu (5.91)**: když svítí, nabíjí do 80 % – začne, když panely pokryjí chatu i nabíječku, přestane při 80 % nebo když panely nepokryjí ani chatu. Jinak (noc, mrak, chata na River) jen pod 30 % a jen tolik, aby vydržel do rána. Proč: energie z panelů jde rovnou do nabíječky, večer by se brala ze solární baterie se ztrátou.

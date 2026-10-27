@@ -332,3 +332,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.88**: `day_outlook` – `load_a` z `cons_cmp.day_typ_wh / 24` (fallback průměr 3 h).
 
 **5.89**: `river_capacity` – přerušení úseku, když výstup ≤ 3 W aspoň 1 h (`idle0`), `rv_ses_v` 3.
+
+**5.91**: `flip_charge_cmd` – `allow` = na soláru, regulátor čerstvý, pv ≥ 20 a `net_w` ≥ 15 W (vypnuto) / ≥ −15 W (zapnuto, nabíječka je v `mw`). `rfree = allow`. `data.sun_free` → `data.flip_sun {on, solar, river, pv, load, net_w, need, chg, fmin}`.
