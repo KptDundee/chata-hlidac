@@ -3841,7 +3841,11 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     else:                                   # chata na River: stejný odběr by šel přes měnič ze solární baterie
         mws = [sum((p["tp"].get(i) or 0) for i in rids) for p in data.get("points", []) if p.get("tp") and p["t"] >= ts - 3 * 3600]
         now_w = inv.get("rw") or 0
-    load_a = ((sum(mws) / len(mws) if mws else now_w) / 0.88 + idle) / 12.4 * 1.15   # s rezervou: odběr +15 %
+    # 5.88: obvyklý odběr chaty = medián posledních 7 dní za celý den ÷ 24 h (data.cons_cmp.day_typ_wh). Průměr za
+    # poslední 3 h je jen špička (27. 10. ráno 57 W proti obvyklým ~24 W) a hlídač s ní počítal na celý den.
+    typ_w = ((data.get("cons_cmp") or {}).get("day_typ_wh") or 0) / 24
+    use_w = typ_w if typ_w > 3 else (sum(mws) / len(mws) if mws else now_w)
+    load_a = (use_w / 0.88 + idle) / 12.4 * 1.15                                     # s rezervou: odběr +15 %
     today = now.strftime("%Y-%m-%d")
     pred = next((p for p in ((data.get("wxo") or {}).get("preds") or []) if p.get("d") == today), None)
     made = (data["days"].get(today) or {}).get("solar_kwh") or 0
@@ -3947,7 +3951,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     if (due or worse) and st.get("do_sent") != day:
         te = datetime.fromtimestamp(res["t_empty"], TZ).strftime("%H:%M")
         ntfy(topic, f"⚠️ Dnes ~{te} solární baterie dojde – přepni chatu na River",
-             f"Chata jede ze solární baterie ({hq['pct']} #, odběr ~{res['load_w']} W). Dnes ještě vyrobí ~{fmt(rem_kwh, 1)} kWh "
+             f"Chata jede ze solární baterie ({hq['pct']} #, obvyklý odběr z baterie ~{res['load_w']} W). Dnes ještě vyrobí ~{fmt(rem_kwh, 1)} kWh "
              f"(předpověď opravená podle dnešní výroby) – nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\n"
              "Než odjedeš, přepni chatu na River. Počítáno s rezervou (výroba −20 %, odběr +15 %) – raději zbytečně přepnout, "
              "než aby přes den došla energie.", 4, "warning,sunny")

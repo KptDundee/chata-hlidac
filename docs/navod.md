@@ -359,3 +359,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Noc – jen dvě pravidla (5.86)**: 1) Ve 22:00 (a dál do rána) hlídač spočítá, jestli solární baterie vydrží do rána nad 12,0 V. Když ne a chata jede ze soláru, přijde „⚠️ TEĎ přepni chatu na River“ a opakuje se, dokud nepřepneš nebo neťukneš „Přepínám“. 2) Podle skutečného napětí: pod 12,2 V varování, pod 12,0 V naléhavé. Večerní upozornění před 22:00 („nevydrží“, „sniž odběr“) už nechodí – předpověď je na webu v dlaždici Příští noc.
 
 **Flip – upozornění na baterii (5.87)**: když nabíjení Flipu řídí hlídač, upozornění „Flip se nenabíjí“ přijde až pod 25 % (20 / 10 / 0 %). Nad 30 % se Flip nenabíjí schválně.
+
+**Výhled dne (5.88)**: počítá s obvyklým odběrem chaty (medián posledních 7 dní), ne s posledními 3 hodinami – krátká špička tak výhled nezkazí.

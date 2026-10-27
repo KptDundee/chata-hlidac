@@ -328,3 +328,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.86**: blok „Předpověď do rána“ v `check` odstraněn (st.night_warned / night_cut). `urgent_river` bez výjimky `ok_base/cut_by`. `predpoved_noc` se nepoužívá (odstraněno z webu).
 
 **5.87**: `check_gateway` – stupně `telefon_upozornit` při funkčním řízení (zásuvka `zasuvka_flip` vidět, bez off/err) jen < `flip_min_pct` − 5.
+
+**5.88**: `day_outlook` – `load_a` z `cons_cmp.day_typ_wh / 24` (fallback průměr 3 h).
