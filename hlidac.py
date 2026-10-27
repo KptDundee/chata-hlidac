@@ -2783,6 +2783,12 @@ def check_gateway(inv, st, now, topic, cfg):
     # upozornění po stupních (výchozí 50, 30, 20, 10, 0 %) – každý stupeň jednou, znovu až po nabití
     lv = sorted({int(float(x)) for x in str(cfg.get("telefon_upozornit") or "50,30,20,10,0").replace(";", ",").split(",")
                  if x.strip().replace(".", "", 1).isdigit()}, reverse=True)
+    # 5.87: nabíjení Flipu řídí hlídač (zásuvka 9) – nad spodní hranicí (30 %) se Flip nenabíjí schválně → stupně
+    # nad 25 % neposílat (27. 10. ráno přišlo „Flip se nenabíjí“, přitom ho řízení nechalo vybíjet do rána).
+    fid = str(cfg.get("zasuvka_flip") or "9")
+    pp_ = next((p for p in (inv or {}).get("tp") or [] if str(p.get("ip")) == fid), None)
+    if bool(cfg.get("flip_nabijeni_rizeni")) and pp_ is not None and not pp_.get("off") and pp_.get("err") is None:
+        lv = [L for L in lv if L < int(cfg.get("flip_min_pct") or 30) - 5]
     if ph and lv and age <= lim and ph.get("b") is not None:
         b, chg = ph["b"], bool(ph.get("c"))
         sent = set(st.get("ph_sent") or [])

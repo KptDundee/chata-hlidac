@@ -326,3 +326,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.85**: `data.rv_last[sn6] = {soc, t}` (jen online). `check_river`: `supplying` = out_w > 20 a in_w ≤ 20 – podmínka pro 15/10/5 %. `gen_charge_ctl.step`: `gs.rp/rwh/rs` – příjem každé River (acw, lichoběžník, mezera ≤ 300 s), `days[d].rv[sn6].gi`; konec relace → `gen_sum_msg` (ntfy), `st.gen_sum_t` potlačí „Generátor doběhl“ z `gen_sessions` (2 h). Web `rvSoc`, graf `dg_rv` bere `gi ?? i`.
 
 **5.86**: blok „Předpověď do rána“ v `check` odstraněn (st.night_warned / night_cut). `urgent_river` bez výjimky `ok_base/cut_by`. `predpoved_noc` se nepoužívá (odstraněno z webu).
+
+**5.87**: `check_gateway` – stupně `telefon_upozornit` při funkčním řízení (zásuvka `zasuvka_flip` vidět, bez off/err) jen < `flip_min_pct` − 5.
