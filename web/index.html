@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.95", FLIP_VER = "1.9.13";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.96", FLIP_VER = "1.9.13";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2292,9 +2292,10 @@ function tileUseTotal(d, h){
   const cc = d.cons_cmp && h.now - d.cons_cmp.t < 3600 ? d.cons_cmp : null, pc = (a,b) => b ? `${a>=b?"+":"−"}${nf(Math.abs(a/b-1)*100,0)} %` : "";
   const rows = [];
   if(cc && cc.typ_wh) rows.push(["obvykle do teď", `${nf(cc.typ_wh/1000,2)} kWh · <b style="color:var(${cc.now_wh > cc.typ_wh*1.3 ? "--warn" : "--text"})">${pc(cc.now_wh, cc.typ_wh)}</b>`]);
-  if(cc && cc.day_typ_wh) rows.push(["obvykle za den", `${nf(cc.day_typ_wh/1000,2)} kWh`]);
-  if(cc && cc.night_wh!=null && cc.night_typ_wh) rows.push(["minulá noc", `${nf(cc.night_wh/1000,2)} kWh · obvykle ${nf(cc.night_typ_wh/1000,2)} (${pc(cc.night_wh, cc.night_typ_wh)})`]);
-  return {k:"use", icon:"🏠", label:"Chata celkem", wide:true, cls: cc && cc.typ_wh && cc.now_wh > cc.typ_wh*1.5 && cc.now_wh - cc.typ_wh > 150 ? "warn" : "ok", v:`${nf((td ? td.a._sum : 0)/1000,2)}<small>kWh</small>`,
+  // 5.96: sloučeno s dlaždicí Spotřebiče – pod souhrnem jednotlivé zásuvky podle dnešní spotřeby
+  const dv = tileDevices(d, h);
+  if(dv && dv.rows) for(const r of dv.rows) if(r[0] !== "žádné zásuvky") rows.push(r);
+  return {k:"use", icon:"🏠", label:"Spotřeba chaty", wide:true, cls: cc && cc.typ_wh && cc.now_wh > cc.typ_wh*1.5 && cc.now_wh - cc.typ_wh > 150 ? "warn" : "ok", v:`${nf((td ? td.a._sum : 0)/1000,2)}<small>kWh</small>`,
     st: nowW!=null ? `teď ${nf(nowW)} W` : "teď bez dat (Flip)", rows};
 }
 /* ================= OKNO RIVER: 3 baterie + generátor – co se s nimi děje teď a dělo v historii (v3.65) ================= */
@@ -2575,7 +2576,7 @@ function renderHome(d){
   $("h_src").innerHTML = (h.rvOn ? [tileRivers(d, h), tileSolar(d, h)] : [tileSolar(d, h), tileRivers(d, h)]).map(tileHtml).join("");
   // 5.15: sekce – Chata (teploty, lednice, Flip, spotřebiče), Energie dnes (výroba + spotřeba), Výhled, Uplynulé, Dlouhodobě
   const T = {
-    chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h), tileDevices(d, h)].filter(Boolean),
+    chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h)].filter(Boolean),
     prod: [tileProdSolar(d, h), tileProdGen(d, h)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
     out: [tileNight(d,h), tileTomorrow(d,h)], past: [tilePastNight(d,h), tileYesterday(d,h)],
     long: [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)] };
@@ -2616,7 +2617,7 @@ const DET = {
   temps: {t:"🌡️ Teploty", s:"Teploměry Xiaomi – teplota a vlhkost, 48 h", build:detTemps},
   river: {t:"🔋 EcoFlow", s:"Přehled River – kolik mají, co dělají, jak dlouho vydrží", build:detRiver},
   plugs: {t:"🔌 River a zásuvky (původní)", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
-  use:   {t:"🏠 Spotřeba celkem", s:"Co bralo a kdy – ze soláru i z River", build:b=>detUse(b,"a")},
+  use:   {t:"🏠 Spotřeba chaty", s:"Co bralo a kdy – ze soláru i z River", build:b=>detUse(b,"a")},
   flip:  {t:"📱 Flip (brána) a Wi‑Fi", s:"Baterie Flipu a routeru, nabíjení, teplota", build:detFlip},
   fridge:{t:"🧊 Lednice", s:"Kompresor, teplota, spotřeba", build:detFridge},
   use_s: {t:"🔆 Spotřeba ze solární baterie", s:"Jen doba, kdy chatu napájela solární baterie (přes měnič)", build:b=>detUse(b,"s")},

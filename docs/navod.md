@@ -372,3 +372,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 3. **Přehled**: všechno ostatní jen v souhrnu ve 22:00 („👀 K pozornosti“). Co právě trvá, je v souhrnu pod „🚨 Trvá“ a na webu v pruhu „K řešení“.
 
 Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River“. River jediné: pod 15 %, když z ní něco jede.
+
+**Spotřeba chaty (5.96)**: jedna dlaždice místo „Chata celkem“ a „Spotřebiče“ – součet za dnešek, odběr teď, srovnání s obvyklou spotřebou a jednotlivé zásuvky.

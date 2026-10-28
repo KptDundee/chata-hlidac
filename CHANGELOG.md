@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.96 – 28. 10. 2026
+- Dlaždice „Chata celkem“ a „Spotřebiče“ sloučené do jedné „🏠 Spotřeba chaty“ (sekce Energie dnes): dnes kWh, teď W, obvykle do teď a pod tím jednotlivé zásuvky podle dnešní spotřeby. Dlaždice Spotřebiče v sekci Chata zrušena.
+
 ## 5.95 – 28. 10. 2026 · upozornění zjednodušena (tři druhy)
 - **1 Ohrožení chodu** a **2 doporučení s úkolem**: jedno upozornění na jednu věc, jedna veličina, jedna hranice. Tlačítka **Řeším / Za 30 min / Za 1 h**; dokud to trvá a nepotvrdíš, přijde znovu po 10 min; když se to spraví samo, přijde „✓ …“.
   - Solární baterie: jen pod 12,0 V „přepni na River“ (místo 12,2 / 12,0 / 11,6 V a 50 / 30 #).
