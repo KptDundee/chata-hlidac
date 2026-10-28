@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.115 / Brána 1.9.17 – 28. 10. 2026
+- Vstupní kontrola všech údajů (regulátor, jeho historie, Flip – Victron, zásuvky, teploměry, telefon – a EcoFlow): hodnota mimo fyzikálně možný rozsah (např. baterie 25 V, zásuvka −5 W, 150 °C, 1446 %) se zahodí jako „nevíme“ místo aby vstoupila do výpočtů. Do Deníku jednou denně: „Nesmyslné hodnoty zahozeny …“.
+- Odvozené hodnoty se po opravě dat přepočítají, dokud jsou jejich data v historii (14 dní): testy kapacity (test, který z opravených dat už nevychází, se zruší – zapíše se do Deníku), kapacita z nabíjení, zdraví baterie, noci „na River“ v učení předpovědi.
+- Energie River za den: dodáno se bere z počítadla zásuvky na výstupu River (tak už bylo), u nabíjení se nově ukládá, kolik hodin dne je opravdu změřeno.
+- Brána 1.9.17: už neposílá hodinovou historii „zásuvky za měničem“ hledané podle jména („220“ sedělo i na zásuvku River); hlídač bere historii každé zásuvky podle jejího čísla.
+
 ## 5.114 – 28. 10. 2026
 - Čas měření: bod regulátoru se zapisuje s časem, kdy regulátor měřil (dřív s časem běhu hlídače – až o 30 min později), a stejné měření, které už doplnila historie Solar Guardianu, se nezapíše podruhé. „Regulátor mlčí od …“ ukazuje skutečný čas posledního měření.
 - Data z Flipu (zásuvky, odběr, Victron, teploty) jdou k bodu regulátoru ze stejné chvíle (±5 min), jinak do vlastního bodu – dřív se lepila k poslednímu bodu, i když byla až 20 min stará. EcoFlow stejně.

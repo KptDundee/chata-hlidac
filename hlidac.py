@@ -108,6 +108,46 @@ def dev_server(token):
     return (url if url.startswith("http") else "https://" + url).rstrip("/")
 
 
+# ---- 5.115: vstupní kontrola – hodnota mimo fyzikálně možný rozsah se zahodí (= nevíme), ne použije ----
+RANGES = {"bat_v": (8, 17), "bat_a": (-10, 60), "pv_w": (0, 3000), "bat_t": (-40, 80), "bat_soc": (0, 100),
+          "status": (0, 10), "day_kwh": (0, 50), "min_v": (0, 17), "max_v": (0, 17), "month_kwh": (0, 2000),
+          "total_kwh": (0, 1e6), "inv_v": (8, 17), "inv_w": (0, 4000), "plug_w": (0, 4000), "plug_wh": (0, 200000),
+          "temp": (-40, 80), "hum": (0, 100), "pct": (0, 100), "rv_w": (0, 4000)}
+REJ = {}                                          # zahozené hodnoty tohoto běhu: klíč → [počet, poslední hodnota]
+
+
+def ok_val(key, x):
+    """x, když je číslo v rozsahu RANGES[key]; jinak None (a zapíše se do REJ). None zůstane None."""
+    if x is None:
+        return None
+    try:
+        f = float(x)
+    except (TypeError, ValueError):
+        f = None
+    lo, hi = RANGES[key]
+    if f is None or f != f or not lo <= f <= hi:
+        r = REJ.setdefault(key, [0, x])
+        r[0] += 1
+        r[1] = x
+        return None
+    return x
+
+
+def rej_log(data, now):
+    """Zahozené hodnoty do Deníku – každý druh nejvýš jednou denně."""
+    if not REJ:
+        return
+    st = data.setdefault("state", {})
+    seen = st.setdefault("rej_day", {})
+    today = now.strftime("%Y-%m-%d")
+    new = {k: v for k, v in REJ.items() if seen.get(k) != today}
+    if new:
+        log("err", "Nesmyslné hodnoty zahozeny (mimo rozsah): " + ", ".join(f"{k} {v[0]}× (např. {v[1]})" for k, v in new.items()))
+        for k in new:
+            seen[k] = today
+    REJ.clear()
+
+
 HIST_URLS = ("https://hncloudapi.epsolarpv.com:7002",)   # odtud čte historii web Solar Guardian
 
 
@@ -135,9 +175,16 @@ def history(token, dp_id, start, end, base=None):
         items = d.get("data") or []
         if isinstance(items, dict):
             items = items.get("list") or items.get("rows") or []
+        key = next((k for k, (dp, _) in POINTS.items() if dp == dp_id), None)
         for it in items:
             try:
-                out.append((int(it["time"]), float(it["value"])))
+                val = float(it["value"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if key in RANGES and ok_val(key, val) is None:
+                continue                                  # 5.115: mimo rozsah = zahodit
+            try:
+                out.append((int(it["time"]), val))
             except (KeyError, TypeError, ValueError):
                 pass
         if len(items) < page or offset > 20000:
@@ -944,8 +991,8 @@ def read_values(token):
             out[k] = float(i.get("value"))
         except (TypeError, ValueError):
             out[k] = None
-        if k == "bat_soc" and out[k] is not None and not 0 <= out[k] <= 100:
-            print("Regulátor: nesmyslné nabití", out[k], "% – nepoužito")     # 17. 10. 2026 poslal 1446 %
+        if k in RANGES and out[k] is not None and ok_val(k, out[k]) is None:
+            print("Regulátor: nesmyslná hodnota", k, out[k], "– nepoužito")     # 17. 10. 2026 poslal 1446 %
             out[k] = None
         newest = max(newest, int(i.get("time") or 0))
     out["age_min"] = (time.time() * 1000 - newest) / 60000 if newest else None
@@ -1095,6 +1142,7 @@ def load_data(passphrase):
 
 def save_data(passphrase, data):
     data.pop("_inv_msgs", None)
+    rej_log(data, datetime.now(TZ))
     flush_log(data)
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     salt, iv = os.urandom(16), os.urandom(12)
@@ -1309,11 +1357,13 @@ def battery_health(data, now, cfg):
         for d in data["days"].values():
             d.pop("h", None)
         st["h_v2"] = st["h_v3"] = True
+    t_first = pts[0]["t"] if pts else now.timestamp()
     for dk, day in data["days"].items():
-        if "h" in day:
-            continue
         date = datetime.strptime(dk, "%Y-%m-%d").date()
         ts, te = night_window(date, cfg)
+        if "h" in day and (not ts or ts.timestamp() < t_first):
+            continue                                # 5.115: noci v okně bodů znovu (opravená data), starší zůstávají
+        day.pop("h", None)
         if not ts or te > now:
             continue
         a, b = ts.timestamp(), te.timestamp()
@@ -1419,10 +1469,10 @@ def charge_capacity(data, now, cfg):
     ser = [{"t": p["t"], "v": p.get("bat_v"), "a": p.get("bat_a"), "s": p.get("status")} for p in data.get("points", [])]
     today = now.strftime("%Y-%m-%d")
     for dk, day in data["days"].items():
-        if "c" in day or dk == today and now.hour < 21:
+        if dk == today and now.hour < 21:
             continue
         date = datetime.strptime(dk, "%Y-%m-%d").date()
-        if (now.date() - date).days > 13:
+        if (now.date() - date).days > 13:          # 5.115: v okně bodů (14 dní) vždy znovu z aktuálních dat
             continue
         r = charge_metric(ser, date, cfg, lf)
         day["c"] = r or False             # False = spočítáno, den nevyhovuje
@@ -1483,8 +1533,9 @@ def night_log(data, now, cfg, set_):
     pts = data.get("points", [])
     # 4.75: noc, kdy chata (aspoň zčásti) jela z River, není měřítko – solární baterie neměla odběr, předpověď
     # s odběrem počítala. Takové noci se označí a z učení (oprava předpovědi) vynechají.
+    t_first = pts[0]["t"] if pts else t
     for k, e in nl.items():
-        if "riv" in e or t < e["until"]:
+        if t < e["until"] or e["t"] < t_first:     # 5.115: znovu, dokud jsou body noci v historii (opravená data)
             continue
         night = [c for c in (pt_src(p, cfg) for p in pts if e["t"] <= p["t"] <= e["until"]) if c in ("s", "r", "0")]
         if len(night) >= 6:                        # 5.113: jeden výpočet; body „nevíme“ se nepočítají
@@ -2681,7 +2732,7 @@ def inv_from_msg(last, now, cfg=None):
         t_meas = 0
     inv = {"t": t_meas if 0 < t_meas <= t_msg + 60 and t_msg - t_meas < 2 * 86400 else t_msg}
     try:
-        if float(body.get("lw", -1)) >= 0:
+        if float(body.get("lw", -1)) >= 0 and ok_val("inv_w", body["lw"]) is not None:
             inv["lw"] = round(float(body["lw"]), 1)
     except (TypeError, ValueError):
         pass
@@ -2691,11 +2742,12 @@ def inv_from_msg(last, now, cfg=None):
         try:
             x = float(body[k])
             if x >= 0 and (k != "v" or x > 5):   # -1 / 0 = měnič zatím nic nevyslal
-                inv[k] = round(x, 2)
+                if ok_val("inv_v" if k == "v" else "inv_w", x) is not None:     # 5.115: rozsah
+                    inv[k] = round(x, 2)
         except (KeyError, TypeError, ValueError):
             pass
     ph = body.get("ph")
-    if isinstance(ph, dict) and ph.get("b") is not None and ph["b"] >= 0:
+    if isinstance(ph, dict) and ph.get("b") is not None and ph["b"] >= 0 and ok_val("pct", ph["b"]) is not None:
         inv["ph"] = {"b": ph.get("b"), "c": ph.get("c"), "t": ph.get("t")}
     if isinstance(body.get("fc"), dict):                 # 1.6: řízení nabíjení Flipu (stav zásuvky a proč)
         inv["fc"] = body["fc"]
@@ -2716,7 +2768,7 @@ def inv_from_msg(last, now, cfg=None):
     th = body.get("th")                                   # 1.5: teploměry Xiaomi [{n, t, h, b, age}]
     if isinstance(th, list):
         import re as _re                                  # 5.10: jméno bez čárek / středníků na krajích („, ,Lednice“)
-        inv["th"] = [{"n": _re.sub(r"^[\s,;:.]+|[\s,;:.]+$", "", str(x.get("n")))[:30], "t": x.get("t"), "h": x.get("h"), "b": x.get("b"),
+        inv["th"] = [{"n": _re.sub(r"^[\s,;:.]+|[\s,;:.]+$", "", str(x.get("n")))[:30], "t": ok_val("temp", x.get("t")), "h": ok_val("hum", x.get("h")), "b": ok_val("pct", x.get("b")),
                       "tm": int(inv.get("t") or 0) - int(x.get("age") or 0), "sn": x.get("sn"), "ok": x.get("ok")}
                      for x in th if isinstance(x, dict) and x.get("n")]   # 1.7.7: sn/ok = zachyceno/přečteno
     if isinstance(body.get("pdown"), list):            # 5.104 / Brána 1.9.16: výpadky obnovené prohledáním sítě
@@ -2726,6 +2778,10 @@ def inv_from_msg(last, now, cfg=None):
     if isinstance(tp, list):
         inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d", "lt", "ow") if p.get(k) is not None}
                      for p in tp if isinstance(p, dict)][:16]
+        for p in inv["tp"]:                               # 5.115: W a počítadlo zásuvky mimo rozsah = nevíme
+            for k, rk in (("w", "plug_w"), ("wh", "plug_wh")):
+                if k in p and ok_val(rk, p[k]) is None:
+                    p.pop(k)
         # zásuvka se pozná podle čísla v první závorce jména („(3) (R) River…“), ne podle IP – i se starším Flipem
         import re as _re
         for p in inv["tp"]:
@@ -3205,6 +3261,10 @@ def read_ecoflow(data, st, now, topic, cfg):
                                   "soc": r.get("soc"), "gen": bool(r.get("gen")), "model": r.get("model"), "wh": r.get("wh"),
                                   "qk": r.get("qk"), "nq": r.get("nq"), "socs": r.get("socs"), "qerr": r.get("qerr"),
                                   "chgk": r.get("chgk"), "src": r.get("src"), "gd": r.get("gd"), "ak": r.get("ak"), "pw": r.get("pw")} for r in rivers]}
+    for r in rivers:                                  # 5.115: vstupní kontrola EcoFlow
+        for k, rk in (("soc", "pct"), ("in_w", "rv_w"), ("out_w", "rv_w")):
+            if r.get(k) is not None and ok_val(rk, r[k]) is None:
+                r[k] = None
     gens = [r for r in rivers if r.get("gen")]
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens
@@ -3230,6 +3290,7 @@ def read_ecoflow(data, st, now, topic, cfg):
             dt = (tnow - pt) / 3600
             e["i"] = round(e["i"] + (prev[k][0] + iw) / 2 * dt, 1)
             e["o"] = round(e["o"] + (prev[k][1] + ow) / 2 * dt, 1)
+            e["c"] = round(e.get("c", 0) + dt, 2)      # 5.115: kolik hodin dne je opravdu změřeno (mezery nad 1 h chybí)
         if r.get("online"):
             nxt[k] = [iw, ow]
     st["rv_e_prev"], st["rv_e_t"] = nxt, tnow
@@ -4234,13 +4295,22 @@ def capacity_check(data, st, now, cfg):
             if not best["ok"]:
                 best["why"] = "nesmyslný výsledek"
             tests.append(best)
+    seen_k = set()
     for tst in tests:
         k = datetime.fromtimestamp(tst["t"], TZ).strftime("%Y-%m-%d")
+        seen_k.add(k)
         day = data["days"].setdefault(k, {})
         old = day.get("qc") or {}
-        if old.get("v2") != 3 or old.get("t") != tst["t"]:
-            day["qc"] = tst
+        if old.get("v2") != 3 or old.get("t") != tst["t"] or old.get("cap") != tst["cap"] or old.get("ah") != tst["ah"]:
+            day["qc"] = tst                        # 5.115: i když se po opravě dat změnil výsledek
             print("Test kapacity", k, tst)
+    # 5.115: test, který z opravených dat už nevychází, smazat – jen dokud jsou jeho body v historii (aspoň 2 dny před ním)
+    t_first = pts[0]["t"]
+    for k, day in data["days"].items():
+        q = day.get("qc") or {}
+        if q.get("v2") == 3 and k not in seen_k and q.get("t") and q["t"] - 2 * 86400 >= t_first:
+            day.pop("qc")
+            log("ev", f"Test kapacity {k} zrušen – po opravě dat už nevychází")
 
 
 def river_for_plug(pid, pname, rivers, cfg):
