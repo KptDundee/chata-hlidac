@@ -41,7 +41,7 @@ DEFAULTS = {
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
-    "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00",
+    "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00", "den_navrat": "",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
@@ -4119,11 +4119,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     data["day_fc"] = {ok, t_empty, t} pro web. Upozornění (Vysoká): v čas z rozvrhu den_kontrola (po dnech)
     a kdykoli během dne, když se výhled zhorší (ráno vydrželo, teď ne). Noc řeší jiná upozornění."""
     ts = now.timestamp()
-    try:
-        hh, mm = (int(x) for x in str(cfg.get("den_do") or "22:00").split(":")[:2])
-    except ValueError:
-        hh, mm = 22, 0
-    end = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    end = day_end(cfg, now)                           # 5.117: v den s odjezdem do návratu (den_navrat), jinak den_do
+    hh, mm = end.hour, end.minute
     inv = data.get("inverter") or {}
     fresh = inv and ts - inv.get("t", 0) < 1800
     rids = ips(cfg.get("zasuvky_river"))
@@ -4211,23 +4208,11 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_, "cf": round(cf, 2)}
     data["day_fc"] = res
     day = now.strftime("%Y-%m-%d")
-    # čas kontroly podle rozvrhu (dnešní den v týdnu)
-    sched = {}
-    for part in str(cfg.get("den_kontrola") or "").split(","):
-        bits = part.strip().split()
-        if len(bits) == 2 and bits[0].lower()[:2] in WD and ":" in bits[1]:
-            sched[bits[0].lower()[:2]] = bits[1]
-    tk = sched.get(WD[now.weekday()])
-    due = False
-    after = False                           # už je po dnešním čase kontroly (pro nabídku soláru během dne)
-    if tk:
-        try:
-            h2, m2 = (int(x) for x in tk.split(":")[:2])
-            tchk = now.replace(hour=h2, minute=m2, second=0, microsecond=0)
-            due = now >= tchk and st.get("do_chk") != day
-            after = now >= tchk
-        except ValueError:
-            pass
+    # čas kontroly podle rozvrhu (dnešní den v týdnu) – 5.117: stejná funkce jako večerní plán
+    tchk = sched_time(cfg, now)
+    tk = tchk.strftime("%H:%M") if tchk else None
+    due = bool(tchk) and now >= tchk and st.get("do_chk") != day
+    after = bool(tchk) and now >= tchk          # už je po dnešním čase kontroly (pro nabídku soláru během dne)
     if due:
         st["do_chk"] = day
     # 5.95: jedno ranní rozhodnutí v čas z rozvrhu (den_kontrola)
@@ -4252,9 +4237,23 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
           4, "warning,sunny", ok_title="✓ Dnes to solár do večera vydrží")
 
 
-def sched_time(cfg, d):
-    """Čas odjezdu / kontroly z rozvrhu den_kontrola pro datum d (datetime), nebo None."""
-    for part in str(cfg.get("den_kontrola") or "").split(","):
+def day_end(cfg, d):
+    """5.117: do kdy musí chata na soláru vydržet v den d: v den s odjezdem čas návratu z rozvrhu den_navrat,
+    jinak den_do (22:00)."""
+    r = sched_time(cfg, d, "den_navrat") if sched_time(cfg, d) else None
+    if r:
+        return r
+    try:
+        hh, mm = (int(x) for x in str(cfg.get("den_do") or "22:00").split(":")[:2])
+    except ValueError:
+        hh, mm = 22, 0
+    return datetime(d.year, d.month, d.day, hh, mm, tzinfo=TZ)
+
+
+def sched_time(cfg, d, key="den_kontrola"):
+    """Čas z rozvrhu po dnech („po 7:00, út 5:30…“) pro datum d (datetime / date), nebo None.
+    den_kontrola = odjezd (kontrola před odjezdem), den_navrat = návrat."""
+    for part in str(cfg.get(key) or "").split(","):
         bits = part.strip().split()
         if len(bits) == 2 and bits[0].lower()[:2] == WD[d.weekday()] and ":" in bits[1]:
             try:
@@ -4366,11 +4365,7 @@ def eve_plan(data, st, now, topic, cfg):
 
     need, target, dend, t_sw = 0.0, morning, None, None
     if D:
-        try:
-            hh, mm = (int(x) for x in str(cfg.get("den_do") or "22:00").split(":")[:2])
-        except ValueError:
-            hh, mm = 22, 0
-        dend = D.replace(hour=hh, minute=mm)
+        dend = day_end(cfg, D)                         # 5.117: do návratu (rozvrh den_navrat), jinak den_do
         # nejmenší zásoba v čase odjezdu, se kterou solár utáhne chatu do večera (půlením)
         if sim_level(M, D.timestamp(), dend.timestamp(), top, top)[0] > 0:
             a, b = 0.0, top

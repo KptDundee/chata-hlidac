@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.117 – 28. 10. 2026
+- Nastavení „Výhled dne – návrat“ (den_navrat): čas návratu pro každý den zvlášť. Ve dny s časem odjezdu musí chata na soláru vydržet do návratu – podle toho ranní kontrola soláru, dlaždice „do HH:MM“ i večerní „Přepni chatu na River do …“. Den bez času návratu = „Výhled dne – vydržet do“ (22:00).
+
 ## 5.116 – 28. 10. 2026
 - Nové doporučení večer: „🔌 Přepni chatu na River do ~HH:MM“ (s tlačítky Řeším / Za 30 min / Za 1 h), od západu slunce, když chata jede ze soláru.
   - Před dnem s odjezdem (čas v rozvrhu „Výhled dne – kontrola před odjezdem“): v čase odjezdu musí v baterii zbýt tolik #, aby solár s předpovědí výroby utáhl chatu do večera (den_do). Hlídač spočítá nejpozdější čas přepnutí a ozve se půl hodiny předem.
