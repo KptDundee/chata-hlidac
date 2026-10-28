@@ -4476,6 +4476,8 @@ def plug_watch(data, st, now, topic, cfg):
             else f"chyba: {str(p.get('err'))[:60]}"
         if "401" in why:
             why = "odmítá přihlášení (aktualizace softwaru zásuvky / Kompatibilita s třetími stranami v Tapo)"
+        if i == mip and inv_on and p is not None and (p.get("off") or p.get("gone")):
+            why = why.replace(" (bez proudu nebo mimo Wi-Fi)", "") + " – měnič podle Victronu běží, zásuvka tedy proud má, jen neodpovídá po Wi‑Fi"
         e.setdefault("since", inv.get("t") or ts)
         if new_msg:
             e["n"] = e.get("n", 0) + 1

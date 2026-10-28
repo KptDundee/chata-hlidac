@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.101", FLIP_VER = "1.9.14";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.102", FLIP_VER = "1.9.14";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1173,7 +1173,8 @@ function homeData(d){
   // měnič vypnutý (zásuvka za ním nedostupná, Flip přitom posílá) → solární baterie nedává nic (chata třeba na River)
   const mp = invF && mip!=null ? (inv.tp||[]).find(p=>p.ip===String(mip)) : null;
   // 5.92: chyba čtení (err) neznamená vypnutý měnič – jen nedostupná / chybějící zásuvka (27. 10. web dlouho psal „měnič vypnutý“)
-  const menicOff = invF && inv.mw==null && (!mp || mp.off || mp.gone) && !(mp && mp.err!=null);
+  // 5.102: Victron hlásí, že měnič běží (INVERTING) → měnič vypnutý není, jen jeho zásuvka (1) neodpovídá
+  const menicOff = invF && inv.mw==null && (!mp || mp.off || mp.gone) && !(mp && mp.err!=null) && String(inv.st||"").toUpperCase() !== "INVERTING";
   const loadB = loadW!=null ? loadW : menicOff ? (cfg.desulfator_W ?? 0.25) : null;              // W ze solární baterie (DC, se ztrátami měniče)
   const netB = loadB!=null && bv && a!=null ? a - loadB/bv : null;      // A do (+) / z (−) baterie
   const rvOn = invF && !((inv.mw||0) > 3) && riverIds(cfg).some(id=>((inv.tp||[]).find(p=>p.ip===id)||{}).w > 3);
@@ -1625,7 +1626,7 @@ function tileUseSolar(d, h){
   const L = dayLedger(d, h);
   USE_SH = null; const ud = useDay(dkey(h.now), useModel(d));
   return {k:"use_s", icon:"🔆", label:"Ze solární baterie", cls: h.invF && (h.inv.mw||0) > 3 ? "ok" : "na", info:true, /* 4.80: šedá, když měnič nic nedodává  */ v: `${nf((ud ? ud.s._sum : 0)/1000,2)}<small>kWh</small>`,
-    st: h.invF && h.inv.mw!=null ? `teď ${nf(h.inv.mw)} W` : h.menicOff ? "měnič vypnutý" : (()=>{ const mp = (h.inv.tp||[]).find(p=>p.ip===menicId()); return mp && mp.err!=null ? `zásuvka (${menicId()}) nejde přečíst` : "měnič bez dat"; })(),
+    st: h.invF && h.inv.mw!=null ? `teď ${nf(h.inv.mw)} W` : h.menicOff ? "měnič vypnutý" : (()=>{ const mp = (h.inv.tp||[]).find(p=>p.ip===menicId()); return mp && (mp.err!=null || mp.off || mp.gone) ? `měnič běží, zásuvka (${menicId()}) neodpovídá` : "měnič bez dat"; })(),
     rows:[["vč. ztrát", h.dcWh!=null ? kWh(h.dcWh) : "–"]]};
 }
 function tileUseRiver(d, h){
