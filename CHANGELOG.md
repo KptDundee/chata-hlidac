@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.123 – 28. 10. 2026
+- Výdrž River podle toho, kolik musí dodat do chaty: obvyklý odběr chaty z historie (den / noc zvlášť – stejné číslo jako u solární baterie) proti tomu, kolik Wh River skutečně dodá na 100 % (změřeno z minulých vybíjení, karta Skutečná kapacita; štítek × 0,9 jen dokud není změřeno). Okamžitý výkon ani úbytek % se už nepoužívají. Stejně „ráno zbude“ a plán nepřítomnosti. (Nahrazuje 5.121–5.122.)
+
 ## 5.122 – 28. 10. 2026
 - Výdrž River jednoduše podle toho, jak to bylo v minulosti: medián rychlosti minulých vybíjení (%/h, vybíjení aspoň 2 h a o 20 %) – nejdřív té River, jinak všech velkých River. Výdrž = (% − rezerva) ÷ tahle rychlost. Stejně i plán nepřítomnosti. Úbytek % teď a výkon jen dokud žádná historie není.
 
