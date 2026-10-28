@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.100 – 28. 10. 2026
+- Počítadla baterie EcoFlow (celkem vybito `accuDsgEnergy`, SOH, cykly) se čtou i u velkých River (vývojářské rozhraní). Dřív jen u River čtených přes aplikaci (malá), proto u velkých chyběl řádek „měnič River: z baterie do chaty dojde … %“. Výpočet účinnosti naběhne s prvním vybíjením po této verzi.
+
 ## 5.99 – 28. 10. 2026
 - Deník: chyby zásuvek jen u zásuvek, které mají být vidět (1, 4, 5, 9; měnič jen když dodává), a jen jednou za měření Flipu. Dřív se zapisovaly i zásuvky River / generátoru / nabíjení River bez proudu (to je normální) a každá zpráva Flipu se počítala při každém běhu hlídače znovu („21×“).
 

@@ -256,6 +256,14 @@ def read_rivers(ak, sk, host_hint=None):
         r["socs"] = {k: q[k] for k in KEYS["soc"] if q.get(k) is not None}   # všechny zdroje % (porovnání s displejem)
         # 4.82: všechny výkony, které EcoFlow hlásí (proč „nabíjí 151 W“, když nenabíjí)
         r["pw"] = power_keys(q)
+        # 5.100: počítadla baterie (celkem vybito / nabito, SOH, cykly) i z vývojářského rozhraní – dřív jen z aplikace
+        import re as _re
+        bk = {k: q[k] for k in q if _re.search(r"accu|soh|cycle", k, _re.I) and isinstance(q[k], (int, float))}
+        if bk:
+            r["bat"] = bk
+            de = next((bk[k] for k in bk if _re.search(r"accu.*dsg.*energy|dsg.*accu.*energy", k, _re.I)), None)
+            if de is not None:
+                r["de"] = de
         if r.get("soc") is None and not r.get("gen") and q:          # 4.62: neznámé klíče (jiný model) → poslat výběr na web
             r["qk"] = {k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and
                        any(x in k.lower() for x in ("soc", "batt", "watt", "remain", "cap"))}
