@@ -448,11 +448,12 @@ public final class Collector {
             else if (ex instanceof java.net.SocketTimeoutException) kind = "spojila se, ale neodpověděla";
             else kind = ex.getClass().getSimpleName();
             String ow = kind + " · ." + ip.substring(ip.lastIndexOf('.') + 1);
+            String full = kind + " · " + (msg.length() > 140 ? msg.substring(0, 140) : msg);   // 1.9.15: i odkud Flip volal („from /…“)
             try {
                 if (!p.has("n") && names.containsKey(ip)) p.put("n", names.get(ip));
                 if (unreachable) { p.put("off", 1); p.put("ow", ow); } else p.put("err", msg);
             } catch (Exception ignored) {}
-            note(ip, unreachable ? "off" : "err", unreachable ? "nedostupná – " + ow : msg);
+            note(ip, unreachable ? "off" : "err", unreachable ? "nedostupná – " + full : msg);
         }
         return p;
     }
