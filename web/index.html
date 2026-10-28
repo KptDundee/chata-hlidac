@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.124", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.125", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1439,6 +1439,30 @@ function tileNight(d, h){
   }
   return {...t, cls:"na", v:"–", st:"Předpověď dnes večer", a:""};
 }
+/* ---------- 5.125: Jaká baterie – přehrání historie (hlídač baterie.py, data.bsim) ---------- */
+function tileBsim(d, h){
+  const t = {k:"bsim", icon:"🔋", label:"Jaká baterie"}, B = d.bsim;
+  if(!B || !B.n) return {...t, cls:"na", v:"–", st:"Zatím málo dat", a:"Sbírá se počasí a výroba"};
+  const best = [...B.var].filter(v=>!/současná/.test(v.name)).sort((a,b)=>a.years["0"].short - b.years["0"].short || a.ah - b.ah)[0];
+  return {...t, cls:"ok", v:`${B.n}<small>dní</small>`, st:`Nejméně dní s River: ${best.name}`, a:`${best.years["0"].short} z ${B.n} dní · ${dTxt(B.od)} – ${dTxt(B.do)}`};
+}
+function detBsim(body){
+  const B = DATA.bsim;
+  if(!B || !B.n){ body.insertAdjacentHTML("beforeend", `<div class="card">Zatím málo dat – hlídač potřebuje počasí a výrobu za více dní.</div>`); return; }
+  const td = (x, st="") => `<td style="padding:4px;text-align:right;white-space:nowrap;${st}">${x}</td>`;
+  const rows = B.var.map(v=>{ const a = v.years["0"], b = v.years["3"];
+    return `<tr><td style="padding:4px">${escH(v.name)}</td>${td(nf(a.usable_wh/1000,2))}${td(`<b>${a.short}</b>`)}${td(b.short)}${td(nf(a.river_wh/1000,1))}${td(nf(a.waste_wh/1000,1))}</tr>`; }).join("");
+  const months = Object.keys(B.var[0].years["0"].months).sort();
+  const mrows = B.var.map(v=>`<tr><td style="padding:4px;white-space:nowrap">${escH(v.name.replace(/\s*\(.*\)/,""))}</td>${months.map(m=>{ const x = v.years["0"].months[m]; return td(x ? `${x.short}/${x.n}` : "–"); }).join("")}</tr>`).join("");
+  const P = B.pred;
+  body.insertAdjacentHTML("beforeend", `<div class="card"><b>Kolik dní by chata potřebovala River</b> <span class="sub">(${dTxt(B.od)} – ${dTxt(B.do)}, ${B.n} dní)</span>
+    <div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;width:100%">
+    <tr style="color:var(--muted);text-align:right"><th style="text-align:left;padding:4px">baterie</th><th>využitelné<br>kWh</th><th>dní<br>s River</th><th>po 3<br>letech</th><th>z River<br>kWh</th><th>zahozeno<br>kWh</th></tr>${rows}</table></div></div>
+    <div class="card"><b>Po měsících</b> <span class="sub">(dní s River / dní)</span><div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums">
+    <tr style="color:var(--muted)"><th></th>${months.map(m=>`<th style="padding:4px">${m.slice(5)}/${m.slice(2,4)}</th>`).join("")}</tr>${mrows}</table></div></div>
+    <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se to počítá:</b> každý den historie se skutečným počasím (archiv záření). Výroba = kolik by panely daly bez přiškrcení ve Floatu (model, který se hlídač učí z tvé výroby) × počet zapojených panelů ten den. Spotřeba = obvyklá spotřeba chaty: přes den ~${nf(P.day_w)} W, v noci ~${nf(P.night_w)} W (+ ztráty měniče a ${nf(P.idle_w)} W naprázdno). Den s River = baterie by v ten den nebo následující noc došla. „Zahozeno“ = slunce, které by se do plné baterie už nevešlo.
+    Předpoklady: AGM hloubka vybití 50 %, účinnost nabíjení 85 %, ztráta ~15 % kapacity ročně; LiFePO4 90 %, 95 %, ~2 % ročně (typické hodnoty, ne měření). Tvoje současná: změřená kapacita, do alarmu 12,0 V. Čím delší historie (zima, jaro), tím přesnější.</div>`);
+}
 /* ---------- 5.118: plán nepřítomnosti (plan.txt) – tabulka na týden, tlačítko 🚗 Odjíždím ---------- */
 const GHP_ = () => "https://api.github.com/repos/"+REPO+"/contents/plan.txt";
 const WDN = ["ne","po","út","st","čt","pá","so"];
@@ -2728,7 +2752,7 @@ function renderHome(d){
     chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h)].filter(Boolean),
     prod: [tileProdSolar(d, h), tileProdGen(d, h)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
     out: [tileNight(d,h), tileTomorrow(d,h), tilePlan(d,h)], past: [tilePastNight(d,h), tileYesterday(d,h)],
-    long: [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)] };
+    long: [tileWire(d,h), tileHealth(d,h), tileBsim(d,h), tilePanels(d,h), tileSystem(d,h)] };
   $("h_dev").innerHTML = T.chata.map(tileHtml).join("");
   $("h_day").innerHTML = T.prod.map(tileHtml).join("");
   $("h_use").innerHTML = T.use.map(tileHtml).join("");
@@ -2776,6 +2800,7 @@ const DET = {
   pan:   {t:"🔆 Panely", s:"Kolik panelů zapojit a pojistka", ids:["s_pan"]},
   sys:   {t:"📡 Systém", s:"Co posílá data a deník událostí", ids:["sysInfo","s_log"]},
   log:   {t:"📋 Deník", s:"Automatika, upozornění a chyby", ids:["s_log"]},
+  bsim:  {t:"🔋 Jaká baterie", s:"Přehrání skutečné historie (počasí, spotřeba) pro různé baterie", build:detBsim},
   plan:  {t:"🗓 Kdy jsem pryč", s:"Plán na týden – podle něj hlídač hlídá solár, River a nabíjení", build:detPlan},
   all:   {t:"🗂 Všechny údaje", s:"Kompletní původní přehled", ids:["heroSec","tilesSec","wxcard","s_plugs","s_pan","s_health","s_charts","s_log","s_tbl"]},
 };

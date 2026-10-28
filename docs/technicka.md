@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.125**: `baterie.py` (`VARIANTS`, `simulate`, `update`) volá `battery_sim` 1× denně → `data.bsim = {od, do, n, var[{name, ah, years{0,3}{usable_wh, months, short, river_wh, waste_wh}}], pred}`. Web `tileBsim`, `detBsim`.
+
 **5.124**: `forecast` – `cabin_on_river` → odběr jen `desulfator_W`, `f.riv`; web `tileNight` při `f.riv` / `rvOn` větev River, banner 🌙 „jen odpočívá“.
 
 **5.123**: `river_supply` – výdrž = simulace po 10 min: (soc − rezerva) × `use_wh` (rv_cap.cap, n ≥ 2, jinak štítek × 0,9) − `energy_model.load_w(t)`; `river_sup.typ_w`, `capm`, `cap_est`, `soc_m`, `t_m`; `river_hist_pph` a úbytek % odstraněny; `river_models` bez přepisu z rate.

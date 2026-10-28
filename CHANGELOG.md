@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.125 – 28. 10. 2026
+- Nová dlaždice „🔋 Jaká baterie“ (Dlouhodobě): hlídač jednou denně přehraje skutečnou historii (archiv záření, výroba bez přiškrcení ve Floatu podle naučeného modelu × zapojené panely, obvyklá spotřeba chaty den / noc) pro tvou současnou baterii, novou AGM 200 Ah a LiFePO4 50 / 100 / 150 Ah. Ukáže, kolik dní by chata potřebovala River, kolik kWh by dodala River, kolik slunce by se zahodilo, i po 3 letech stárnutí, a po měsících. Předpoklady (hloubka vybití, účinnost, stárnutí) jsou vypsané v kartě. Plní se sama přes zimu a jaro.
+
 ## 5.124 – 28. 10. 2026
 - Noční předpověď solární baterie, když chata jede z River: dřív počítala s nočním odběrem chaty i tehdy („Do zítřejšího rána nevydrží – měnič se vypne ~04:24 – přepni na River“, i když chata jela z River). Teď ví, že solární baterie chatu nenapájí (bere jen desulfátor), a dlaždice Příští noc ukazuje River („River do rána vydrží, ráno zbude ~X %“), řádek 🌙 píše „Chata jede z River – solární baterie přes noc jen odpočívá“.
 

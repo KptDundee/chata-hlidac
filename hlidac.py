@@ -1823,6 +1823,7 @@ def main():
         log("err", f"Odhad nabití: {type(e).__name__} {str(e)[:90]}")
     try:
         for name, fn in (("Počasí a výhled", lambda: weather_and_outlook(data, st, cfg, now, topic, mode)),
+                         ("Jaká baterie", lambda: battery_sim(data, st, now, cfg)),
                          ("Ostatní odběr", lambda: other_load_check(data, st, cfg, now, topic)),
                          ("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_, data)),
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
@@ -4715,6 +4716,18 @@ def away_plan(data, st, now, topic, cfg):
                 ntfy(topic, f"✓ Můžeš jet – solár vydrží do {hm(b)}", "Podle předpovědi výroby a obvyklého odběru.", 2, "white_check_mark")
     if not cur:
         alarm(st, topic, "dep", False, ok_title=False)
+
+
+def battery_sim(data, st, now, cfg):
+    """5.125: karta „Jaká baterie“ – přehrání historie pro různé baterie (baterie.py), jednou denně."""
+    import baterie
+    import pocasi
+    import panely
+    typ_w = ((data.get("cons_cmp") or {}).get("day_typ_wh") or 0) / 24
+    day_w = typ_w if typ_w > 3 else (cfg.get("noc_spotreba_W") or 30)
+    q = [d["qc"]["cap"] for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok") and d["qc"].get("v2") == 3]
+    baterie.update(data, st, now, cfg, sun_times, pocasi.model_for, panely.label_panels, night_w(data, cfg, now.timestamp()), day_w,
+                   cur_ah=eff_cap(data, cfg) if len(q) >= 2 else None)
 
 
 def plan_reminder(data, st, now, topic, cfg):
