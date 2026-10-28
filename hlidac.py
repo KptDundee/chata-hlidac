@@ -4976,7 +4976,8 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     if now.timestamp() - (data.get("rivers_t") or 0) <= 3600:
         # 4.82: chatu napájí jen velká River (malá nikdy – ta jen spotřebiče); a jen když chata nejede ze soláru
         inv_ = data.get("inverter") or {}
-        on_solar = now.timestamp() - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) == "s"   # 5.113
+        # 5.120: chatu napájí River jen podle jednoho výpočtu (cabin_src): solár i „nevíme“ = River chatu nenapájí
+        on_solar = now.timestamp() - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) in ("s", "?")
         act = [(i, r) for i, r in enumerate(rv) if r.get("online") and r.get("soc") is not None and not on_solar
                and (r.get("wh") or 768) >= 500 and (r.get("out_w") or 0) - (r.get("in_w") or 0) > 3]
     plug_extra = {}
@@ -5069,7 +5070,7 @@ def river_supply_plugs(data, now, cfg):
         return
     ids = ips(cfg.get("zasuvky_river"))
     act = [p for p in inv.get("tp", []) if str(p.get("ip")) in ids and (p.get("w") or 0) > 3 and not p.get("gone")]
-    if not act or inv_src(inv, cfg) == "s":     # měnič dodává = chata jede ze soláru, River jen napájí nějaký spotřebič
+    if not act or inv_src(inv, cfg) in ("s", "?"):     # solár / nevíme (5.120) – River jen napájí nějaký spotřebič
         return
     p = max(act, key=lambda x: x.get("w") or 0)
     pid = str(p["ip"])

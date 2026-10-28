@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.120 – 28. 10. 2026
+- Karta EcoFlow („Chatu napájí …“), upozornění a dlaždice teď rozhodují o tom, jestli chata jede z River, jedním výpočtem. Dřív EcoFlow ukazoval „chata jede z River“ podle toho, že River dodává, zatímco upozornění bralo „nevíme“ – proto ve 22:00 karta říkala River a upozornění „přepni na River“. „River napájí chatu“ (river_sup) teď platí jen při stejném výsledku jako upozornění.
+
 ## 5.119 – 28. 10. 2026
 - Oprava chyby z 5.113: ve 22:00 přišlo „🌙 Před spaním přepni chatu na River“, i když chata hodinu jela z River. Po přepnutí na River je měnič bez proudu – jeho zásuvka (1) neodpovídá a Victron se často vůbec neozve. 5.113 to bralo jako „nevíme, z čeho chata jede“, takže hlídač nevěděl, že je chata na River.
   - Teď: zásuvka (1) i Victron mlčí a River dodává = chata na River (jako před 5.113). „Nevíme“ jen když Victron hlásí, že měnič běží, a jen jeho zásuvka neodpovídá (výpadek spojení se zásuvkou).
