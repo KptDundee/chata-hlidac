@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.111 – 28. 10. 2026
+- Rozbor nocí (karta „Proč je ranní minimum takové“): sloupec „Ah z bat. přes noc“ byl od 13. 10. prázdný. Noc se počítala jednou, ráno po východu, ale Brána posílá hodinovou spotřebu zásuvky za měničem jen za celé uplynulé dny – ranní hodiny noci tedy ještě chyběly a noc zůstala bez spotřeby navždy. Teď se spotřeba doplňuje, jakmile data dorazí (u minulých nocí hned, u čerstvé noci další den), i když stažení historie regulátoru selže.
+
 ## 5.110 – 28. 10. 2026
 - Noc má jeden výsledek a jedno slovo všude: po západu rozhoduje jen noční předpověď – dlaždice Solární baterie („do rána“), dlaždice Noc, řádek 🌙, karta Teď v detailu baterie, souhrn i upozornění. Pokles pod 12,0 V = „nevydrží“ (červeně, s časem); slovo „těsně“ zmizelo. Dřív karta Teď ukazovala „došla by ~02:36“ z výhledu dne, zatímco dlaždice psala „těsně“ z noční předpovědi.
 

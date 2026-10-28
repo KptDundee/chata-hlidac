@@ -199,12 +199,56 @@ def night_history(token, data, st, now, cfg, budget_s=60):
                 ser[key] = [(ms / 1000, val) for ms, val in history(token, POINTS[key][0], start, end)]
         except Exception as e:
             print("Rozbor nocí (historie):", e)
-            return
+            break                                   # 5.111: doplnění spotřeby níž proběhne i tak
         for k in chunk:
             nh[k.isoformat()] = night_row(k, ser, data, lat, lon, idle)
         print(f"Rozbor nocí: {chunk[0]} – {chunk[-1]}")
+    # 5.111: noci bez spotřeby za měničem doplnit, jakmile Brána pošle hodinovou historii (bez nového stahování SG)
+    n_fix = 0
+    for kk, row in nh.items():
+        if not row.get("x") and (row.get("nah") is None or row.get("dnet") is None and row.get("ai") is not None):
+            had = (row.get("nah"), row.get("dnet"))
+            night_plug(row, datetime.fromisoformat(kk).date(), data, lat, lon, idle)
+            if (row.get("nah"), row.get("dnet")) != had:
+                n_fix += 1
+    if n_fix:
+        print(f"Rozbor nocí: doplněna spotřeba za měničem u {n_fix} nocí")
     for kk in sorted(nh)[:-NH_DAYS - 10]:
         nh.pop(kk)
+
+
+def night_plug(row, k, data, lat, lon, idle):
+    """5.111: spotřeba za měničem v noci k z hodinové historie zásuvky (plug_hourly). Samostatně, protože
+    Brána posílá jen celé uplynulé dny – ranní hodiny noci dorazí až další den. Doplňuje se tedy opakovaně,
+    dokud data nejsou (dřív se noc spočítala jednou ráno bez ranních hodin a zůstala bez „Ah z bat.“ navždy)."""
+    rise, set_ = sun_times(lat, lon, k)
+    r1, _ = sun_times(lat, lon, k + timedelta(days=1))
+    if not (rise and set_ and r1):
+        return
+    R, S, R1 = rise.timestamp(), set_.timestamp(), r1.timestamp()
+    ph = data.get("plug_hourly") or {}
+
+    def wh(a, b):
+        tot, cov, t = 0.0, 0.0, a
+        while t < b:
+            dt_ = datetime.fromtimestamp(t, TZ)
+            hs = dt_.replace(minute=0, second=0, microsecond=0)
+            he = hs + timedelta(hours=1)
+            seg = min(b, he.timestamp()) - t
+            arr = ph.get(hs.strftime("%Y-%m-%d"))
+            if arr and hs.hour < len(arr) and arr[hs.hour] is not None:
+                tot += arr[hs.hour] * seg / 3600
+                cov += seg
+            t += seg
+        return tot if cov >= (b - a) * 0.8 else None
+    nw, dw = wh(S, R1), wh(R, S)
+    if nw is not None:
+        row["nwh"] = round(nw)
+        row["nah"] = round((nw / 0.88 + idle * (R1 - S) / 3600) / 12.3, 1)        # z baterie přes noc
+    if dw is not None:
+        row["dwh"] = round(dw)
+        if row.get("ai") is not None:
+            row["dnet"] = round(row["ai"] - (dw / 0.88 + idle * (S - R) / 3600) / 12.8, 1)   # čistě do baterie přes den
 
 
 def night_row(k, ser, data, lat, lon, idle):
@@ -242,29 +286,7 @@ def night_row(k, ser, data, lat, lon, idle):
     T = [v for t, v in sel("bat_t", S, R1) if -40 < v < 80]
     row["tn"] = round(min(T), 1) if T else None
     row["prod"] = (data.get("days", {}).get(k.isoformat()) or {}).get("solar_kwh")
-    # spotřeba za měničem z hodinové historie Tapo (Wh) – noc a den
-    ph = data.get("plug_hourly") or {}
-
-    def wh(a, b):
-        tot, cov, t = 0.0, 0.0, a
-        while t < b:
-            dt_ = datetime.fromtimestamp(t, TZ)
-            hs = dt_.replace(minute=0, second=0, microsecond=0)
-            he = hs + timedelta(hours=1)
-            seg = min(b, he.timestamp()) - t
-            arr = ph.get(hs.strftime("%Y-%m-%d"))
-            if arr and arr[hs.hour] is not None:
-                tot += arr[hs.hour] * seg / 3600
-                cov += seg
-            t += seg
-        return tot if cov >= (b - a) * 0.8 else None
-    nw, dw = wh(S, R1), wh(R, S)
-    row["nwh"] = round(nw) if nw is not None else None
-    row["dwh"] = round(dw) if dw is not None else None
-    if nw is not None:
-        row["nah"] = round((nw / 0.88 + idle * (R1 - S) / 3600) / 12.3, 1)        # z baterie přes noc
-    if dw is not None and row["ai"] is not None:
-        row["dnet"] = round(row["ai"] - (dw / 0.88 + idle * (S - R) / 3600) / 12.8, 1)   # čistě do baterie přes den
+    night_plug(row, k, data, lat, lon, idle)
     return row
 
 
