@@ -3,6 +3,15 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.112 – 28. 10. 2026
+- Kvalita hodinové spotřeby zásuvek (z ní je „Ah z bat. přes noc“, zdraví baterie, druh noci): u nocí od 13. 10. vycházelo skoro 0 Wh, i když zásuvka za den naměřila ~0,6 kWh – rozbor nocí pak ukazoval nesmyslných 6–7 Ah.
+  - Hodinová data za minulý den se už nepřepíšou horšími: když zásuvka později pošle za stejný den o hodně méně (podrobnou historii si po čase nepamatuje a vrací nuly), zůstanou původní.
+  - Hodinová data dne se použijí, jen když jejich součet sedí s tím, co hlídač ten den načítal živě (0,6–1,5×). Jinak „nevíme“ – v tabulce „–“, ne vymyšlené číslo. Hlídač si proto živý součet ukládá zvlášť (opravy z historie ho nemění).
+  - Zdroj je historie zásuvky podle jejího čísla (drží se 120 dní); starší historie „zásuvky za měničem“, kterou Brána hledá podle jména, je jen záloha a prochází stejnou kontrolou.
+  - Denní součet zásuvky se z historie už nesníží, když z ní energie zmizela.
+  - Rozbor nocí a zdraví baterie se po každé opravě dat přepočítají (dřív se spočítaly jednou a zůstaly).
+- Karta „Proč je ranní minimum takové“: rozbalovací „Rozpis zásuvky za měničem“ – po nocích Wh v noci, součet dne z historie a živě, ✗ u dnů, které kontrolou neprošly, a jestli chata ráno jela ze soláru nebo z River.
+
 ## 5.111 – 28. 10. 2026
 - Rozbor nocí (karta „Proč je ranní minimum takové“): sloupec „Ah z bat. přes noc“ byl od 13. 10. prázdný. Noc se počítala jednou, ráno po východu, ale Brána posílá hodinovou spotřebu zásuvky za měničem jen za celé uplynulé dny – ranní hodiny noci tedy ještě chyběly a noc zůstala bez spotřeby navždy. Teď se spotřeba doplňuje, jakmile data dorazí (u minulých nocí hned, u čerstvé noci další den), i když stažení historie regulátoru selže.
 

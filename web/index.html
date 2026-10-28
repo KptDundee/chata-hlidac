@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.111", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.112", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2977,7 +2977,25 @@ function nightAnalysisHtml(d){
     ${why.length ? why.map(w=>`<div style="margin:4px 0">• ${w[1]}</div>`).join("") : `<div class="sub">Žádná výrazná změna v nabití přes den, odběru, délce noci ani teplotě.</div>`}
     <div style="overflow-x:auto;margin-top:10px"><table style="border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%">
       <tr style="color:var(--muted);text-align:right"><th style="text-align:left;padding:3px 4px">noc</th><th>výroba kWh<br>ten den</th><th>Float<br>od</th><th>V 1 h po<br>západu</th><th>Ah do bat.<br>přes den</th><th>Ah z bat.<br>přes noc</th><th>°C<br>min</th><th>V min<br>ráno</th></tr>${rows}</table></div>
-    <div class="sub" style="font-size:12px;margin-top:6px">Zvýrazněné = posledních ${A.length} nocí. ${hist ? `Zdroj: historie regulátoru (Solar Guardian) a hodinová spotřeba zásuvky za měničem (Tapo), ${R.length} nocí.` : "Zdroj: podrobná měření hlídače (14 dní) – historie regulátoru se ještě načítá."} Ah do baterie přes den = co regulátor dodal minus odběr chaty; Ah z baterie přes noc = zásuvka za měničem ÷ 0,88 + ${nf(d.cfg?.menic_vlastni_W ?? 6)} W.</div></div>`;
+    <div class="sub" style="font-size:12px;margin-top:6px">Zvýrazněné = posledních ${A.length} nocí. ${hist ? `Zdroj: historie regulátoru (Solar Guardian) a hodinová spotřeba zásuvky za měničem (Tapo), ${R.length} nocí.` : "Zdroj: podrobná měření hlídače (14 dní) – historie regulátoru se ještě načítá."} Ah do baterie přes den = co regulátor dodal minus odběr chaty; Ah z baterie přes noc = zásuvka za měničem ÷ 0,88 + ${nf(d.cfg?.menic_vlastni_W ?? 6)} W.</div>${hist ? invPlugCheck(d, R) : ""}</div>`;
+}
+/* 5.112: rozpis zásuvky za měničem po nocích – z čeho „Ah z bat.“ vzniklo a jestli hodinová historie prošla kontrolou
+   (stejné pravidlo jako hlídač inv_hourly: součet dne 0,6–1,5× živě načítaného, když to bylo aspoň 100 Wh) */
+function invPlugCheck(d, R){
+  const mip = useModel(d).mip || "1", D = d.days || {}, th = ((d.tp_hist||{})[mip]) || {}, ph = d.plug_hourly || {};
+  const sum = a => Array.isArray(a) ? a.reduce((s,x)=>s+(x!=null && x>=0 ? x : 0),0) : null;
+  const td = (x, st="") => `<td style="padding:2px 4px;text-align:right;white-space:nowrap;${st}">${x}</td>`;
+  const day = k => { const a = th[k] || ph[k], src = th[k] ? "z" : ph[k] ? "s" : "", hs = sum(a), dd = D[k]||{};
+    const lv = (dd.tpl||{})[mip] ?? (dd.tp||{})[mip];
+    const ok = hs==null ? null : lv==null || lv < 100 || (hs >= 0.6*lv && hs <= 1.5*lv);
+    return {hs, src, lv, ok}; };
+  const rows = R.slice().reverse().slice(0, 21).map(r=>{ const k2 = nextKey(r.k), raw = (d.nh||{})[r.k] || {}, A = day(r.k), B = day(k2), mn = (D[k2]||{}).mn;
+    const cell = X => X.hs==null ? "–" : `${nf(X.hs)}${X.src==="s"?"*":""} ${X.ok ? "" : `<b style="color:var(--crit)">✗</b>`}`;
+    return `<tr><td style="padding:2px 4px;white-space:nowrap">${r.k.slice(8,10)}. → ${k2.slice(8,10)}.</td>${td(raw.nwh!=null?nf(raw.nwh):"–")}${td(cell(A))}${td(A.lv!=null?nf(A.lv):"–")}${td(cell(B))}${td(B.lv!=null?nf(B.lv):"–")}${td(mn==="r"?"River":mn==="s"?"solár":"?")}</tr>`; }).join("");
+  return `<details style="margin-top:8px"><summary class="sub" style="cursor:pointer">Rozpis zásuvky za měničem (${mip}) – z čeho je „Ah z bat.“</summary>
+    <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%">
+    <tr style="color:var(--muted);text-align:right"><th style="text-align:left;padding:2px 4px">noc</th><th>Wh<br>v noci</th><th>večer: den<br>z historie</th><th>večer: den<br>živě</th><th>ráno: den<br>z historie</th><th>ráno: den<br>živě</th><th>ráno<br>chata na</th></tr>${rows}</table></div>
+    <div class="sub" style="font-size:12px">Wh za celý den: „z historie“ = hodinová paměť zásuvky (Brána posílá 1× denně; * = starší zdroj), „živě“ = co hlídač načítal z měření během dne. ✗ = nesedí (mimo 0,6–1,5×) → hodinová data se nepoužijí a noc ukáže „–“.</div></details>`;
 }
 const nextKey = k => { const e = new Date(k+"T12:00"); e.setDate(e.getDate()+1); return e.toLocaleDateString("sv-SE"); };
 function detGen(body){

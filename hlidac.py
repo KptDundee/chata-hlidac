@@ -168,6 +168,40 @@ def night_voltages(series, date, cfg):
             "ts": int(a), "te": int(b)}
 
 
+# ---- 5.112: hodinová energie zásuvek – jeden zdroj, kontrola kvality ----
+HIST_KEEP_DAYS = 120
+
+
+def hourly_merge(store, dk, arr, today):
+    """Uloží hodinové Wh dne do store[dk]. Minulý den se nepřepíše horšími daty: energie za uplynulé hodiny
+    nemůže ubýt – když nová řada dává o víc než 20 % (a 20 Wh) méně, zůstane stará (zásuvka si podrobnou
+    historii po čase nepamatuje a vrací nuly). Vrací True, když se uložilo."""
+    new = [None if x is None or x < 0 else x for x in arr]
+    old = store.get(dk)
+    if old and dk != today:
+        so, sn = sum(x for x in old if x), sum(x for x in new if x)
+        if sn < so * 0.8 - 20:
+            return False
+    store[dk] = new
+    return True
+
+
+def inv_hourly(data, cfg, dk):
+    """Hodinové Wh zásuvky za měničem za den dk, jen když jim jde věřit, jinak None (= nevíme, ne nula).
+    Zdroj: historie zásuvky podle čísla (tp_hist), záloha starší plug_hourly. Kontrola: součet dne musí sedět
+    s tím, co hlídač za ten den načítal živě (days.tp), když to bylo aspoň 100 Wh (0,6–1,5×)."""
+    mip = str(cfg.get("zasuvka_menic") or (data.get("inverter") or {}).get("mip") or "1")
+    arr = ((data.get("tp_hist") or {}).get(mip) or {}).get(dk) or (data.get("plug_hourly") or {}).get(dk)
+    if not arr:
+        return None
+    live = ((data.get("days", {}).get(dk) or {}).get("tp") or {}).get(mip)
+    tot = sum(x for x in arr if x)
+    lv = ((data.get("days", {}).get(dk) or {}).get("tpl") or {}).get(mip, live)   # tpl = jen živě načítaný součet
+    if lv is not None and lv >= 100 and not 0.6 * lv <= tot <= 1.5 * lv:
+        return None
+    return arr
+
+
 NH_DAYS = 90          # rozbor nocí: kolik nocí zpět z historie Solar Guardianu
 
 
@@ -206,13 +240,13 @@ def night_history(token, data, st, now, cfg, budget_s=60):
     # 5.111: noci bez spotřeby za měničem doplnit, jakmile Brána pošle hodinovou historii (bez nového stahování SG)
     n_fix = 0
     for kk, row in nh.items():
-        if not row.get("x") and (row.get("nah") is None or row.get("dnet") is None and row.get("ai") is not None):
+        if not row.get("x"):                        # 5.112: každý běh znovu – opravená / zamítnutá data se projeví
             had = (row.get("nah"), row.get("dnet"))
             night_plug(row, datetime.fromisoformat(kk).date(), data, lat, lon, idle)
             if (row.get("nah"), row.get("dnet")) != had:
                 n_fix += 1
     if n_fix:
-        print(f"Rozbor nocí: doplněna spotřeba za měničem u {n_fix} nocí")
+        print(f"Rozbor nocí: změněna spotřeba za měničem u {n_fix} nocí")
     for kk in sorted(nh)[:-NH_DAYS - 10]:
         nh.pop(kk)
 
@@ -226,7 +260,9 @@ def night_plug(row, k, data, lat, lon, idle):
     if not (rise and set_ and r1):
         return
     R, S, R1 = rise.timestamp(), set_.timestamp(), r1.timestamp()
-    ph = data.get("plug_hourly") or {}
+    cfg_ = data.get("cfg") or {}
+    for k_ in ("nwh", "nah", "dwh", "dnet"):          # 5.112: vždy znovu z aktuálních (ověřených) dat
+        row.pop(k_, None)
 
     def wh(a, b):
         tot, cov, t = 0.0, 0.0, a
@@ -235,9 +271,12 @@ def night_plug(row, k, data, lat, lon, idle):
             hs = dt_.replace(minute=0, second=0, microsecond=0)
             he = hs + timedelta(hours=1)
             seg = min(b, he.timestamp()) - t
-            arr = ph.get(hs.strftime("%Y-%m-%d"))
-            if arr and hs.hour < len(arr) and arr[hs.hour] is not None:
-                tot += arr[hs.hour] * seg / 3600
+            arr = inv_hourly(data, cfg_, hs.strftime("%Y-%m-%d"))
+            # hodina od půlnoci skutečně uplynulá (den změny času má 23 / 25 h)
+            mid = hs.replace(hour=0).timestamp()
+            hi = int((hs.timestamp() - mid) // 3600)
+            if arr and hi < len(arr) and arr[hi] is not None:
+                tot += arr[hi] * seg / 3600
                 cov += seg
             t += seg
         return tot if cov >= (b - a) * 0.8 else None
@@ -678,7 +717,6 @@ def night_modes(data, now, cfg, days_back=120):
     baterie v klidu) – minima obou druhů nejsou porovnatelná. Bez dat se nic nezapíše."""
     rids = ips(cfg.get("zasuvky_river"))
     od = str(cfg.get("river_noci_od") or "2026-10-15")      # dřív v noci River nejel (zásuvky sloužily jinak)
-    ph = data.get("plug_hourly") or {}
     pts = data.get("points") or []
     for k in sorted(data.get("days", {}))[-days_back:]:
         day = data["days"][k]
@@ -696,21 +734,27 @@ def night_modes(data, now, cfg, days_back=120):
                 elif any(((p.get("tp") or {}).get(i) or 0) > 3 for i in rids) or "mw" not in p:
                     riv += 1
         mode = None
+        src = "p"
         if sol + riv >= 3:
             mode = "s" if sol >= riv else "r"
         else:
+            src = "h"
             # 2) hodinová spotřeba zásuvky za měničem (Tapo si ji pamatuje): ~0 Wh = chata nebrala ze solární baterie
             vals, h = [], a
             while h < t:
                 dt_ = datetime.fromtimestamp(h, TZ)
-                arr = ph.get(dt_.strftime("%Y-%m-%d"))
-                if arr and arr[dt_.hour] is not None:
+                arr = inv_hourly(data, cfg, dt_.strftime("%Y-%m-%d"))      # 5.112: jen ověřená data
+                if arr and dt_.hour < len(arr) and arr[dt_.hour] is not None:
                     vals.append(arr[dt_.hour])
                 h += 3600
             if len(vals) >= 3:
                 mode = "s" if sum(vals) / len(vals) > 5 else "r"
         if mode:
             day["mn"] = mode
+            day["mns"] = src
+        elif day.get("mns") != "p":
+            day.pop("mn", None)                   # 5.112: odhad z hodinové historie bez ověřených dat neplatí
+            day.pop("mns", None)
 
 
 def import_soc_history(token, data, st, now, budget_s=40):
@@ -1123,13 +1167,12 @@ def battery_health(data, now, cfg):
     (živé body po 10 min, nebo hodinová historie ze zásuvky). Čím vyšší číslo, tím menší kapacita.
     """
     idle = cfg["menic_vlastni_W"] or 0
-    hourly = data.get("plug_hourly", {})
     pts = data.get("points", [])
     st = data.setdefault("state", {})
-    if not st.get("h_v2"):                     # nová pravidla (noci pod 12,1 V se nepočítají) → přepočítat
+    if not st.get("h_v3"):                     # 5.112: přepočítat jen z ověřené hodinové historie (dřív i z nul)
         for d in data["days"].values():
             d.pop("h", None)
-        st["h_v2"] = True
+        st["h_v2"] = st["h_v3"] = True
     for dk, day in data["days"].items():
         if "h" in day:
             continue
@@ -1155,7 +1198,8 @@ def battery_health(data, now, cfg):
         else:
             for t0 in range(int(a // 3600) * 3600, int(b), 3600):
                 hk = datetime.fromtimestamp(t0, TZ)
-                wh = (hourly.get(hk.strftime("%Y-%m-%d")) or [None] * 24)[hk.hour] if hk.strftime("%Y-%m-%d") in hourly else None
+                arr_ = inv_hourly(data, cfg, hk.strftime("%Y-%m-%d"))     # 5.112: jen ověřená data
+                wh = arr_[hk.hour] if arr_ and hk.hour < len(arr_) else None
                 if wh is None:
                     continue
                 part = (min(t0 + 3600, b) - max(t0, a)) / 3600
@@ -1222,15 +1266,14 @@ def charge_metric(ser, date, cfg, load_w):
 def load_lookup(data, cfg):
     """Funkce t → W za měničem: živé body (po 10 min), jinak hodinová historie zásuvky."""
     pts = {p["t"] // 600: p.get("mw", p.get("ac_w")) for p in data.get("points", []) if p.get("mw", p.get("ac_w")) is not None}
-    hourly = data.get("plug_hourly", {})
 
     def f(t):
         for k in (t // 600, t // 600 - 1, t // 600 + 1):
             if k in pts:
                 return pts[k]
         d = datetime.fromtimestamp(t, TZ)
-        arr = hourly.get(d.strftime("%Y-%m-%d"))
-        return arr[d.hour] if arr and arr[d.hour] is not None else None
+        arr = inv_hourly(data, cfg, d.strftime("%Y-%m-%d"))          # 5.112: jen ověřená data
+        return arr[d.hour] if arr and d.hour < len(arr) and arr[d.hour] is not None else None
     return f
 
 
@@ -1566,6 +1609,8 @@ def main():
                         inc = 0.0 if prev is None else (wh - prev if wh >= prev else wh)   # pokles = počítadlo se vynulovalo
                         if 0 <= inc < 3000:
                             dt[ip] = round(dt.get(ip, 0) + inc, 1)
+                            tl = day.setdefault("tpl", {})            # 5.112: jen živě načítaný součet (historie ho nepřepisuje)
+                            tl[ip] = round(tl.get(ip, 0) + inc, 1)
                             sp = day.setdefault("tps", {}).setdefault(ip, {"s": 0, "r": 0})
                             sp["s"] = round(sp["s"] + inc * fs, 1)
                             sp["r"] = round(sp["r"] + inc * (1 - fs), 1)
@@ -2714,8 +2759,8 @@ def read_plug_history(data, topic):
             continue
         for dk, arr in (body.get("d") or {}).items():
             if isinstance(arr, list) and len(arr) == 24:
-                hourly[dk] = [None if x is None or x < 0 else x for x in arr]
-                n += 1
+                if hourly_merge(hourly, dk, arr, datetime.now(TZ).strftime("%Y-%m-%d")):
+                    n += 1
     for dk in sorted(hourly)[:-400]:
         hourly.pop(dk)
     if n:
@@ -2743,10 +2788,10 @@ def read_tp_history(data, topic, cfg):
         pid = str(body.get("id") or "")
         for dk, arr in (body.get("h") or {}).items():
             if pid and isinstance(arr, list) and 23 <= len(arr) <= 25:          # 5.19: den změny času má 23 / 25 h
-                th.setdefault(pid, {})[dk] = [None if x is None or x < 0 else x for x in arr]
-                changed.add((pid, dk))
+                if hourly_merge(th.setdefault(pid, {}), dk, arr, datetime.now(TZ).strftime("%Y-%m-%d")):
+                    changed.add((pid, dk))
     for pid in th:
-        for dk in sorted(th[pid])[:-14]:
+        for dk in sorted(th[pid])[:-HIST_KEEP_DAYS]:     # 5.112: dlouhodobý zdroj (dřív 14 dní)
             th[pid].pop(dk)
     today = datetime.now(TZ).strftime("%Y-%m-%d")
     for pid, dk in changed:
@@ -2755,7 +2800,9 @@ def read_tp_history(data, topic, cfg):
         day = data["days"].setdefault(dk, {})
         tp = day.setdefault("tp", {})
         cur = tp.get(pid)
-        new = max(cur or 0, tot) if dk == today else tot          # minulé dny: zásuvka má pravdu
+        new = max(cur or 0, tot) if dk == today else tot          # minulé dny: zásuvka má pravdu…
+        if dk != today and cur and cur >= 100 and tot < 0.6 * cur:
+            continue                                               # …ale ne, když z historie zmizela energie (nuly)
         if cur is None or abs(new - cur) > 5:
             tp[pid] = round(new, 1)
             if cur is not None and dk != today:
