@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.108", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.109", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2169,6 +2169,25 @@ function useModel(d){
 }
 const ptMode = (p, U) => dkey(p.t) >= USE_FROM && ptRiver(p, U.rids) ? "r" : "s";   // pravidlo měnič/River platí na skutečná data od přejmenování zásuvek
 /* jeden bod: W pro pohledy a / s / r (null = v tu chvíli ten zdroj spotřebič nenapájel) */
+/* 5.109: díry v průbězích odběru doplnit z hodinové historie, kterou si pamatují samy zásuvky (tp_hist, Wh za hodinu =
+   průměrný W v té hodině). Chybějící hodnota v bodě → z historie; chybějící body (Flip nic neposlal) → bod uprostřed hodiny. */
+function histW(id, t){
+  const H = (DATA.tp_hist||{})[id]; if(!H) return null;
+  const dt = new Date(t*1000), k = dkey(t), arr = H[k]; if(!arr) return null;
+  const v = arr[dt.getHours()]; return v==null ? null : v;
+}
+function withHist(pts, U, t0, t1){
+  const ids = [U.mip, ...U.rids, ...U.devs.map(x=>x.id)], now = Date.now()/1000;
+  const fill = p => { const tp = {...(p.tp||{})}; let n = 0;
+    for(const id of ids){ if(tp[id]==null){ const w = histW(id, p.t); if(w!=null){ tp[id] = w; n++; } } }
+    return n ? {...p, tp, mw: p.mw ?? tp[U.mip], _h:1} : p; };
+  const out = pts.map(fill), have = new Set(pts.map(p=>Math.floor(p.t/3600)));
+  for(let h = Math.ceil(t0/3600); h*3600 + 3600 <= Math.min(t1, now); h++){
+    if(have.has(h)) continue;                                  // v té hodině nějaký bod je
+    for(const off of [600, 1800, 3000]){ const p = fill({t: h*3600 + off}); if(p._h) out.push(p); }   // 3 body za hodinu – graf se nepřeruší
+  }
+  return out.sort((a,b)=>a.t-b.t);
+}
 function useAt(p, U){
   if(!p.tp) return null; const tp = p.tp;
   const S = tp[U.mip] ?? (p.mw ?? null), R = U.rids.reduce((s,i)=>s+(tp[i]||0),0);
@@ -2225,7 +2244,8 @@ function detUse(body, src="a"){
   const d = DATA, h = homeData(d), U = useModel(d), hrs = detHours(), long = detLong() || hrs > 7*24;
   const SRC = [{id:"s", name:"ze soláru", color:css("--s2")}, {id:"r", name:"z River", color:css("--s1")}];
   const col = src==="r" ? css("--s1") : src==="s" ? css("--s2") : css("--text2");
-  const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), bands = src==="a" ? riverBands(pts, U.rids) : [];
+  const pts = withHist((d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), U, Date.now()/1000 - hrs*3600, Date.now()/1000),
+        bands = src==="a" ? riverBands(pts, U.rids) : [];
   const rows = pts.map(p=>useAt(p, U)).filter(Boolean);
   const dd = useDays(Math.max(hrs, 24), U);
   const only = src==="a" ? "" : ` · jen když chata jela ${SRCN[src]}`;

@@ -350,3 +350,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.103 / 1.9.15**: `Collector` druhý průchod – když je mezi off zásuvkami některá ze `stale_ids` a poslední plné hledání > 5 min → `tapo_force` + `plugMap` (plné hledání, nové relace) a nové čtení; jinak rychlé `remap` jako dřív.
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
+
+**5.109**: web `withHist(pts, U, t0, t1)` – chybějící `tp[id]` v bodě z `tp_hist[id][den][hodina]` (Wh = W průměr), hodiny bez bodu → 3 body (:10, :30, :50), označené `_h`. Použito v `detUse`.

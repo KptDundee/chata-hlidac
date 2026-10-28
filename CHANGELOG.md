@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.109 – 28. 10. 2026
+- Grafy odběru (Spotřeba chaty / ze solární baterie / z River, spotřebiče): díry doplněné z hodinové historie, kterou si pamatují samy zásuvky (Brána ji posílá 1× denně a hned, když se zásuvka znovu objeví). Chybějící hodnota v bodě i celé hodiny bez dat z Flipu se doplní průměrem té hodiny.
+
 ## 5.108 – 28. 10. 2026
 - Detail Dnes, graf Výroba: popisek podle zvoleného rozsahu – „kWh za hodinu“ (Dnes), „kWh za den“ (48 h, Týden), „kWh za měsíc“ (Rok, Vše).
 
