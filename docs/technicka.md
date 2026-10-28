@@ -342,3 +342,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.94 / 1.9.13**: zásuvka „off“ nese `ow` = druh chyby · .IP; hlídač ho drží v `inv.tp`, `plug_watch` ho dá do důvodu, do Deníku `log("err", "Zásuvka (N) nedostupná: …")`.
 
 **5.95**: `alarm(st, topic, key, active, …)` – stav v `st.al[key] = {t0, last, title, ack, snz}`, opakování `ALARM_REPEAT_S` (570 s), tlačítka posílají do `<téma>-ack` „ok|30|60:<klíč>“ (staré bez klíče = `night`), zpracuje `alarm_acks` na začátku běhu. `digest(st, title, msg)` → `st.digest`, vypíše `daily_summary` („👀 K pozornosti“, pak smaže); aktivní alarmy „🚨 Trvá“. `data.alarms` pro web (`alertItems`). Klíče: bat_low, reg, pv, fuse, wire, inv_al, gw, wifi, plugs, flip_low, flip_hot, router, fridge, frost, rv_<sn6>, night, day, gen_off. `urgent_river` bere i `st._rvn` z `river_supply`. Odstraněno `hash_alert`, `ecoflow_reminder`.
+
+**5.97 / 1.9.14**: -fc `stale` = zasuvky_stale (bez měniče, když nedodává); Brána `mustOff` – zásuvka ze seznamu off/err/nevidět ≥ 10 min → `tapo_force` (plné hledání, 1× za 30 min). MainActivity: záznam `setTextIsSelectable`, tlačítko Kopírovat.

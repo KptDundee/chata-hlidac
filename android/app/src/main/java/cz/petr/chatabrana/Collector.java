@@ -158,6 +158,32 @@ public final class Collector {
                 }
                 }                                                            // konec průchodů (1.7.4)
                 if (ok == 0 && total > 0) Prefs.get(ctx).edit().putBoolean("tapo_rescan", true).apply();
+                // 1.9.14: zásuvka, která má být vidět (seznam od hlídače), nejde aspoň 10 min → při dalším měření celé
+                // prohledání sítě (nejvýš 1× za 30 min). 28. 10. se zásuvka (1) ozvala hned po celém prohledání.
+                try {
+                    android.content.SharedPreferences sp2 = Prefs.get(ctx);
+                    java.util.Set<String> must = new java.util.HashSet<>(java.util.Arrays.asList(sp2.getString("stale_ids", "").split(",")));
+                    long nowMs = System.currentTimeMillis();
+                    String bad = null;
+                    for (int k = 0; k < plugs.length(); k++) {
+                        JSONObject p = plugs.optJSONObject(k);
+                        if (p == null || !must.contains(p.optString("ip"))) continue;
+                        String id = p.optString("ip");
+                        if (p.has("off") || p.has("err")) {
+                            if (!mustOff.containsKey(id)) mustOff.put(id, nowMs);
+                            if (nowMs - mustOff.get(id) >= 10 * 60_000L) bad = id;
+                        } else mustOff.remove(id);
+                    }
+                    for (String id : must) {                                   // v seznamu, ale vůbec nepřečtená
+                        boolean seen = false;
+                        for (int k = 0; k < plugs.length(); k++) { JSONObject p = plugs.optJSONObject(k); if (p != null && id.equals(p.optString("ip"))) seen = true; }
+                        if (!seen && !id.isEmpty()) { if (!mustOff.containsKey(id)) mustOff.put(id, nowMs); if (nowMs - mustOff.get(id) >= 10 * 60_000L) bad = id; }
+                    }
+                    if (bad != null && nowMs - sp2.getLong("tapo_scan_t", 0) > 30 * 60_000L && !sp2.getBoolean("tapo_force", false)) {
+                        sp2.edit().putBoolean("tapo_force", true).apply();
+                        Prefs.log(ctx, "Zásuvka (" + bad + ") nejde 10 min – příště prohledám celou síť");
+                    }
+                } catch (Exception ignored) { }
                 // 1.7.3: generátor – dokud jeho zásuvka bere proud, měřit a posílat každé 2 min (hlídač hned řídí
                 // nabíjení River)
                 boolean genOn = false;
@@ -299,6 +325,8 @@ public final class Collector {
      * 1.7.4: rychlé dohledání přestěhovaných zásuvek – prohledá síť, přihlásí se jen na adresy, které teď nepatří
      * žádné fungující zásuvce, a podle čísla ve jméně („(7) …“) přepíše mapu. Vrací true, když se něco přestěhovalo.
      */
+    private final Map<String, Long> mustOff = new HashMap<>();          // 1.9.14: od kdy nejde zásuvka, která má být vidět
+
     private boolean remap(String email, String pass, Map<String, String> map, java.util.Set<String> okIps) {
         Map<String, JSONObject> found = TapoScan.scan(ctx, email, pass, true, okIps);
         if (found.isEmpty()) return false;
@@ -587,6 +615,7 @@ public final class Collector {
                         .putInt("fc_tgt", last.optInt("ftgt", 0))                          // 1.9.2: dobít na (noc)
                         .putInt("fc_min", last.optInt("fmin", 30))                         // 1.9.6: spodní hranice (Nastavení)
                         .putBoolean("fc_full", last.optBoolean("full", false))            // 1.9.12: Float → doplna
+                        .putString("stale_ids", last.has("stale") ? last.optJSONArray("stale") != null ? last.optJSONArray("stale").join(",").replace("\"", "") : "" : "")   // 1.9.14
                         .putString("rst_at", last.optString("rst", "22:10")).apply();      // 1.9.11: čas denního restartu
             }
         } catch (Exception e) { /* bez internetu – platí poslední povolení / záloha pod 40 % */ }

@@ -3542,16 +3542,19 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     # 5.40: router nabíjet „zadarmo“ jen z přebytku slunce – proud z River zadarmo není (River musí vydržet noc)
     # 5.58: router stejně jako Flip – když regulátor škrtí panely; 5.59: odpoledne z panelů, když stačí i na Flip
     rfree = allow                                      # 5.91: router stejně (jeho řízení je teď vypnuté)
-    if fs.get("allow") != allow or fs.get("full") != full or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
+    # 5.97: zásuvky, které mají být vidět (Brána 1.9.14 při jejich výpadku prohledá síť znovu); měnič jen když dodává
+    mip_ = str(cfg.get("zasuvka_menic") or "1")
+    stl = [i for i in ips(cfg.get("zasuvky_stale")) if i != mip_ or (str(inv.get("st") or "").upper() == "INVERTING" and not on_river)]
+    if fs.get("stale") != stl or fs.get("allow") != allow or fs.get("full") != full or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
             or fs.get("fmin") != int(cfg.get("flip_min_pct") or 30) or fs.get("rst") != str(cfg.get("brana_restart") or "") or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
             or ts - fs.get("t", 0) >= 3600:
-        body = json.dumps({"allow": allow, "full": full, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0,
+        body = json.dumps({"allow": allow, "full": full, "stale": stl, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0,
                            "fmin": int(cfg.get("flip_min_pct") or 30), "rst": str(cfg.get("brana_restart") or ""),
                            "why": why, "id": int(ts)})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
-            fs.update(allow=allow, full=full, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), rst=str(cfg.get("brana_restart") or ""), t=int(ts), why=why)
+            fs.update(stale=stl, allow=allow, full=full, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), rst=str(cfg.get("brana_restart") or ""), t=int(ts), why=why)
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc"), "ftgt": fs.get("ftgt"), "f_until": f_until, "rate": rate}

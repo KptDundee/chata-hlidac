@@ -160,9 +160,16 @@ public class MainActivity extends Activity {
         lg.addView(lh);
         TextView lt = text(lh, "Záznam", 17, TXT, true);
         lt.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+        Button copyBtn = btn(lh, "Kopírovat", CARD_BTN());   // 1.9.14: celý záznam do schránky
+        copyBtn.setOnClickListener(v -> {
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (cm != null) cm.setPrimaryClip(android.content.ClipData.newPlainText("Záznam Brány", Prefs.log(this)));
+            android.widget.Toast.makeText(this, "Záznam zkopírován", android.widget.Toast.LENGTH_SHORT).show();
+        });
         logBtn = btn(lh, "Zobrazit", CARD_BTN());
         log = text(lg, "", 12, SUB, false);
         log.setTypeface(Typeface.MONOSPACE);
+        log.setTextIsSelectable(true);                         // 1.9.14: dá se označit a kopírovat
         log.setVisibility(View.GONE);
         logBtn.setOnClickListener(v -> {
             boolean show = log.getVisibility() != View.VISIBLE;
