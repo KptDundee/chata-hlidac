@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.113", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.114", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -545,7 +545,7 @@ function render(){
       if(ps.length) rows += `<div class="sub" style="margin:10px 0 0;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em">${gname[g]}</div>` + ps.map(row).join("");
     }
     const phTxt = ph ? `<div class="row" style="padding:8px 0"><div class="t"><b style="font-weight:500">📱 Telefon na chatě</b><span>${ph.c?"nabíjí se":"na baterii"}${ph.t!=null?` · ${nf(ph.t,0)} °C`:""}${gwFresh?"":` · ozval se ${ago(gw.t)}`}</span></div><div style="font-weight:600;${ph.b<=(d.cfg?.telefon_baterie_pod??15)?"color:var(--crit)":""}">${nf(ph.b)} %</div></div>` : "";
-    const lp2 = pts[pts.length-1] || {};
+    const lp2 = [...pts].reverse().find(p=>p.ow!=null) || {};   // 5.114: data z Flipu můžou být ve vlastním bodě
     const owNow = gwFresh && lp2.ow!=null && Date.now()/1000 - lp2.t < 1800 ? lp2.ow : null;
     const onv = Object.keys(d.days||{}).sort().slice(-7).map(k=>d.days[k].on).filter(x=>x!=null).sort((a,b)=>a-b);
     const onMed = onv.length ? onv[Math.floor(onv.length/2)] : null;

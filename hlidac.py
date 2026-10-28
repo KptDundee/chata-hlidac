@@ -597,24 +597,146 @@ def backfill_flip(data, now, cfg):
         print(f"Flip: doplněno {filled} bodů, přidáno {added} bodů z ntfy")
 
 
-def sync_inverter_voltage(data, inv, v, now, tol=150):
+def attach_flip(data, st, inv, now, cfg, topic):
+    """5.114: poslední zpráva Flipu → bod ze stejné chvíle (±5 min, jinak vlastní bod) + denní energie zásuvek."""
+    pt = flip_point(data, inv["t"])
+    if inv.get("w") is not None:
+        pt["ac_w"] = inv["w"]
+    if inv.get("mw") is not None:
+        pt["mw"] = inv["mw"]
+    if (inv.get("gen") or {}).get("w") is not None:
+        pt["gw"] = inv["gen"]["w"]
+    if inv.get("v") is not None:            # napětí měřené měničem → jen k bodu regulátoru ze STEJNÉ chvíle
+        sync_inverter_voltage(data, inv)
+    plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
+    if plugs:
+        pt["tp"] = plugs
+    cs_ = inv_src(inv, cfg)
+    if cs_:
+        pt["cs"] = cs_                 # 5.113: z čeho chata jede (jeden výpočet, i se stavem Victronu)
+    ph_ = inv.get("ph") or {}
+    if ph_.get("b") is not None:       # 4.53: baterie Flipu do historie (graf v dlaždici Flip)
+        pt["pb"] = ph_["b"]
+        pt["pc"] = 1 if ph_.get("c") else 0
+        if ph_.get("t") is not None:
+            pt["pt"] = ph_["t"]
+    if inv.get("fc"):
+        pt["fc"] = inv["fc"].get("on")
+    if (inv.get("rt") or {}).get("b") is not None:
+        pt["rb"] = inv["rt"]["b"]      # baterie routeru (graf, později řízení nabíjení)
+        if inv["rt"].get("c") is not None:
+            pt["rbc"] = 1 if inv["rt"]["c"] else 0      # 5.42: router se nabíjí (hlásí router)
+    if isinstance(inv.get("rc"), dict) and not inv["rc"].get("miss") and inv["rc"].get("on") is not None:
+        pt["rcon"] = 1 if inv["rc"]["on"] else 0        # 5.42: zásuvka routeru zapnutá (Flip 1.9)
+    ths = {x["n"]: x["t"] for x in inv.get("th", []) if x.get("t") is not None and now.timestamp() - x["tm"] < 1800}
+    if ths:
+        pt["th"] = ths                 # 1.5: teploty z teploměrů Xiaomi
+    rcp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == str(cfg.get("river_auto_ip") or "")), None)
+    if rcp and rcp.get("on") == 1 and not rcp.get("off"):
+        pt["rc"] = 1                   # nabíjení River ze soláru (zásuvka 8, neměří) zapnuté
+    ow = other_load(data, st, cfg, now, topic, inv, st.get("ra_on"))
+    if ow is not None:
+        pt["ow"] = ow
+    mday = datetime.fromtimestamp(inv["t"], TZ)                 # den podle času měření
+    day = data["days"].setdefault(mday.strftime("%Y-%m-%d"), {})
+    names = data.setdefault("plug_names", {})
+    # denní energie zásuvek z PŘÍRŮSTKŮ počítadla: Tapo nuluje „dnes“ podle svých hodin (ne přesně
+    # o půlnoci našeho dne), takže maximum by do nového dne přeneslo kus včerejška
+    raw = st.setdefault("tp_raw", {})
+    raw_t = st.setdefault("tp_raw_t", {})                     # 5.114: kdy bylo poslední počítadlo změřeno
+    first_v2 = not st.get("tp_v2")
+    # podíl zdrojů teď: solár (zásuvka 220 V za měničem) vs. River (zásuvky na výstupu River) → rozdělení spotřeby
+    # 5.113: podíl solár / River podle jednoho výpočtu cabin_src; „nevíme“ jde do „u“ (web ho do podílu nepočítá)
+    cs_now = inv_src(inv, cfg)
+    if mday.strftime("%Y-%m-%d") < str(cfg.get("river_noci_od") or "2026-10-15"):
+        fs = 1.0
+    else:
+        fs = {"s": 1.0, "r": 0.0, "0": 1.0}.get(cs_now)     # „0“: nic neodebírá – přírůstky ~0, na zdroji nezáleží
+    for p in inv.get("tp", []):
+        if p.get("ip") and p.get("n"):
+            names[p["ip"]] = p["n"]
+        if p.get("ip") and p.get("wh") is not None:
+            ip, wh = p["ip"], float(p["wh"])
+            dt = day.setdefault("tp", {})
+            if first_v2:                          # přechod na nový výpočet: dnešek nejvýš to, co ukazuje počítadlo
+                dt[ip] = round(min(dt.get(ip, wh), wh), 1)
+            elif raw_t.get(ip) and inv["t"] <= raw_t[ip]:
+                continue                          # 5.114: stejné nebo starší měření už je započítané
+            else:
+                prev = raw.get(ip)
+                inc = 0.0 if prev is None else (wh - prev if wh >= prev else wh)   # pokles = počítadlo se vynulovalo
+                if 0 <= inc < 3000:
+                    # 5.114: přírůstek přes půlnoc rozdělit podle času mezi oba dny
+                    for dk_, part in split_days(raw_t.get(ip), inv["t"], inc):
+                        d_ = data["days"].setdefault(dk_, {})
+                        dt_ = d_.setdefault("tp", {})
+                        dt_[ip] = round(dt_.get(ip, 0) + part, 1)
+                        tl = d_.setdefault("tpl", {})            # 5.112: jen živě načítaný součet (historie ho nepřepisuje)
+                        tl[ip] = round(tl.get(ip, 0) + part, 1)
+                        sp = d_.setdefault("tps", {}).setdefault(ip, {"s": 0, "r": 0})
+                        if fs is None:
+                            sp["u"] = round(sp.get("u", 0) + part, 1)
+                        else:
+                            sp["s"] = round(sp["s"] + part * fs, 1)
+                            sp["r"] = round(sp["r"] + part * (1 - fs), 1)
+            raw[ip] = wh
+            raw_t[ip] = int(inv["t"])
+    st["tp_v2"] = True
+
+
+def flip_point(data, t):
+    """Bod pro data z Flipu změřená v čase t: nejbližší bod do 5 min (přednostně bod regulátoru), jinak nový."""
+    import bisect
+    pts = data["points"]
+    near = [q for q in pts[-40:] if abs(q["t"] - t) <= 300]
+    if near:
+        return min(near, key=lambda q: (q.get("bat_v") is None, abs(q["t"] - t)))
+    p = {"t": int(t), "bf": 2}
+    pts.insert(bisect.bisect_right([q["t"] for q in pts], t), p)
+    return p
+
+
+def split_days(t0, t1, amount):
+    """Rozdělí množství z úseku [t0, t1] mezi dny podle času (půlnoc). Bez t0 nebo při nesmyslném úseku
+    (> 2 dny) celé do dne t1. Vrací [(YYYY-MM-DD, díl)]."""
+    d1 = datetime.fromtimestamp(t1, TZ)
+    if not t0 or t0 >= t1 or t1 - t0 > 2 * 86400:
+        return [(d1.strftime("%Y-%m-%d"), amount)]
+    out, a = [], t0
+    while True:
+        da = datetime.fromtimestamp(a, TZ)
+        nxt = datetime(da.year, da.month, da.day, tzinfo=TZ) + timedelta(days=1)
+        b = min(t1, nxt.timestamp())
+        out.append((da.strftime("%Y-%m-%d"), amount * (b - a) / (t1 - t0)))
+        if b >= t1:
+            return out
+        a = b
+
+
+def attach_rivers(data, rivers, now):
+    """EcoFlow (čteno teď) k bodu z téže chvíle (±5 min), jinak vlastní bod."""
+    pt = flip_point(data, int(now.timestamp()))
+    pt["rv"] = [{k_: v_ for k_, v_ in (("s", r.get("soc")), ("i", r.get("in_w")), ("o", r.get("out_w")),
+                                       ("k", str(r.get("sn", ""))[-6:]), ("de", r.get("de"))) if v_ is not None or k_ != "de"}
+                for r in rivers]       # 4.99: „k“ = konec SN; 5.73: „de“ = počítadlo vybité energie
+
+
+def sync_inverter_voltage(data, inv, tol=150):
     """Napětí Victronu přiřadí k bodu regulátoru, který je časově nejblíž (nejvýš tol s). Jinak by se porovnávaly
-    dvě různé chvíle (Flip posílá po 10 min, regulátor má vlastní takt) a rozdíl napětí by vycházel i záporný."""
+    dvě různé chvíle (Flip posílá po 10 min, regulátor má vlastní takt) a rozdíl napětí by vycházel i záporný.
+    5.114: body regulátoru mají čas měření, takže se porovnává přímo s ním."""
     vt = inv["t"] - (inv.get("age") or 0)                       # kdy Victron měřil
-    ts = now.timestamp()
-    reg_t = ts - (v.get("age_min") or 0) * 60                   # kdy měřil regulátor (poslední bod)
     best, bd = None, None
-    for p in data["points"][-12:]:
+    for p in data["points"][-24:]:
         if not p.get("bat_v"):
             continue
-        te = reg_t if p is data["points"][-1] else p["t"]
-        dd = abs(te - vt)
+        dd = abs(p["t"] - vt)
         if bd is None or dd < bd:
             best, bd = p, dd
     if best is None or bd > tol:
         return
     best["iv"] = inv["v"]
-    best["ivs"] = int(vt - (reg_t if best is data["points"][-1] else best["t"]))    # posun v s (synchronizováno)
+    best["ivs"] = int(vt - best["t"])                            # posun v s (synchronizováno)
     if inv.get("lw") is not None:
         best["lw"] = inv["lw"]
 
@@ -999,14 +1121,24 @@ def clean_soc(data):
 
 
 def record(data, v, now, cfg=None):
-    """Uloží bod historie a denní souhrn."""
+    """Uloží bod historie a denní souhrn. 5.114: s časem, kdy regulátor měřil (ne kdy běžel hlídač) – stejné
+    měření, které už doplnila historie Solar Guardianu (do 90 s), se nezapíše podruhé, jen doplní."""
+    run_ts = int(now.timestamp())
+    now = datetime.fromtimestamp(run_ts - int((v.get("age_min") or 0) * 60), TZ)    # čas měření
     ts = int(now.timestamp())
     p = {"t": ts}
     for k in ("bat_v", "bat_a", "bat_soc", "pv_w", "bat_t", "status"):
         if v.get(k) is not None:
             p[k] = round(v[k], 2)
-    data["points"].append(p)
-    cutoff = ts - KEEP_DETAIL_DAYS * 86400
+    pts = data["points"]
+    same = min((q for q in pts[-20:] if q.get("bat_v") is not None and abs(q["t"] - ts) <= 90),
+               key=lambda q: abs(q["t"] - ts), default=None)
+    if same is not None:
+        same.update({k: x for k, x in p.items() if k != "t"})
+    else:
+        import bisect
+        pts.insert(bisect.bisect_right([q["t"] for q in pts], ts), p)
+    cutoff = run_ts - KEEP_DETAIL_DAYS * 86400
     data["points"] = [x for x in data["points"] if x["t"] >= cutoff]
     day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
     # Výroba: počítadlo regulátoru se nenuluje o půlnoci (ráno ukazuje ještě včerejšek) → viz day_yield:
@@ -1045,7 +1177,7 @@ def record(data, v, now, cfg=None):
         day["soc_max"] = max(day.get("soc_max", -1), v["bat_soc"])
     # kdy poprvé přešla do Float (0 = dnes ještě ne) – pro učení předpovědi (plná baterie = přiškrcená výroba)
     if v.get("status") is not None and int(v["status"]) == 1 and not day.get("fl"):
-        day["fl"] = ts
+        day["fl"] = ts                                   # (ts = čas měření)
     day.setdefault("fl", 0)
     if v.get("bat_a") is not None and (v.get("status") is None or int(v["status"]) != 1):
         day["pa"] = round(max(day.get("pa", 0), v["bat_a"]), 1)
@@ -1547,85 +1679,16 @@ def main():
             print("Doplnění bodů:", e)
         record(data, v, now, cfg)
         clean_soc(data)
-        if inv and now.timestamp() - inv["t"] < 1200:
-            pt = data["points"][-1]
-            if inv.get("w") is not None:
-                pt["ac_w"] = inv["w"]
-            if inv.get("mw") is not None:
-                pt["mw"] = inv["mw"]
-            if (inv.get("gen") or {}).get("w") is not None:
-                pt["gw"] = inv["gen"]["w"]
-            if inv.get("v") is not None:            # napětí měřené měničem → jen k bodu regulátoru ze STEJNÉ chvíle
-                sync_inverter_voltage(data, inv, v, now)
-            plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
-            if plugs:
-                pt["tp"] = plugs
-            cs_ = inv_src(inv, cfg)
-            if cs_:
-                pt["cs"] = cs_                 # 5.113: z čeho chata jede (jeden výpočet, i se stavem Victronu)
-            ph_ = inv.get("ph") or {}
-            if ph_.get("b") is not None:       # 4.53: baterie Flipu do historie (graf v dlaždici Flip)
-                pt["pb"] = ph_["b"]
-                pt["pc"] = 1 if ph_.get("c") else 0
-                if ph_.get("t") is not None:
-                    pt["pt"] = ph_["t"]
-            if inv.get("fc"):
-                pt["fc"] = inv["fc"].get("on")
-            if (inv.get("rt") or {}).get("b") is not None:
-                pt["rb"] = inv["rt"]["b"]      # baterie routeru (graf, později řízení nabíjení)
-                if inv["rt"].get("c") is not None:
-                    pt["rbc"] = 1 if inv["rt"]["c"] else 0      # 5.42: router se nabíjí (hlásí router)
-            if isinstance(inv.get("rc"), dict) and not inv["rc"].get("miss") and inv["rc"].get("on") is not None:
-                pt["rcon"] = 1 if inv["rc"]["on"] else 0        # 5.42: zásuvka routeru zapnutá (Flip 1.9)
-            ths = {x["n"]: x["t"] for x in inv.get("th", []) if x.get("t") is not None and now.timestamp() - x["tm"] < 1800}
-            if ths:
-                pt["th"] = ths                 # 1.5: teploty z teploměrů Xiaomi
-            rcp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == str(cfg.get("river_auto_ip") or "")), None)
-            if rcp and rcp.get("on") == 1 and not rcp.get("off"):
-                pt["rc"] = 1                   # nabíjení River ze soláru (zásuvka 8, neměří) zapnuté
-            ow = other_load(data, st, cfg, now, topic, inv, st.get("ra_on"))
-            if ow is not None:
-                pt["ow"] = ow
-            day = data["days"].setdefault(now.strftime("%Y-%m-%d"), {})
-            names = data.setdefault("plug_names", {})
-            # denní energie zásuvek z PŘÍRŮSTKŮ počítadla: Tapo nuluje „dnes“ podle svých hodin (ne přesně
-            # o půlnoci našeho dne), takže maximum by do nového dne přeneslo kus včerejška
-            raw = st.setdefault("tp_raw", {})
-            first_v2 = not st.get("tp_v2")
-            # podíl zdrojů teď: solár (zásuvka 220 V za měničem) vs. River (zásuvky na výstupu River) → rozdělení spotřeby
-            # 5.113: podíl solár / River podle jednoho výpočtu cabin_src; „nevíme“ jde do „u“ (web ho do podílu nepočítá)
-            cs_now = inv_src(inv, cfg)
-            if now.strftime("%Y-%m-%d") < str(cfg.get("river_noci_od") or "2026-10-15"):
-                fs = 1.0
-            else:
-                fs = {"s": 1.0, "r": 0.0, "0": 1.0}.get(cs_now)     # „0“: nic neodebírá – přírůstky ~0, na zdroji nezáleží
-            for p in inv.get("tp", []):
-                if p.get("ip") and p.get("n"):
-                    names[p["ip"]] = p["n"]
-                if p.get("ip") and p.get("wh") is not None:
-                    ip, wh = p["ip"], float(p["wh"])
-                    dt = day.setdefault("tp", {})
-                    if first_v2:                          # přechod na nový výpočet: dnešek nejvýš to, co ukazuje počítadlo
-                        dt[ip] = round(min(dt.get(ip, wh), wh), 1)
-                    else:
-                        prev = raw.get(ip)
-                        inc = 0.0 if prev is None else (wh - prev if wh >= prev else wh)   # pokles = počítadlo se vynulovalo
-                        if 0 <= inc < 3000:
-                            dt[ip] = round(dt.get(ip, 0) + inc, 1)
-                            tl = day.setdefault("tpl", {})            # 5.112: jen živě načítaný součet (historie ho nepřepisuje)
-                            tl[ip] = round(tl.get(ip, 0) + inc, 1)
-                            sp = day.setdefault("tps", {}).setdefault(ip, {"s": 0, "r": 0})
-                            if fs is None:
-                                sp["u"] = round(sp.get("u", 0) + inc, 1)
-                            else:
-                                sp["s"] = round(sp["s"] + inc * fs, 1)
-                                sp["r"] = round(sp["r"] + inc * (1 - fs), 1)
-                    raw[ip] = wh
-            st["tp_v2"] = True
-        if rivers:
-            data["points"][-1]["rv"] = [{k_: v_ for k_, v_ in (("s", r.get("soc")), ("i", r.get("in_w")), ("o", r.get("out_w")),
-                                                             ("k", str(r.get("sn", ""))[-6:]), ("de", r.get("de"))) if v_ is not None or k_ != "de"}
-                                        for r in rivers]       # 4.99: „k“ = konec SN; 5.73: „de“ = počítadlo vybité energie
+    # 5.114: data z Flipu (zásuvky, odběr, Victron…) k bodu ze stejné chvíle a denní energie zásuvek – nezávisle na
+    # tom, jestli regulátor zrovna posílá (dřív se při jeho výpadku nic nezapsalo a přírůstek spadl do dalšího dne)
+    if inv and now.timestamp() - inv["t"] < 1200:
+        try:
+            attach_flip(data, st, inv, now, cfg, topic)
+        except Exception as e:
+            print("Zápis dat z Flipu:", e)
+            log("err", f"Zápis dat z Flipu: {type(e).__name__} {str(e)[:90]}")
+    if rivers:
+        attach_rivers(data, rivers, now)
     try:
         backfill_flip(data, now, cfg)
     except Exception as e:
@@ -3194,15 +3257,27 @@ def hash_soc(data, st, now, cfg):
     fts = fix_ts(cfg)
     qr, fl_since, fulls, mw_last, mw_t = 0.0, 0, [], None, 0
     pts[0]["qr"] = 0.0
+    # 5.114: data z Flipu můžou být ve vlastním bodě (jiná chvíle než regulátor) – vzít nejbližší do 5 min
+    import bisect as _bs
+    fpts = [q for q in data.get("points", []) if q.get("mw") is not None or q.get("cs")]
+    ftim = [q["t"] for q in fpts]
+
+    def _flip(a):
+        if a.get("mw") is not None or a.get("cs"):
+            return a
+        j = _bs.bisect_left(ftim, a["t"])
+        c = [fpts[k] for k in (j - 1, j) if 0 <= k < len(fpts) and abs(fpts[k]["t"] - a["t"]) <= 300]
+        return min(c, key=lambda q: abs(q["t"] - a["t"])) if c else a
     for a, b in zip(pts, pts[1:]):
-        if a.get("mw") is not None:
-            mw_last, mw_t = a["mw"], a["t"]
+        fa = _flip(a)
+        if fa.get("mw") is not None:
+            mw_last, mw_t = fa["mw"], fa["t"]
         dt = b["t"] - a["t"]
         if 0 < dt <= 2400:
-            cs_ = pt_src(a, cfg)
-            if mw_last is not None and a["t"] - mw_t <= 1800 and not (a.get("mw") is None and cs_ in ("r", "0")):
+            cs_ = pt_src(fa, cfg)
+            if mw_last is not None and a["t"] - mw_t <= 1800 and not (fa.get("mw") is None and cs_ in ("r", "0")):
                 load = mw_last / 0.88 + idle
-            elif a.get("mw") is None and cs_ in ("r", "0"):
+            elif fa.get("mw") is None and cs_ in ("r", "0"):
                 load = cfg.get("desulfator_W") or 0     # 5.113: měnič vypnutý (Victron OFF / starší body: River dodává)
             else:
                 load = idle + 30                # bez dat o odběru: běžná chata
@@ -3639,7 +3714,7 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     rids = ips(cfg.get("zasuvky_river"))
     cs_ = inv_src(inv, cfg) if fresh else None        # 5.113: jeden výpočet
     on_solar, on_river = cs_ == "s", cs_ == "r"
-    last = (data.get("points") or [{}])[-1]
+    last = next((p for p in reversed(data.get("points") or []) if p.get("bat_v") is not None), {})   # 5.114: poslední bod regulátoru
     pv = last.get("pv_w") or 0
     # 5.91: jedno pravidlo – nabíjet, když svítí. Energie z panelů jde rovnou do měniče; večer by se stejné Wh braly
     # ze solární baterie i se ztrátou nabití a vybití. Začít: panely pokryjí chatu i nabíječku. Přestat: 80 % (hlídá

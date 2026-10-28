@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.114 – 28. 10. 2026
+- Čas měření: bod regulátoru se zapisuje s časem, kdy regulátor měřil (dřív s časem běhu hlídače – až o 30 min později), a stejné měření, které už doplnila historie Solar Guardianu, se nezapíše podruhé. „Regulátor mlčí od …“ ukazuje skutečný čas posledního měření.
+- Data z Flipu (zásuvky, odběr, Victron, teploty) jdou k bodu regulátoru ze stejné chvíle (±5 min), jinak do vlastního bodu – dřív se lepila k poslednímu bodu, i když byla až 20 min stará. EcoFlow stejně.
+- Denní energie zásuvek se načítá i když regulátor zrovna neposílá data, podle času měření; přírůstek přes půlnoc se rozdělí mezi oba dny podle času. Stejné nebo starší měření se nezapočítá dvakrát.
+- # bere odběr z nejbližších dat Flipu (do 5 min), i když jsou ve vlastním bodě.
+
 ## 5.113 – 28. 10. 2026
 - Z čeho chata jede – jeden výpočet pro hlídač i web, jen ze změřených údajů. Dřív se na ~12 místech počítalo po svém a „zásuvka za měničem neodpověděla“ se brala jako 0 W, tedy „chata na River“ – i když měnič běžel a jen vypadlo spojení se zásuvkou (1).
   - solár = zásuvka za měničem > 3 W; River = měnič nedodává (zásuvka ≤ 3 W nebo Victron hlásí OFF) a River ano; nic = ani jedno; **nevíme** = zásuvka (1) neodpověděla a Victron nehlásí OFF.
