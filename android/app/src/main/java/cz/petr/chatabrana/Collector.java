@@ -397,11 +397,19 @@ public final class Collector {
             String msg = String.valueOf(ex.getMessage());
             boolean unreachable = ex instanceof java.net.SocketTimeoutException || ex instanceof java.net.ConnectException
                     || ex instanceof java.net.NoRouteToHostException || msg.contains("Failed to connect") || msg.contains("timed out");
+            // 1.9.13: přesně proč nedostupná – odmítla spojení / adresa v síti není / spojení vypršelo / neodpověděla
+            String m = msg.toLowerCase(Locale.US), kind;
+            if (m.contains("refused")) kind = "odmítla spojení";
+            else if (ex instanceof java.net.NoRouteToHostException || m.contains("ehostunreach") || m.contains("no route")) kind = "adresa v síti není";
+            else if (ex instanceof java.net.SocketTimeoutException && (m.contains("connect") || m.contains("failed to connect"))) kind = "spojení vypršelo";
+            else if (ex instanceof java.net.SocketTimeoutException) kind = "spojila se, ale neodpověděla";
+            else kind = ex.getClass().getSimpleName();
+            String ow = kind + " · ." + ip.substring(ip.lastIndexOf('.') + 1);
             try {
                 if (!p.has("n") && names.containsKey(ip)) p.put("n", names.get(ip));
-                if (unreachable) p.put("off", 1); else p.put("err", msg);
+                if (unreachable) { p.put("off", 1); p.put("ow", ow); } else p.put("err", msg);
             } catch (Exception ignored) {}
-            note(ip, unreachable ? "off" : "err", unreachable ? "nedostupná (vypnutá / bez napájení)" : msg);
+            note(ip, unreachable ? "off" : "err", unreachable ? "nedostupná – " + ow : msg);
         }
         return p;
     }

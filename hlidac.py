@@ -2440,7 +2440,7 @@ def inv_from_msg(last, now, cfg=None):
                      for x in th if isinstance(x, dict) and x.get("n")]   # 1.7.7: sn/ok = zachyceno/přečteno
     tp = body.get("tp")
     if isinstance(tp, list):
-        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d", "lt") if p.get(k) is not None}
+        inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d", "lt", "ow") if p.get(k) is not None}
                      for p in tp if isinstance(p, dict)][:16]
         # zásuvka se pozná podle čísla v první závorce jména („(3) (R) River…“), ne podle IP – i se starším Flipem
         import re as _re
@@ -2454,6 +2454,8 @@ def inv_from_msg(last, now, cfg=None):
         for p in inv["tp"]:
             if p.get("err") is not None and str(p.get("ip", "")).isdigit() and len(str(p["ip"])) <= 2:
                 log("err", f"Zásuvka ({p['ip']}) nejde přečíst: {str(p['err'])[:110]}")
+            elif p.get("ow") and str(p.get("ip", "")).isdigit() and len(str(p["ip"])) <= 2:   # 5.94 / Brána 1.9.13
+                log("err", f"Zásuvka ({p['ip']}) nedostupná: {str(p['ow'])[:110]}")
     if body.get("wifi") is not None:
         inv["wifi"] = int(body["wifi"])
     if body.get("av"):
@@ -4555,7 +4557,7 @@ def plug_watch(data, st, now, topic, cfg):
                 log("ev", f"Zásuvka ({i}) zase vidět")
             pw[i] = {}
             continue
-        why = "Flip ji v síti nenašel" if p is None else "nedostupná (bez proudu nebo mimo Wi-Fi)" if p.get("off") or p.get("gone") \
+        why = "Flip ji v síti nenašel" if p is None else (f"nedostupná – {p['ow']}" if p.get("ow") else "nedostupná (bez proudu nebo mimo Wi-Fi)") if p.get("off") or p.get("gone") \
             else f"chyba: {str(p.get('err'))[:60]}"
         if "401" in why:
             why = "odmítá přihlášení (aktualizace softwaru zásuvky / Kompatibilita s třetími stranami v Tapo)"

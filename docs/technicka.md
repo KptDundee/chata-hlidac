@@ -338,3 +338,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.92 / 1.9.12**: -fc `full` (na soláru, regulátor čerstvý, status 1 a U ≥ float_V − 0,3) → allow; Brána `fc_full` (≤ 75 min) → nabíjet do 100 % před pravidly 80 / 75 %. Web `menicOff` bez `err`.
 
 **5.93**: `store_inverter` – `log("err", "Zásuvka (N) nejde přečíst: …")` pro zásuvky s číslem (≤ 2 číslice) a `err`; slučuje `flush_log`.
+
+**5.94 / 1.9.13**: zásuvka „off“ nese `ow` = druh chyby · .IP; hlídač ho drží v `inv.tp`, `plug_watch` ho dá do důvodu, do Deníku `log("err", "Zásuvka (N) nedostupná: …")`.

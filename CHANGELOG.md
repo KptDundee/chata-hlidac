@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.94 – 28. 10. 2026 · Brána 1.9.13
+- Nedostupná zásuvka: Brána 1.9.13 pošle přesný důvod a adresu, na kterou se zkoušela připojit – „odmítla spojení“ / „adresa v síti není“ / „spojení vypršelo“ / „spojila se, ale neodpověděla“. Hlídač ho dá do upozornění „(N) není vidět“ i do Deníku.
+
 ## 5.93 – 28. 10. 2026
 - Chyba čtení očíslované zásuvky se zapisuje do Deníku hlídače („⚠️ Zásuvka (N) nejde přečíst: …“). Opakovaná chyba je jeden řádek s časem od–do a počtem. Deník drží 14 dní (Brána jen ~40 řádků).
 
