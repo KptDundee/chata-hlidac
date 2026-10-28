@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.106 – 28. 10. 2026
+- Lednice: upozornění podle teploty až když je nad 8 °C déle než 2 h a za poslední hodinu neklesá (dřív stačilo půl hodiny). Po nákupu se lednice ohřeje, ale teplota klesá → nic.
+
 ## 5.105 – 28. 10. 2026
 - Test kapacity: klidové měření platí až **6 h po posledním nabíjení** (a 2 h bez proudu). 24. 10. kleslo napětí po nabíjení z 12,56 na 12,40 V při odběru jen 1,9 Ah – povrchové napětí po nabíjení drží mnohem déle než 2 h, testy z 5.101 proto zase dávaly ~55 Ah. Dosavadní testy se zahazují; dokud nejsou 2 nové, platí 150 Ah.
 

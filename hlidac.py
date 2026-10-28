@@ -3404,16 +3404,21 @@ def fridge_check(data, st, now, topic, cfg):
     nm = str(cfg.get("teplomer_lednice") or "").strip()
     if nm:
         fz = st.setdefault("fridge_t", {})
-        tp_ = [(p["t"], p["th"][nm]) for p in data.get("points", []) if p["t"] >= now.timestamp() - 3600 and nm in (p.get("th") or {})]
+        # 5.106: nad lednice_max_C (8 °C) déle než 2 h a za poslední hodinu neklesá (po nákupu teplota klesá → nic)
+        ts_ = now.timestamp()
+        tp_ = [(p["t"], p["th"][nm]) for p in data.get("points", []) if p["t"] >= ts_ - 3 * 3600 and nm in (p.get("th") or {})]
         lim_c = cfg.get("lednice_max_C") or 8
-        if tp_ and now.timestamp() - tp_[-1][0] < 1800:
-            hot = [x for x in tp_ if x[0] >= now.timestamp() - 1800]
-            if len(hot) >= 2 and all(v > lim_c for _, v in hot):
-                fz["hot"], fz["c"] = True, hot[-1][1]
-            elif fz.get("hot") and tp_[-1][1] <= lim_c - 1:
+        if tp_ and ts_ - tp_[-1][0] < 1800:
+            w2 = [x for x in tp_ if x[0] >= ts_ - 2 * 3600]
+            covered_2h = len(w2) >= 4 and w2[0][0] <= ts_ - 2 * 3600 + 1800
+            last_h = [v for t, v in tp_ if t >= ts_ - 3600]
+            falling = len(last_h) >= 2 and last_h[-1] <= max(last_h) - 0.5
+            if covered_2h and all(v > lim_c for _, v in w2) and not falling:
+                fz["hot"], fz["c"] = True, tp_[-1][1]
+            elif fz.get("hot") and (tp_[-1][1] <= lim_c - 1 or falling):
                 fz["hot"] = False
     t_hot = bool(nm and (st.get("fridge_t") or {}).get("hot"))
-    t_msg = (f"Teplota v lednici {fmt((st.get('fridge_t') or {}).get('c'), 1)} °C – přes {fmt(cfg.get('lednice_max_C') or 8, 0)} °C už půl hodiny. "
+    t_msg = (f"Teplota v lednici {fmt((st.get('fridge_t') or {}).get('c'), 1)} °C – přes {fmt(cfg.get('lednice_max_C') or 8, 0)} °C už přes 2 h a neklesá. "
              "Otevřené dveře, porucha, nebo lednice bez proudu?") if t_hot else ""
     fid = str(cfg.get("zasuvka_lednice") or "").strip()
     if not fid:
