@@ -626,6 +626,7 @@ def backfill_flip(data, now, cfg):
         cs_ = inv_src(inv, cfg)
         if cs_:
             pt["cs"] = cs_                     # 5.113: z čeho chata jela (i se stavem Victronu z té zprávy)
+            pt["vs"] = vic_state(inv) or ""    # 5.119: stav Victronu (prázdné = neozval se)
         rcp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == str(cfg.get("river_auto_ip") or "")), None)
         if rcp and rcp.get("on") == 1 and not rcp.get("off"):
             pt["rc"] = 1                       # nabíjení River ze soláru (zásuvka 8, neměří) zapnuté
@@ -661,6 +662,7 @@ def attach_flip(data, st, inv, now, cfg, topic):
     cs_ = inv_src(inv, cfg)
     if cs_:
         pt["cs"] = cs_                 # 5.113: z čeho chata jede (jeden výpočet, i se stavem Victronu)
+        pt["vs"] = vic_state(inv) or ""    # 5.119: stav Victronu (prázdné = neozval se)
     ph_ = inv.get("ph") or {}
     if ph_.get("b") is not None:       # 4.53: baterie Flipu do historie (graf v dlaždici Flip)
         pt["pb"] = ph_["b"]
@@ -2673,15 +2675,20 @@ def ips(txt):
 #   "s" = ze solární baterie (zásuvka za měničem > 3 W)
 #   "r" = z River (měnič nedodává – zásuvka za ním ≤ 3 W, nebo Victron hlásí OFF – a zásuvka River > 3 W)
 #   "0" = nic neodebírá (měnič nedodává a River také ne)
-#   "?" = nevíme (zásuvka za měničem neodpověděla a Victron nehlásí OFF; nebo nevíme nic o River)
-# Zásuvka za měničem neodpoví, i když je měnič vypnutý (nemá proud), ale i při výpadku spojení – proto bez Victronu „?“.
+#   "?" = nevíme: zásuvka za měničem neodpověděla, i když Victron hlásí, že měnič běží (= výpadek spojení se zásuvkou),
+#         nebo nevíme nic o River
+# 5.119: zásuvka za měničem neodpoví i tehdy, když je měnič vypnutý (nemá proud) – a vypnutý měnič se často vůbec neozve
+# ani přes Bluetooth. Victron mlčí + River dodává = chata na River (28. 10. 22:00 přišlo „přepni na River“, i když
+# chata hodinu jela z River – 5.113 to bralo jako „nevíme“). „Nevíme“ jen když Victron hlásí, že měnič běží.
 def cabin_src(mw, rw, vst=None):
     """mw = W zásuvky za měničem (None = neodpověděla), rw = součet W zásuvek River (None = žádná neodpověděla),
-    vst = stav Victronu z čerstvého měření (do 20 min) nebo None."""
+    vst = stav Victronu z čerstvého měření (do 20 min) nebo None (Victron se neozval)."""
     if mw is not None and mw > 3:
         return "s"
-    if mw is None and str(vst or "").upper() != "OFF":
-        return "?"
+    if mw is None and vst is None:                    # zásuvka i Victron mlčí: River dodává = River, jinak nevíme
+        return "r" if rw is not None and rw > 3 else "?"
+    if mw is None and str(vst).upper() != "OFF":
+        return "?"                                    # měnič běží, jen jeho zásuvka neodpověděla
     if rw is None:
         return "?"
     return "r" if rw > 3 else "0"
@@ -2716,17 +2723,14 @@ def pt_src(p, cfg):
     """Z čeho chata jela v bodě historie. Body od 5.113 mají „cs“ zapsané při měření (i se stavem Victronu).
     Starší body: stejné pravidlo, ale bez Victronu; tam se jako dřív bere „zásuvka za měničem neodpověděla a
     River dodává“ = River (jinak by celá starší historie nocí na River byla „nevíme“). None = bod bez dat z Flipu."""
-    if p.get("cs"):
-        return p["cs"]
+    if p.get("cs") and not (p["cs"] == "?" and "vs" not in p):
+        return p["cs"]                                # 5.119: „?“ z 5.113–5.118 (bez stavu Victronu) se přepočítá
     tp = p.get("tp")
     if tp is None and p.get("mw") is None:
         return None
     mip = str(cfg.get("zasuvka_menic") or "1")
     mw = p.get("mw") if p.get("mw") is not None else (tp or {}).get(mip)
-    rw = river_w(tp or {}, ips(cfg.get("zasuvky_river")))
-    if mw is None and rw is not None and rw > 3:
-        return "r"
-    return cabin_src(mw, rw)
+    return cabin_src(mw, river_w(tp or {}, ips(cfg.get("zasuvky_river"))))    # starší body: stav Victronu neznáme
 
 
 def inv_from_msg(last, now, cfg=None):

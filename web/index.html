@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.118", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.119", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1192,7 +1192,8 @@ const menicId = () => String(DATA?.cfg?.zasuvka_menic ?? "").trim() || DATA?.inv
 /* 5.113: z čeho chata jede – stejné pravidlo jako hlídač (cabin_src / pt_src): s = solár, r = River, 0 = nic, ? = nevíme */
 function cabinSrc(mw, rw, vst){
   if(mw!=null && mw > 3) return "s";
-  if(mw==null && String(vst||"").toUpperCase()!=="OFF") return "?";
+  if(mw==null && vst==null) return rw!=null && rw > 3 ? "r" : "?";   // 5.119: zásuvka i Victron mlčí → River dodává = River
+  if(mw==null && String(vst).toUpperCase()!=="OFF") return "?";
   if(rw==null) return "?";
   return rw > 3 ? "r" : "0";
 }
@@ -1201,10 +1202,8 @@ const vicState = inv => inv && inv.st && (inv.age||0) <= 1200 ? String(inv.st).t
 function invSrc(inv, cfg){ const by = {}; for(const p of inv.tp||[]) if(p.ip) by[String(p.ip)] = p.w;
   const mid = String(cfg.zasuvka_menic ?? "").trim() || inv.mip || "1";
   return cabinSrc(inv.mw ?? by[mid] ?? null, riverWOf(by, riverIds(cfg)), vicState(inv)); }
-function ptSrc(p, ids){ if(p.cs) return p.cs; if(!p.tp && p.mw==null) return null;
-  const mw = p.mw ?? (p.tp||{})[menicId()] ?? null, rw = riverWOf(p.tp, ids);
-  if(mw==null && rw!=null && rw > 3) return "r";      // starší body bez stavu Victronu – jako hlídač
-  return cabinSrc(mw, rw); }
+function ptSrc(p, ids){ if(p.cs && !(p.cs==="?" && p.vs==null)) return p.cs; if(!p.tp && p.mw==null) return null;
+  return cabinSrc(p.mw ?? (p.tp||{})[menicId()] ?? null, riverWOf(p.tp, ids)); }
 const ptRiver = (p, ids) => ptSrc(p, ids) === "r";
 /* úseky [od, do], kdy chata jela z River – pro šedé pozadí grafů */
 function riverBands(pts, ids){ const B=[]; let cur=null, prev=null;

@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.119**: `cabin_src`: mw None a Victron None (neozval se / starý) → River > 3 W = r, jinak ?; mw None a Victron ne OFF → ?; body `vs` (stav Victronu, "" = neozval se); `pt_src` bod s `cs = "?"` bez `vs` přepočítá. Web stejně (test 96 kombinací).
+
 **5.118**: `plan.txt` (`load_plan` → `PLAN`), `away_list(cfg, plan, t0, days)` (plán, jinak `den_kontrola`→`day_end`), `next_away`, `next_departure`, `is_away` (jen plán / den_navrat). `day_outlook`: konec = návrat úseku (`AW`), kontrola při každém odjezdu (`do_chk` = začátek úseku). `eve_plan`: D z `next_departure`, nechodí, když `is_away`. `river_models` (soc i z `rv_last`, cap z `river_sup.rate` / `rv_cap` / štítek × 0,9, `per100`, `chg_w`), `gen_windows` (6–22), `away_plan` (greedy po úsecích, `chg`, `dep`, potvrzení úseku s `*`; `data.away`, `data.away_plan`), `plan_reminder` (ne 20:00, akce view `#plan`). `night_w` vyčleněno z `night_load_a`; `energy_model.load_w`. Web: `tilePlan`, `detPlan`, `planLoad/planSave` (GitHub contents API + dispatch), `departNow` (tlačítko 🚗), `#plan` otevře plán.
 
 **5.117**: `den_navrat` (týden jako `den_kontrola`), `day_end(cfg, d)` = návrat v den s odjezdem, jinak `den_do`; používá `day_outlook` (end) i `eve_plan` (dend); `sched_time(cfg, d, key)` i pro ranní kontrolu.

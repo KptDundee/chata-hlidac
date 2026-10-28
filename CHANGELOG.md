@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.119 – 28. 10. 2026
+- Oprava chyby z 5.113: ve 22:00 přišlo „🌙 Před spaním přepni chatu na River“, i když chata hodinu jela z River. Po přepnutí na River je měnič bez proudu – jeho zásuvka (1) neodpovídá a Victron se často vůbec neozve. 5.113 to bralo jako „nevíme, z čeho chata jede“, takže hlídač nevěděl, že je chata na River.
+  - Teď: zásuvka (1) i Victron mlčí a River dodává = chata na River (jako před 5.113). „Nevíme“ jen když Victron hlásí, že měnič běží, a jen jeho zásuvka neodpovídá (výpadek spojení se zásuvkou).
+  - Body historie si ukládají i stav Victronu; body z 5.113–5.118 označené „nevíme“ se přepočítají podle nového pravidla.
+
 ## 5.118 – 28. 10. 2026
 - Plán „🗓 Kdy jsem pryč“ (dlaždice ve Výhledu): tabulka na 8 dní – pro každý den „doma“ nebo úseky od–do (i víc za den, i přes půlnoc), „Jako minulý týden“, Uložit. Ukládá se do plan.txt. Den, který v plánu není, jede podle obvyklého rozvrhu v Nastavení (odjezd / návrat).
 - V neděli ve 20:00 přijde „📅 Doplň plán na příští týden“ – tlačítko rovnou otevře tabulku (když už je týden vyplněný, nepřijde).
