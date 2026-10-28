@@ -578,6 +578,7 @@ public final class Collector {
                         .putBoolean("rc_free", last.optBoolean("rfree", false))           // 1.9.1: přebytek ze slunce
                         .putInt("fc_tgt", last.optInt("ftgt", 0))                          // 1.9.2: dobít na (noc)
                         .putInt("fc_min", last.optInt("fmin", 30))                         // 1.9.6: spodní hranice (Nastavení)
+                        .putBoolean("fc_full", last.optBoolean("full", false))            // 1.9.12: Float → doplna
                         .putString("rst_at", last.optString("rst", "22:10")).apply();      // 1.9.11: čas denního restartu
             }
         } catch (Exception e) { /* bez internetu – platí poslední povolení / záloha pod 40 % */ }
@@ -602,6 +603,11 @@ public final class Collector {
         String why;
         if (hot) { want = false; why = String.format(Locale.US, "baterie Flipu %.1f °C – bezpečnost", tempC); }
         else if (pct <= P.getInt("fc_min", 30)) { want = true; why = "pod " + P.getInt("fc_min", 30) + " %"; P.edit().putBoolean("fc_low", true).apply(); }
+        else if (fresh && System.currentTimeMillis() - P.getLong("fc_t", 0) < 75 * 60_000L && P.getBoolean("fc_allow", false)
+                && P.getBoolean("fc_full", false) && pct < 100) {
+            // 1.9.12: solární baterie plná (Float) – energie by se zahodila → doplna, bez ohledu na 75 / 80 %
+            want = true; why = P.getString("fc_why", "solární baterie plná – doplna");
+        }
         else if (pct >= 80) { want = false; why = "nabito 80 %"; }
         else if (pct >= 75 && !isOn) { want = false; why = "nabito (pod 75 % znovu)"; }
         else if (fresh && P.getBoolean("fc_allow", false)) { want = true; why = P.getString("fc_why", ""); }

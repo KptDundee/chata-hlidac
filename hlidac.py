@@ -3450,7 +3450,11 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     FLIP_W = 15                                        # odhad příkonu nabíječky i se ztrátou měniče
     fmin = int(cfg.get("flip_min_pct") or 30)
     sun_ok = bool(on_solar and reg_fresh and pv >= 20 and (net_w >= -FLIP_W if fc_on else net_w >= FLIP_W))
-    if on_solar:
+    # 5.92: solární baterie plná (Float) – regulátor škrtí panely, energie by se zahodila → Flip doplna (Brána ≥ 1.9.12)
+    full = bool(on_solar and reg_fresh and last.get("status") == 1 and (last.get("bat_v") or 0) >= (cfg.get("float_V") or 13.7) - 0.3)
+    if on_solar and full:
+        allow, why = True, "solární baterie plná (Float) – slunce by se zahodilo → nabíjí doplna"
+    elif on_solar:
         allow = sun_ok
         why = (f"svítí – panely {pv:.0f} W pokryjí chatu i nabíjení → nabíjí do 80 %" if allow and not fc_on
                else f"svítí – panely {pv:.0f} W pokryjí chatu ({load:.0f} W i s nabíječkou) → nabíjí do 80 %" if allow
@@ -3485,16 +3489,16 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     # 5.40: router nabíjet „zadarmo“ jen z přebytku slunce – proud z River zadarmo není (River musí vydržet noc)
     # 5.58: router stejně jako Flip – když regulátor škrtí panely; 5.59: odpoledne z panelů, když stačí i na Flip
     rfree = allow                                      # 5.91: router stejně (jeho řízení je teď vypnuté)
-    if fs.get("allow") != allow or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
+    if fs.get("allow") != allow or fs.get("full") != full or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
             or fs.get("fmin") != int(cfg.get("flip_min_pct") or 30) or fs.get("rst") != str(cfg.get("brana_restart") or "") or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
             or ts - fs.get("t", 0) >= 3600:
-        body = json.dumps({"allow": allow, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0,
+        body = json.dumps({"allow": allow, "full": full, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0,
                            "fmin": int(cfg.get("flip_min_pct") or 30), "rst": str(cfg.get("brana_restart") or ""),
                            "why": why, "id": int(ts)})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
-            fs.update(allow=allow, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), rst=str(cfg.get("brana_restart") or ""), t=int(ts), why=why)
+            fs.update(allow=allow, full=full, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), rst=str(cfg.get("brana_restart") or ""), t=int(ts), why=why)
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc"), "ftgt": fs.get("ftgt"), "f_until": f_until, "rate": rate}
@@ -3510,7 +3514,7 @@ def flip_charge_cmd(data, st, now, topic, cfg):
             data["flip_chg"].update(t_hit=None, ok_until=True)
     data["router_chg"] = {"ip": rip, "rc": inv.get("rc"), "rfree": rfree, "pv": round(pv), "load": round(inv.get("mw") or 0)}
     data.pop("sun_free", None)
-    data["flip_sun"] = {"on": allow, "solar": bool(on_solar), "river": bool(on_river), "pv": round(pv), "load": round(load),
+    data["flip_sun"] = {"on": allow, "full": full, "solar": bool(on_solar), "river": bool(on_river), "pv": round(pv), "load": round(load),
                         "net_w": round(net_w), "need": FLIP_W, "chg": fc_on, "fmin": fmin}
     # 5.34: baterie routeru pod 25 % – vybitý router = chata bez Wi‑Fi a Flip už nic nezapne
     rb = (inv.get("rt") or {}).get("b")
