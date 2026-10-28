@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.103 – 28. 10. 2026 · Brána 1.9.15
+- Brána: když zásuvka, která má být vidět, neodpovídá, prohledá celou síť hned v tom samém měření (nejvýš 1× za 5 min) a zásuvky přečte znovu. 28. 10. se (1), .150 a .193 třikrát vrátily přesně po celém prohledání sítě (10:08, 10:37, 11:09), samy ne. Příčina zatím neznámá – tohle zkracuje výpadek na jedno měření.
+
 ## 5.102 – 28. 10. 2026
 - Když zásuvka měniče (1) neodpovídá, ale Victron hlásí, že měnič běží (INVERTING), web už nepíše „měnič vypnutý“, ale „měnič běží, zásuvka (1) neodpovídá“. Upozornění „(1) není vidět“ to uvádí taky (zásuvka proud má, neodpovídá jen po Wi‑Fi).
 

@@ -10,8 +10,8 @@ android {
         applicationId 'cz.petr.chatabrana'
         minSdk 31
         targetSdk 34
-        versionCode 45
-        versionName '1.9.14'
+        versionCode 46
+        versionName '1.9.15'
     }
 
     buildTypes {

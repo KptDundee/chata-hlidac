@@ -112,9 +112,24 @@ public final class Collector {
                 for (int pass_ = 0; pass_ < 2; pass_++) {
                 if (pass_ == 1) {
                     if (!missing || map.isEmpty()) break;
-                    java.util.Set<String> okIps = new java.util.HashSet<>();
-                    for (String ip0 : map.values()) if (!offIps.contains(ip0)) okIps.add(ip0);
-                    if (!remap(email, pass, map, okIps)) break;              // nic se nepřestěhovalo
+                    // 1.9.15: důležitá zásuvka (seznam od hlídače) neodpovídá → hned celé prohledání sítě (nejvýš 1× za 5 min).
+                    // 28. 10. se (1), .150 a .193 třikrát vrátily přesně po celém prohledání, samy ne.
+                    java.util.Set<String> must = new java.util.HashSet<>(java.util.Arrays.asList(Prefs.get(ctx).getString("stale_ids", "").split(",")));
+                    boolean mustDown = false;
+                    for (int k = 0; k < plugs.length(); k++) {
+                        JSONObject p0 = plugs.optJSONObject(k);
+                        if (p0 != null && p0.has("off") && must.contains(p0.optString("ip"))) mustDown = true;
+                    }
+                    if (mustDown && System.currentTimeMillis() - Prefs.get(ctx).getLong("tapo_scan_t", 0) > 5 * 60_000L) {
+                        Prefs.log(ctx, "Důležitá zásuvka neodpovídá – hned prohledám celou síť");
+                        Prefs.get(ctx).edit().putBoolean("tapo_force", true).apply();
+                        Map<String, String> m2 = plugMap(email, pass);
+                        map.clear(); map.putAll(m2);
+                    } else {
+                        java.util.Set<String> okIps = new java.util.HashSet<>();
+                        for (String ip0 : map.values()) if (!offIps.contains(ip0)) okIps.add(ip0);
+                        if (!remap(email, pass, map, okIps)) break;              // nic se nepřestěhovalo
+                    }
                     plugs = new JSONArray(); ok = 0; total = 0; off = 0; missing = false; idIp.clear();
                 }
                 java.util.LinkedHashSet<String> ipsAll = new java.util.LinkedHashSet<>(map.values());

@@ -346,3 +346,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.97 / 1.9.14**: -fc `stale` = zasuvky_stale (bez měniče, když nedodává); Brána `mustOff` – zásuvka ze seznamu off/err/nevidět ≥ 10 min → `tapo_force` (plné hledání, 1× za 30 min). MainActivity: záznam `setTextIsSelectable`, tlačítko Kopírovat.
 
 **5.101**: `capacity_check` z `data.rests` (kotvy klidu z `hash_soc`, i `qr`) a `data.fulls`; body s neznámým odběrem `lu`. `eff_cap` = medián `qc` s `v2 == 2` (≥ 2), jinak `kapacita_odhad_Ah`. `calibrate` vypnuto (VCAL 12,85 / 11,80). `forecast` z `hq.pct` + `night_load_a` (sdíleno s `day_outlook`), corr = 0. `track_soc` bere `hq.pct`. Web `nightCorr` = 0.
+
+**5.103 / 1.9.15**: `Collector` druhý průchod – když je mezi off zásuvkami některá ze `stale_ids` a poslední plné hledání > 5 min → `tapo_force` + `plugMap` (plné hledání, nové relace) a nové čtení; jinak rychlé `remap` jako dřív.
