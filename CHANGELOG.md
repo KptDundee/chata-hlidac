@@ -3,6 +3,14 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.116 – 28. 10. 2026
+- Nové doporučení večer: „🔌 Přepni chatu na River do ~HH:MM“ (s tlačítky Řeším / Za 30 min / Za 1 h), od západu slunce, když chata jede ze soláru.
+  - Před dnem s odjezdem (čas v rozvrhu „Výhled dne – kontrola před odjezdem“): v čase odjezdu musí v baterii zbýt tolik #, aby solár s předpovědí výroby utáhl chatu do večera (den_do). Hlídač spočítá nejpozdější čas přepnutí a ozve se půl hodiny předem.
+  - Když by zítra solár nestačil ani s plnou baterií, nebo už ani přepnutí hned nezajistí ranní zásobu, šetřit na ráno nemá smysl → doporučení hlídá jen „do rána nad alarmem“ (s časem, dřív než alarm ve 22:00). Stejně ve dnech bez odjezdu.
+  - Na dlaždici Solární baterie řádek „na River: do ~HH:MM (ráno X #)“.
+  - Alarmy (pod 12,0 V a ve 22:00 „do rána nevydrží“) zůstávají beze změny.
+- Ráno „☀️ Můžeš přepnout chatu na solár“: v den s odjezdem v čas z rozvrhu (jako dřív), v den bez času v rozvrhu jednou, jakmile to poprvé vyjde.
+
 ## 5.115 / Brána 1.9.17 – 28. 10. 2026
 - Vstupní kontrola všech údajů (regulátor, jeho historie, Flip – Victron, zásuvky, teploměry, telefon – a EcoFlow): hodnota mimo fyzikálně možný rozsah (např. baterie 25 V, zásuvka −5 W, 150 °C, 1446 %) se zahodí jako „nevíme“ místo aby vstoupila do výpočtů. Do Deníku jednou denně: „Nesmyslné hodnoty zahozeny …“.
 - Odvozené hodnoty se po opravě dat přepočítají, dokud jsou jejich data v historii (14 dní): testy kapacity (test, který z opravených dat už nevychází, se zruší – zapíše se do Deníku), kapacita z nabíjení, zdraví baterie, noci „na River“ v učení předpovědi.

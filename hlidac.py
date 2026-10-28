@@ -1829,6 +1829,7 @@ def main():
                          ("Flip – nabíjení", lambda: flip_charge_cmd(data, st, now, topic, cfg)),
                          ("Učení výhledu", lambda: night_learn(data, st, now, cfg)),
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
+                         ("Kdy na River", lambda: eve_plan(data, st, now, topic, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
                          ("Palivo a cena", lambda: fuel_stats(data, st, now, cfg)),
@@ -4231,10 +4232,13 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         st["do_chk"] = day
     # 5.95: jedno ranní rozhodnutí v čas z rozvrhu (den_kontrola)
     if on_river:
-        if due and res["ok"] and now.timestamp() < res["end"]:
+        # 5.116: den s odjezdem (čas v rozvrhu) → jen v ten čas (pak už přepnout nejde); den bez odjezdu → jednou,
+        # jakmile to poprvé vyjde (po východu slunce)
+        free_ok = not tk and rise and now >= rise and st.get("do_conn") != day
+        if (due or free_ok) and res["ok"] and now.timestamp() < res["end"]:
             ntfy(topic, "☀️ Dnes můžeš chatu přepnout na solární baterii",
                  f"Solární baterie ({hq['pct']} #) s dnešní výrobou podle předpovědi (~{fmt(rem_kwh, 1)} kWh, s rezervou) "
-                 f"vydrží chatu (~{res['load_w']} W) do {hh}:{mm:02d}.\nVečer zase přepoj na River.", 3, "sunny,battery")
+                 f"vydrží chatu (~{res['load_w']} W) do {hh}:{mm:02d}.\nVečer ti napíšu, do kdy přepnout zpátky na River.", 3, "sunny,battery")
             st["do_conn"] = day
         alarm(st, topic, "day", False, ok_title="✓ Chata jede z River")
         return
@@ -4246,6 +4250,161 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
           f"Chata jede ze solární baterie ({hq['pct']} #, obvyklý odběr z baterie ~{res['load_w']} W). Dnes ještě vyrobí ~{fmt(rem_kwh, 1)} kWh "
           f"– nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\nNež odjedeš, přepni chatu na River.",
           4, "warning,sunny", ok_title="✓ Dnes to solár do večera vydrží")
+
+
+def sched_time(cfg, d):
+    """Čas odjezdu / kontroly z rozvrhu den_kontrola pro datum d (datetime), nebo None."""
+    for part in str(cfg.get("den_kontrola") or "").split(","):
+        bits = part.strip().split()
+        if len(bits) == 2 and bits[0].lower()[:2] == WD[d.weekday()] and ":" in bits[1]:
+            try:
+                h2, m2 = (int(x) for x in bits[1].split(":")[:2])
+                return datetime(d.year, d.month, d.day, h2, m2, tzinfo=TZ)
+            except ValueError:
+                return None
+    return None
+
+
+def energy_model(data, cfg, now):
+    """5.116: model dne a noci – stejné vstupy a vzorce jako výhled dne (day_outlook): kapacita × chlad, alarm 12,0 V
+    v #, obvyklý denní odběr (+15 %), obvyklý noční odběr (night_load_a), výroba = předpověď dne × tvar slunce × 0,8
+    (dnes navíc × poměr podle dnešní skutečnosti). Vrací slovník s funkcemi load_a(t) a prod_ah(t, dt) (Ah do baterie)."""
+    import math
+    hq = data.get("hq") or {}
+    cf, _ = cold_factor(data, cfg)
+    cap = (hq.get("cap") or eff_cap(data, cfg)) * cf
+    alarm_soc = ocv_soc((cfg.get("baterie_kriticka_V") or 12.0) + 0.05)
+    idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
+    typ_w = ((data.get("cons_cmp") or {}).get("day_typ_wh") or 0) / 24
+    day_w = typ_w if typ_w > 3 else (cfg.get("noc_spotreba_W") or 30)
+    day_a = (day_w / 0.88 + idle) / 12.4 * 1.15
+    night_a, _ = night_load_a(data, cfg, now.timestamp())
+    preds = {p.get("d"): p.get("kwh") for p in ((data.get("wxo") or {}).get("preds") or [])}
+    today = now.strftime("%Y-%m-%d")
+    dfc = data.get("day_fc") or {}
+    ratio = dfc.get("ratio") if dfc.get("t") and now.timestamp() - dfc["t"] < 1800 else 1.0
+    sun = {}
+
+    def sun_of(t):
+        d = datetime.fromtimestamp(t, TZ).date()
+        if d not in sun:
+            sun[d] = sun_times(cfg["sirka"], cfg["delka"], d)
+        return d, sun[d]
+
+    def frac(t):
+        d, (r, z) = sun_of(t)
+        if not r or not z:
+            return 0.0
+        x = min(1.0, max(0.0, (t - r.timestamp()) / (z.timestamp() - r.timestamp())))
+        return (1 - math.cos(math.pi * x)) / 2
+
+    def prod_ah(t, dt):
+        d, _ = sun_of(t)
+        kwh = preds.get(d.isoformat()) or 0
+        if d.isoformat() == today:
+            kwh *= ratio or 1.0
+        return kwh * 0.8 * 1000 * max(0.0, frac(t + dt) - frac(t)) / 13.0 * 0.9
+
+    def load_a(t):
+        _, (r, z) = sun_of(t)
+        return day_a if r and z and r.timestamp() <= t < z.timestamp() else night_a
+
+    return {"cap": cap, "alarm_soc": alarm_soc, "idle_a": idle / 12.4, "prod_ah": prod_ah, "load_a": load_a,
+            "ah_now": ((hq.get("pct") - alarm_soc) / 100 * cap) if hq.get("pct") is not None else None,
+            "room": ((100 - hq["pct"]) / 100 * cap) if hq.get("pct") is not None else None}
+
+
+def sim_level(M, t0, t1, lvl, top, solar_until=None, step=600):
+    """Ah nad alarmem od t0 do t1 (po 10 min). Do solar_until chata bere ze solární baterie, potom jen měnič naprázdno
+    (chata na River). top = nejvýš (plná). Vrací (nejnižší úroveň, úroveň na konci)."""
+    lo, t = lvl, t0
+    while t < t1:
+        dt = min(step, t1 - t)
+        use = M["load_a"](t) if solar_until is None or t < solar_until else M["idle_a"]
+        lvl = min(lvl + M["prod_ah"](t, dt), top) - use * dt / 3600
+        lo = min(lo, lvl)
+        t += dt
+    return lo, lvl
+
+
+def eve_plan(data, st, now, topic, cfg):
+    """5.116: večerní doporučení „Přepni chatu na River do ~HH:MM“ (kategorie 2, s tlačítky).
+    Cíl: před dnem s odjezdem (rozvrh den_kontrola) musí v čase odjezdu v baterii zbýt tolik, aby solár s předpovědí
+    výroby utáhl chatu do den_do (22:00). Bez odjezdu: vydržet do rána (východ + nabijeni_od_vychodu_min) nad alarmem.
+    Když by zítra solár nestačil ani s plnou baterií, nic se nedoporučuje (chata bude stejně na River).
+    Alarmy (pod 12,0 V, ve 22:00 „do rána nevydrží“) zůstávají beze změny. data["eve"] pro web."""
+    ts = now.timestamp()
+    inv = data.get("inverter") or {}
+    cs_ = inv_src(inv, cfg) if inv and ts - inv.get("t", 0) < 1800 else None
+    M = energy_model(data, cfg, now)
+    data.pop("eve", None)
+    if M["ah_now"] is None:
+        return
+    rise_t, set_t = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    # odjezd: nejbližší čas z rozvrhu po teď (dnes ráno ještě před ním, jinak zítra)
+    D = next((x for x in (sched_time(cfg, now), sched_time(cfg, now + timedelta(days=1))) if x and x > now), None)
+    nxt = now.date() + timedelta(days=0 if rise_t and now < rise_t else 1)
+    r_next = sun_times(cfg["sirka"], cfg["delka"], nxt)[0]
+    morning = (r_next + timedelta(minutes=cfg.get("nabijeni_od_vychodu_min") or 0)) if r_next else None
+    if D and morning and D - now > timedelta(hours=20):
+        D = None                                       # odjezd až pozítří – dnes v noci platí jen „do rána“
+    if not D and not morning:
+        return
+    top = M["ah_now"] + M["room"]                     # plná baterie (Ah nad alarmem)
+
+    def latest_switch(target, need):
+        """Nejpozdější přepnutí na River (po 10 min), aby v cíli zbylo aspoň need; None = nevyjde ani hned."""
+        t_sw, t = None, ts
+        while t <= target.timestamp():
+            lo, end_lvl = sim_level(M, ts, target.timestamp(), M["ah_now"], top, solar_until=t)
+            if lo > 0 and end_lvl >= need:
+                t_sw = t
+            else:
+                break
+            t += 600
+        return t_sw
+
+    need, target, dend, t_sw = 0.0, morning, None, None
+    if D:
+        try:
+            hh, mm = (int(x) for x in str(cfg.get("den_do") or "22:00").split(":")[:2])
+        except ValueError:
+            hh, mm = 22, 0
+        dend = D.replace(hour=hh, minute=mm)
+        # nejmenší zásoba v čase odjezdu, se kterou solár utáhne chatu do večera (půlením)
+        if sim_level(M, D.timestamp(), dend.timestamp(), top, top)[0] > 0:
+            a, b = 0.0, top
+            for _ in range(20):
+                m = (a + b) / 2
+                if sim_level(M, D.timestamp(), dend.timestamp(), m, top)[0] > 0:
+                    b = m
+                else:
+                    a = m
+            t_sw = latest_switch(D, b)
+            if t_sw is not None:
+                need, target = b, D
+        # zítra by solár nestačil ani s plnou baterií, nebo už ani přepnutí hned nezajistí ranní zásobu →
+        # šetřit na ráno nemá smysl (chata bude zítra stejně na River) → platí jen „do rána nad alarmem“
+        if target is not D:
+            D = None
+            t_sw = None
+    if not target:
+        return
+    if not D:
+        t_sw = latest_switch(target, 0.0)
+    need_pct = round(M["alarm_soc"] + need / M["cap"] * 100)
+    res = {"t": int(ts), "D": int(D.timestamp()) if D else None, "target": int(target.timestamp()), "need_pct": need_pct,
+           "sw": int(t_sw) if t_sw else None, "late": t_sw is None, "ok": t_sw is not None and t_sw >= target.timestamp() - 600}
+    data["eve"] = res
+    # jen od západu slunce (dřív je člověk typicky ještě pryč) do rána, jen když chata jede ze soláru
+    evening = set_t and now >= set_t or (rise_t and now < rise_t)
+    due = cs_ == "s" and evening and not res["ok"] and (t_sw is None or ts >= t_sw - 1800)
+    when = "hned" if t_sw is None or t_sw <= ts + 300 else "do ~" + datetime.fromtimestamp(t_sw, TZ).strftime("%H:%M")
+    why = (f"ráno v {D.strftime('%H:%M')} (odjezd podle rozvrhu) musí v solární baterii zbýt aspoň ~{need_pct} #, "
+           f"aby solár s předpovědí výroby utáhl chatu do {dend.strftime('%H:%M')}" if D else
+           f"solární baterie musí vydržet do rána ({rel_day(target.timestamp(), now)} ~{target.strftime('%H:%M')}) nad alarmem 12,0 V")
+    alarm(st, topic, "eve", due, f"🔌 Přepni chatu na River {when}",
+          f"Teď {data['hq'].get('pct')} #. Když zůstane chata na soláru déle, nevyjde to: {why}.", 4, "electric_plug", ok_title=False)
 
 
 def capacity_check(data, st, now, cfg):
