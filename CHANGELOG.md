@@ -3,6 +3,13 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.113 – 28. 10. 2026
+- Z čeho chata jede – jeden výpočet pro hlídač i web, jen ze změřených údajů. Dřív se na ~12 místech počítalo po svém a „zásuvka za měničem neodpověděla“ se brala jako 0 W, tedy „chata na River“ – i když měnič běžel a jen vypadlo spojení se zásuvkou (1).
+  - solár = zásuvka za měničem > 3 W; River = měnič nedodává (zásuvka ≤ 3 W nebo Victron hlásí OFF) a River ano; nic = ani jedno; **nevíme** = zásuvka (1) neodpověděla a Victron nehlásí OFF.
+  - Každý nový bod historie si zapíše, z čeho chata v tu chvíli jela (i se stavem Victronu). Starší body bez stavu Victronu se počítají jako dřív.
+  - „Nevíme“ se nikam nepočítá: ani do hodin na River, ani do typického nočního odběru, ani do učení noci; spotřeba z té doby se do podílu solár / River nedělí. # v tu dobu počítá s obvyklým odběrem a úsek označí jako odhad (test kapacity ho nepoužije) – dřív s nulovým odběrem.
+  - Web ukazuje „měnič vypnutý“ jen když to hlásí Victron; jinak „Zásuvka (1) neodpovídá – odběr ani zdroj chaty nevíme“.
+
 ## 5.112 – 28. 10. 2026
 - Kvalita hodinové spotřeby zásuvek (z ní je „Ah z bat. přes noc“, zdraví baterie, druh noci): u nocí od 13. 10. vycházelo skoro 0 Wh, i když zásuvka za den naměřila ~0,6 kWh – rozbor nocí pak ukazoval nesmyslných 6–7 Ah.
   - Hodinová data za minulý den se už nepřepíšou horšími: když zásuvka později pošle za stejný den o hodně méně (podrobnou historii si po čase nepamatuje a vrací nuly), zůstanou původní.

@@ -576,6 +576,9 @@ def backfill_flip(data, now, cfg):
             pt["gw"] = inv["gen"]["w"]
         if plugs:
             pt["tp"] = plugs
+        cs_ = inv_src(inv, cfg)
+        if cs_:
+            pt["cs"] = cs_                     # 5.113: z čeho chata jela (i se stavem Victronu z té zprávy)
         rcp = next((p for p in inv.get("tp", []) if str(p.get("ip")) == str(cfg.get("river_auto_ip") or "")), None)
         if rcp and rcp.get("on") == 1 and not rcp.get("off"):
             pt["rc"] = 1                       # nabíjení River ze soláru (zásuvka 8, neměří) zapnuté
@@ -728,10 +731,11 @@ def night_modes(data, now, cfg, days_back=120):
         # 1) body hlídače (posledních 14 dní): odběr za měničem vs. zásuvky River
         sol = riv = 0
         for p in pts:
-            if a <= p["t"] <= t and ("mw" in p or "tp" in p):
-                if (p.get("mw") or 0) > 5:
+            if a <= p["t"] <= t:
+                cs_ = pt_src(p, cfg)               # 5.113: jeden výpočet; „nevíme“ se nepočítá
+                if cs_ == "s":
                     sol += 1
-                elif any(((p.get("tp") or {}).get(i) or 0) > 3 for i in rids) or "mw" not in p:
+                elif cs_ in ("r", "0"):
                     riv += 1
         mode = None
         src = "p"
@@ -1350,9 +1354,9 @@ def night_log(data, now, cfg, set_):
     for k, e in nl.items():
         if "riv" in e or t < e["until"]:
             continue
-        night = [p for p in pts if e["t"] <= p["t"] <= e["until"] and p.get("tp") is not None]
-        if len(night) >= 6:
-            e["riv"] = sum(1 for p in night if (p.get("mw") or 0) > 3) < 0.8 * len(night)
+        night = [c for c in (pt_src(p, cfg) for p in pts if e["t"] <= p["t"] <= e["until"]) if c in ("s", "r", "0")]
+        if len(night) >= 6:                        # 5.113: jeden výpočet; body „nevíme“ se nepočítají
+            e["riv"] = sum(1 for c in night if c == "s") < 0.8 * len(night)
     for k, e in nl.items():
         if e.get("a") is not None or e.get("skip") or t < e["until"] + 900:
             continue
@@ -1379,11 +1383,13 @@ def night_load_a(data, cfg, ts):
     rids = ips(cfg.get("zasuvky_river"))
     idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
 
-    def _nw(p):
-        if (p.get("mw") or 0) > 3:
-            return p["mw"]
-        rw_ = sum((p.get("tp") or {}).get(i) or 0 for i in rids)
-        return rw_ if rw_ > 3 else None
+    def _nw(p):                                   # 5.113: odběr chaty podle toho, z čeho jela (jeden výpočet)
+        cs_ = pt_src(p, cfg)
+        if cs_ == "s":
+            return p.get("mw") if p.get("mw") is not None else (p.get("tp") or {}).get(str(cfg.get("zasuvka_menic") or "1"))
+        if cs_ == "r":
+            return river_w(p.get("tp") or {}, rids)
+        return None
     nmw = sorted(w_ for p in data.get("points", []) if p["t"] >= ts - 7 * 86400 and (p.get("pv_w") or 0) < 5
                  and (datetime.fromtimestamp(p["t"], TZ).hour >= 21 or datetime.fromtimestamp(p["t"], TZ).hour < 5)
                  and (w_ := _nw(p)) is not None)
@@ -1554,6 +1560,9 @@ def main():
             plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
             if plugs:
                 pt["tp"] = plugs
+            cs_ = inv_src(inv, cfg)
+            if cs_:
+                pt["cs"] = cs_                 # 5.113: z čeho chata jede (jeden výpočet, i se stavem Victronu)
             ph_ = inv.get("ph") or {}
             if ph_.get("b") is not None:       # 4.53: baterie Flipu do historie (graf v dlaždici Flip)
                 pt["pb"] = ph_["b"]
@@ -1584,18 +1593,12 @@ def main():
             raw = st.setdefault("tp_raw", {})
             first_v2 = not st.get("tp_v2")
             # podíl zdrojů teď: solár (zásuvka 220 V za měničem) vs. River (zásuvky na výstupu River) → rozdělení spotřeby
-            byid = {str(p.get("ip")): p for p in inv.get("tp", [])}
-            mip_ = str(cfg.get("zasuvka_menic") or inv.get("mip") or "")
-            S_ = (byid.get(mip_) or {}).get("w") or 0
-            R_ = sum((byid.get(i) or {}).get("w") or 0 for i in ips(cfg.get("zasuvky_river")))
+            # 5.113: podíl solár / River podle jednoho výpočtu cabin_src; „nevíme“ jde do „u“ (web ho do podílu nepočítá)
+            cs_now = inv_src(inv, cfg)
             if now.strftime("%Y-%m-%d") < str(cfg.get("river_noci_od") or "2026-10-15"):
                 fs = 1.0
-            elif S_ > 3:         # měnič dodává → hlavní okruh chaty (i všechny měřené zásuvky) jede ze soláru;
-                fs = 1.0         # River zároveň napájí jen něco konkrétního neměřeného (TV, telefon) → „ostatní z River“
-            elif R_ > 3:
-                fs = 0.0         # měnič nic nedává, River ano → chata přepojená na River
             else:
-                fs = 1.0 if S_ > 0 or (byid.get(mip_) and not byid[mip_].get("off")) else 0.0
+                fs = {"s": 1.0, "r": 0.0, "0": 1.0}.get(cs_now)     # „0“: nic neodebírá – přírůstky ~0, na zdroji nezáleží
             for p in inv.get("tp", []):
                 if p.get("ip") and p.get("n"):
                     names[p["ip"]] = p["n"]
@@ -1612,8 +1615,11 @@ def main():
                             tl = day.setdefault("tpl", {})            # 5.112: jen živě načítaný součet (historie ho nepřepisuje)
                             tl[ip] = round(tl.get(ip, 0) + inc, 1)
                             sp = day.setdefault("tps", {}).setdefault(ip, {"s": 0, "r": 0})
-                            sp["s"] = round(sp["s"] + inc * fs, 1)
-                            sp["r"] = round(sp["r"] + inc * (1 - fs), 1)
+                            if fs is None:
+                                sp["u"] = round(sp.get("u", 0) + inc, 1)
+                            else:
+                                sp["s"] = round(sp["s"] + inc * fs, 1)
+                                sp["r"] = round(sp["r"] + inc * (1 - fs), 1)
                     raw[ip] = wh
             st["tp_v2"] = True
         if rivers:
@@ -1717,6 +1723,7 @@ def main():
                          ("Upozornění pro web", lambda: data.__setitem__("alarms", [{"k": k_, "title": e_.get("title", k_), "t0": e_.get("t0"),
                                                                                      "ack": bool(e_.get("ack")), "snz": e_.get("snz")}
                                                                                     for k_, e_ in (st.get("al") or {}).items()])),
+                         ("Z čeho chata jede", lambda: data.__setitem__("cabin", cabin_state(data, st, cfg, now))),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
             try:
                 fn()
@@ -2229,13 +2236,10 @@ def detect_mode(data, st, cfg, now, inv):
         return mode
     guess = None
     if inv and now.timestamp() - inv["t"] < 3600:
-        st_off = str(inv.get("st", "")).upper() in ("OFF",)
-        mplug = next((p for p in inv.get("tp", []) if p.get("ip") == inv.get("mip")), None)
-        menic_dead = st_off or (mplug is not None and (mplug.get("off") or (mplug.get("w") is not None and mplug["w"] < 1)))
-        river_w = inv.get("rw") or 0
-        if menic_dead and river_w > 3:
+        cs_ = inv_src(inv, cfg)                    # 5.113: jeden výpočet
+        if cs_ == "r":
             guess = "zima"
-        elif (inv.get("mw") or 0) > 3:
+        elif cs_ == "s":
             guess = "leto"
     mode = st.get("mode") or "leto"
     if guess and guess != mode:                 # přepnout až po 3 bězích za sebou (30 min)
@@ -2462,17 +2466,25 @@ def cabin_on_river(data, cfg, now, st=None):
     inv = data.get("inverter") or {}
     ts = now.timestamp()
     fresh = inv and ts - inv.get("t", 0) < 1800
-    rids = ips(cfg.get("zasuvky_river"))
-    on = bool(fresh and (inv.get("mw") or 0) <= 3 and any(
-        str(p.get("ip")) in rids and (p.get("w") or 0) > 3 for p in inv.get("tp", [])))
-    on = on or bool((data.get("river_sup") or {}).get("w"))
+    cs_ = inv_src(inv, cfg) if fresh else None     # 5.113: jeden výpočet
+    # EcoFlow („River dodává“) rozhoduje jen bez dat z Flipu; při „nevíme“ (zásuvka 1 neodpovídá) nic netvrdit
+    on = cs_ == "r" or (cs_ is None and bool((data.get("river_sup") or {}).get("w")))
     if st is not None:
         if on:
             st["onriv_t"] = int(ts)
-        elif fresh and (inv.get("mw") or 0) > 3:
+        elif cs_ == "s":
             st.pop("onriv_t", None)                   # měnič dodává = chata na soláru – hned
         on = on or ts - st.get("onriv_t", 0) < 1800
     return on
+
+
+def cabin_state(data, st, cfg, now):
+    """5.113: pro web – z čeho chata jede teď (cs) a jestli je „na River“ i s pamětí 30 min (jako upozornění)."""
+    inv = data.get("inverter") or {}
+    fresh = bool(inv) and now.timestamp() - inv.get("t", 0) < 1800
+    cs_ = inv_src(inv, cfg) if fresh else None
+    riv = cabin_on_river(data, cfg, now) or now.timestamp() - (st.get("onriv_t") or 0) < 1800
+    return {"cs": cs_, "riv": bool(riv), "vst": vic_state(inv) if fresh else None, "t": int(now.timestamp())}
 
 
 def net_usage(data, st, now, cfg):
@@ -2531,6 +2543,66 @@ def net_usage(data, st, now, cfg):
 def ips(txt):
     import re
     return [x for x in re.split(r"[,;\s]+", str(txt or "")) if x]
+
+
+# ---- 5.113: z čeho chata jede – jeden výpočet ze změřených údajů, nic se nedomýšlí ----
+#   "s" = ze solární baterie (zásuvka za měničem > 3 W)
+#   "r" = z River (měnič nedodává – zásuvka za ním ≤ 3 W, nebo Victron hlásí OFF – a zásuvka River > 3 W)
+#   "0" = nic neodebírá (měnič nedodává a River také ne)
+#   "?" = nevíme (zásuvka za měničem neodpověděla a Victron nehlásí OFF; nebo nevíme nic o River)
+# Zásuvka za měničem neodpoví, i když je měnič vypnutý (nemá proud), ale i při výpadku spojení – proto bez Victronu „?“.
+def cabin_src(mw, rw, vst=None):
+    """mw = W zásuvky za měničem (None = neodpověděla), rw = součet W zásuvek River (None = žádná neodpověděla),
+    vst = stav Victronu z čerstvého měření (do 20 min) nebo None."""
+    if mw is not None and mw > 3:
+        return "s"
+    if mw is None and str(vst or "").upper() != "OFF":
+        return "?"
+    if rw is None:
+        return "?"
+    return "r" if rw > 3 else "0"
+
+
+def river_w(tp, rids):
+    """Součet W zásuvek River v bodě; None, když žádná neodpověděla."""
+    vals = [tp[i] for i in rids if (tp or {}).get(i) is not None]
+    return round(sum(vals), 1) if vals else None
+
+
+def vic_state(inv):
+    """Stav Victronu, jen když je čerstvý (Brána posílá „st“ jen z měření mladšího 30 min; „age“ = stáří)."""
+    if not inv or not inv.get("st"):
+        return None
+    return str(inv["st"]).upper() if (inv.get("age") or 0) <= 1200 else None
+
+
+def inv_src(inv, cfg):
+    """Z čeho chata jede podle jedné zprávy Flipu (aktuální stav i doplněné body)."""
+    if not inv:
+        return None
+    by = {str(p.get("ip")): p for p in inv.get("tp", []) if p.get("ip")}
+    mip = str(cfg.get("zasuvka_menic") or inv.get("mip") or "1")
+    mw = inv.get("mw")
+    if mw is None and (by.get(mip) or {}).get("w") is not None:
+        mw = by[mip]["w"]
+    return cabin_src(mw, river_w({k: v.get("w") for k, v in by.items()}, ips(cfg.get("zasuvky_river"))), vic_state(inv))
+
+
+def pt_src(p, cfg):
+    """Z čeho chata jela v bodě historie. Body od 5.113 mají „cs“ zapsané při měření (i se stavem Victronu).
+    Starší body: stejné pravidlo, ale bez Victronu; tam se jako dřív bere „zásuvka za měničem neodpověděla a
+    River dodává“ = River (jinak by celá starší historie nocí na River byla „nevíme“). None = bod bez dat z Flipu."""
+    if p.get("cs"):
+        return p["cs"]
+    tp = p.get("tp")
+    if tp is None and p.get("mw") is None:
+        return None
+    mip = str(cfg.get("zasuvka_menic") or "1")
+    mw = p.get("mw") if p.get("mw") is not None else (tp or {}).get(mip)
+    rw = river_w(tp or {}, ips(cfg.get("zasuvky_river")))
+    if mw is None and rw is not None and rw > 3:
+        return "r"
+    return cabin_src(mw, rw)
 
 
 def inv_from_msg(last, now, cfg=None):
@@ -3127,10 +3199,11 @@ def hash_soc(data, st, now, cfg):
             mw_last, mw_t = a["mw"], a["t"]
         dt = b["t"] - a["t"]
         if 0 < dt <= 2400:
-            if mw_last is not None and a["t"] - mw_t <= 1800:
+            cs_ = pt_src(a, cfg)
+            if mw_last is not None and a["t"] - mw_t <= 1800 and not (a.get("mw") is None and cs_ in ("r", "0")):
                 load = mw_last / 0.88 + idle
-            elif a.get("tp") and (a["tp"].get(mip) or 0) <= 3 and any((a["tp"].get(i) or 0) > 3 for i in rids):
-                load = cfg.get("desulfator_W") or 0
+            elif a.get("mw") is None and cs_ in ("r", "0"):
+                load = cfg.get("desulfator_W") or 0     # 5.113: měnič vypnutý (Victron OFF / starší body: River dodává)
             else:
                 load = idle + 30                # bez dat o odběru: běžná chata
                 a["lu"] = 1                     # 5.101: odběr neznámý (test kapacity takový úsek nepoužije)
@@ -3267,7 +3340,10 @@ def river_days(data, now, cfg):
         k = datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d")
         a = agg.setdefault(k, {"c": {}, "s": {}, "tot": 0.0})
         a["tot"] += dt
-        sol = (p.get("mw") if p.get("mw") is not None else (p["tp"].get(mip) or 0)) > 3
+        cs_ = pt_src(p, cfg)                       # 5.113: jeden výpočet
+        if cs_ not in ("s", "r"):
+            continue
+        sol = cs_ == "s"
         for rid in rids:
             if (p["tp"].get(rid) or 0) > 3:
                 b = a["s" if sol else "c"]
@@ -3561,8 +3637,8 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     inv = data.get("inverter") or {}
     fresh = inv and ts - inv.get("t", 0) < 1800
     rids = ips(cfg.get("zasuvky_river"))
-    on_solar = fresh and (inv.get("mw") or 0) > 3
-    on_river = fresh and not on_solar and any(str(p.get("ip")) in rids and (p.get("w") or 0) > 3 for p in inv.get("tp", []))
+    cs_ = inv_src(inv, cfg) if fresh else None        # 5.113: jeden výpočet
+    on_solar, on_river = cs_ == "s", cs_ == "r"
     last = (data.get("points") or [{}])[-1]
     pv = last.get("pv_w") or 0
     # 5.91: jedno pravidlo – nabíjet, když svítí. Energie z panelů jde rovnou do měniče; večer by se stejné Wh braly
@@ -3881,7 +3957,8 @@ def night_learn(data, st, now, cfg):
         a_ = min((p for p in pts if p.get("hq") is not None), key=lambda p: abs(p["t"] - pend["t0"]), default=None)
         b_ = min((p for p in pts if p.get("hq") is not None), key=lambda p: abs(p["t"] - pend["t1"]), default=None)
         night = [p for p in pts if pend["t0"] <= p["t"] <= pend["t1"]]
-        solar = night and sum(1 for p in night if (p.get("mw") or 0) > 3) >= 0.8 * len(night)   # celou noc na soláru
+        kn = [c for c in (pt_src(p, cfg) for p in night) if c in ("s", "r", "0")]     # 5.113: body „nevíme“ / bez Flipu se nepočítají
+        solar = len(kn) >= 6 and sum(1 for c in kn if c == "s") >= 0.8 * len(kn)   # celou noc na soláru
         if a_ and b_ and solar and abs(a_["t"] - pend["t0"]) < 1200 and abs(b_["t"] - pend["t1"]) < 1200 and pend["pred"] > 3:
             act = round(a_["hq"] - b_["hq"], 1)
             if act > 1:
@@ -3913,8 +3990,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     inv = data.get("inverter") or {}
     fresh = inv and ts - inv.get("t", 0) < 1800
     rids = ips(cfg.get("zasuvky_river"))
-    on_solar = fresh and (inv.get("mw") or 0) > 3
-    on_river = fresh and not on_solar and any(str(p.get("ip")) in rids and (p.get("w") or 0) > 3 for p in inv.get("tp", []))
+    cs_ = inv_src(inv, cfg) if fresh else None        # 5.113: jeden výpočet
+    on_solar, on_river = cs_ == "s", cs_ == "r"
     hq = data.get("hq") or {}
     if not (on_solar or on_river) or now >= end or hq.get("pct") is None or (rise and now < rise - timedelta(hours=3)):
         data.pop("day_fc", None)
@@ -4276,7 +4353,7 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     if now.timestamp() - (data.get("rivers_t") or 0) <= 3600:
         # 4.82: chatu napájí jen velká River (malá nikdy – ta jen spotřebiče); a jen když chata nejede ze soláru
         inv_ = data.get("inverter") or {}
-        on_solar = now.timestamp() - inv_.get("t", 0) < 1800 and (inv_.get("mw") or 0) > 3
+        on_solar = now.timestamp() - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) == "s"   # 5.113
         act = [(i, r) for i, r in enumerate(rv) if r.get("online") and r.get("soc") is not None and not on_solar
                and (r.get("wh") or 768) >= 500 and (r.get("out_w") or 0) - (r.get("in_w") or 0) > 3]
     plug_extra = {}
@@ -4369,7 +4446,7 @@ def river_supply_plugs(data, now, cfg):
         return
     ids = ips(cfg.get("zasuvky_river"))
     act = [p for p in inv.get("tp", []) if str(p.get("ip")) in ids and (p.get("w") or 0) > 3 and not p.get("gone")]
-    if not act or (inv.get("mw") or 0) > 3:     # měnič dodává = chata jede ze soláru, River jen napájí nějaký spotřebič
+    if not act or inv_src(inv, cfg) == "s":     # měnič dodává = chata jede ze soláru, River jen napájí nějaký spotřebič
         return
     p = max(act, key=lambda x: x.get("w") or 0)
     pid = str(p["ip"])

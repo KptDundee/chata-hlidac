@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.112", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.113", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1174,17 +1174,37 @@ function homeData(d){
   const mp = invF && mip!=null ? (inv.tp||[]).find(p=>p.ip===String(mip)) : null;
   // 5.92: chyba čtení (err) neznamená vypnutý měnič – jen nedostupná / chybějící zásuvka (27. 10. web dlouho psal „měnič vypnutý“)
   // 5.102: Victron hlásí, že měnič běží (INVERTING) → měnič vypnutý není, jen jeho zásuvka (1) neodpovídá
-  const menicOff = invF && inv.mw==null && (!mp || mp.off || mp.gone) && !(mp && mp.err!=null) && String(inv.st||"").toUpperCase() !== "INVERTING";
+  // 5.113: jeden výpočet s hlídačem (cabinSrc / data.cabin): „vypnutý“ jen když to hlásí Victron (OFF), jinak „nevíme“
+  const C = d.cabin && now - (d.cabin.t||0) < 1800 ? d.cabin : null;
+  const cs = C ? C.cs : invF ? invSrc(inv, cfg) : null;
+  const menicOff = invF && inv.mw==null && vicState(inv)==="OFF";
+  const srcUnk = cs==="?";
   const loadB = loadW!=null ? loadW : menicOff ? (cfg.desulfator_W ?? 0.25) : null;              // W ze solární baterie (DC, se ztrátami měniče)
   const netB = loadB!=null && bv && a!=null ? a - loadB/bv : null;      // A do (+) / z (−) baterie
-  const rvOn = invF && !((inv.mw||0) > 3) && riverIds(cfg).some(id=>((inv.tp||[]).find(p=>p.ip===id)||{}).w > 3);
-  return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW, riverW, brk, menicOff, loadB, netB, rvOn, td};
+  const rvOn = C ? !!C.riv : cs==="r";
+  return {last, pts, now, cfg, bv, status, a, pv, inv, invF, loadW, net, day, prod, mWh, dcWh, extraW, riverW, brk, menicOff, loadB, netB, rvOn, td, cs, srcUnk};
 }
 const riverIds = cfg => String(cfg.zasuvky_river ?? "").split(/[,;\s]+/).filter(Boolean);
 /* bod historie: chata (hlavní okruh) napájená z River = měnič nic nedává a některá zásuvka River ano.
    Když měnič dodává, River jen napájí něco konkrétního (TV, telefon) – chata pořád jede ze soláru. */
 const menicId = () => String(DATA?.cfg?.zasuvka_menic ?? "").trim() || DATA?.inverter?.mip || "1";
-const ptRiver = (p, ids) => !!p.tp && (p.mw ?? p.tp[menicId()] ?? 0) <= 3 && ids.some(id => (p.tp[id]||0) > 3);
+/* 5.113: z čeho chata jede – stejné pravidlo jako hlídač (cabin_src / pt_src): s = solár, r = River, 0 = nic, ? = nevíme */
+function cabinSrc(mw, rw, vst){
+  if(mw!=null && mw > 3) return "s";
+  if(mw==null && String(vst||"").toUpperCase()!=="OFF") return "?";
+  if(rw==null) return "?";
+  return rw > 3 ? "r" : "0";
+}
+const riverWOf = (tp, ids) => { const v = ids.map(i=>(tp||{})[i]).filter(x=>x!=null); return v.length ? v.reduce((s,x)=>s+x,0) : null; };
+const vicState = inv => inv && inv.st && (inv.age||0) <= 1200 ? String(inv.st).toUpperCase() : null;
+function invSrc(inv, cfg){ const by = {}; for(const p of inv.tp||[]) if(p.ip) by[String(p.ip)] = p.w;
+  const mid = String(cfg.zasuvka_menic ?? "").trim() || inv.mip || "1";
+  return cabinSrc(inv.mw ?? by[mid] ?? null, riverWOf(by, riverIds(cfg)), vicState(inv)); }
+function ptSrc(p, ids){ if(p.cs) return p.cs; if(!p.tp && p.mw==null) return null;
+  const mw = p.mw ?? (p.tp||{})[menicId()] ?? null, rw = riverWOf(p.tp, ids);
+  if(mw==null && rw!=null && rw > 3) return "r";      // starší body bez stavu Victronu – jako hlídač
+  return cabinSrc(mw, rw); }
+const ptRiver = (p, ids) => ptSrc(p, ids) === "r";
 /* úseky [od, do], kdy chata jela z River – pro šedé pozadí grafů */
 function riverBands(pts, ids){ const B=[]; let cur=null, prev=null;
   for(const p of pts){ if(!p.tp) continue; const on = ptRiver(p, ids);
@@ -1244,7 +1264,7 @@ function batFlow(h){           // stav: nabíjí / vybíjí / nabito / v klidu
   if(h.netB!=null && h.netB >= 0.3) return {t:`Nabíjí se${mode?` · ${mode}`:""}${src}`, c:"--good"};
   if(h.netB==null && (h.rvOn || h.menicOff))       // měnič vypnutý: z baterie nic neodtéká, nabíjí jen regulátor
     return (h.a||0) >= 0.3 ? {t:`Nabíjí se${mode?` · ${mode}`:""}${src}`, c:"--good"} : {t: h.rvOn ? "Odpojená – chata jede z River" : "Odpojená – měnič vypnutý", c:"--text2"};
-  if(h.netB==null) return {t: mode ? `Regulátor: ${mode}` : "Bez údaje o odběru", c:"--text2"};
+  if(h.netB==null) return {t: h.srcUnk ? `Zásuvka (${menicId()}) neodpovídá – odběr ani zdroj chaty nevíme${mode?` · ${mode}`:""}` : mode ? `Regulátor: ${mode}` : "Bez údaje o odběru", c:"--text2"};   // 5.113
   if(h.rvOn || h.menicOff) return {t: h.rvOn ? "Odpojená – chata jede z River" : "Odpojená – měnič vypnutý", c:"--text2"};
   return {t:"V klidu", c:"--text2"};
 }
@@ -2171,7 +2191,7 @@ function useModel(d){
   const idle = (cfg.menic_vlastni_W ?? 6) + (cfg.desulfator_W ?? 0.25);
   return {mip, rids, gen, auto, fr, wifi, devs, idle, od: cfg.river_noci_od || "2026-10-15"};
 }
-const ptMode = (p, U) => dkey(p.t) >= USE_FROM && ptRiver(p, U.rids) ? "r" : "s";   // pravidlo měnič/River platí na skutečná data od přejmenování zásuvek
+const ptMode = (p, U) => { if(dkey(p.t) < USE_FROM) return "s"; const c = ptSrc(p, U.rids); return c==="r" ? "r" : c==="?" || c==null ? "u" : "s"; };   // 5.113: u = nevíme   // pravidlo měnič/River platí na skutečná data od přejmenování zásuvek
 /* jeden bod: W pro pohledy a / s / r (null = v tu chvíli ten zdroj spotřebič nenapájel) */
 /* 5.109: díry v průbězích odběru doplnit z hodinové historie, kterou si pamatují samy zásuvky (tp_hist, Wh za hodinu =
    průměrný W v té hodině). Chybějící hodnota v bodě → z historie; chybějící body (Flip nic neposlal) → bod uprostřed hodiny. */
@@ -2196,7 +2216,7 @@ function useAt(p, U){
   if(!p.tp) return null; const tp = p.tp;
   const S = tp[U.mip] ?? (p.mw ?? null), R = U.rids.reduce((s,i)=>s+(tp[i]||0),0);
   if(S==null && !R) return null;
-  const m = ptMode(p, U), o = {t:p.t, m, a:{}, s:{}, r:{}}; let dev = 0;
+  const m = ptMode(p, U), o = {t:p.t, m, a:{}, s:{}, r:{}, u:{}}; let dev = 0;
   for(const x of U.devs){ const w = tp[x.id]; if(w==null) continue; dev += w; o.a[x.id] = w; o[m][x.id] = w; }
   const sOn = S!=null && (m==="s" || S > 3), rOn = m==="r" || R > 3;      // zdroj v tu chvíli opravdu běžel
   o.s._o = sOn ? Math.max(0, S - (m==="s" ? dev : 0)) : null; o.r._o = rOn ? Math.max(0, R - (m==="r" ? dev : 0)) : null;
@@ -2209,7 +2229,7 @@ let USE_SH = null;
 function useShares(U){
   if(USE_SH) return USE_SH; const out = {};
   for(const p of DATA.points||[]){ if(!p.tp) continue; const k = dkey(p.t), m = ptMode(p, U), o = out[k] ||= {};
-    for(const x of U.devs){ const w = p.tp[x.id]; if(w==null) continue; const q = o[x.id] ||= {s:0, r:0}; q[m] += w; } }
+    for(const x of U.devs){ const w = p.tp[x.id]; if(w==null) continue; const q = o[x.id] ||= {s:0, r:0, u:0}; q[m] += w; } }
   return USE_SH = out;
 }
 function useDay(k, U){

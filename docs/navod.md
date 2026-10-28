@@ -64,6 +64,7 @@ Následující popis platí pro obsah **detailů** (původní části stránky):
   - *Victron …*: údaje z měniče přes Bluetooth. *„Victron (Bluetooth): nic nepřichází“* znamená, že Flip měnič neslyší (viz kap. 7).
 - **⚡ Měnič měří X V při odběru Y**: napětí a odběr ve stejném okamžiku přímo z měniče.
 - **🔌 Nabíjení River zapnuto / vypnuto**: stav automatiky (kap. 5).
+- **Z čeho chata jede (5.113)**: solár, když zásuvka za měničem ukazuje odběr; River, když měnič nedodává (nebo ho Victron hlásí vypnutý) a River ano. Když zásuvka (1) neodpoví a Victron nehlásí vypnuto, aplikace napíše „nevíme“ a nic si nedomýšlí – takové chvíle se nepočítají do hodin na River ani do typického odběru.
 - **🌙 Do rána vydrží / nevydrží**: předpověď na noc (po západu slunce): napětí teď a odhad k ránu. „Nevydrží“ = klesne pod alarm 12,0 V (s časem), nebo se vypne měnič. Po západu ukazují dlaždice, karta Teď i upozornění tentýž výsledek.
 - **Modrý pruh**: nabití podle regulátoru.
 
