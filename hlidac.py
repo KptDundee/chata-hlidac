@@ -1231,7 +1231,7 @@ def eff_cap(data, cfg):
     """Kapacita pro výpočty (#, předpovědi): 5.101 medián testů z klidu (v2 = 2, aspoň 2), jinak kapacita_odhad_Ah
     (štítek snížený na stáří baterie). Staré testy z ranního napětí (dávaly ~58 Ah) se nepoužívají."""
     qc = sorted(d["qc"]["cap"] for k, d in sorted(data.get("days", {}).items())[-45:]
-                if (d.get("qc") or {}).get("ok") and d["qc"].get("v2") == 2)
+                if (d.get("qc") or {}).get("ok") and d["qc"].get("v2") == 3)
     if len(qc) >= 2:
         m = qc[len(qc) // 2] if len(qc) % 2 else (qc[len(qc) // 2 - 1] + qc[len(qc) // 2]) / 2
         return max(40, min(300, m))
@@ -3083,7 +3083,10 @@ def hash_soc(data, st, now, cfg):
     cap0 = eff_cap(data, cfg)
     rests = []                                   # (t, qr, Ah od plné)
     run0 = None
+    last_chg = 0                                 # 5.105: kdy se baterie naposledy nabíjela (proud > 0,5 A)
     for a, b in zip(pts, pts[1:]):
+        if a.get("_in") is not None and a["_in"] > 0.5:
+            last_chg = a["t"]
         quiet = a.get("_in") is not None and abs(a["_in"]) < 0.8 and (a.get("pv_w") or 0) < 5 and 0 < b["t"] - a["t"] <= 2400
         if quiet:
             run0 = run0 or a["t"]
@@ -3093,7 +3096,8 @@ def hash_soc(data, st, now, cfg):
                 # 5.64: skutečný klid (≥ 2 h bez proudu) = klidové napětí → obecná tabulka AGM (ocv_soc). Naučený převod
                 # (soc_from_v, „plná“ = napětí na začátku noci pod odběrem) dával moc vysoko: 12,40 V = 77 % místo ~55 %
                 soc_r = ocv_soc(b["bat_v"] + (0.02 if abs(a["_in"]) > 0.3 else 0.0))
-                item = (b["t"], b["qr"], -(100 - soc_r) / 100 * cap0, b["bat_v"], round(soc_r), round((b["t"] - run0) / 3600, 1))
+                item = (b["t"], b["qr"], -(100 - soc_r) / 100 * cap0, b["bat_v"], round(soc_r), round((b["t"] - run0) / 3600, 1),
+                        round((b["t"] - last_chg) / 3600, 1) if last_chg else 99)
                 if not rests or b["t"] - rests[-1][0] >= 1800:
                     rests.append(item)
                 else:
@@ -3102,7 +3106,7 @@ def hash_soc(data, st, now, cfg):
             run0 = None
     for p in pts:
         p.pop("_in", None)
-    data["rests"] = [{"t": r[0], "qr": r[1], "v": r[3], "soc": r[4], "h": r[5]} for r in rests]   # 5.101: pro test kapacity
+    data["rests"] = [{"t": r[0], "qr": r[1], "v": r[3], "soc": r[4], "h": r[5], "sc": r[6]} for r in rests]   # 5.101: pro test kapacity
     data["fulls"] = [f[1] for f in fulls]
     rtimes = [r[0] for r in rests]
     # kotva pro každý bod
@@ -3152,7 +3156,7 @@ def hash_soc(data, st, now, cfg):
     kind = "full" if full_t and ts - full_t <= 3 * 86400 else "rest" if rk else "best"
     for p in pts:
         p.pop("_rk", None)
-    nqc = sum(1 for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok") and d["qc"].get("v2") == 2)
+    nqc = sum(1 for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok") and d["qc"].get("v2") == 3)
     capsrc = "testy z klidu" if nqc >= 2 else f"odhad {cfg.get('kapacita_odhad_Ah') or 150} Ah – zatím bez 2 testů z klidu"
     data["hq"] = {"capsrc": capsrc, "nqc": nqc, "ah": round(last["hq"], 1), "cap": round(cap), "kind": kind,
                   "ref_t": int(full_t if kind == "full" else rk if kind == "rest" else last["t"]), "pct": round(max(0, 100 + last["hq"] / cap * 100)),
@@ -3975,6 +3979,9 @@ def capacity_check(data, st, now, cfg):
         w = [p for p in pts if a <= p["t"] <= b]
         return len(w) >= 6 and sum(1 for p in w if p.get("lu")) <= 0.2 * len(w)
 
+    # 5.105: klid až 6 h po posledním nabíjení – 24. 10. kleslo napětí po nabíjení z 12,56 na 12,40 V při odběru jen 1,9 Ah
+    # (povrchové napětí po nabíjení drží mnohem déle než 2 h) → testy dávaly ~55 Ah
+    rests = [r for r in rests if (r.get("sc") or 0) >= 6]
     tests = []
     for i, B in enumerate(rests):
         if B["t"] < fts:
@@ -3997,7 +4004,7 @@ def capacity_check(data, st, now, cfg):
                         "cap": round(ah / ((100 - B["soc"]) / 100))}
         if best:
             best["ok"] = 40 <= best["cap"] <= 300
-            best["v2"] = 2
+            best["v2"] = 3
             if not best["ok"]:
                 best["why"] = "nesmyslný výsledek"
             tests.append(best)
@@ -4005,7 +4012,7 @@ def capacity_check(data, st, now, cfg):
         k = datetime.fromtimestamp(tst["t"], TZ).strftime("%Y-%m-%d")
         day = data["days"].setdefault(k, {})
         old = day.get("qc") or {}
-        if old.get("v2") != 2 or old.get("t") != tst["t"]:
+        if old.get("v2") != 3 or old.get("t") != tst["t"]:
             day["qc"] = tst
             print("Test kapacity", k, tst)
 

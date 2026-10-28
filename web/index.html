@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.104", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.105", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3115,7 +3115,7 @@ function renderCap(d, days){
   // VERDIKT jen z testů kapacity z ampérhodin (od plného nabití / dvoubodový), po opravě spojů, s odběrem z Victronu.
   // Noční odhad z poklesu napětí (rows) je jen orientační – kolísal mezi ~20 a ~125 Ah, verdikt z něj nejde.
   const FIX = Date.parse(String(d.cfg?.oprava_spoju || "2026-10-14 18:00").trim().replace(" ","T")) || 0;
-  const allT = Object.keys(d.days||{}).sort().map(k=>({k, q:d.days[k].qc})).filter(x=>x.q && x.q.m && x.q.v2===2 && (x.q.te||x.q.t||0)*1000 >= FIX);   // 5.101: jen testy z klidu
+  const allT = Object.keys(d.days||{}).sort().map(k=>({k, q:d.days[k].qc})).filter(x=>x.q && x.q.m && x.q.v2===3 && (x.q.te||x.q.t||0)*1000 >= FIX);   // 5.101: jen testy z klidu
   const tests = allT.filter(x=>x.q.ok);
   const now = Date.now(), D = 864e5;
   const dl = t => new Date(t).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"});
@@ -3133,7 +3133,7 @@ function renderCap(d, days){
       <span style="font-size:18px;font-weight:600">~${Math.round(cur)} Ah <span class="sub" style="font-size:14px">= ${pct(cur)} % z ${nom} Ah · medián ${tests.length} testů</span></span></div>${deepTxt(d, days)}`;
     const lo = Math.round(cur), hi = Math.round(cur*1.25);      // test od Floatu kapacitu spíš podhodnotí (Float ≠ úplně plná)
     $("hadv").innerHTML = `<div style="margin-top:8px">${advice}</div>`
-      + (tests.length < 5 ? `<div class="sub" style="margin-top:6px"><b>Předběžné</b> – jen ${tests.length} ${tests.length<5?"testy":"testů"}. Nabití ráno se určuje z napětí (±10 %) a Float nemusí být úplně plná baterie, takže skutečná kapacita je spíš ${lo}–${hi} Ah. S každým dalším ránem se to zpřesní; o výměně rozhoduj až po týdnu testů.</div>` : "");
+      + (tests.length < 5 ? `<div class="sub" style="margin-top:6px"><b>Předběžné</b> – jen ${tests.length} ${tests.length<5?"testy":"testů"}. Nabití se určuje z klidového napětí (±10 %, baterie aspoň 6 h po nabíjení a 2 h bez proudu) a Float nemusí být úplně plná baterie, takže skutečná kapacita je spíš ${lo}–${hi} Ah. S každým dalším ránem se to zpřesní; o výměně rozhoduj až po týdnu testů.</div>` : "");
   } else {
     HEALTH = null;
     $("sum_health").innerHTML = `zatím neznámo · testy ${tests.length}/2`;
