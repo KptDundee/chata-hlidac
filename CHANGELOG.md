@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.128 – 28. 10. 2026
+- Karta „Jaká baterie“: ⭐ doporučená varianta u každého typu (AGM, LiFePO4) = nejmenší kapacita, která i po 3 letech dá skoro stejně málo dní s River jako největší varianta toho typu (rozdíl nejvýš 5 % dní, aspoň 1 den). Zvýrazněná v obou tabulkách, dlaždice ukazuje doporučené LiFePO4.
+
 ## 5.127 – 28. 10. 2026
 - Karta „Jaká baterie“: vysvětlení přímo u tabulek (co znamená „dní s River“, „po 3 letech“, „z River“, „zahozeno“); po měsících místo „23/31“ píše „23 z 31“ a pod nadpisem, jak to číst.
 
