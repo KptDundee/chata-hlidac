@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.107", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.108", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2803,7 +2803,7 @@ function detToday(body){
   const line = (k, v, o={}) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:${o.sum?"7px 0 9px":"4px 0"};${o.sum?"border-top:1px solid var(--line);font-weight:700;":""}${o.sub?"color:var(--text2);font-size:13.5px;padding-left:12px;":""}"><span>${k}</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap;${o.col?`color:var(${o.col})`:""}">${v}</span></div>`;
   const hd = t => `<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:12px 0 2px">${t}</div>`;
   body.insertAdjacentHTML("beforeend", segHtml()
-  + chartCard("dt_prod", "Výroba", "kWh za hodinu (Dnes) / po dnech")
+  + chartCard("dt_prod", "Výroba", DETR==="d" ? "kWh za hodinu" : detLong() ? "kWh za měsíc" : "kWh za den")
   + chartCard("dt_cons", "Odběr za měničem", "W · lednice, světla, kamery, wifi, nabíjení River")
   + `<div class="card" id="dt_txt">
     ${hd("Výroba")}
