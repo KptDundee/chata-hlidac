@@ -1608,13 +1608,18 @@ def forecast(data, now, cfg):
     hq = data.get("hq") or {}
     soc_now = float(hq["pct"]) if hq.get("pct") is not None else soc_from_v(v + 0.05)
     a, nf_ = night_load_a(data, cfg, t_now)
+    # 5.124: chata jede z River → solární baterie chatu nenapájí, bere jen to, co na ní visí i tak (desulfátor);
+    # dřív předpověď počítala s nočním odběrem chaty i na River („měnič se vypne ~04:24“, i když chata jela z River)
+    riv = cabin_on_river(data, cfg, now, data.get("state"))
+    if riv:
+        a = (cfg.get("desulfator_W") or 0) / 12.4
     until = rise + timedelta(minutes=cfg["nabijeni_od_vychodu_min"] or 0)
     hours = (until.timestamp() - t_now) / 3600
     soc_until = soc_now - a * hours / cap * 100
     f = {"until": int(until.timestamp()), "soc_now": round(soc_now), "soc_until": round(soc_until),
          "v_now": round(v, 2), "v_until": round(v_from_soc(max(soc_until, 0)) - a * 0.015, 2),
          "draw_w": round(a * 12.4), "ah_night": round(a * hours), "n": len(pts), "cap": round(cap),
-         "measured": True, "src": "#" if hq.get("pct") is not None else "V", "nf": nf_, "corr": 0, "corr_n": 0}
+         "measured": True, "src": "#" if hq.get("pct") is not None else "V", "nf": nf_, "corr": 0, "corr_n": 0, "riv": bool(riv)}
     f["v_raw"] = f["v_until"]
     for key, lim in (("t_crit", cfg["baterie_kriticka_V"]), ("t_off", cfg["odpojeni_V"])):
         if lim is None:

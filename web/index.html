@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.123", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.124", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -562,11 +562,12 @@ function render(){
     const hm = t => new Date(t*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
     let c, ic, txt;
     const DR = cap1(doRana(f.until)), rd = t => `${relDay(t)} ~${hm(t)}`;
-    if(f.t_off){c="--crit";ic="!";txt=`${DR} nevydrží – pod alarm ${rd(f.t_crit||f.t_off)}, měnič se vypne ${rd(f.t_off)}`;}
+    if(f.riv || homeData(d).rvOn){c="--good";ic="✓";txt=`Chata jede z River – solární baterie přes noc jen odpočívá${f.v_until!=null?` (${relDay(f.until)} ráno ~${nf(f.v_until,2)} V)`:""}`;}   // 5.124
+    else if(f.t_off){c="--crit";ic="!";txt=`${DR} nevydrží – pod alarm ${rd(f.t_crit||f.t_off)}, měnič se vypne ${rd(f.t_off)}`;}
     else if(f.t_crit){c="--crit";ic="!";txt=`${DR} nevydrží – pod ${nf(CRIT_V,1)} V ${rd(f.t_crit)}`;}   // 5.110: jedno slovo všude („těsně“ pryč)
     else {c="--good";ic="✓";txt=f.v_until!=null?`${DR} vydrží – teď ~${nf(f.v_now,2)} V, ${relDay(f.until)} v ${hm(f.until)} ~${nf(f.v_until,2)} V`:`${DR} vydrží`;}
     const trend = f.slope!=null ? ` · skutečný pokles ${nf(-f.slope*1000)} mV/h` : "";
-    fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} ${f.ah_night!=null?`<span class="sub">(${doRana(f.until)} ~${f.ah_night} Ah při ~${f.draw_w} W${f.cap&&f.cap<(d.cfg?.kapacita_Ah||200)?`, baterie ~${f.cap} Ah`:""}${trend})</span>`:""}</span>`;
+    fc.innerHTML=`<i style="color:var(${c})">🌙 ${ic}</i><span>${txt} ${f.ah_night!=null && !f.riv?`<span class="sub">(${doRana(f.until)} ~${f.ah_night} Ah při ~${f.draw_w} W${f.cap&&f.cap<(d.cfg?.kapacita_Ah||200)?`, baterie ~${f.cap} Ah`:""}${trend})</span>`:""}</span>`;
     fc.classList.remove("hide");
   } else fc.classList.add("hide");
   $("socbar").firstElementChild.style.width = Math.max(0,Math.min(100,soc||0))+"%";
@@ -1409,7 +1410,7 @@ function tileNight(d, h){
   const label = nightName(morT) + (P.ph==="predawn" ? " (běží)" : "");
   const unit = `<small>V ${rano(morT)}</small>`;
   const t = {k:"night", icon:"🌙", label};
-  if(f && f.until && h.now < f.until){       // noc běží (nebo začala večer) – přesná předpověď
+  if(f && f.until && h.now < f.until && !(f.riv || h.rvOn)){       // noc běží (nebo začala večer) – přesná předpověď; 5.124: ne když chata jede z River
     if(f.t_off) return {...t, cls:"bad", v:`${hmT(f.t_off)}<small>${relDay(f.t_off)}</small>`, st:cap1(`${doRana(morT)} nevydrží`), a:`Měnič se vypne ${relDay(f.t_off)} ~${hmT(f.t_off)} – přepni na River`};
     if(f.t_crit) return {...t, cls:"bad", v:`${hmT(f.t_crit)}<small>${relDay(f.t_crit)}</small>`, st:cap1(`${doRana(morT)} nevydrží – pod ${nf(CRIT_V,1)} V`), a:`Od ${relDay(f.t_crit)} ~${hmT(f.t_crit)} – omez odběr`};
     return {...t, cls:"ok", v:`${nf(f.v_until,2)}${unit}`, st:cap1(`${doRana(morT)} vydrží`), a: f.corr ? `S opravou ${f.corr>0?"+":"−"}${nf(Math.abs(f.corr),2)} V z minulých nocí` : "Nic nedělej"};
@@ -1420,7 +1421,7 @@ function tileNight(d, h){
   if(d.river_sup){ const M = riverMorning(d), rs = d.river_sup;     // chatu napájí River → noc = vydrží River?
     return {...t, cls: M.ok ? "ok" : "bad", v: M.ok ? `${nf(Math.max(0,M.socM))}<small>% River ${rano(M.mor)}</small>` : `${hmT(rs.until)}<small>River vybitá ${relDay(rs.until)}</small>`,
       st: M.ok ? cap1(`River ${doRana(M.mor)} vydrží`) : `River se vybije ${relDay(rs.until)} ~${hmT(rs.until)}`,
-      a: M.ok ? `Při ~${nf(rs.w)} W · solární baterie se zatím jen nabíjí` : "Dnes večer omez odběr / připrav druhou River"}; }
+      a: M.ok ? `Při obvyklém odběru ~${nf(rs.typ_w ?? rs.w)} W · solární baterie ${dayPhase(d).ph==="day" ? "se zatím jen nabíjí" : "odpočívá"}` : "Dnes večer omez odběr / připrav druhou River"}; }
   if(ol && ol.mode === "zima") return {...t, cls:"ok", v:"River", st:"Zimní provoz", a:"Chata každou noc jede z River"};
   { const F = d.day_fc;   // 4.74: přes den stejný výpočet jako dlaždice Solární baterie (výhled dne), ať si neodporují
     if(F && h.now - F.t <= 1800 && F.src !== "river" && F.night_ok != null){
@@ -2930,7 +2931,7 @@ function detNight(body){
     <div style="font-size:22px;font-weight:700;color:var(${nt.cls==="bad"?"--crit":nt.cls==="warn"?"--warn":nt.cls==="ok"?"--good":"--muted"})">${nt.st}${nt.v && nt.v!=="–" ? ` · <span style="color:var(--text)">${nt.v}</span>` : ""}</div>
     ${fcVis ? `<div class="fc">${$("fc").innerHTML}</div>` : ""}
     <div style="margin-top:8px">
-      ${f && f.draw_w!=null ? rowI(`Odběr z baterie přes noc ${nn}`, `~${nf(f.draw_w)} W (${f.ah_night!=null?`~${f.ah_night} Ah ${doRana(morT)}`:""})`) : ""}
+      ${f && f.draw_w!=null ? rowI(f.riv ? `Odběr ze solární baterie přes noc ${nn} (chata na River)` : `Odběr z baterie přes noc ${nn}`, `~${nf(f.draw_w)} W (${f.ah_night!=null?`~${f.ah_night} Ah ${doRana(morT)}`:""})`) : ""}
       ${f && f.cap ? rowI("Kapacita baterie (odhad)", `~${f.cap} Ah`) : (HEALTH ? rowI("Kapacita baterie (odhad)", `~${Math.round(HEALTH.cur)} Ah`) : "")}
       ${rowI("Hranice upozornění", `${nf(WARN_V,1)} V slábne · ${nf(CRIT_V,1)} V alarm · ${nf(OFF_V,1)} V měnič se vypne`)}
       ${(()=>{ const C = nightCorr(d); return rowI("Oprava z minulých nocí", C.n>=3 ? `${C.c>0?"+":C.c<0?"−":"±"}${nf(Math.abs(C.c),2)} V (medián ${C.n} nocí)` : `zatím ne (${C.n} z 3 nocí)`); })()}
