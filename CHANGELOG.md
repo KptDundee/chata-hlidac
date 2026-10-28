@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.98 – 28. 10. 2026
+- Hlavní stránka: sekce „Energie dnes“ (výroba, spotřeba) hned pod zdroji, „Chata“ až za ní. Pořadí: Zdroje → Energie dnes → Chata → Výhled → Uplynulé → Dlouhodobě.
+
 ## 5.97 – 28. 10. 2026 · Brána 1.9.14
 - Zásuvka, která má být vidět (1, 4, 5, 9; měnič jen když dodává), nejde aspoň 10 min → Brána při dalším měření prohledá celou síť (nejvýš 1× za 30 min) a zapíše to do záznamu. 28. 10. byla zásuvka (1) nedostupná 07:45–10:08 (spojení vypršelo na správné adrese .112) a ozvala se hned po celém prohledání sítě; tím se ověří, jestli to pomáhá pokaždé. Seznam posílá hlídač v povolení `-fc` (`stale`).
 - Brána: záznam se dá označit a kopírovat, nové tlačítko „Kopírovat“ (celý záznam do schránky).
