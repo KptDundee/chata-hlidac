@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.106", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.107", FLIP_VER = "1.9.16";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3382,7 +3382,7 @@ const SETTINGS = [
 /* 5.35: nápověda k nastavení (ⓘ) – co to je, co to řídí, co znamená změna */
 const SET_HELP = {
   nabito: "Řádek v souhrnu ve 22:00, když regulátor přešel do Float (solární baterie plně nabitá). Vypnuto = v souhrnu není.",
-  panely_nevyrabi: "Zpráva, když panely přes den dlouho skoro nic nevyrábí (sníh, stín, vypadlý konektor). Kdy přesně, určují volby v sekci Panely. Vypnuto = nehlídá se.",
+  panely_nevyrabi: "Upozornění „🌥 Panely nevyrábí“: jen když podle předpovědi počasí má svítit (očekávaný výkon aspoň 150 W) a panely dávají méně než 5 % z toho aspoň hodinu – sníh, zastínění, vypadlý kabel. Při zatažení nepřijde.",
   den_kontrola: "Ráno v nastavenou hodinu (pro každý den zvlášť) hlídač zkontroluje, jestli chata na soláru vydrží do večera („Výhled dne“). Hodí se jako kontrola před odjezdem. Vypnutý den = ten den se nekontroluje.",
   den_do: "Do kolika hodin má chata na soláru vydržet při ranní kontrole (Výhled dne). Pozdější čas = přísnější kontrola, častěji poradí River. Noc potom řeší předpověď do rána.",
   nutne_river_v: "Od tohoto času do rána: když zdroj, ze kterého chata jede (solární baterie nebo River), do rána nevydrží, přijde „🌙 Před spaním přepni chatu na River“ s tlačítky Řeším / Za 30 min / Za 1 h a opakuje se po 10 min, dokud nepřepneš. Vypnuto = nikdy.",

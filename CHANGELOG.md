@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.107 – 28. 10. 2026
+- „🌥 Panely nevyrábí“ podle počasí: hlídač si ukládá hodinovou předpověď záření (Open-Meteo, `wxh`). Upozornění jen když má svítit (očekávaný výkon = záření × Wp panelů × 0,7 ≥ 150 W) a panely dávají pod 5 % z toho (min. 5 W) aspoň hodinu. Při zatažení nepřijde.
+
 ## 5.106 – 28. 10. 2026
 - Lednice: upozornění podle teploty až když je nad 8 °C déle než 2 h a za poslední hodinu neklesá (dřív stačilo půl hodiny). Po nákupu se lednice ohřeje, ale teplota klesá → nic.
 

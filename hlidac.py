@@ -4945,19 +4945,23 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
     if status != 1 and bv < 13.2:
         st["full_sent"] = False
 
-    # Panely nevyrábí za denního světla – 5.95: kategorie 1
+    # Panely nevyrábí za denního světla – 5.95: kategorie 1. 5.107: jen když podle předpovědi počasí má svítit
+    # (očekávaný výkon ≥ 150 W) a panely dávají pod 5 % z toho (nejméně 5 W) aspoň hodinu – při zatažení nic.
     if cfg["panely_nevyrabi"] and rise and pv is not None:
         m = timedelta(minutes=cfg["panely_rezerva_min"] or 0)
         daylight = rise + m <= now <= set_ - m
         full = status == 1 or bv >= 13.5  # plná baterie => regulátor sám omezí výkon
-        if daylight and pv < (cfg["panely_min_W"] or 0) and not full:
+        g_ = ((data_ref or {}).get("wxh") or {}).get(now.strftime("%Y-%m-%dT%H:00"))
+        exp_w = g_ * (cfg.get("panely_pocet") or 1) * (cfg.get("panel_Wp") or 400) / 1000 * 0.7 if g_ is not None else None
+        low = daylight and not full and exp_w is not None and exp_w >= 150 and pv < max(5, exp_w * 0.05)
+        if low:
             st.setdefault("pv_low_since", int(now.timestamp()))
-        elif not daylight or pv >= max(20, (cfg["panely_min_W"] or 0) * 4) or full:
+        else:
             st.pop("pv_low_since", None)
         low_min = (now.timestamp() - st["pv_low_since"]) / 60 if st.get("pv_low_since") else 0
-        alarm(st, topic, "pv", low_min >= (cfg["panely_po_dobu_min"] or 0) - 1 and bool(st.get("pv_low_since")),
+        alarm(st, topic, "pv", bool(st.get("pv_low_since")) and low_min >= 59,
               "🌥 Panely nevyrábí",
-              f"Už {low_min:.0f} min jen {fmt(pv)} W, i když je den (slunce dnes {hm(rise)}–{hm(set_)}). "
+              f"Už {low_min:.0f} min jen {fmt(pv)} W, i když podle předpovědi má svítit (čekal bych ~{fmt(exp_w)} W). "
               f"Sníh, zastínění, nebo vypadlý kabel?\n{line}", 4, "warning",
               ok_title="✓ Panely zase vyrábí", ok_msg=line)
 
