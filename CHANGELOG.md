@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.104 – 28. 10. 2026 · Brána 1.9.16
+- Výpadky, které Brána obnovila prohledáním sítě, posílá hlídači (`pdown`): Deník „🔌 … neodpovídala (spojení vypršelo · .IP) – Brána prohledala síť → zase dostupná / pořád nedostupná“, v souhrnu ve 22:00 řádek „Neodpovídaly (Brána obnovila): … N×“. Zapisují se všechna zařízení, kterým vypršelo spojení (i světla).
+- Brána 1.9.15 navíc: v záznamu celý text chyby (odkud Flip volal).
+
 ## 5.103 – 28. 10. 2026 · Brána 1.9.15
 - Brána: když zásuvka, která má být vidět, neodpovídá, prohledá celou síť hned v tom samém měření (nejvýš 1× za 5 min) a zásuvky přečte znovu. 28. 10. se (1), .150 a .193 třikrát vrátily přesně po celém prohledání sítě (10:08, 10:37, 11:09), samy ne. Příčina zatím neznámá – tohle zkracuje výpadek na jedno měření.
 

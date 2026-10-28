@@ -105,6 +105,7 @@ public final class Collector {
             if (!email.isEmpty()) {
                 Map<String, String> map = plugMap(email, pass);            // číslo zásuvky → IP (hledá se v síti)
                 boolean missing = false;
+                JSONArray pdown = null;                                      // 1.9.16: výpadky obnovené prohledáním sítě
                 Map<String, String> idIp = new HashMap<>();
                 // 1.7.4: dva průchody – když některá známá zásuvka na své adrese neodpovídá (River / generátor /
                 // nabíjení se zapnou a dostanou novou IP), hned v tomtéž měření se prohledá síť (jen nové adresy,
@@ -122,6 +123,12 @@ public final class Collector {
                     }
                     if (mustDown && System.currentTimeMillis() - Prefs.get(ctx).getLong("tapo_scan_t", 0) > 5 * 60_000L) {
                         Prefs.log(ctx, "Důležitá zásuvka neodpovídá – hned prohledám celou síť");
+                        pdown = new JSONArray();                             // co neodpovídalo (i světla) – hlídač zapíše do Deníku
+                        for (int k = 0; k < plugs.length(); k++) {
+                            JSONObject p0 = plugs.optJSONObject(k);
+                            if (p0 == null || !p0.has("off") || !p0.optString("ow").startsWith("spojení vypršelo")) continue;
+                            try { pdown.put(new JSONObject().put("ip", p0.optString("ip")).put("n", p0.optString("n", "")).put("ow", p0.optString("ow"))); } catch (Exception ignored) { }
+                        }
                         Prefs.get(ctx).edit().putBoolean("tapo_force", true).apply();
                         Map<String, String> m2 = plugMap(email, pass);
                         map.clear(); map.putAll(m2);
@@ -211,6 +218,18 @@ public final class Collector {
                 // historie ze zásuvky (hodinová energie za 7 dní): jednou denně a hned, když se zásuvka znovu objeví
                 sendPlugHistories(email, pass, plugs, idIp);
                 if (plugs.length() > 0) o.put("tp", plugs);
+                if (pdown != null && pdown.length() > 0) {                   // 1.9.16: vrátily se po prohledání?
+                    for (int k = 0; k < pdown.length(); k++) {
+                        JSONObject d0 = pdown.optJSONObject(k);
+                        boolean back = false;
+                        for (int q = 0; q < plugs.length(); q++) {
+                            JSONObject p1 = plugs.optJSONObject(q);
+                            if (p1 != null && p1.optString("ip").equals(d0.optString("ip")) && !p1.has("off") && !p1.has("err")) back = true;
+                        }
+                        d0.put("back", back);
+                    }
+                    o.put("pdown", pdown);
+                }
                 sum.append(", zásuvky ").append(ok).append('/').append(total);
                 if (off > 0) sum.append(" (").append(off).append(" vypnuté)");
             }

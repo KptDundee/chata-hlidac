@@ -1881,6 +1881,8 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
         L.append(f"⛽ Generátor dodal {fmt(g / 1000, 2)} kWh")
     if day.get("ra_min"):
         L.append(f"🔌 Nabíjení River ze slunce celkem {dur(day['ra_min'] * 60)}")
+    if day.get("pdn"):                                 # 5.104: výpadky, které Brána obnovila prohledáním sítě
+        L.append("🔌 Neodpovídaly (Brána obnovila): " + ", ".join(f"{k} {v}×" for k, v in sorted(day["pdn"].items(), key=lambda x: -x[1])))
     for r in st.get("_rivers") or []:
         L.append(f"🔋 {r['name']}: {fmt(r.get('soc'))} %")
     ft = forecast_text(st.get("_forecast"))
@@ -2515,6 +2517,9 @@ def inv_from_msg(last, now, cfg=None):
         inv["th"] = [{"n": _re.sub(r"^[\s,;:.]+|[\s,;:.]+$", "", str(x.get("n")))[:30], "t": x.get("t"), "h": x.get("h"), "b": x.get("b"),
                       "tm": int(inv.get("t") or 0) - int(x.get("age") or 0), "sn": x.get("sn"), "ok": x.get("ok")}
                      for x in th if isinstance(x, dict) and x.get("n")]   # 1.7.7: sn/ok = zachyceno/přečteno
+    if isinstance(body.get("pdown"), list):            # 5.104 / Brána 1.9.16: výpadky obnovené prohledáním sítě
+        inv["pdown"] = [{k: str(x.get(k))[:60] for k in ("ip", "n", "ow")} | {"back": bool(x.get("back"))}
+                        for x in body["pdown"] if isinstance(x, dict)][:10]
     tp = body.get("tp")
     if isinstance(tp, list):
         inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d", "lt", "ow") if p.get(k) is not None}
@@ -4453,6 +4458,12 @@ def plug_watch(data, st, now, topic, cfg):
             names[i] = str(p["n"])[:40]
     new_msg = inv.get("t") != pw.get("t")
     pw["t"] = inv.get("t")
+    if new_msg and inv.get("pdown"):                   # 5.104: do Deníku a počet za den (souhrn ve 22:00)
+        dd_ = data.setdefault("days", {}).setdefault(now.strftime("%Y-%m-%d"), {}).setdefault("pdn", {})
+        for x in inv["pdown"]:
+            nm_ = names.get(x["ip"]) or x.get("n") or f"zásuvka {x['ip']}"
+            log("ev", f"🔌 {nm_} neodpovídala ({x.get('ow')}) – Brána prohledala síť → {'zase dostupná' if x.get('back') else 'pořád nedostupná'}")
+            dd_[nm_] = dd_.get(nm_, 0) + 1
     mip = str(cfg.get("zasuvka_menic") or inv.get("mip") or "1")
     inv_on = str(inv.get("st") or "").upper() == "INVERTING"
     # 5.03: chata jede z River (zásuvka na výstupu River bere) → zásuvka měniče je odpojená přepínačem, to je v pořádku
