@@ -2533,13 +2533,6 @@ def inv_from_msg(last, now, cfg=None):
             if m and str(p.get("ip")) != str(int(m.group(1))):
                 p["a"] = p.get("a") or p.get("ip")
                 p["ip"] = str(int(m.group(1)))
-        # 5.93: chyba čtení očíslované zásuvky do Deníku (Brána drží jen ~40 řádků). Opakovaná stejná chyba = jeden
-        # řádek s časem od–do a počtem (flush_log), takže je vidět, jak dlouho to trvalo.
-        for p in inv["tp"]:
-            if p.get("err") is not None and str(p.get("ip", "")).isdigit() and len(str(p["ip"])) <= 2:
-                log("err", f"Zásuvka ({p['ip']}) nejde přečíst: {str(p['err'])[:110]}")
-            elif p.get("ow") and str(p.get("ip", "")).isdigit() and len(str(p["ip"])) <= 2:   # 5.94 / Brána 1.9.13
-                log("err", f"Zásuvka ({p['ip']}) nedostupná: {str(p['ow'])[:110]}")
     if body.get("wifi") is not None:
         inv["wifi"] = int(body["wifi"])
     if body.get("av"):
@@ -4547,6 +4540,8 @@ def plug_watch(data, st, now, topic, cfg):
         if new_msg:
             e["n"] = e.get("n", 0) + 1
         e["why"] = why
+        if new_msg:                                    # 5.99: do Deníku jen zásuvky, které mají být vidět, 1× za měření Flipu
+            log("err", f"Zásuvka ({i}) nejde: {why[:110]}")
         nm = names.get(i, f"Zásuvka ({i})")
         miss.append({"id": i, "n": nm, "since": e["since"], "why": why,
                      "ready": e.get("n", 0) >= 2 and ts - e["since"] >= (cfg.get("zasuvky_stale_min") or 8) * 60})
