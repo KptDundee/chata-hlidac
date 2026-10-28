@@ -1403,7 +1403,7 @@ def forecast_text(f):
     if f.get("t_off"):
         return f"{dr[0].upper() + dr[1:]} nevydrží: pod alarm {hm(f.get('t_crit', f['t_off']))}, měnič se vypne {hm(f['t_off'])}" + tail
     if f.get("t_crit"):
-        return f"{dr[0].upper() + dr[1:]} těsně: pod alarm {hm(f['t_crit'])}" + tail
+        return f"{dr[0].upper() + dr[1:]} nevydrží: pod alarm {hm(f['t_crit'])}" + tail   # 5.110: dřív „těsně“
     return (f"{dr[0].upper() + dr[1:]} vydrží: teď ~{fmt(f.get('v_now'), 2)} V, "
             f"{rel_day(f['until'])} v {datetime.fromtimestamp(f['until'], TZ).strftime('%H:%M')} ~{fmt(f.get('v_until'), 2)} V") + tail
 
@@ -1993,7 +1993,7 @@ def watch_publish(data, v, st, now, topic, cfg):
         if f.get("t_off"):
             fc, lvl = f"🌙 {do_rana(f['until'], now)} NEVYDRŽÍ", max(lvl, 2)
         elif f.get("t_crit"):
-            fc, lvl = f"🌙 {do_rana(f['until'], now)} těsně", max(lvl, 1)
+            fc, lvl = f"🌙 {do_rana(f['until'], now)} nevydrží (pod 12 V ~{datetime.fromtimestamp(f['t_crit'], TZ).strftime('%H:%M')})", max(lvl, 2)
         else:
             fc = f"🌙 {rel_day(f['until'], now)} ráno ~{fmt(f.get('v_until'), 1)} V ✓"
     else:

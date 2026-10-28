@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.110 – 28. 10. 2026
+- Noc má jeden výsledek a jedno slovo všude: po západu rozhoduje jen noční předpověď – dlaždice Solární baterie („do rána“), dlaždice Noc, řádek 🌙, karta Teď v detailu baterie, souhrn i upozornění. Pokles pod 12,0 V = „nevydrží“ (červeně, s časem); slovo „těsně“ zmizelo. Dřív karta Teď ukazovala „došla by ~02:36“ z výhledu dne, zatímco dlaždice psala „těsně“ z noční předpovědi.
+
 ## 5.109 – 28. 10. 2026
 - Grafy odběru (Spotřeba chaty / ze solární baterie / z River, spotřebiče): díry doplněné z hodinové historie, kterou si pamatují samy zásuvky (Brána ji posílá 1× denně a hned, když se zásuvka znovu objeví). Chybějící hodnota v bodě i celé hodiny bez dat z Flipu se doplní průměrem té hodiny.
 

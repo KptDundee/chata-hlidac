@@ -351,4 +351,6 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.110**: jeden noční verdikt – když běží `forecast` (`until` > teď), `nightRow`, `tileNight`, banner 🌙, `dayFcBlock` (řádek „Do rána“), `forecast_text` i souhrn/watch berou jen `forecast`; `day_fc.night_ok` jen přes den. `t_crit` (pod `baterie_kriticka_V`) = „nevydrží“ všude (dřív „těsně“), `t_off` = „měnič se vypne“.
+
 **5.109**: web `withHist(pts, U, t0, t1)` – chybějící `tp[id]` v bodě z `tp_hist[id][den][hodina]` (Wh = W průměr), hodiny bez bodu → 3 body (:10, :30, :50), označené `_h`. Použito v `detUse`.
