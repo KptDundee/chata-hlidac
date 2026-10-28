@@ -5021,7 +5021,11 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
         return
     cap = r.get("wh") or cfg.get("river_Wh") or 768                 # 4.62: kapacita podle modelu z EcoFlow
     res = cfg.get("river_rezerva_pct") or 5
-    left = max(0.0, r["soc"] - res) / 100 * cap * 0.9          # 0,9 = ztráty měniče v River
+    # 5.121 (V7): bez změřeného úbytku % podle změřené kapacity River (kolik Wh skutečně dodala do chaty na 100 %,
+    # karta Skutečná kapacita), štítek × 0,9 jen když ještě není změřená
+    rc_ = (data.get("rv_cap") or {}).get(str(r.get("sn", ""))[-6:]) or {}
+    use_wh = rc_["cap"] if rc_.get("cap") and (rc_.get("n") or 0) >= 2 else cap * 0.9
+    left = max(0.0, r["soc"] - res) / 100 * use_wh
     h = left / avg
     # 5.45: výdrž hlavně podle skutečného úbytku % (od kdy River chatu napájí, nejvýš 12 h) – zahrnuje ztráty
     # i lednici a vše, co výkon v jednotlivých měřeních nezachytí. Z výkonu (W) jen když úbytek ještě nejde změřit.
@@ -5035,6 +5039,8 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
             continue
         if (e_.get("i") or 0) > 20:                             # tehdy se nabíjela
             break
+        if e_.get("o") is not None and e_["o"] <= 3:            # 5.121: tehdy nic nenapájela – úbytek % jen z doby,
+            break                                               # kdy chatu opravdu napájí (dřív i z hodin stání)
         if ser and e_["s"] < ser[-1][1] - 1:                    # dřív měla méně % = mezitím se nabila
             break
         ser.append((p["t"], e_["s"]))
@@ -5042,11 +5048,16 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     if len(ser) >= 3:
         (t1, s1), (t0, s0) = ser[0], ser[-1]
         hrs = (t1 - t0) / 3600
-        if hrs >= 1.5 and s0 - s1 >= 3:
+        # 5.121: fyzikální kontrola – River nemůže dodávat avg W a ubývat pomaleji, než odpovídá celé kapacitě
+        # (100 % = štítek Wh). 28. 10. vyšlo −0,8 %/h při 72 W („vydrží do po 2. 11.“) – úbytek se měřil i z hodin,
+        # kdy River stála.
+        if hrs >= 1.5 and s0 - s1 >= 3 and (s0 - s1) / hrs >= avg / cap * 100:
             rate, r_t0 = (s0 - s1) / hrs, t0
             h = max(0.0, r["soc"] - res) / rate
     until = int(now.timestamp() + h * 3600)
-    data["river_sup"] = {"name": r["name"], "soc": round(r["soc"]), "w": round(avg), "h": round(h, 1), "until": until,
+    pph = rate if rate else avg / use_wh * 100                  # 5.121: %/h, se kterým se počítá (web stejně)
+    data["river_sup"] = {"name": r["name"], "soc": round(r["soc"]), "w": round(avg), "h": round(h, 1), "until": until, "pph": round(pph, 2),
+                         "capm": round(use_wh) if not rate else None,
                          "rate": round(rate, 1) if rate else None, "r_t0": int(r_t0) if r_t0 else None,
                          "cap": cap, "res": res, "sn": str(r.get("sn", ""))[-6:], **plug_extra}
     # 5.95: vydrží do rána? – upozornění až ve 22:00 spolu se solárem (urgent_river)

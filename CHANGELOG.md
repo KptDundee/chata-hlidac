@@ -3,6 +3,13 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.121 – 28. 10. 2026
+- Výdrž River: „vydrží do po 2. 11.“ při 90 % a 72 W byl nesmysl. Úbytek % se počítal i z hodin, kdy River jen stála (od 10:24, chata jela ze soláru) – vyšlo −0,8 %/h.
+  - Úbytek % jen z doby, kdy River opravdu napájí (výstup > 3 W).
+  - Fyzikální kontrola: River nemůže dodávat X W a ubývat pomaleji, než odpovídá celé její kapacitě (štítek) – takový úbytek se nepoužije.
+  - Bez změřeného úbytku se počítá ze změřené kapacity River (kolik Wh skutečně dodala do chaty na 100 %, karta Skutečná kapacita), štítek × 0,9 jen dokud není změřená (bod V7).
+  - Web počítá „ráno zbude“ stejným %/h jako hlídač a píše, z čeho výdrž vychází.
+
 ## 5.120 – 28. 10. 2026
 - Karta EcoFlow („Chatu napájí …“), upozornění a dlaždice teď rozhodují o tom, jestli chata jede z River, jedním výpočtem. Dřív EcoFlow ukazoval „chata jede z River“ podle toho, že River dodává, zatímco upozornění bralo „nevíme“ – proto ve 22:00 karta říkala River a upozornění „přepni na River“. „River napájí chatu“ (river_sup) teď platí jen při stejném výsledku jako upozornění.
 

@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.121**: `river_supply` – úbytek % jen z bodů s výstupem River > 3 W, platí jen když ≥ avg W / štítek Wh × 100 %/h; jinak `use_wh` = `rv_cap.cap` (n ≥ 2) nebo štítek × 0,9; `river_sup.pph` (%/h použité), `capm`. Web `riverMorning` bere `pph`.
+
 **5.120**: `river_supply` / `river_supply_plugs` – `river_sup` jen když `inv_src` není s ani ? (stejně jako `cabin_on_river`).
 
 **5.119**: `cabin_src`: mw None a Victron None (neozval se / starý) → River > 3 W = r, jinak ?; mw None a Victron ne OFF → ?; body `vs` (stav Victronu, "" = neozval se); `pt_src` bod s `cs = "?"` bez `vs` přepočítá. Web stejně (test 96 kombinací).
