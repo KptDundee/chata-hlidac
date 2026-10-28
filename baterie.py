@@ -12,10 +12,12 @@ from datetime import date as Date, datetime, timedelta
 
 # název, Ah, jmenovité V, hloubka vybití, účinnost nabíjení, ztráta kapacity za rok
 VARIANTS = [
+    ("AGM 100 Ah", 100, 12.0, 0.5, 0.85, 0.15),
     ("AGM 200 Ah (nová, jako máš)", 200, 12.0, 0.5, 0.85, 0.15),
     ("LiFePO4 50 Ah", 50, 12.8, 0.9, 0.95, 0.02),
     ("LiFePO4 100 Ah", 100, 12.8, 0.9, 0.95, 0.02),
     ("LiFePO4 150 Ah", 150, 12.8, 0.9, 0.95, 0.02),
+    ("LiFePO4 200 Ah", 200, 12.8, 0.9, 0.95, 0.02),
 ]
 
 
@@ -47,7 +49,7 @@ def simulate(days, usable_wh, eff):
 
 def update(data, st, now, cfg, sun_times, model_for, label_panels, night_w, day_w, cur_ah=None):
     """Jednou denně: data["bsim"] = {t, od, do, n, var: [{name, years: {0: {...}, 3: {...}}}], pred}."""
-    if st.get("bsim_day") == now.strftime("%Y-%m-%d") and data.get("bsim"):
+    if st.get("bsim_day") == now.strftime("%Y-%m-%d") and (data.get("bsim") or {}).get("nv") == len(VARIANTS):
         return
     st["bsim_day"] = now.strftime("%Y-%m-%d")
     wx = data.get("wx") or {}
@@ -91,6 +93,6 @@ def update(data, st, now, cfg, sun_times, model_for, label_panels, night_w, day_
                            "river_wh": sum(x["river_wh"] for x in res.values()),
                            "waste_wh": sum(x["waste_wh"] for x in res.values())}
         var.append({"name": name, "ah": ah, "years": yrs})
-    data["bsim"] = {"t": int(now.timestamp()), "od": days[0][0], "do": days[-1][0], "n": len(days), "var": var,
+    data["bsim"] = {"t": int(now.timestamp()), "nv": len(VARIANTS), "od": days[0][0], "do": days[-1][0], "n": len(days), "var": var,
                     "pred": {"night_w": round(nw), "day_w": round(dw), "idle_w": idle,
                              "var": [{"name": n, "dod": d, "eff": e, "loss": l} for n, _, _, d, e, l in vs]}}

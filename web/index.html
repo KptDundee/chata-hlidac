@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.125", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.126", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1455,6 +1455,14 @@ function detBsim(body){
   const months = Object.keys(B.var[0].years["0"].months).sort();
   const mrows = B.var.map(v=>`<tr><td style="padding:4px;white-space:nowrap">${escH(v.name.replace(/\s*\(.*\)/,""))}</td>${months.map(m=>{ const x = v.years["0"].months[m]; return td(x ? `${x.short}/${x.n}` : "–"); }).join("")}</tr>`).join("");
   const P = B.pred;
+  const HELP = `<details class="card" style="line-height:1.5"><summary style="cursor:pointer;font-weight:600">❓ Jak vybrat baterii – úvaha, ceny, sklep</summary>
+    <p><b>Větší baterie pomůže jen tehdy, když ji slunce dokáže naplnit.</b> V zimě se nenaplní ani malá – větší kapacita tam skoro nic nezmění. V létě stačí i malá (krátké noci, panely ji dobijí), navíc se ve Floatu zahazuje energie. Rozhodují přechodná období (říjen–listopad, březen–duben): baterie má pohodlně utáhnout noc, ideálně i jeden zatažený den, když ji pak slunce dobije.</p>
+    <p><b>Hrubý odhad:</b> chata v noci bere ~22–30 W → noc 14 h ≈ 0,35–0,45 kWh (v prosinci ~0,5 kWh), tj. ~30–40 Ah na 12 V. AGM se rozumně vybíjí jen do poloviny → 80–100 Ah. LiFePO4 jde vybít na 80–90 % → na noc ~50 Ah, 100 Ah unese i zatažený den.</p>
+    <p><b>LiFePO4 (lithium):</b> nabíjí se s účinností ~95 % (AGM ~80–90 %) – z malé zimní výroby se do ní dostane víc; napětí nepadá (žádné falešné „slábne“); tisíce cyklů, pomalé stárnutí. <b>Pozor:</b> pod 0 °C se nesmí nabíjet. Verze s ohřevem topí jen z nabíjecího proudu (LiTime nad 15 A, Ultimatron plný výkon nad 7 A) – v zimě, když panely dávají málo, se k tomu nemusí dostat. Regulátor musí mít profil pro lithium (ověřit model EPEveru), Victron přenastavit hranice napětí.</p>
+    <p><b>Ceny (28. 10. 2026, české e-shopy, orientačně):</b> AGM 200 Ah ~7 000–9 000 Kč · LiFePO4 100 Ah bez ohřevu ~6 000 Kč · s ohřevem ~8 000–11 700 Kč. Lithium 100 Ah ≈ cena AGM 200 Ah, využitelná energie podobná, cyklů řádově víc.</p>
+    <p><b>Sklep:</b> když tam bude stabilně nad 0 °C, je to pro lithium ideální (stačí bez ohřevu) a AGM má v teple víc kapacity. Nejdřív změř – dej tam teploměr Xiaomi, hlídač zapíše teplotu i vlhkost přes zimu. Regulátor a měnič nechat nahoře v suchu; do sklepa jen baterii (uzavřená krabice nad podlahou, ošetřené svorky). Delší kabel k měniči dimenzovat (měnič 800 VA bere až ~70 A → na pár metrů řádově 25–35 mm²) a pojistka hned u baterie – nechat spočítat a zkontrolovat elektrikářem.</p>
+    <p class="sub">Tabulka níž sleduje typ i kapacitu (AGM 100 / 200 Ah, LiFePO4 50–200 Ah) na tvé skutečné historii. Předpoklady o účinnosti a stárnutí jsou typické hodnoty, ne měření.</p></details>`;
+  body.insertAdjacentHTML("beforeend", HELP);
   body.insertAdjacentHTML("beforeend", `<div class="card"><b>Kolik dní by chata potřebovala River</b> <span class="sub">(${dTxt(B.od)} – ${dTxt(B.do)}, ${B.n} dní)</span>
     <div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;width:100%">
     <tr style="color:var(--muted);text-align:right"><th style="text-align:left;padding:4px">baterie</th><th>využitelné<br>kWh</th><th>dní<br>s River</th><th>po 3<br>letech</th><th>z River<br>kWh</th><th>zahozeno<br>kWh</th></tr>${rows}</table></div></div>

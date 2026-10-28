@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.126 – 28. 10. 2026
+- Karta „Jaká baterie“: rozbalovací „❓ Jak vybrat baterii – úvaha, ceny, sklep“ (proč rozhodují přechodná období, hrubý odhad kapacity, AGM vs LiFePO4, ohřev pod 0 °C, ceny k 28. 10. 2026, baterie ve sklepě a kabely). Přibyly varianty AGM 100 Ah a LiFePO4 200 Ah – sleduje se typ i kapacita.
+
 ## 5.125 – 28. 10. 2026
 - Nová dlaždice „🔋 Jaká baterie“ (Dlouhodobě): hlídač jednou denně přehraje skutečnou historii (archiv záření, výroba bez přiškrcení ve Floatu podle naučeného modelu × zapojené panely, obvyklá spotřeba chaty den / noc) pro tvou současnou baterii, novou AGM 200 Ah a LiFePO4 50 / 100 / 150 Ah. Ukáže, kolik dní by chata potřebovala River, kolik kWh by dodala River, kolik slunce by se zahodilo, i po 3 letech stárnutí, a po měsících. Předpoklady (hloubka vybití, účinnost, stárnutí) jsou vypsané v kartě. Plní se sama přes zimu a jaro.
 
