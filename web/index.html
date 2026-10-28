@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.100", FLIP_VER = "1.9.14";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.101", FLIP_VER = "1.9.14";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1280,7 +1280,6 @@ function nightRow(d, h){
   // a dlaždice si odporovaly („do rána ne“ × „do zítřejšího rána vydrží“)
   const nf_ = d.forecast;
   if(nf_ && nf_.until && h.now < nf_.until && !(h.invF && !(h.inv.mw > 3))){
-    if(nf_.ok_base && nf_.cut_by && h.now < nf_.cut_by) return ["do rána", `<b style="color:var(--warn)">sniž odběr do ${hmT(nf_.cut_by)}</b>`];
     if(nf_.t_off) return ["do rána", `<b style="color:var(--crit)">ne</b>`];
     if(nf_.t_crit) return ["do rána", `<b style="color:var(--warn)">těsně</b>`];
     return ["do rána", `<span style="color:var(--good)">ano ✓</span>`];
@@ -1300,7 +1299,7 @@ function batOutlook(d, h){
   const endT = F ? F.end : null;
   if(nfc && nfc.until && h.now < nfc.until && !(h.invF && !(h.inv.mw > 3))){       // po západu: noční předpověď
     if(nfc.t_off) return endT && nfc.t_off < endT ? "bad" : "warn";
-    if(nfc.t_crit || (nfc.ok_base && nfc.cut_by && h.now < nfc.cut_by)) return "warn";
+    if(nfc.t_crit) return "warn";
     return "ok";
   }
   if(!F) return null;
@@ -1334,6 +1333,7 @@ function dayPhase(d){
 }
 const dkey = t => new Date(t*1000).toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
 function nightCorr(d){
+  return {c:0, n:0};          // 5.101: bez opravy „±V z minulých nocí“ – učí se jen noční odběr (hlídač)
   const e = Object.keys(d.nlog||{}).sort().map(k=>d.nlog[k]).filter(x=>x.a!=null && x.raw!=null && !x.riv).slice(-10).map(x=>x.a-x.raw).sort((a,b)=>a-b);
   return e.length >= 3 ? {c:Math.max(-0.4,Math.min(0.4,e[Math.floor(e.length/2)])), n:e.length} : {c:0, n:e.length};
 }
@@ -1379,7 +1379,6 @@ function tileNight(d, h){
   const unit = `<small>V ${rano(morT)}</small>`;
   const t = {k:"night", icon:"🌙", label};
   if(f && f.until && h.now < f.until){       // noc běží (nebo začala večer) – přesná předpověď
-    if(f.ok_base && f.cut_by && h.now < f.cut_by) return {...t, cls:"warn", v:`${hmT(f.cut_by)}<small>snížit do</small>`, st:`${cap1(doRana(morT))} vydrží, když do ${hmT(f.cut_by)} snížíš odběr`, a:`Teď ~${f.now_w} W, běžně v noci ~${f.base_w} W (vypni PC a podobně)`};   // 4.50
     if(f.t_off) return {...t, cls:"bad", v:`${hmT(f.t_off)}<small>${relDay(f.t_off)}</small>`, st:cap1(`${doRana(morT)} nevydrží`), a:`Měnič se vypne ${relDay(f.t_off)} ~${hmT(f.t_off)} – přepni na River`};
     if(f.t_crit) return {...t, cls:"warn", v:`${nf(f.v_until,2)}${unit}`, st:`Vydrží těsně – ${rano(morT)} pod ${nf(CRIT_V,1)} V`, a:`Od ${relDay(f.t_crit)} ~${hmT(f.t_crit)} – omez odběr`};
     return {...t, cls:"ok", v:`${nf(f.v_until,2)}${unit}`, st:cap1(`${doRana(morT)} vydrží`), a: f.corr ? `S opravou ${f.corr>0?"+":"−"}${nf(Math.abs(f.corr),2)} V z minulých nocí` : "Nic nedělej"};
@@ -3115,13 +3114,13 @@ function renderCap(d, days){
   // VERDIKT jen z testů kapacity z ampérhodin (od plného nabití / dvoubodový), po opravě spojů, s odběrem z Victronu.
   // Noční odhad z poklesu napětí (rows) je jen orientační – kolísal mezi ~20 a ~125 Ah, verdikt z něj nejde.
   const FIX = Date.parse(String(d.cfg?.oprava_spoju || "2026-10-14 18:00").trim().replace(" ","T")) || 0;
-  const allT = Object.keys(d.days||{}).sort().map(k=>({k, q:d.days[k].qc})).filter(x=>x.q && x.q.m && (x.q.te||x.q.t||0)*1000 >= FIX);
+  const allT = Object.keys(d.days||{}).sort().map(k=>({k, q:d.days[k].qc})).filter(x=>x.q && x.q.m && x.q.v2===2 && (x.q.te||x.q.t||0)*1000 >= FIX);   // 5.101: jen testy z klidu
   const tests = allT.filter(x=>x.q.ok);
   const now = Date.now(), D = 864e5;
   const dl = t => new Date(t).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"});
-  const tLine = x => { const q=x.q, two=q.m==="2b";
-    const how = two ? `večer ${nf(q.ve,2)} V (~${q.soce} %) → ráno ${nf(q.v,2)} V (~${q.soc} %), mezi tím ${nf(q.ah,1)} Ah` : `od Float${q.tf?` (${dTxt(dkey(q.tf))} ${hmT(q.tf)})`:""} ubylo ${nf(q.ah,1)} Ah, ráno ${nf(q.v,2)} V (~${q.soc} %)`;
-    return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${dl(x.k)}</b> · <span class="sub">${two?"dvoubodový":"od plného nabití"}</span><br>${q.ah!=null?how:""}${q.ok?` → <b>~${q.cap} Ah</b>`:`${q.ah!=null?" → ":""}<span class="sub">nepoužito: ${q.why||"nevyšel"}</span>`}</div>`; };
+  const tLine = x => { const q=x.q, two=q.m==="2b" || q.m==="rest";
+    const how = two ? `klid ${nf(q.ve,2)} V (~${q.soce} %) → klid ${nf(q.v,2)} V (~${q.soc} %), mezi tím ${nf(q.ah,1)} Ah` : `od Float${q.tf?` (${dTxt(dkey(q.tf))} ${hmT(q.tf)})`:""} ubylo ${nf(q.ah,1)} Ah, ráno ${nf(q.v,2)} V (~${q.soc} %)`;
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${dl(x.k)}</b> · <span class="sub">${two?"klid → klid":"plná → klid"}</span><br>${q.ah!=null?how:""}${q.ok?` → <b>~${q.cap} Ah</b>`:`${q.ah!=null?" → ":""}<span class="sub">nepoužito: ${q.why||"nevyšel"}</span>`}</div>`; };
   const fixTxt = FIX ? new Date(FIX).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}) : "";
   if(tests.length >= 2){
     const cs = tests.map(x=>x.q.cap).sort((a,b)=>a-b), h2 = cs.length>>1;
@@ -3280,7 +3279,8 @@ const SETTINGS = [
   ["Noc a spotřeba", [
     ["noc_spotreba_W","Noční spotřeba","Průměr za měničem (lednice, nabíječky)","W",5,"num"],
     ["menic_vlastni_W","Vlastní spotřeba měniče","Victron v režimu On ~6 W","W",1,"num"],
-    ["kapacita_Ah","Kapacita baterie","","Ah",10,"num"],
+    ["kapacita_Ah","Kapacita baterie","Štítek","Ah",10,"num"],
+    ["kapacita_odhad_Ah","Kapacita pro výpočty","Dokud nejsou 2 testy z klidu","Ah",10,"num"],
     ["nabijeni_od_vychodu_min","Panely začnou nabíjet","Minut po východu slunce","min",15,"num"],
   ]],
   ["EcoFlow River", [
@@ -3395,6 +3395,7 @@ const SET_HELP = {
   noc_spotreba_W: "Odhad nočního odběru za měničem, se kterým se počítá, dokud není změřený skutečný (po hodině měření se bere skutečný). Ovlivňuje předpověď do rána hned po západu.",
   menic_vlastni_W: "Kolik bere měnič Victron sám pro sebe, když je zapnutý. Přičítá se ke každému výpočtu odběru z baterie (předpověď do rána, výdrž). Vyšší = opatrnější předpovědi.",
   kapacita_Ah: "Jmenovitá kapacita solární baterie. Hlídač ji ale postupně nahrazuje skutečnou kapacitou naměřenou z posledních nocí (a v chladu ji zmenšuje). Ovlivňuje „vydrží do rána“ a výhled.",
+  kapacita_odhad_Ah: "S jakou kapacitou solární baterie počítají # a předpovědi, dokud hlídač nezměří aspoň 2 testy kapacity z klidu (baterie ≥ 2 h bez proudu). Štítek snížený na stáří baterie. Po 2 testech se použije jejich medián.",
   nabijeni_od_vychodu_min: "Kolik minut po východu slunce začnou panely opravdu nabíjet. Do té doby se ještě počítá s vybíjením – „do rána“ = do východu + tento čas. Vyšší = opatrnější předpověď.",
   river_vymenit: "Upozornění, když River, ze které jede chata, klesne pod hranici „Vyměnit pod“ – ať včas přepojíš na jinou. Vypnuto = nehlásí se.",
   river_vymenit_pod: "Procenta River (podle EcoFlow), pod kterými přijde „vyměň River“. Vyšší = dřív, s větší rezervou.",

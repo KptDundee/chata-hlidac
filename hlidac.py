@@ -31,7 +31,7 @@ DEFAULTS = {
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
-    "kapacita_Ah": 200, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
+    "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
     "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14,
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
@@ -1074,7 +1074,12 @@ def v_from_soc(soc):
 
 
 def calibrate(data):
-    """Klidové napětí „plné“ baterie: začátek noci (západ + 2 h) po dni, kdy byla ve Float."""
+    """Klidové napětí „plné“ baterie: začátek noci (západ + 2 h) po dni, kdy byla ve Float.
+    5.101: vypnuto – naučená „plná“ (napětí pod nočním odběrem) dávala 12,40 V = 77 % místo ~55 %. Platí obecná
+    tabulka AGM (stejná jako u #)."""
+    VCAL["full"], VCAL["empty"] = 12.85, 11.80
+    data["vcal"] = {"full": 12.85, "empty": 11.80, "n": 0, "off": True}
+    return
     days = data.get("days", {})
     vals = []
     for k in sorted(days)[-90:]:
@@ -1223,16 +1228,14 @@ def charge_capacity(data, now, cfg):
 
 
 def eff_cap(data, cfg):
-    """Skutečná kapacita pro výpočty (předpověď do rána, výhled, odhad nabití): medián posledních 14 spolehlivých nocí."""
-    nom = cfg["kapacita_Ah"] or 200
-    fts = fix_ts(cfg)
+    """Kapacita pro výpočty (#, předpovědi): 5.101 medián testů z klidu (v2 = 2, aspoň 2), jinak kapacita_odhad_Ah
+    (štítek snížený na stáří baterie). Staré testy z ranního napětí (dávaly ~58 Ah) se nepoužívají."""
     qc = sorted(d["qc"]["cap"] for k, d in sorted(data.get("days", {}).items())[-45:]
-                if (d.get("qc") or {}).get("ok") and (d["qc"].get("te") or d["qc"].get("t") or 0) >= fts)
-    if len(qc) >= 2:                       # testy kapacity z Ah (plné nabití → noc → ráno) mají přednost
+                if (d.get("qc") or {}).get("ok") and d["qc"].get("v2") == 2)
+    if len(qc) >= 2:
         m = qc[len(qc) // 2] if len(qc) % 2 else (qc[len(qc) // 2 - 1] + qc[len(qc) // 2]) / 2
         return max(40, min(300, m))
-    # noční odhad z poklesu napětí (d["h"]) se nepoužívá – kolísal mezi ~20 a ~125 Ah (3.90); do 2 testů štítek
-    return nom
+    return cfg.get("kapacita_odhad_Ah") or cfg["kapacita_Ah"] or 150
 
 
 def health_baseline(data):
@@ -1304,16 +1307,34 @@ def night_log(data, now, cfg, set_):
         nl.pop(k)
 
 
-def forecast(data, now, cfg):
-    """Vydrží baterie do rána? Výpočet z kapacity a očekávané noční spotřeby.
+def night_load_a(data, cfg, ts):
+    """5.101: obvyklý noční odběr ze solární baterie (A, i ztráty měniče) – medián nocí 21–5 h za 7 dní (chata na
+    soláru i na River – zásuvky měří stejný odběr), × oprava z minulých nocí (night_learn). Jediný pro výhled dne
+    i předpověď noci. Vrací (A, oprava)."""
+    rids = ips(cfg.get("zasuvky_river"))
+    idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
 
-    Stav nabití se bere z napětí (vyhlazeně za posledních 30 min bez slunce),
-    spotřeba z nastavení (průměr na výstupu měniče + vlastní spotřeba měniče).
-    """
+    def _nw(p):
+        if (p.get("mw") or 0) > 3:
+            return p["mw"]
+        rw_ = sum((p.get("tp") or {}).get(i) or 0 for i in rids)
+        return rw_ if rw_ > 3 else None
+    nmw = sorted(w_ for p in data.get("points", []) if p["t"] >= ts - 7 * 86400 and (p.get("pv_w") or 0) < 5
+                 and (datetime.fromtimestamp(p["t"], TZ).hour >= 21 or datetime.fromtimestamp(p["t"], TZ).hour < 5)
+                 and (w_ := _nw(p)) is not None)
+    w = nmw[len(nmw) // 2] if len(nmw) >= 12 else (cfg.get("noc_spotreba_W") or 30)
+    nf_ = (data.get("dfl") or {}).get("f") or 1.0
+    return (w / 0.88 + idle) / 12.4 * nf_, nf_
+
+
+def forecast(data, now, cfg):
+    """Vydrží solární baterie do rána? 5.101: jeden model se stejnými vstupy jako výhled dne – nabití # (počítané
+    ampérhodiny), kapacita eff_cap (× chlad), obvyklý noční odběr (night_load_a). Bez naučeného převodu napětí
+    a bez opravy „±V z minulých nocí“ (učí se jen noční odběr – night_learn)."""
     rise, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
     if not rise:
         return None
-    if now >= rise and now < set_:          # přes den se nepočítá
+    if now >= rise and now < set_:          # přes den se nepočítá (výhled dne)
         return None
     if now >= set_:
         rise, _ = sun_times(cfg["sirka"], cfg["delka"], (now + timedelta(days=1)).date())
@@ -1321,58 +1342,27 @@ def forecast(data, now, cfg):
     pts = [p for p in data.get("points", []) if p["t"] >= t_now - 1800 and p.get("bat_v") is not None]
     if not pts:
         return None
-    v = sum(p["bat_v"] for p in pts) / len(pts) + 0.05   # +0,05 V za pokles pod malou zátěží
-    cap = eff_cap(data, cfg) * cold_factor(data, cfg)[0]                 # 4.48: v chladu menší kapacita
-    ac = cfg["noc_spotreba_W"] or 0
-    measured = [p.get("mw", p.get("ac_w")) for p in data.get("points", [])
-                if p.get("mw", p.get("ac_w")) is not None and p["t"] >= t_now - 3 * 3600 and (p.get("pv_w") or 0) < 5]
-    if len(measured) >= 6:                       # aspoň hodina změřeného nočního odběru
-        ac = sum(measured) / len(measured)
-    # 4.50: odběr za poslední hodinu (≥ 3 měření) – po vypnutí PC se předpověď spraví do hodiny, ne až za 3 h
-    recent = [p.get("mw", p.get("ac_w")) for p in data.get("points", [])
-              if p.get("mw", p.get("ac_w")) is not None and p["t"] >= t_now - 3600 and (p.get("pv_w") or 0) < 5]
-    if len(recent) >= 3:
-        ac = sum(recent) / len(recent)
-    # běžný noční odběr (medián nocí 21–5 h za posledních 7 dní, bez dnešního večera)
-    base = sorted(p["mw"] for p in data.get("points", []) if p.get("mw") is not None and p["mw"] > 3
-                  and t_now - 7 * 86400 <= p["t"] < t_now - 6 * 3600 and (p.get("pv_w") or 0) < 5
-                  and (datetime.fromtimestamp(p["t"], TZ).hour >= 21 or datetime.fromtimestamp(p["t"], TZ).hour < 5))
-    base_w = base[len(base) // 2] if len(base) >= 12 else None
-    draw = ac / 0.88 + (cfg["menic_vlastni_W"] or 0)   # W z baterie
-    a = draw / 12.2                                                             # A z baterie
-    # 4.50: pod větším odběrem napětí klesne víc (vnitřní odpor + kabely, ~10 mΩ) → stav z napětí by vyšel horší
-    if recent and len(recent) >= 3:
-        i_now = (sum(recent) / len(recent) / 0.88 + (cfg["menic_vlastni_W"] or 0)) / 12.2
-        v += max(0.0, i_now * 0.010 - 0.05)                # +0,05 V už je výš; navíc jen při proudu nad ~5 A
+    v = sum(p["bat_v"] for p in pts) / len(pts)
+    cap = eff_cap(data, cfg) * cold_factor(data, cfg)[0]
+    hq = data.get("hq") or {}
+    soc_now = float(hq["pct"]) if hq.get("pct") is not None else soc_from_v(v + 0.05)
+    a, nf_ = night_load_a(data, cfg, t_now)
     until = rise + timedelta(minutes=cfg["nabijeni_od_vychodu_min"] or 0)
     hours = (until.timestamp() - t_now) / 3600
-    soc_now = soc_from_v(v)
     soc_until = soc_now - a * hours / cap * 100
     f = {"until": int(until.timestamp()), "soc_now": round(soc_now), "soc_until": round(soc_until),
-         "v_now": round(v - 0.05, 2), "v_until": round(v_from_soc(max(soc_until, 0)) - a * 0.015, 2),
-         "draw_w": round(draw), "ah_night": round(a * hours), "n": len(pts), "cap": round(cap),
-         "measured": len(measured) >= 6}
-    # učení: o kolik se předpověď v minulých nocích pletla (medián) → oprava ranního napětí
-    corr, ncorr = night_corr(data)
-    f["v_raw"], f["corr"], f["corr_n"] = f["v_until"], corr, ncorr
-    f["v_until"] = round(f["v_until"] + corr, 2)
+         "v_now": round(v, 2), "v_until": round(v_from_soc(max(soc_until, 0)) - a * 0.015, 2),
+         "draw_w": round(a * 12.4), "ah_night": round(a * hours), "n": len(pts), "cap": round(cap),
+         "measured": True, "src": "#" if hq.get("pct") is not None else "V", "nf": nf_, "corr": 0, "corr_n": 0}
+    f["v_raw"] = f["v_until"]
     for key, lim in (("t_crit", cfg["baterie_kriticka_V"]), ("t_off", cfg["odpojeni_V"])):
         if lim is None:
             continue
-        ah_left = (soc_now - soc_from_v(lim)) / 100 * cap
+        ah_left = (soc_now - soc_from_v(lim + 0.05)) / 100 * cap        # pod malým odběrem ≈ klid +0,05 V
         if ah_left <= 0:
             f[key] = int(t_now)
         elif a > 0 and ah_left / a < hours:
             f[key] = int(t_now + ah_left / a * 3600)
-        elif f["v_until"] < lim:                  # podle opravy z minulých nocí ráno pod hranicí
-            f[key] = f["until"]
-        # 4.50: odběr je teď zvýšený (PC…) – vydržela by, kdyby se do určité doby vrátil na běžný noční?
-        if key == "t_crit" and f.get("t_crit") and base_w and ac > base_w * 1.3 + 15:
-            ab = (base_w / 0.88 + (cfg["menic_vlastni_W"] or 0)) / 12.2
-            ah_left = (soc_now - soc_from_v(lim)) / 100 * cap
-            if ah_left > ab * hours * 1.1 and a > ab:                       # s rezervou 10 %
-                cut = t_now + (ah_left - ab * hours * 1.1) / (a - ab) * 3600
-                f.update(base_w=round(base_w), now_w=round(ac), ok_base=True, cut_by=int(min(cut, until.timestamp())))
     # skutečný noční trend napětí (jen pro kontrolu, z doby po západu)
     night = [p for p in data.get("points", []) if p["t"] >= max(t_now - 3 * 3600, set_.timestamp() if now >= set_ else 0)
              and p.get("bat_v") is not None and (p.get("pv_w") or 0) < 5]
@@ -2143,7 +2133,10 @@ def track_soc(data, st, v, now, cfg, inv, mode):
         st["soc_fl"] = st.get("soc_fl", 0) + 1
     else:
         st["soc_fl"] = 0
-    if st["soc_fl"] >= 2:
+    hq_ = data.get("hq") or {}
+    if hq_.get("pct") is not None:                          # 5.101: jedno nabití všude – #
+        s = float(hq_["pct"])
+    elif st["soc_fl"] >= 2:
         s = 100.0
     elif s is None or t0 is None or ts - t0 > 6 * 3600:
         s = soc_from_v(bv + load_a * 0.015) if (v.get("pv_w") or 0) < 5 else (v.get("bat_soc") or 50)
@@ -3066,6 +3059,7 @@ def hash_soc(data, st, now, cfg):
                 load = cfg.get("desulfator_W") or 0
             else:
                 load = idle + 30                # bez dat o odběru: běžná chata
+                a["lu"] = 1                     # 5.101: odběr neznámý (test kapacity takový úsek nepoužije)
             i_net = a["bat_a"] - load / a["bat_v"]
             a["_in"] = i_net
             qr += i_net * dt / 3600 * (eff if i_net > 0 else 1.0)
@@ -3103,6 +3097,8 @@ def hash_soc(data, st, now, cfg):
             run0 = None
     for p in pts:
         p.pop("_in", None)
+    data["rests"] = [{"t": r[0], "qr": r[1], "v": r[3], "soc": r[4], "h": r[5]} for r in rests]   # 5.101: pro test kapacity
+    data["fulls"] = [f[1] for f in fulls]
     rtimes = [r[0] for r in rests]
     # kotva pro každý bod
     import bisect
@@ -3151,8 +3147,8 @@ def hash_soc(data, st, now, cfg):
     kind = "full" if full_t and ts - full_t <= 3 * 86400 else "rest" if rk else "best"
     for p in pts:
         p.pop("_rk", None)
-    nqc = sum(1 for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok"))
-    capsrc = "testy z Ah" if cap != (cfg["kapacita_Ah"] or 200) else "štítek – zatím bez 2 testů"
+    nqc = sum(1 for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok") and d["qc"].get("v2") == 2)
+    capsrc = "testy z klidu" if nqc >= 2 else f"odhad {cfg.get('kapacita_odhad_Ah') or 150} Ah – zatím bez 2 testů z klidu"
     data["hq"] = {"capsrc": capsrc, "nqc": nqc, "ah": round(last["hq"], 1), "cap": round(cap), "kind": kind,
                   "ref_t": int(full_t if kind == "full" else rk if kind == "rest" else last["t"]), "pct": round(max(0, 100 + last["hq"] / cap * 100)),
                   "full_t": int(full_t) if full_t else None, "fl_since": int(fl_since) if fl_since else None,
@@ -3887,19 +3883,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     # stejně jako noční předpověď (ta se navíc učí z minulých nocí).
     # 4.43: noci na River se počítají taky – zásuvky River měří stejný odběr chaty (230 V) jako zásuvka za měničem.
     # Bez toho by v zimě (noci jen na River) nebylo z čeho brát. Okno 7 nocí.
-    def _nw(p):
-        if (p.get("mw") or 0) > 3:
-            return p["mw"]
-        rw_ = sum((p.get("tp") or {}).get(i) or 0 for i in rids)
-        return rw_ if rw_ > 3 else None
-    nmw = sorted(w_ for p in data.get("points", []) if p["t"] >= ts - 7 * 86400 and (p.get("pv_w") or 0) < 5
-                 and (datetime.fromtimestamp(p["t"], TZ).hour >= 21 or datetime.fromtimestamp(p["t"], TZ).hour < 5)
-                 and (w_ := _nw(p)) is not None)
-    load_n = ((nmw[len(nmw) // 2] if len(nmw) >= 12 else (cfg.get("noc_spotreba_W") or (sum(mws) / len(mws) if mws else now_w)))
-              / 0.88 + idle) / 12.4
+    load_n, nf_ = night_load_a(data, cfg, ts)                          # 5.101: stejný noční odběr jako předpověď noci
     set_ts = set_.timestamp() if set_ else end.timestamp()
-    nf_ = (data.get("dfl") or {}).get("f") or 1.0
-    load_n *= nf_                                                       # oprava podle minulých nocí (night_learn)
     if on_solar and set_ and ts >= set_ts and not st.get("dfl_pend") and st.get("dfl_day") != now.strftime("%Y-%m-%d") and rise2:
         st["dfl_day"] = now.strftime("%Y-%m-%d")                         # při západu: zapsat předpověď do rána
         st["dfl_pend"] = {"t0": int(ts), "t1": int(rise2.timestamp()), "pred": round(load_n / nf_ * (rise2.timestamp() - ts) / 3600, 1),
@@ -3968,101 +3953,56 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
 
 
 def capacity_check(data, st, now, cfg):
-    """Testy kapacity pro každé ráno po opravě spojů, pro které máme body (14 dní) – přepočítá se při každém běhu
-    (dny bez dat se nemění). Jen s odběrem měniče (zásuvka 220 V za měničem) aspoň v 80 % bodů.
-    1) od plného nabití: předchozí přechod do Float (≤ 30 h před východem) → ráno; kapacita = Ah ÷ (100 % − nabití ráno).
-    2) dvoubodový (když 1 nejde – v zimě baterie často plná nebude): večer 2–3 h po západu a ráno před sluncem
-       nabití z klidového napětí, mezi tím spočítané Ah; kapacita = Ah ÷ rozdíl nabití. Méně přesný.
-    Nabití z napětí: AGM klidové napětí, opraveno o pokles odběrem (~10 mV/A). Výsledek days[k]["qc"]
-    (m = "full" / "2b"); eff_cap bere medián úspěšných testů."""
-    fts = fix_ts(cfg)
-    idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
-    pts = [p for p in data.get("points", []) if p.get("q") is not None and p.get("bat_v")]
-    if not pts:
+    """5.101: test kapacity solární baterie jen ze skutečného klidu (≥ 2 h bez proudu a bez slunce – kotvy #).
+    Dřív se bralo ranní napětí během odběru jako klidové → nabití vyšlo nízko → kapacita ~58 Ah (štítek 200).
+    • „klid → klid“: dvě kotvy do 48 h, nabití se mezi nimi změnilo aspoň o 15 %: kapacita = Ah mezi nimi ÷ změna nabití
+    • „plná → klid“: Float a do 30 h kotva klidu (aspoň o 15 % níž): kapacita = Ah od Float ÷ (100 % − nabití v klidu)
+    Ah = počítadlo # (nabíjení × 0,9 − odběr), odběr musí být známý aspoň v 80 % bodů. Výsledek days[k]["qc"]
+    (v = 2, m = "rest" / "full"); eff_cap bere medián testů v = 2 (aspoň 2), jinak kapacita_odhad_Ah."""
+    pts = [p for p in data.get("points", []) if p.get("qr") is not None]
+    rests = data.get("rests") or []
+    if not pts or not rests:
         return
-    # začátky Float (po opravě spojů)
-    fl, prev = [], None
-    for p in data.get("points", []):
-        s_ = p.get("status")
-        if s_ == 1 and prev != 1 and p["t"] >= fts:
-            fl.append(p["t"])
-        if s_ is not None:
-            prev = s_
+    fts = fix_ts(cfg)
+    qr_at = {p["t"]: p["qr"] for p in pts}
 
-    def rest(p):                                    # klidové napětí a nabití z bodu
-        i_load = ((p.get("mw") or 0) / 0.88 + idle) / p["bat_v"]
-        v = p["bat_v"] + 0.01 * i_load
-        return round(v, 2), ocv_soc(v)
-
-    def covered(a, b):                              # známý odběr měniče aspoň v 80 % bodů
+    def known(a, b):
         w = [p for p in pts if a <= p["t"] <= b]
-        return len(w) >= 6 and sum(1 for p in w if p.get("mw") is not None) >= 0.8 * len(w)
+        return len(w) >= 6 and sum(1 for p in w if p.get("lu")) <= 0.2 * len(w)
 
-    d0 = datetime.fromtimestamp(max(fts, pts[0]["t"]), TZ).date()
-    date = d0
-    while date <= now.date():
-        rise, _ = sun_times(cfg["sirka"], cfg["delka"], date)
-        date_k = date.strftime("%Y-%m-%d")
-        date = date + timedelta(days=1)
-        if not rise or now < rise + timedelta(hours=1):
+    tests = []
+    for i, B in enumerate(rests):
+        if B["t"] < fts:
             continue
-        r_ts = rise.timestamp()
-        mor = [p for p in pts if r_ts - 2 * 3600 <= p["t"] <= r_ts + 900
-               and (p.get("pv_w") or 0) < 5 and (p.get("mw") or 0) < 120 and not p.get("rc")]
-        if not mor:
-            continue                                # pro tohle ráno body nemáme (nebo už vypadly) – nechat, co je
-        pm = min(mor, key=lambda x: x["bat_v"])
-        vm, sm = rest(pm)
-        res, why = {"ok": False, "m": "full"}, []
-        # 1) od plného nabití
-        full_t = max((f for f in fl if f < pm["t"]), default=0)
-        if not full_t or r_ts - full_t > 30 * 3600:
-            why.append("předtím nebyla plně nabitá (Float)")
-        elif not covered(full_t, pm["t"]):
-            why.append("chybí odběr měniče")
-        else:
-            ah = -pm["q"]
-            res.update({"ah": round(ah, 1), "v": vm, "soc": round(sm), "t": pm["t"], "tf": int(full_t)})
-            if ah < 20 or sm > 85:
-                why.append(f"od plného nabití vybitá málo ({ah:.0f} Ah)")
-            else:
-                cap = ah / (1 - sm / 100)
-                res.update({"cap": round(cap), "ok": 40 <= cap <= 300})
-                if not res["ok"]:
-                    why.append("nesmyslný výsledek")
-        # 2) dvoubodový: večer → ráno
-        if not res["ok"]:
-            _, set_y = sun_times(cfg["sirka"], cfg["delka"], rise.date() - timedelta(days=1))
-            eve = [p for p in pts if set_y and set_y.timestamp() + 2 * 3600 <= p["t"] <= set_y.timestamp() + 3 * 3600
-                   and p["t"] >= fts and (p.get("pv_w") or 0) < 5 and (p.get("mw") or 0) < 120 and not p.get("rc")
-                   and p.get("qr") is not None]
-            if not eve:
-                why.append("chybí večerní měření")
-            elif pm.get("qr") is None or not covered(eve[0]["t"], pm["t"]):
-                why.append("chybí odběr měniče přes noc")
-            else:
-                pe = eve[0]
-                ve, se = rest(pe)
-                ah2 = pe["qr"] - pm["qr"]
-                d_soc = se - sm
-                r2 = {"ok": False, "m": "2b", "ah": round(ah2, 1), "v": vm, "soc": round(sm), "t": pm["t"],
-                      "ve": ve, "soce": round(se), "te": pe["t"]}
-                if ah2 < 12 or d_soc < 12:
-                    why.append(f"přes noc ubylo málo ({ah2:.0f} Ah, {d_soc:.0f} %)")
-                else:
-                    cap = ah2 / (d_soc / 100)
-                    r2.update({"cap": round(cap), "ok": 40 <= cap <= 300})
-                    if not r2["ok"]:
-                        why.append("nesmyslný výsledek")
-                if r2["ok"] or "ah" not in res:
-                    res = r2
-        if not res["ok"]:
-            res["why"] = " · ".join(why) or "nevyšel"
-        res.setdefault("t", int(pm["t"]))
-        day = data["days"].setdefault(date_k, {})
-        if day.get("qc") != res:
-            day["qc"] = res
-            print("Test kapacity", date_k, res)
+        best = None
+        for A in rests[:i]:                                  # klid → klid
+            if B["t"] - A["t"] > 48 * 3600 or abs(B["soc"] - A["soc"]) < 15 or A["t"] < fts:
+                continue
+            if not known(A["t"], B["t"]):
+                continue
+            ah = abs(B["qr"] - A["qr"])
+            cap = ah / (abs(B["soc"] - A["soc"]) / 100)
+            best = {"m": "rest", "ah": round(ah, 1), "ve": A["v"], "soce": A["soc"], "te": int(A["t"]),
+                    "v": B["v"], "soc": B["soc"], "t": int(B["t"]), "cap": round(cap)}
+        ft = max((f for f in data.get("fulls") or [] if fts <= f < B["t"] and B["t"] - f <= 30 * 3600), default=None)
+        if not best and ft and 100 - B["soc"] >= 15 and ft in qr_at and known(ft, B["t"]):   # plná → klid
+            ah = qr_at[ft] - B["qr"]
+            if ah > 0:
+                best = {"m": "full", "ah": round(ah, 1), "tf": int(ft), "v": B["v"], "soc": B["soc"], "t": int(B["t"]),
+                        "cap": round(ah / ((100 - B["soc"]) / 100))}
+        if best:
+            best["ok"] = 40 <= best["cap"] <= 300
+            best["v2"] = 2
+            if not best["ok"]:
+                best["why"] = "nesmyslný výsledek"
+            tests.append(best)
+    for tst in tests:
+        k = datetime.fromtimestamp(tst["t"], TZ).strftime("%Y-%m-%d")
+        day = data["days"].setdefault(k, {})
+        old = day.get("qc") or {}
+        if old.get("v2") != 2 or old.get("t") != tst["t"]:
+            day["qc"] = tst
+            print("Test kapacity", k, tst)
 
 
 def river_for_plug(pid, pname, rivers, cfg):

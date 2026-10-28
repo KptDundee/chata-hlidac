@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.101 – 28. 10. 2026 · výpočty baterie sjednoceny (V1–V3)
+- **Kapacita (V1):** test kapacity jen ze skutečného klidu (≥ 2 h bez proudu a bez slunce): „klid → klid“ (změna nabití ≥ 15 %) nebo „plná (Float) → klid“. Starý test z ranního napětí během odběru (dával ~58 Ah) se nepoužívá. Dokud nejsou 2 nové testy, počítá se s `kapacita_odhad_Ah` = 150 Ah. „Zdraví baterie“ ukazuje jen nové testy.
+- **Jedno nabití (V2):** naučený převod napětí („plná“ = 12,57 V) vypnut – všude obecná tabulka AGM. Nabití pro 7denní výhled = #.
+- **Jedna předpověď noci (V3):** předpověď do rána (22:00, souhrn, dlaždice Příští noc) počítá z # a z obvyklého nočního odběru – stejně jako výhled dne (`night_load_a`). Bez opravy „±V z minulých nocí“; učí se jen noční odběr. Zbytky zrušeného „sniž odběr do …“ z webu odstraněny.
+
 ## 5.100 – 28. 10. 2026
 - Počítadla baterie EcoFlow (celkem vybito `accuDsgEnergy`, SOH, cykly) se čtou i u velkých River (vývojářské rozhraní). Dřív jen u River čtených přes aplikaci (malá), proto u velkých chyběl řádek „měnič River: z baterie do chaty dojde … %“. Výpočet účinnosti naběhne s prvním vybíjením po této verzi.
 

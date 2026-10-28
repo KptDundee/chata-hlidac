@@ -374,3 +374,5 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River“. River jediné: pod 15 %, když z ní něco jede.
 
 **Spotřeba chaty (5.96)**: jedna dlaždice místo „Chata celkem“ a „Spotřebiče“ – součet za dnešek, odběr teď, srovnání s obvyklou spotřebou a jednotlivé zásuvky.
+
+**Kapacita a předpovědi (5.101)**: kapacitu solární baterie hlídač měří jen z doby, kdy byla baterie aspoň 2 h v klidu. Než má 2 takové testy, počítá se 150 Ah (Nastavení → Kapacita pro výpočty). Předpověď noci i výhled dne vychází z # a obvyklého odběru, takže si navzájem neodporují.

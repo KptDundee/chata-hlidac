@@ -42,6 +42,7 @@ nutne_river_v = 22:00          # od kdy naléhavě opakovat „TEĎ přepni chat
 nabijeni_od_vychodu_min = 90
 # kapacita solární baterie
 kapacita_Ah = 200
+kapacita_odhad_Ah = 150      # s čím počítat, dokud nejsou 2 testy kapacity z klidu (štítek snížený na stáří baterie)
 # průměrná noční spotřeba na výstupu měniče (zásuvka Tapo: ~0,03 kWh/h = 30 W)
 noc_spotreba_W = 30
 # vlastní spotřeba měniče Victron 12/800 v režimu On
