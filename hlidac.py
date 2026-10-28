@@ -2449,6 +2449,11 @@ def inv_from_msg(last, now, cfg=None):
             if m and str(p.get("ip")) != str(int(m.group(1))):
                 p["a"] = p.get("a") or p.get("ip")
                 p["ip"] = str(int(m.group(1)))
+        # 5.93: chyba čtení očíslované zásuvky do Deníku (Brána drží jen ~40 řádků). Opakovaná stejná chyba = jeden
+        # řádek s časem od–do a počtem (flush_log), takže je vidět, jak dlouho to trvalo.
+        for p in inv["tp"]:
+            if p.get("err") is not None and str(p.get("ip", "")).isdigit() and len(str(p["ip"])) <= 2:
+                log("err", f"Zásuvka ({p['ip']}) nejde přečíst: {str(p['err'])[:110]}")
     if body.get("wifi") is not None:
         inv["wifi"] = int(body["wifi"])
     if body.get("av"):

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.93 – 28. 10. 2026
+- Chyba čtení očíslované zásuvky se zapisuje do Deníku hlídače („⚠️ Zásuvka (N) nejde přečíst: …“). Opakovaná chyba je jeden řádek s časem od–do a počtem. Deník drží 14 dní (Brána jen ~40 řádků).
+
 ## 5.92 – 28. 10. 2026 · Brána 1.9.12
 - Solární baterie plná (Float): Flip se nabíjí doplna (do 100 %), bez ohledu na pravidlo 75 / 80 % – energie by se jinak zahodila. Hlídač posílá v povolení `full`, Brána 1.9.12 ho použije (platí 75 min od posledního povolení).
 - Oprava: když zásuvku měniče (1) nešlo přečíst (chyba čtení), web psal „měnič vypnutý“. Teď „vypnutý“ jen když je zásuvka nedostupná nebo chybí; při chybě čtení „zásuvka (1) nejde přečíst“.

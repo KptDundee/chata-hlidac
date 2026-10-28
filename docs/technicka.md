@@ -336,3 +336,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.91**: `flip_charge_cmd` – `allow` = na soláru, regulátor čerstvý, pv ≥ 20 a `net_w` ≥ 15 W (vypnuto) / ≥ −15 W (zapnuto, nabíječka je v `mw`). `rfree = allow`. `data.sun_free` → `data.flip_sun {on, solar, river, pv, load, net_w, need, chg, fmin}`.
 
 **5.92 / 1.9.12**: -fc `full` (na soláru, regulátor čerstvý, status 1 a U ≥ float_V − 0,3) → allow; Brána `fc_full` (≤ 75 min) → nabíjet do 100 % před pravidly 80 / 75 %. Web `menicOff` bez `err`.
+
+**5.93**: `store_inverter` – `log("err", "Zásuvka (N) nejde přečíst: …")` pro zásuvky s číslem (≤ 2 číslice) a `err`; slučuje `flush_log`.
