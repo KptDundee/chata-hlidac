@@ -4728,6 +4728,17 @@ def battery_sim(data, st, now, cfg):
     q = [d["qc"]["cap"] for d in data.get("days", {}).values() if (d.get("qc") or {}).get("ok") and d["qc"].get("v2") == 3]
     baterie.update(data, st, now, cfg, sun_times, pocasi.model_for, panely.label_panels, night_w(data, cfg, now.timestamp()), day_w,
                    cur_ah=eff_cap(data, cfg) if len(q) >= 2 else None)
+    # 5.130: cena 1 kWh, kterou River dodá do chaty = cena kWh z generátoru × (kolik Wh se do River nabije na 100 %
+    # ÷ kolik Wh River na 100 % dodá do chaty) – tj. i se ztrátami nabíjení a měniče River. Jen ze změřených hodnot.
+    fu = data.get("fuel") or {}
+    f_ = cfg.get("gen_palivo") if (fu.get(cfg.get("gen_palivo")) or {}).get("czk_kwh") else next((k for k, v in fu.items() if (v or {}).get("czk_kwh")), None)
+    gen = (fu.get(f_) or {}).get("czk_kwh") if f_ else None
+    rs = sorted(c["chg"]["per100"] / c["cap"] for c in (data.get("rv_cap") or {}).values()
+                if c.get("cap") and (c.get("n") or 0) >= 2 and (c.get("chg") or {}).get("per100"))
+    ratio = rs[len(rs) // 2] if rs else None
+    if data.get("bsim"):
+        data["bsim"]["price"] = {"czk_kwh": round(gen * ratio, 1) if gen and ratio else None, "gen": gen, "fuel": f_,
+                                 "ratio": round(ratio, 2) if ratio else None}
 
 
 def plan_reminder(data, st, now, topic, cfg):

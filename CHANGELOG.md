@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.130 – 28. 10. 2026
+- Karta „Jaká baterie“: kolik by stála energie z River – celkem i po měsících. Cena 1 kWh dodané z River do chaty = cena kWh z generátoru (palivo) × kolik Wh se do River nabije na 100 % ÷ kolik Wh River na 100 % dodá do chaty (ztráty nabíjení a měniče River) – jen ze změřených hodnot; dokud nejsou, „–“. Rozdíl mezi řádky = úspora.
+
 ## 5.129 – 28. 10. 2026
 - Karta „Jaká baterie“: sloupec „zahozeno“ pryč – rozhodnutí nemění (víc uloženého slunce v létě stejně není kam dát). Rozhoduje jen počet dní s River; vysvětleno v poznámce.
 
