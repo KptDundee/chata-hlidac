@@ -35,7 +35,6 @@ vecerni_souhrn_hodina = 22
 
 # --- Předpověď do rána ---
 # po západu slunce spočítá z kapacity a noční spotřeby, jestli baterie vydrží do rána
-predpoved_noc = zapnuto          # od 5.86 se nepoužívá (noc: jen „přepni na River“ od nutne_river_v a napětí)
 den_kontrola = po 8:00, út 5:45, st 8:00, čt 5:45, pá 8:00, so 9:00, ne 9:00   # výhled dne: kdy ráno zkontrolovat, jestli chata na soláru vydrží do večera (před odjezdem); den bez času = nekontrolovat
 den_do = 22:00                 # výhled dne: do kolika má chata na soláru vydržet
 nutne_river_v = 22:00          # od kdy naléhavě opakovat „TEĎ přepni chatu na River“ (po 5 min), když baterie do rána nevydrží a chata jede ze soláru; vypnuto = nikdy
@@ -66,7 +65,6 @@ brana_ticho_min = 60
 # upozornit, když baterie telefonu klesne pod (%)
 telefon_baterie_pod = 15
 # upozornit, když baterie Flipu (nenabíjí se) klesne na tyto stupně – každý jednou
-telefon_upozornit = 50, 30, 20, 10, 0
 
 # --- Zásuvky Tapo (konec IP adresy) ---
 # zásuvka za měničem, která MĚŘÍ (odběr ze solární baterie); prázdné = podle názvu „220V měnič“
@@ -82,7 +80,6 @@ zasuvka_generator = 7
 # zapne zásuvku, když je solární baterie plná (Float) a panely dávají dost; vypne při poklesu
 river_auto = zapnuto
 river_auto_ip = 8
-river_auto_pv_on = 150
 river_auto_pv_off = 100
 river_auto_v_off = 12.5
 # vypnout hned, jakmile napětí spadne pod tuto hodnotu (baterie se přestala nabíjet a začala vybíjet)
@@ -94,8 +91,6 @@ boost_V = 14.4
 # napětí Float podle regulátoru
 float_V = 13.7
 # posílat notifikaci při každém zapnutí / vypnutí River (jinak jen Deník a večerní souhrn)
-river_auto_notifikace = vypnuto
-river_auto_off_min = 20
 
 # --- Ostatní odběr za měničem (světla, kamery, wifi) = zásuvka měniče − lednice ---
 zasuvka_lednice = 4
@@ -137,7 +132,6 @@ kabely_ubytek_V = 0.35          # okamžité upozornění, když regulátor ukaz
 kabely_odpor_mOhm = 20          # jednou denně upozornit, když odpor cesty za 24 h vyjde vyšší (v pořádku do ~10 mΩ)
 oprava_spoju = 2026-10-14 18:00   # kdy se naposledy opravovaly spoje / pojistka – starší měření kabelů, přechody do Float a testy kapacity se neberou
 desulfator_W = 0.25             # stálý odběr desulfátoru přímo z baterie (JCP-2-ABC: max 0,02 A)
-hash_upozornit = 50, 30         # upozornit, když nabití # (z ampérhodin) klesne pod tyto hodnoty (znovu až po nabití nad 60 #)
 lednice_hlidat = zapnuto           # hlídat lednici (zásuvka zasuvka_lednice): kompresor dlouho stojí / běží bez přestávky / zásuvka bez proudu
 lednice_ticho_h = 3             # upozornit, když kompresor stojí déle (aspoň; v zimě se hranice sama prodlouží podle posledních 7 dní)
 lednice_bezi_h = 2              # upozornit, když kompresor běží bez přestávky déle (aspoň; přizpůsobí se posledním 7 dnům)

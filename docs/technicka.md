@@ -340,3 +340,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.93**: `store_inverter` – `log("err", "Zásuvka (N) nejde přečíst: …")` pro zásuvky s číslem (≤ 2 číslice) a `err`; slučuje `flush_log`.
 
 **5.94 / 1.9.13**: zásuvka „off“ nese `ow` = druh chyby · .IP; hlídač ho drží v `inv.tp`, `plug_watch` ho dá do důvodu, do Deníku `log("err", "Zásuvka (N) nedostupná: …")`.
+
+**5.95**: `alarm(st, topic, key, active, …)` – stav v `st.al[key] = {t0, last, title, ack, snz}`, opakování `ALARM_REPEAT_S` (570 s), tlačítka posílají do `<téma>-ack` „ok|30|60:<klíč>“ (staré bez klíče = `night`), zpracuje `alarm_acks` na začátku běhu. `digest(st, title, msg)` → `st.digest`, vypíše `daily_summary` („👀 K pozornosti“, pak smaže); aktivní alarmy „🚨 Trvá“. `data.alarms` pro web (`alertItems`). Klíče: bat_low, reg, pv, fuse, wire, inv_al, gw, wifi, plugs, flip_low, flip_hot, router, fridge, frost, rv_<sn6>, night, day, gen_off. `urgent_river` bere i `st._rvn` z `river_supply`. Odstraněno `hash_alert`, `ecoflow_reminder`.

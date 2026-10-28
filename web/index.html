@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.94", FLIP_VER = "1.9.13";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.95", FLIP_VER = "1.9.13";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2541,28 +2541,12 @@ function detRiver(body){
       empty(el, rr.soc==null ? `EcoFlow u této River neposílá nabití %${rr.online===0 ? " – je offline (vypnutá nebo bez Wi‑Fi)" : ""}.` : "Zatím málo dat – graf se naplní během pár hodin."); } }
 }
 function alertItems(d, h){
-  const A = [], RS = regStale(d), g = d.inverter, ph = g && g.ph, lim = d.cfg?.river_vymenit_pod ?? 15;
-  if(RS.stale) A.push({s:2, t:`Regulátor neposílá data (od ${relDay(RS.t)} ${hmT(RS.t)})`, k:"sys"});
-  if(!g || h.now - g.t > 1800) A.push({s:2, t:`Flip neposílá data${g?` (od ${relDay(g.t)} ${hmT(g.t)})`:""}`, k:"sys"});
-  else if(g.wifi===0) A.push({s:2, t:"Flip není na Wi‑Fi – zásuvky nejdou číst", k:"sys"});
-  if(g && h.now - g.t <= 1800 && d.vic_t && h.now - d.vic_t > 3600 && !h.rvOn && !h.menicOff) A.push({s:1, t:`Victron neposílá (od ${relDay(d.vic_t)} ${hmT(d.vic_t)})`, k:"sys"});
-  { const ff = d.flip_fc, soon = ff && ff.t15 - h.now < 12*3600;   // 4.51: i s předstihem podle rychlosti vybíjení
-    // 5.78: nenabíjení nad spodní hranicí je podle pravidel v pořádku (šetří proud) – problém jen když by se nabíjet
-    // měl a nenabíjí (pod hranicí, zásuvka nejde ovládat), nebo by se vybil dřív, než ho řízení stihne dobít
-    const fmin = d.cfg?.flip_min_pct ?? 30, fcx = g && g.fc, ctlOk = fcx && !fcx.miss;
-    if(g && h.now - g.t <= 1800 && ph && ph.b!=null && !ph.c && (ph.b <= fmin - 2 || (soon && !ctlOk)))
-      A.push({s: ph.b <= 20 ? 2 : 1, t:`Flip má ${nf(ph.b)} % a nenabíjí se${ph.b <= fmin - 2 ? ` (pod ${fmin} % by se nabíjet měl${fcx && fcx.why ? ` – ${fcx.why}` : ""})` : " a nabíjení nejde ovládat"}${ff ? ` – vydrží do ${relDay(ff.t_empty)} ~${hmT(ff.t_empty)}` : ""}`, k:"sys"}); }
-  if(!RS.stale && h.bv!=null && h.bv < CRIT_V) A.push({s:2, t:`Solární baterie ${nf(h.bv,2)} V – pod ${nf(CRIT_V,1)} V`, k:"bat"});
-  if(!RS.stale && h.extraW!=null && h.net!=null && h.net <= -(h.cfg.odber_z_baterie_A ?? 2) && h.extraW >= (h.cfg.odber_navic_W ?? 40)) A.push({s:1, t:`Odběr ${nf(h.extraW)} W navíc za měničem`, k:"bat"});
-  const rs = d.river_sup; if(rs && rs.soc <= lim) A.push({s:2, t:`${rs.name} má ${rs.soc} % – vyměň River`, k:"river"});
-  // 4.48: lednice a mráz
-  const fr = d.fridge; if(fr && fr.state!=="ok") A.push({s:2, t: fr.state==="off" ? `Lednice nechladí? Kompresor stojí od ${relDay(fr.od)} ${hmT(fr.od)}` : fr.state==="on" ? `Lednice běží bez přestávky od ${relDay(fr.od)} ${hmT(fr.od)}` : `Lednice bez proudu? Zásuvka nejde přečíst od ${hmT(fr.od)}`, k:"fridge"});
-  const cl = d.cold, hp = d.hq && d.hq.pct; if(cl && cl.T!=null && cl.T <= (h.cfg.mraz_C ?? 0) && hp!=null && hp < (h.cfg.mraz_hash ?? 40)) A.push({s:2, t:`Vybitá baterie v mrazu: ${hp} # při ${nf(cl.T,1)} °C`, k:"bat"});
-  [tilePanels(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:1, t:`${x.label}: ${x.st}`, k:x.k}));
-  { const tw = tileWire(d,h); if(tw.cls==="bad"||tw.cls==="warn") A.push({s:1, t:`${tw.cls==="bad"?"Velká":"Zvýšená"} ztráta na kabelech a spojích${d.wire_state&&d.wire_state.active&&d.wire_state.n<2?" (čeká na potvrzení)":""} – návod`, k:"wire"}); }   // 4.45: i zvýšená
-  // 4.44: zdraví baterie je známá věc (výměna na jaře) – tiché upozornění: samo jen malý řádek, s jinými jako připomínka na konci
+  // 5.95: „K řešení“ = přesně upozornění, která hlídač právě hlásí (kategorie 1 a 2), nic vlastního
+  const K = k => /^rv_/.test(k) ? "river" : ({bat_low:"bat", day:"bat", inv_al:"bat", frost:"bat", reg:"sys", gw:"sys", wifi:"sys", plugs:"sys",
+    flip_low:"flip", flip_hot:"flip", router:"flip", fridge:"fridge", wire:"wire", pv:"pan", fuse:"pan", night:"night", gen_off:"gen"})[k] || "alerts";
+  const A = (d.alarms||[]).map(x=>({s: x.ack ? 1 : 2, t:`${x.title}${x.ack ? " – řešíš" : ""} (od ${relDay(x.t0)} ${hmT(x.t0)})`, k:K(x.k)}));
   [tileHealth(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:0, q:true, t:`${x.label}: ${x.st}`, k:x.k}));
-  { const lf = d.last_full, lim = h.cfg.plne_nabiti_dni ?? 14; if(lf && (h.now - lf)/86400 >= lim) A.push({s:0, q:true, t:`baterie ${Math.floor((h.now-lf)/86400)} dní bez plného nabití`, k:"health"}); }   // 4.49: tiché
+  { const lf = d.last_full, lim = h.cfg.plne_nabiti_dni ?? 14; if(lf && (h.now - lf)/86400 >= lim) A.push({s:0, q:true, t:`baterie ${Math.floor((h.now-lf)/86400)} dní bez plného nabití`, k:"health"}); }
   return A.sort((a,b)=>b.s-a.s);
 }
 /* 5.15: rozbalovací sekce hlavní stránky. Sekce s červeným nebo oranžovým příznakem se rozbalí vždy, jinak podle toho,
@@ -3275,16 +3259,16 @@ $("tokcancel").addEventListener("click",()=>$("tokbox").classList.add("hide"));
 // [klíč, popis, vysvětlení, jednotka, krok, typ]  typ: "sw" přepínač, "num" číslo, "opt" číslo s vypínačem
 const SETTINGS = [
   ["Upozornění", [
-    ["nabito","Baterie nabitá na 100 %","Můžeš zapojit náročnější spotřebič","","", "sw"],
+    ["nabito","Baterie nabitá na 100 %","V souhrnu ve 22:00","","", "sw"],
     ["panely_nevyrabi","Panely nevyrábí přes den","Sníh, stín nebo vypadlý kabel","","", "sw"],
     ["den_kontrola","Výhled dne – kontrola před odjezdem","Kdy ráno zkontrolovat, jestli chata na soláru vydrží do večera – pro každý den zvlášť (vypnutý den = nekontrolovat)","",0,"week"],
     ["den_do","Výhled dne – vydržet do","Do kolika má chata na soláru vydržet (pak řeší noc jiná upozornění)","",0,"time"],
-    ["nutne_river_v","Naléhavě: přepni na River","Od tohoto času opakovat po 5 min, dokud chata nejede z River / nepotvrdíš","",0,"timeopt"],
+    ["nutne_river_v","Před spaním: přepni na River","Od tohoto času, když zdroj do rána nevydrží; opakuje se po 10 min","",0,"timeopt"],
     ["vecerni_souhrn_hodina","Večerní souhrn (každý večer)","Hodina, kdy každý večer přijde přehled dneška","h",1,"opt"],
   ]],
   ["Napětí baterie", [
-    ["baterie_slabne_V","Baterie slábne","Varování s rezervou","V",0.05,"num"],
-    ["baterie_kriticka_V","Odpoj spotřebiče","Alarm regulátoru","V",0.05,"num"],
+    ["baterie_slabne_V","Baterie slábne","Jen do souhrnu ve 22:00","V",0.05,"num"],
+    ["baterie_kriticka_V","Přepni na River","Jediné upozornění na solární baterii","V",0.05,"num"],
     ["odpojeni_V","Měnič se vypíná","Ochrana baterie v měniči Victron","V",0.05,"num"],
   ]],
   ["Panely", [
@@ -3321,12 +3305,10 @@ const SETTINGS = [
   ["Automatické nabíjení River", [
     ["river_auto","Nabíjet River přebytkem ze slunce","Zapne zásuvku, když je solární baterie plná","","", "sw"],
     ["river_auto_ip","Zásuvka nabíjení River","Číslo zásuvky","",0,"txt"],
-    ["river_auto_pv_on","Zapnout, když panely dávají aspoň","","W",10,"num"],
     ["river_auto_pv_off","Vypnout, když panely klesnou pod","","W",10,"num"],
     ["river_auto_v_drzet","Vypnout hned, když napětí klesne pod","Solární baterie se přestala nabíjet (Float ~13,6 V)","V",0.05,"num"],
     ["river_auto_boost","Nabíjet River už v Boostu","Jen když regulátor drží nabíjecí napětí – baterie dostává plnou dávku","","", "sw"],
     ["boost_V","Nabíjecí napětí Boostu","Podle nastavení regulátoru (teplotní kompenzaci dopočítá hlídač)","V",0.1,"num"],
-    ["river_auto_notifikace","Notifikace při každém zapnutí / vypnutí","Jinak jen Deník a souhrn každý večer","","", "sw"],
     ["float_V","Napětí Float","Podle nastavení regulátoru","V",0.1,"num"],
   ]],
   ["Odběr z baterie přes den", [
@@ -3353,7 +3335,6 @@ const SETTINGS = [
     ["brana_hlidat","Upozornit, když brána mlčí","Telefon u měniče přestal posílat data","","", "sw"],
     ["brana_ticho_min","Mlčí déle než","","min",10,"num"],
     ["brana_restart","Denní restart Brány","Bluetooth, zásuvky a spojení znovu; pak zpráva, jestli je vše v pořádku (Flip 1.9.11)","",0,"timeopt"],
-    ["telefon_baterie_pod","Baterie Flipu – červeně pod","","%",5,"num"],
   ]],
   ["Zásuvky, lednice, teploměry a Flip", [
     ["zasuvka_menic","Zásuvka za měničem","Odběr ze solární baterie","",0,"txt"],
@@ -3398,14 +3379,14 @@ const SETTINGS = [
 ];
 /* 5.35: nápověda k nastavení (ⓘ) – co to je, co to řídí, co znamená změna */
 const SET_HELP = {
-  nabito: "Zpráva, když regulátor přejde do Float (solární baterie plně nabitá). Hodí se, když chceš zapojit něco náročnějšího (vrtačka, nabíjení River). Vypnuto = zpráva nechodí, nic jiného se nemění.",
+  nabito: "Řádek v souhrnu ve 22:00, když regulátor přešel do Float (solární baterie plně nabitá). Vypnuto = v souhrnu není.",
   panely_nevyrabi: "Zpráva, když panely přes den dlouho skoro nic nevyrábí (sníh, stín, vypadlý konektor). Kdy přesně, určují volby v sekci Panely. Vypnuto = nehlídá se.",
   den_kontrola: "Ráno v nastavenou hodinu (pro každý den zvlášť) hlídač zkontroluje, jestli chata na soláru vydrží do večera („Výhled dne“). Hodí se jako kontrola před odjezdem. Vypnutý den = ten den se nekontroluje.",
   den_do: "Do kolika hodin má chata na soláru vydržet při ranní kontrole (Výhled dne). Pozdější čas = přísnější kontrola, častěji poradí River. Noc potom řeší předpověď do rána.",
-  nutne_river_v: "Když solární baterie nevydrží noc, od tohoto času přichází každých 5 min naléhavé upozornění „přepni na River“, dokud chata nejede z River nebo to nepotvrdíš / neodložíš (Přepínám / Za 30 min / Za 1 h). Vypnuto = jen běžná upozornění.",
+  nutne_river_v: "Od tohoto času do rána: když zdroj, ze kterého chata jede (solární baterie nebo River), do rána nevydrží, přijde „🌙 Před spaním přepni chatu na River“ s tlačítky Řeším / Za 30 min / Za 1 h a opakuje se po 10 min, dokud nepřepneš. Vypnuto = nikdy.",
   vecerni_souhrn_hodina: "V tuto hodinu přijde každý večer přehled dneška (výroba, spotřeba, baterie, River, chyby). Vypínačem se souhrn vypne úplně.",
-  baterie_slabne_V: "Hranice napětí solární baterie pro první varování „⚠️ Baterie slábne“ (2 měření po sobě pod hranicí). Je to obyčejná hranice – pod větším odběrem (PC) napětí poklesne víc, takže se může ozvat dřív. Vyšší číslo = varuje dřív, nižší = později.",
-  baterie_kriticka_V: "Hranice „🛑 Odpoj spotřebiče“ – stejná jako alarm regulátoru. Pod ní se baterie vybíjí příliš hluboko. Měl by být níž než „slábne“ a výš než „Měnič se vypíná“.",
+  baterie_slabne_V: "Když solární baterie klesne pod tuto hranici, objeví se to v souhrnu ve 22:00 (žádná zvláštní zpráva).",
+  baterie_kriticka_V: "Jediné upozornění na solární baterii: pod touto hranicí přijde „🛑 přepni chatu na River“ a opakuje se po 10 min, dokud nepřepneš, neťukneš Řeším / Za 30 min / Za 1 h nebo napětí nevystoupí nad „reset“.",
   odpojeni_V: "Napětí, při kterém měnič Victron sám vypne 230 V (ochrana baterie). Musí odpovídat nastavení v měniči – hlídač podle toho jen hlásí a počítá předpověď „vydrží do“. Změna tady nic v měniči nepřenastaví.",
   panely_min_W: "Pod tímhle výkonem se panely berou jako „nevyrábí“ (pro upozornění Panely nevyrábí). Vyšší číslo = upozornění i při slabém zatažení, nižší = jen při úplné tmě / sněhu.",
   panely_po_dobu_min: "Jak dlouho musí panely nevyrábět, než přijde upozornění. Kratší = rychlejší zpráva, ale i kvůli delšímu mraku.",
@@ -3430,12 +3411,10 @@ const SET_HELP = {
   zasuvky_stale_min: "Jak dlouho smí zásuvka chybět, než přijde upozornění. Přepnutí chaty solár ↔ River chvíli trvá – kratší čas = víc zbytečných zpráv.",
   river_auto: "Když je solární baterie plná (Float) a slunce dává víc, hlídač zapne zásuvku nabíjení River (8) a přebytek jde do River. Jakmile se solární baterie začne vybíjet, hned ji vypne – solární baterie má vždy přednost. Vypnuto = zásuvka se nepřepíná.",
   river_auto_ip: "Číslo zásuvky, přes kterou se River nabíjí ze soláru (za měničem).",
-  river_auto_pv_on: "Nabíjení River se zapne jen když panely dávají aspoň tolik. Vyšší = zapne se jen za silného slunce.",
   river_auto_pv_off: "Nabíjení River se vypne, když panely klesnou pod tuto hodnotu (měřeno až po zapnutí).",
   river_auto_v_drzet: "Když napětí solární baterie při nabíjení River klesne pod tuto hranici, baterie se vybíjí → nabíjení River se hned vypne. Vyšší = opatrnější (solární baterie má větší přednost).",
   river_auto_boost: "Nabíjet River už ve fázi Boost (regulátor drží nabíjecí napětí, baterie dostává plnou dávku). Vypnuto = River jen ve Float, tj. až je solární baterie úplně plná.",
   boost_V: "Nabíjecí napětí fáze Boost podle nastavení regulátoru. Hlídač podle něj pozná, že regulátor napětí drží (a dopočítá teplotní kompenzaci). Musí odpovídat regulátoru.",
-  river_auto_notifikace: "Zpráva při každém zapnutí / vypnutí nabíjení River ze soláru. Vypnuto = jen záznam v Deníku a ve večerním souhrnu.",
   float_V: "Napětí fáze Float podle nastavení regulátoru. Když ve Float napětí klesne o 0,4 V pod tuto hodnotu, baterie se vybíjí a nabíjení River se vypne.",
   odber_hlidat: "Přes den upozorní, když se solární baterie vybíjí kvůli odběru navíc (nabíjení zařízení, něco zapnutého) – ne kvůli běžné lednici a světlům. Vypnuto = nehlásí se.",
   odber_z_baterie_A: "Od jakého proudu z baterie se to bere jako vybíjení (pro upozornění na odběr navíc a pro vypnutí nabíjení River). Nižší = citlivější.",
@@ -3454,7 +3433,6 @@ const SET_HELP = {
   brana_hlidat: "Upozornění, když Flip (brána na chatě) přestane posílat data – vybitý, bez Wi‑Fi, spadlá aplikace.",
   brana_restart: "Každý den v tuhle dobu Brána sama restartuje své části (Bluetooth sken, spojení se zásuvkami, hledání v síti, poslech probuzení) – bez ukončení aplikace, aby se nemohla „neprobudit“. Při prvním měření po restartu přijde zpráva: ✓ v pořádku (nízká priorita), nebo co nefunguje (vysoká). Když se Flip po restartu do 25 min neozve, přijde naléhavé upozornění. Vypnuto = bez restartu.",
   brana_ticho_min: "Jak dlouho smí Flip mlčet, než přijde upozornění. Kratší = rychlejší zpráva, ale i při krátkém výpadku Wi‑Fi.",
-  telefon_baterie_pod: "Pod tímto % se baterie Flipu na webu zobrazí červeně.",
   zasuvka_menic: "Číslo zásuvky „220V měnič“ – měří všechno, co jde ze solární baterie přes měnič. Z ní se počítá odběr, noční spotřeba a předpovědi.",
   zasuvky_river: "Čísla zásuvek, ze kterých chata jede z River (zimní provoz), oddělená čárkou. Podle nich hlídač pozná, že chata jede z River.",
   zasuvka_generator: "Číslo zásuvky, přes kterou jde proud z generátoru (7). Když bere proud, běží nabíjení z generátoru.",

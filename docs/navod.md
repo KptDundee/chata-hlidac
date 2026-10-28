@@ -365,3 +365,10 @@ Na generátoru **Eko režim**: v eko režimu generátor hlásí max ~1100 W a na
 **Nabíjení Flipu (5.91)**: když svítí, nabíjí do 80 % – začne, když panely pokryjí chatu i nabíječku, přestane při 80 % nebo když panely nepokryjí ani chatu. Jinak (noc, mrak, chata na River) jen pod 30 % a jen tolik, aby vydržel do rána. Proč: energie z panelů jde rovnou do nabíječky, večer by se brala ze solární baterie se ztrátou.
 
 **Flip ve Floatu (5.92, Brána 1.9.12)**: když je solární baterie plná (Float), Flip se nabije doplna (100 %).
+
+## Upozornění – tři druhy (5.95)
+
+1. **Ohrožení chodu** (něco přestává fungovat) a 2. **doporučení s úkolem** (22:00 přepni na River, ráno „solár nevydrží“, po generátoru „vypni generátor“): přijde jedno upozornění s tlačítky **Řeším / Za 30 min / Za 1 h**. Dokud to trvá a nic neťukneš, přijde znovu po 10 min. Když se to spraví samo, přijde „✓ …“.
+3. **Přehled**: všechno ostatní jen v souhrnu ve 22:00 („👀 K pozornosti“). Co právě trvá, je v souhrnu pod „🚨 Trvá“ a na webu v pruhu „K řešení“.
+
+Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River“. River jediné: pod 15 %, když z ní něco jede.

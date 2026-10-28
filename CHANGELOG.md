@@ -3,6 +3,16 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.95 – 28. 10. 2026 · upozornění zjednodušena (tři druhy)
+- **1 Ohrožení chodu** a **2 doporučení s úkolem**: jedno upozornění na jednu věc, jedna veličina, jedna hranice. Tlačítka **Řeším / Za 30 min / Za 1 h**; dokud to trvá a nepotvrdíš, přijde znovu po 10 min; když se to spraví samo, přijde „✓ …“.
+  - Solární baterie: jen pod 12,0 V „přepni na River“ (místo 12,2 / 12,0 / 11,6 V a 50 / 30 #).
+  - River, ze které něco jede, pod 15 % (velká i malá) – místo 15 / 10 / 5 % a „vypnula se“ (text se změní).
+  - Brána neposílá data, regulátor neposílá data (i chyba cloudu), Flip mimo Wi‑Fi, zásuvky nejsou vidět (jedno pro všechny), Flip pod 20 % a nenabíjí se, router pod 25 %, lednice nechladí (teplota i kompresor), velký úbytek na kabelech, proud u pojistky, alarm měniče, panely nevyrábí, horký Flip, vybitá baterie v mrazu.
+  - Doporučení: 22:00 „před spaním přepni na River“ (solár i River, ze které chata jede), ráno v čas z rozvrhu „solár do večera nevydrží“, po nabíjení z generátoru „vypni generátor“ se souhrnem (opakuje se, dokud generátor běží).
+- **3 Přehled**: vše ostatní jen v souhrnu ve 22:00 v části „👀 K pozornosti“ (Float, pod 12,2 V, dny bez nabití, kapacita, sezóna, panely, spotřeba, odběr navíc, noční odběr, odpor kabelů, teploměry, suchý vzduch, EcoFlow, GitHub, restart Brány, River na 100 %). V souhrnu je i „🚨 Trvá“.
+- Zrušeno: upozornění podle #, „Flip se nenabíjí – vydrží do“, „Než odjedeš: Flip“, „Lednice bez proudu“ (hlásí zásuvka), „Generátor běží naprázdno“, „Generátor doběhl“, připomínka EcoFlow, zprávy o zapnutí nabíjení River. Nastavení `telefon_upozornit`, `hash_upozornit`, `river_auto_notifikace`, `river_auto_pv_on`, `river_auto_off_min`, `predpoved_noc` odstraněna.
+- Web: „K řešení“ ukazuje přesně upozornění, která právě trvají.
+
 ## 5.94 – 28. 10. 2026 · Brána 1.9.13
 - Nedostupná zásuvka: Brána 1.9.13 pošle přesný důvod a adresu, na kterou se zkoušela připojit – „odmítla spojení“ / „adresa v síti není“ / „spojení vypršelo“ / „spojila se, ale neodpověděla“. Hlídač ho dá do upozornění „(N) není vidět“ i do Deníku.
 

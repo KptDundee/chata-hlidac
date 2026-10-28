@@ -616,25 +616,13 @@ def wiring_check(data, st, now, topic, cfg):
         wa["last_t"] = t
         if exceed:
             wa["n"] += 1
-            if wa["n"] <= 4 or wa["n"] % 6 == 0:            # 2., 3., 4. měření, pak zhruba jednou za hodinu
-                ntfy(topic, f"🔥 Úbytek na kabelech trvá – {wa['n']}. měření po sobě",
-                     f"Teď o {fmt(drop, 2)} V při ~{fmt(ir + ii, 0)} A{f' (~{fmt(r_mo, 0)} mΩ)' if r_mo else ''} (od {datetime.fromtimestamp(wa['t'], TZ).strftime('%H:%M')}).\n"
-                     "Potvrzeno – zkontroluj pojistku, pouzdro a spoje (nejsou horké / natavené?).", 4, "fire,warning")
         else:
-            ntfy(topic, "✓ Úbytek na kabelech zase v normě",
-                 f"Další měření: {fmt(drop, 2)} V při ~{fmt(ir + ii, 0)} A{f' (~{fmt(r_mo, 0)} mΩ)' if r_mo else ''} (hranice {fmt(lim_v, 2)} V / {fmt(lim_r, 0)} mΩ)."
-                 + (" Poplach se nepotvrdil – nejspíš měření regulátoru a měniče z trochu jiné chvíle." if wa["n"] == 1
-                    else f" Vysoký úbytek trval {wa['n']} měření."), 3, "white_check_mark")
-            wa["active"], wa["end_t"] = False, int(ts)
+            wa["active"], wa["end_t"] = False, int(ts)      # 5.95: konec – „✓“ pošle alarm níž
         wa["drop"], wa["a"] = round(drop, 2), round(ir + ii)
     elif ts - t < 1800 and exceed and ts - st.get("wire_acute_t", 0) > 6 * 3600:
         # 5.79: první platné překročení jen zapamatovat – upozornit až když ho potvrdí další platné měření
         pend = st.get("wire_pend")
         if pend and pend.get("t") != t and t - pend["t"] <= 3600:
-            ntfy(topic, "🔥 Velký úbytek napětí na kabelech",
-                 f"Dvě měření po sobě: regulátor ukazuje o {fmt(pend['drop'], 2)} a {fmt(drop, 2)} V víc než měnič (při ~{fmt(ir + ii, 0)} A"
-                 f"{f', odpor ~{fmt(r_mo, 0)} mΩ' if r_mo else ''}).\n"
-                 f"Na cestě regulátor → baterie → měnič je velký odpor – zkontroluj pojistku, pouzdro a spoje (nejsou horké / natavené?).", 4, "fire,warning")
             st["wire_acute_t"] = ts
             st["wire_acute"] = wa = {"active": True, "t": int(pend["t"]), "last_t": t, "n": 2, "drop": round(drop, 2), "a": round(ir + ii)}
             st.pop("wire_pend", None)
@@ -644,15 +632,21 @@ def wiring_check(data, st, now, topic, cfg):
         st.pop("wire_pend", None)
     if wa:
         data["wire_state"] = {k: wa.get(k) for k in ("active", "t", "n", "drop", "a", "end_t")}
+    # 5.95: jedno upozornění (kategorie 1) – potvrzené dvěma platnými měřeními, trvá do prvního měření v normě
+    wa = st.get("wire_acute") or {}
+    stale_w = bool(wa.get("active")) and ts - (wa.get("last_t") or 0) >= 7200     # 2 h bez platného měření (noc) → tiše
+    alarm(st, topic, "wire", bool(wa.get("active")) and not stale_w, "🔥 Velký úbytek napětí na kabelech",
+          f"Regulátor ukazuje o {fmt(wa.get('drop'), 2)} V víc než měnič (při ~{fmt(wa.get('a'), 0)} A, {wa.get('n', 0)}. měření po sobě).\n"
+          "Na cestě regulátor → baterie → měnič je velký odpor – zkontroluj pojistku, pouzdro a spoje (nejsou horké / natavené?).",
+          5, "fire,warning", ok_title=False if stale_w else "✓ Úbytek na kabelech zase v normě")
     load = [(r[1] - off) / (r[2] + r[3]) for r in rows if r[0] >= ts - 86400 and r[2] + r[3] >= 5]   # 5.80: od 5 A
     if len(load) >= 4:
         mo = med(load) * 1000
         data["wire_mo"] = round(mo, 1)
         day = now.strftime("%Y-%m-%d")
         if mo >= lim_r and st.get("wire_warn_d") != day and ts - st.get("wire_acute_t", 0) > 86400:   # 5.80: ne vedle akutního
-            ntfy(topic, "🔧 Zvýšený odpor kabelů a spojů",
-                 f"Za posledních 24 h vychází odpor cesty regulátor → baterie → měnič ~{fmt(mo, 0)} mΩ (v pořádku je do ~10 mΩ).\n"
-                 f"Při proudu 20 A je to úbytek ~{fmt(mo * 20 / 1000, 2)} V. Zkontroluj pojistku a spoje.", 3, "wrench")
+            digest(st, "🔧 Zvýšený odpor kabelů a spojů",
+                   f"Za 24 h ~{fmt(mo, 0)} mΩ (v pořádku do ~10 mΩ), při 20 A úbytek ~{fmt(mo * 20 / 1000, 2)} V. Zkontroluj pojistku a spoje.")
             st["wire_warn_d"] = day
 
 
@@ -816,6 +810,78 @@ def ntfy(topic, title, msg, prio=3, tags="", note=None, actions=None, delay=None
             print("NTFY chyba:", e)
             time.sleep(5)
     log("err", f"Notifikace nedoručena: {title}")
+
+
+# ---- 5.95: tři druhy upozornění (rozhodnuto 28. 10. 2026) ----
+# 1 ohrožení chodu / 2 doporučení s úkolem → alarm(): jedno upozornění s tlačítky Řeším / Za 30 min / Za 1 h,
+#   opakuje se po 10 min, dokud to trvá a nepotvrdíš; když se to spraví samo, přijde „✓ …“.
+# 3 přehled → digest(): jen do souhrnu ve 22:00 (a do Deníku).
+ALARM_REPEAT_S = 570
+
+
+def digest(st, title, msg=""):
+    """Kategorie 3 – žádná zvláštní zpráva, jen řádek do večerního souhrnu."""
+    d = st.setdefault("digest", [])
+    d.append({"t": int(time.time()), "x": str(title)[:90], "m": str(msg).split("\n")[0][:160]})
+    del d[:-30]
+    log("ev", f"(do souhrnu) {title}")
+
+
+def alarm_acks(st, topic):
+    """Odpovědi z tlačítek (ntfy <téma>-ack): „ok:<klíč>“, „30:<klíč>“, „60:<klíč>“; staré „ok“ / „30“ / „60“ = noc."""
+    al = st.get("al") or {}
+    if not al:
+        return
+    since = min(int(x.get("t0", time.time())) for x in al.values()) - 60
+    try:
+        got = urllib.request.urlopen(f"https://ntfy.sh/{topic}-ack/json?poll=1&since={since}", timeout=15).read().decode()
+    except Exception as e:
+        print("Potvrzení (ntfy):", e)
+        return
+    for ln in got.splitlines():
+        try:
+            m = json.loads(ln)
+        except ValueError:
+            continue
+        if m.get("event") != "message":
+            continue
+        txt = str(m.get("message") or "").strip()
+        cmd, _, key = txt.partition(":")
+        key = key or "night"
+        e = al.get(key)
+        if not e or int(m.get("time") or 0) < e.get("t0", 0) - 5:
+            continue
+        if cmd.isdigit():
+            until = int(m.get("time") or time.time()) + int(cmd) * 60
+            if until > (e.get("snz") or 0):
+                e["snz"] = until
+                log("ev", f"{e.get('title', key)} – odloženo do {datetime.fromtimestamp(until, TZ).strftime('%H:%M')}")
+        elif not e.get("ack"):
+            e["ack"] = True
+            log("ev", f"{e.get('title', key)} – potvrzeno „Řeším“")
+
+
+def alarm(st, topic, key, active, title="", msg="", prio=5, tags="rotating_light,warning", ok_title=None, ok_msg=""):
+    """Kategorie 1 a 2: upozornění s tlačítky, opakuje se, dokud trvá, není potvrzené ani odložené."""
+    al = st.setdefault("al", {})
+    e = al.get(key)
+    ts = int(time.time())
+    if not active:
+        if e:
+            if not e.get("ack") and ok_title is not False:
+                ntfy(topic, ok_title or f"✓ Vyřešeno: {e.get('title', key)}", ok_msg or "Už to trvá jen v historii.", 2, "white_check_mark")
+            al.pop(key, None)
+        return
+    act = lambda lb, b: {"action": "http", "label": lb, "url": f"https://ntfy.sh/{topic}-ack", "method": "POST", "body": f"{b}:{key}", "clear": True}
+    btn = [act("Řeším", "ok"), act("Za 30 min", "30"), act("Za 1 h", "60")]
+    if not e:
+        ntfy(topic, title, msg, prio, tags, actions=btn, view=False)
+        al[key] = {"t0": ts, "last": ts, "title": title[:80]}
+        return
+    if e.get("ack") or ts < (e.get("snz") or 0) or ts - e.get("last", 0) < ALARM_REPEAT_S:
+        return
+    ntfy(topic, title, msg + "\nPřipomínám – trvá od " + datetime.fromtimestamp(e["t0"], TZ).strftime("%H:%M") + ".", prio, tags, actions=btn, view=False)
+    e["last"], e["title"] = ts, title[:80]
 
 
 def _key(passphrase, salt):
@@ -1363,6 +1429,7 @@ def main():
     st = data.setdefault("state", {})
     now = datetime.now(TZ)
     cfg = load_config()
+    alarm_acks(st, topic)                                  # 5.95: tlačítka Řeším / Za 30 min / Za 1 h
     rise, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
     data["cfg"] = cfg
     data["sun"] = [int(rise.timestamp()), int(set_.timestamp())] if rise else None
@@ -1388,8 +1455,9 @@ def main():
     check_gateway(inv, st, now, topic, cfg)
     if inv and now.timestamp() - inv["t"] < 1200:   # alarm / vypnutí hlášené samotným měničem
         al = inv.get("al") if inv.get("al") not in ("0", "NONE", "No alarm") else None
-        if al and st.get("inv_al") != al:
-            ntfy(topic, "⚠️ Měnič hlásí alarm", f"Victron: {al} (stav {inv.get('st', '?')}), baterie {fmt(inv.get('v'), 2)} V.", 4, "warning")
+        alarm(st, topic, "inv_al", bool(al), f"⚠️ Měnič hlásí alarm: {al}",
+              f"Victron: {al} (stav {inv.get('st', '?')}), baterie {fmt(inv.get('v'), 2)} V.", 4, "warning",
+              ok_title="✓ Měnič už alarm nehlásí")
         st["inv_al"] = al
     try:
         token = login(acc, pw)
@@ -1403,8 +1471,8 @@ def main():
         except Exception as e2:
             print("Souhrn:", e2)
         st["err_n"] = st.get("err_n", 0) + 1
-        if st["err_n"] == 12:
-            ntfy(topic, "📡 Hlídač nemůže číst Solar Guardian", f"Už ~2 hodiny selhává čtení cloudu: {str(e)[:150]}", 4, "warning")
+        alarm(st, topic, "reg", st["err_n"] >= 3, "📡 Regulátor neposílá data",
+              f"Hlídač nemůže číst cloud Solar Guardian (už {st['err_n']}× po sobě): {str(e)[:150]}", 4, "warning")
         save_data(key, data)
         return
     st["err_n"] = 0
@@ -1539,8 +1607,8 @@ def main():
             med = recent[len(recent) // 2]
             month = now.strftime("%Y-%m")
             if med > base * 1.2 and st.get("health_warned") != month:
-                ntfy(topic, "🔋 Baterie možná ztrácí kapacitu",
-                     f"V noci teď napětí klesá o {fmt(med, 0)} mV na 10 Ah, na začátku sledování {fmt(base, 0)} mV (+{fmt((med / base - 1) * 100, 0)} %).", 3, "battery")
+                digest(st, "🔋 Solární baterie možná ztrácí kapacitu",
+                       f"V noci teď napětí klesá o {fmt(med, 0)} mV na 10 Ah, na začátku sledování {fmt(base, 0)} mV (+{fmt((med / base - 1) * 100, 0)} %).")
                 st["health_warned"] = month
     except Exception as e:
         print("Zdraví baterie:", e)
@@ -1568,10 +1636,8 @@ def main():
                          ("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_, data)),
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
                          ("River napájí chatu", lambda: river_supply(data, st, now, topic, cfg, rise, set_)),
-                         ("Připomínka EcoFlow", lambda: ecoflow_reminder(data, st, now, topic)),
                          ("Nabití #", lambda: hash_soc(data, st, now, cfg)),
                          ("Test kapacity", lambda: capacity_check(data, st, now, cfg)),
-                         ("Upozornění #", lambda: hash_alert(data, st, now, topic, cfg)),
                          ("Lednice", lambda: fridge_check(data, st, now, topic, cfg)),
                          ("Lednice po dnech", lambda: fridge_days(data, now, cfg)),
                          ("Spotřeba proti obvyklé", lambda: cons_compare(data, st, now, topic, cfg)),
@@ -1591,6 +1657,9 @@ def main():
                          ("Palivo a cena", lambda: fuel_stats(data, st, now, cfg)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
+                         ("Upozornění pro web", lambda: data.__setitem__("alarms", [{"k": k_, "title": e_.get("title", k_), "t0": e_.get("t0"),
+                                                                                     "ack": bool(e_.get("ack")), "snz": e_.get("snz")}
+                                                                                    for k_, e_ in (st.get("al") or {}).items()])),
                          ("Hodinky", lambda: watch_publish(data, v, st, now, topic, cfg))):
             try:
                 fn()
@@ -1666,8 +1735,7 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
             if st.get("ra_paused"):
                 st["ra_paused"] = False
                 log("ev", f"Zásuvka ({ip}) zase zapnutá – nabíjení River ze soláru znovu automaticky")
-                ntfy(topic, "☀️ Nabíjení River ze soláru zase běží",
-                     f"Zásuvka ({ip}) je zase zapnutá – hlídač bude River nabíjet přebytkem ze slunce sám, jako dřív.", 2, "sunny")
+                pass                                              # 5.95: jen do Deníku
         if st.get("ra_paused"):
             data["river_auto"] = {"on": False, "paused": True, "reason": f"zásuvka ({ip}) vypnutá vypínačem – zapne se sama, až bude vidět"}
             return
@@ -1738,10 +1806,7 @@ def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
         send_cmd(topic, ip, on, reason)
         ran = f" (běželo {dur(now.timestamp() - st['ra_since'])})" if not on and st.get("ra_since") else ""
         note = f"🔌 River {'ZAP' if on else 'VYP'} – {reason}{ran} · {fmt(bv, 2)} V, {fmt(pv)} W"
-        if cfg.get("river_auto_notifikace"):
-            ntfy(topic, "🔌 Nabíjení River zapnuto" if on else "🔌 Nabíjení River vypnuto",
-                 f"Zásuvka .{ip}: {reason}{ran}. Baterie {fmt(bv, 2)} V, panely {fmt(pv)} W.", 2, "electric_plug", note=note)
-        else:
+        if True:                                          # 5.95: bez notifikací (river_auto_notifikace zrušeno)
             log("auto", note)                   # potichu – jen do Deníku a večerního souhrnu
         st["ra_chk"] = False
         st["ra_since_prev"] = st.get("ra_since", now.timestamp())
@@ -1798,13 +1863,16 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
     v = v or data.get("last") or {}
     L = []
     # --- čísla ---
-    full = next((e for e in data.get("log", []) if e["t"] >= since and e["x"].startswith("🔋 Baterie nabitá")), None)
+    dg = [x for x in st.get("digest") or [] if x["t"] >= since]                 # 5.95: kategorie 3
+    full = next((e for e in dg if "(Float)" in e["x"]), None) or \
+        next((e for e in data.get("log", []) if e["t"] >= since and e["x"].startswith("🔋 Baterie nabitá")), None)
     L.append(f"☀️ Výroba {fmt(day.get('solar_kwh'), 2)} kWh" + (f" · nabitá (Float) v {hm(full['t'])}" if full else " · do Float nedošla"))
     pts = [p for p in data["points"] if p["t"] >= since and p.get("bat_v")]
     if pts:
         lo = min(pts, key=lambda p: p["bat_v"])
         hi = max(pts, key=lambda p: p["bat_v"])
-        L.append(f"🔋 Teď {fmt(v.get('bat_v'), 2)} V ({fmt(v.get('bat_soc'))} %) · min {fmt(lo['bat_v'], 2)} V v {hm(lo['t'])} · max {fmt(hi['bat_v'], 2)} V")
+        hq_ = (data.get("hq") or {}).get("pct")
+        L.append(f"🔋 Teď {fmt(v.get('bat_v'), 2)} V ({fmt(v.get('bat_soc'))} %{f', {hq_} #' if hq_ is not None else ''}) · min {fmt(lo['bat_v'], 2)} V v {hm(lo['t'])} · max {fmt(hi['bat_v'], 2)} V")
     elif v.get("bat_v") is not None:
         L.append(f"🔋 Teď {fmt(v.get('bat_v'), 2)} V ({fmt(v.get('bat_soc'))} %)")
     inv = data.get("inverter") or {}
@@ -1855,8 +1923,21 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
         L.append(line)
     if wxo.get("acc_med") is not None:
         L.append(f"🎯 Předpověď výroby: odchylka obvykle ±{wxo['acc_med']} % (posledních {len(wxo.get('acc') or [])} dní)")
+    # --- 5.95: k pozornosti (kategorie 3) a co právě trvá (kategorie 1 a 2) ---
+    al_ = st.get("al") or {}
+    if al_:
+        L.append("")
+        L.append("🚨 Trvá:")
+        for k_, e_ in al_.items():
+            L.append(f"• {e_.get('title', k_)} (od {hm(e_['t0'])}{', řešíš' if e_.get('ack') else ''})")
+    dgx = [x for x in dg if "(Float)" not in x["x"]]
+    if dgx:
+        L.append("")
+        L.append("👀 K pozornosti:")
+        for x in dgx[-12:]:
+            L.append(f"• {x['x']}" + (f" – {x['m']}" if x.get("m") else ""))
     # --- deník ---
-    ev = [e for e in data.get("log", []) if e.get("t2", e["t"]) >= since]
+    ev = [e for e in data.get("log", []) if e.get("t2", e["t"]) >= since and not e["x"].startswith("(do souhrnu)")]
     errs = [e for e in ev if e["k"] == "err"]
     rest = [e for e in ev if e["k"] != "err"]
     L.append("")
@@ -1896,6 +1977,7 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
     ntfy(topic, title, msg, 3 if errs else 2, "bar_chart")
     st["summary_day"] = today
     st["summary_ts"] = int(now.timestamp())
+    st["digest"] = [x for x in st.get("digest") or [] if x["t"] > now.timestamp()]
 
 
 def watch_publish(data, v, st, now, topic, cfg):
@@ -2017,13 +2099,14 @@ def overload_check(v, st, now, topic, cfg, data, rise, set_):
         hint += "\nZásuvka nabíjení River je zapnutá (neměří)."
     if hit:
         log("ev", f"Odběr navíc: měnič {fmt(inv['mw'])} W = {fr_txt} + běžně {fmt(base)} W + navíc {fmt(extra)} W (baterie {fmt(net, 1)} A)")
-    if hit and now.timestamp() - st.get("ovl_ts", 0) > 3600:
-        ntfy(topic, f"⚡ Odběr navíc ~{fmt(extra)} W – bere se z baterie",
+    if hit and st.get("ovl_day") != now.strftime("%Y-%m-%d"):      # 5.95: jen do souhrnu, 1× za den
+        st["ovl_day"] = now.strftime("%Y-%m-%d")
+        digest(st, f"⚡ Odběr navíc ~{fmt(extra)} W ({now.strftime('%H:%M')})",
              f"Za měničem teď {fmt(inv['mw'])} W = {fr_txt} + světla/kamery/wifi běžně ~{fmt(base)} W + navíc ~{fmt(extra)} W "
              f"(nabíjení zařízení?). Panely dají {fmt(v.get('pv_w'))} W, baterie se vybíjí ~{fmt(-net, 1)} A ({fmt(bv, 2)} V).\n"
              f"Měřené zásuvky teď: {', '.join(others) if others else 'nic dalšího nebere'} (měřeno {datetime.fromtimestamp(inv['t'], TZ).strftime('%H:%M')})."
              + (f"\nPrůměr za posledních {inv.get('avg_dt', 0) // 60} min: za měničem {fmt(m_avg)} W, navíc ~{fmt(extra_avg)} W." if extra_avg is not None else "")
-             + hint, 4, "zap,warning")
+             + hint)
         st["ovl_ts"] = int(now.timestamp())
 
 
@@ -2035,10 +2118,11 @@ def fuse_check(v, st, now, topic, cfg):
     if a is None:
         return
     day = now.strftime("%Y-%m-%d")
-    if a >= lim and st.get("fuse_day") != day:
-        ntfy(topic, f"⚡ Nabíjecí proud {fmt(a, 1)} A – blízko pojistky {fmt(fuse)} A",
-             f"Panely teď dávají {fmt(v.get('pv_w'))} W. Pokud jsou zapojené dva panely, odpoj jeden, ať se nespálí pojistka.", 5, "warning,zap")
-        st["fuse_day"] = day
+    on_ = "fuse" in (st.get("al") or {})
+    alarm(st, topic, "fuse", a >= lim or (on_ and a >= fuse), f"⚡ Nabíjecí proud {fmt(a, 1)} A – blízko pojistky {fmt(fuse)} A",
+          f"Panely teď dávají {fmt(v.get('pv_w'))} W. Pokud jsou zapojené dva panely, odpoj jeden, ať se nespálí pojistka.", 5, "warning,zap",
+          ok_title="✓ Nabíjecí proud zase pod pojistkou")
+    st["fuse_day"] = day
 
 
 def track_soc(data, st, v, now, cfg, inv, mode):
@@ -2222,7 +2306,7 @@ def weather_and_outlook(data, st, cfg, now, topic, mode):
             (st.get("pan_rec") != pp["rec"] or now.timestamp() - st.get("pan_sent", 0) > 7 * 86400):
         title = {"add": "🔆 Zapoj druhý panel", "wait": "⏳ Jeden panel nestačí – druhý ještě ne",
                  "remove": "⚠️ Odpoj druhý panel"}[pp["rec"]]
-        ntfy(topic, title, pp["msg"] + "\nPo přepojení přepni počet panelů v Nastavení.", 4 if pp["rec"] == "remove" else 3, "sunny")
+        digest(st, title, pp["msg"])
         st["pan_rec"], st["pan_sent"] = pp["rec"], int(now.timestamp())
     if not ol:
         return
@@ -2232,9 +2316,9 @@ def weather_and_outlook(data, st, cfg, now, topic, mode):
         t = days[1]
         tomorrow = t["d"]
         if t.get("ok") and st.get("connect_sent") != tomorrow:
-            ntfy(topic, "☀️ Zítra můžeš chatu připojit na solární baterii",
+            digest(st, "☀️ Zítra můžeš chatu připojit na solární baterii",
                  f"Zítra ráno ~{fmt(t.get('mvm'), 2)} V, zítra {t['txt'] or ''} ~{fmt(t['kwh'], 1)} kWh, zítra večer s chatou zbyde ~{fmt(t.get('av'), 2)} V.\n"
-                 f"Zítra večer zase přepoj na River.", 3, "sunny,battery")
+                 f"Zítra večer zase přepoj na River.")
             st["connect_sent"] = tomorrow
     # přechody sezón (nejvýš jednou za 14 dní)
     if cfg.get("sezona_upozornit") and len(days) >= 5 and now.hour >= 18 and now.timestamp() - st.get("season_sent", 0) > 14 * 86400:
@@ -2242,13 +2326,13 @@ def weather_and_outlook(data, st, cfg, now, topic, mode):
         need = ol["dc_day"] / 1000 / 0.9
         mon = now.month
         if mode == "leto" and mon in (9, 10, 11, 12, 1) and avg < need * 0.9 and min(d["nm"] for d in days[1:6]) < 40:
-            ntfy(topic, "🍂 Blíží se zimní provoz",
+            digest(st, "🍂 Blíží se zimní provoz",
                  f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den. {need_txt(ol, need)}\n"
-                 f"Baterie by v některém z příštích rán klesla až na ~{fmt(min(d['mv'] for d in days[1:6]), 2)} V. Zvaž přechod na River.", 3, "fallen_leaf")
+                 f"Baterie by v některém z příštích rán klesla až na ~{fmt(min(d['mv'] for d in days[1:6]), 2)} V. Zvaž přechod na River.")
             st["season_sent"] = int(now.timestamp())
         elif mode == "zima" and mon in (2, 3, 4, 5) and avg > need * 1.3:
-            ntfy(topic, "🌱 Můžeš přejít na letní provoz",
-                 f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den. {need_txt(ol, need)}", 3, "seedling")
+            digest(st, "🌱 Můžeš přejít na letní provoz",
+                   f"Příštích 5 dní vyrobí panely ~{fmt(avg, 2)} kWh/den. {need_txt(ol, need)}")
             st["season_sent"] = int(now.timestamp())
 
 
@@ -2304,9 +2388,9 @@ def other_load_check(data, st, cfg, now, topic):
     med = sorted(hist)[len(hist) // 2]
     if abs(cur - med) > max(5, med * 0.5):
         what = "víc" if cur > med else "míň"
-        ntfy(topic, f"💡 Dnes v noci (0–5 h) šlo {what} proudu na světla/kamery/wifi",
+        digest(st, f"💡 Dnes v noci (0–5 h) šlo {what} proudu na světla/kamery/wifi",
              f"Ostatní odběr za měničem dnes mezi 0 a 5 h ~{fmt(cur)} W, obvykle ~{fmt(med)} W."
-             + (" Nezůstalo něco zapnuté?" if cur > med else " Nevypadla kamera nebo wifi?"), 3, "bulb")
+             + (" Nezůstalo něco zapnuté?" if cur > med else " Nevypadla kamera nebo wifi?"))
         st["on_sent"] = k
 
 
@@ -2717,24 +2801,20 @@ def check_gateway(inv, st, now, topic, cfg):
         return
     age = (now.timestamp() - inv["t"]) / 60 if inv else 99999
     lim = cfg["brana_ticho_min"] or 60
-    if age > lim and not st.get("gw_silent"):
-        pl = st.get("ph_last") or {}
-        bt = f" Naposledy měl baterii {pl['b']:.0f} %{' (nabíjel se)' if pl.get('c') else ' a nenabíjel se'}." if pl.get("b") is not None else ""
-        ntfy(topic, "📵 Brána na chatě neposílá data",
-             f"Flip se neozval {'přes 12 h' if age > 700 else f'{age:.0f} min'}.{bt} Vybitý, vypnutá Wi-Fi, nebo ho Android uspal?", 4, "warning")
-        st["gw_silent"] = True
-    if age <= lim:
-        if st.get("gw_silent"):
-            ntfy(topic, "📱 Brána na chatě zase posílá", "Data z telefonu u měniče znovu chodí.", 2, "white_check_mark")
-        st["gw_silent"] = False
-    # 5.77: plánovaný restart Brány (Flip 1.9.11) – po něm jedna zpráva: v pořádku (nízká priorita) / problém (vysoká)
+    # 5.95: kategorie 1 – Brána neposílá data (pokrývá i „po restartu se neozvala“)
+    pl = st.get("ph_last") or {}
+    bt = f" Naposledy měl baterii {pl['b']:.0f} %{' (nabíjel se)' if pl.get('c') else ' a nenabíjel se'}." if pl.get("b") is not None else ""
+    alarm(st, topic, "gw", age > lim, "📵 Brána na chatě neposílá data",
+          f"Flip se neozval {'přes 12 h' if age > 700 else f'{age:.0f} min'}.{bt} Vybitý, vypnutá Wi-Fi, nebo ho Android uspal?", 4, "warning",
+          ok_title="✓ Brána na chatě zase posílá", ok_msg="Data z Flipu znovu chodí.")
+    st["gw_silent"] = age > lim
+    # 5.77: plánovaný restart Brány – v pořádku jen do souhrnu, problém zprávou
     rs = (inv or {}).get("rst") if inv else None
     if rs and rs.get("t") and st.get("rst_rep") != rs["t"]:
         st["rst_rep"] = rs["t"]
         bad = []
         if not rs.get("ble_ok"):
             bad.append(f"Bluetooth (měnič Victron) nejde – {rs.get('ble_err') or 'žádná data'}")
-        # jen zásuvky, které mají být vidět pořád (zasuvky_stale) – zásuvky na výstupu River / generátoru bez proudu jsou normální
         need = ips(cfg.get("zasuvky_stale"))
         mip = str(cfg.get("zasuvka_menic") or "1")
         by = {str(p.get("ip")): p for p in inv.get("tp", [])}
@@ -2747,68 +2827,34 @@ def check_gateway(inv, st, now, topic, cfg):
         if bad:
             ntfy(topic, "⚠️ Brána po restartu nefunguje celá", f"Restart {hm_}. " + "; ".join(bad), 4, "warning")
         else:
-            ntfy(topic, "✓ Brána úspěšně restartována",
-                 f"Restart {hm_}: data chodí, Bluetooth ✓, zásuvky, které mají být vidět, vidí všechny.", 1, "white_check_mark")
-    # po čase restartu se Flip neozval (do 20 min)
-    rat = str(cfg.get("brana_restart") or "").strip()
-    _v = lambda x: tuple(int(y) for y in str(x).split(".") if y.isdigit())
-    if inv is not None and ":" in rat and inv.get("av") and _v(inv.get("av")) >= (1, 9, 11):
-        try:
-            hh, mm = (int(x) for x in rat.split(":")[:2])
-            t_r = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-            if t_r + timedelta(minutes=25) <= now <= t_r + timedelta(hours=2) and inv.get("t", 0) < t_r.timestamp() \
-                    and st.get("rst_miss") != now.strftime("%Y-%m-%d"):
-                ntfy(topic, "🚨 Brána se po restartu neozvala",
-                     f"Plánovaný restart {rat}, od té doby žádná data z Flipu (naposledy {datetime.fromtimestamp(inv.get('t', 0), TZ).strftime('%H:%M')}).",
-                     5, "rotating_light,warning")
-                st["rst_miss"] = now.strftime("%Y-%m-%d")
-        except ValueError:
-            pass
-    # 5.67: Flip posílá jen záložní cestou (ntfy), ne přes GitHub → hlídač běží jen podle plánu GitHubu (v noci po
-    # 30–45 min) a v datech jsou díry. Typicky prošlý / odmítnutý GitHub token ve Flipu.
+            digest(st, f"✓ Brána restartována {hm_} – vše v pořádku")
+    # 5.67 / 5.95: Flip posílá jen záložní cestou (ne přes GitHub) → do souhrnu
     gh_age = (now.timestamp() - (st.get("flip_gh") or 0)) / 60
     if inv and age <= lim and st.get("flip_gh") and gh_age > 90 and not st.get("gw_nogh"):
-        ntfy(topic, "🐢 Flip neposílá data přes GitHub",
-             f"Data z Flipu chodí jen záložní cestou (naposledy přes GitHub před {gh_age / 60:.1f} h), hlídač proto běží jen "
-             "každých 30–45 min a v grafech jsou díry.\nV aplikaci Brána se podívej do záznamu na „GitHub odpověděl …“ – "
-             "nejspíš prošlý GitHub token (vytvoř nový s Actions: Read and write a vlož ho do Brány).", 4, "turtle,warning")
+        digest(st, "🐢 Flip neposílá data přes GitHub",
+               f"Naposledy před {gh_age / 60:.1f} h – nejspíš prošlý GitHub token v Bráně.")
         st["gw_nogh"] = True
     elif gh_age <= 30:
         st["gw_nogh"] = False
-    # Flip mimo Wi‑Fi (na mobilních datech) → nevidí zásuvky
-    if inv and age <= lim and inv.get("wifi") is not None:
-        if inv["wifi"] == 0 and not st.get("gw_nowifi"):
-            ntfy(topic, "📶 Flip není na Wi‑Fi chaty",
-                 "Posílá přes mobilní data, takže nevidí zásuvky Tapo (spotřeba, River, generátor, automatika).\n"
-                 "Připoj ho na Flipu zpět k Wi‑Fi; v nastavení Wi‑Fi vypni „přepínání na mobilní data“.", 4, "warning")
-            st["gw_nowifi"] = True
-        elif inv["wifi"] == 1:
-            st["gw_nowifi"] = False
+    # Flip mimo Wi‑Fi (na mobilních datech) → nevidí zásuvky (kategorie 1; zásuvky se pak zvlášť nehlásí)
+    wifi_off = bool(inv and age <= lim and inv.get("wifi") == 0)
+    alarm(st, topic, "wifi", wifi_off, "📶 Flip není na Wi‑Fi chaty",
+          "Posílá přes mobilní data, takže nevidí zásuvky Tapo (spotřeba, River, generátor, automatika).\n"
+          "Připoj ho na Flipu zpět k Wi‑Fi; v nastavení Wi‑Fi vypni „přepínání na mobilní data“.", 4, "warning",
+          ok_title="✓ Flip je zase na Wi‑Fi chaty")
+    st["gw_nowifi"] = wifi_off
     ph = (inv or {}).get("ph")
     if ph and ph.get("b") is not None:
         st["ph_last"] = {"b": ph["b"], "c": bool(ph.get("c")), "t": inv["t"]}
-    # upozornění po stupních (výchozí 50, 30, 20, 10, 0 %) – každý stupeň jednou, znovu až po nabití
-    lv = sorted({int(float(x)) for x in str(cfg.get("telefon_upozornit") or "50,30,20,10,0").replace(";", ",").split(",")
-                 if x.strip().replace(".", "", 1).isdigit()}, reverse=True)
-    # 5.87: nabíjení Flipu řídí hlídač (zásuvka 9) – nad spodní hranicí (30 %) se Flip nenabíjí schválně → stupně
-    # nad 25 % neposílat (27. 10. ráno přišlo „Flip se nenabíjí“, přitom ho řízení nechalo vybíjet do rána).
-    fid = str(cfg.get("zasuvka_flip") or "9")
-    pp_ = next((p for p in (inv or {}).get("tp") or [] if str(p.get("ip")) == fid), None)
-    if bool(cfg.get("flip_nabijeni_rizeni")) and pp_ is not None and not pp_.get("off") and pp_.get("err") is None:
-        lv = [L for L in lv if L < int(cfg.get("flip_min_pct") or 30) - 5]
-    if ph and lv and age <= lim and ph.get("b") is not None:
+    # 5.95: Flip pod 20 % a nenabíjí se – jedno upozornění (nabíjení nad 30 % řídí hlídač schválně)
+    if ph and ph.get("b") is not None and age <= lim:
         b, chg = ph["b"], bool(ph.get("c"))
-        sent = set(st.get("ph_sent") or [])
-        crossed = [L for L in lv if b <= max(L, 2)]           # všechny stupně, pod které už spadl
-        if crossed and not chg and not set(crossed) <= sent:
-            L = min(crossed)
-            prio = 5 if L <= 10 else 4 if L <= 20 else 3
-            ntfy(topic, f"🪫 Flip na chatě má {b:.0f} %" + (" – vypíná se!" if L == 0 else ""),
-                 "Flip se nenabíjí. Bez něj nechodí data z Victronu ani zásuvek, nefunguje automatika River."
-                 "\nZkontroluj nabíječku / zásuvku u Flipu.", prio, "battery,warning")
-            sent.update(crossed)
-        sent = {x for x in sent if not (b > x + 5 or chg)}  # po nabití se stupně znovu odemknou
-        st["ph_sent"] = sorted(sent)
+        on_ = "flip_low" in (st.get("al") or {})
+        alarm(st, topic, "flip_low", not chg and (b <= 20 or (on_ and b <= 25)),
+              f"🪫 Flip na chatě má {b:.0f} % a nenabíjí se",
+              "Bez Flipu nechodí data z Victronu ani zásuvek a nefunguje automatika River.\nZkontroluj nabíječku / zásuvku (9) u Flipu.",
+              5 if b <= 10 else 4, "battery,warning", ok_title=f"✓ Flip se nabíjí ({b:.0f} %)")
+
 
 GEN_KEYS = {"fuel": ("pd.oilVal",), "w": ("pd.acPower", "pd.totalPower", "pd.outputWatts"), "max_w": ("pd.oilMaxOutPower",),
             "type": ("pd.type",), "motor": ("pd.motorState",), "mode": ("pd.sysMode",), "eco": ("pd.ecoMode",),
@@ -2926,7 +2972,7 @@ def read_ecoflow(data, st, now, topic, cfg):
         data["eco_err"] = {"t": int(now.timestamp()), "msg": str(e)[:200]}     # 4.59: na web (diagnostika)
         st["eco_err"] = st.get("eco_err", 0) + 1
         if st["eco_err"] == 12:
-            ntfy(topic, "📡 Hlídač nemůže číst EcoFlow", f"Už ~2 hodiny selhává čtení EcoFlow: {str(e)[:150]}", 3, "warning")
+            digest(st, "📡 Hlídač nemůže číst EcoFlow", f"Už ~2 hodiny selhává čtení: {str(e)[:150]}")
         return None
     st["eco_err"] = 0
     st["eco_host"] = host
@@ -3235,9 +3281,9 @@ def cons_compare(data, st, now, topic, cfg):
     t_ = cc["typ_wh"]
     if t_ and now.hour >= 10 and cov >= 0.8 * sec / 3600 and now_wh > t_ * 1.5 and now_wh - t_ > 150 \
             and st.get("cons_warn") != day:
-        ntfy(topic, "🏠 Chata dnes bere víc než obvykle",
+        digest(st, "🏠 Chata dnes bere víc než obvykle",
              f"Dnes do teď {fmt(now_wh / 1000, 2)} kWh, obvykle touhle dobou {fmt(t_ / 1000, 2)} kWh (+{fmt((now_wh / t_ - 1) * 100, 0)} %). "
-             "Nezůstalo něco zapnuté?", 3, "house,warning")
+             "Nezůstalo něco zapnuté?")
         st["cons_warn"] = day
 
 
@@ -3364,15 +3410,16 @@ def fridge_check(data, st, now, topic, cfg):
         lim_c = cfg.get("lednice_max_C") or 8
         if tp_ and now.timestamp() - tp_[-1][0] < 1800:
             hot = [x for x in tp_ if x[0] >= now.timestamp() - 1800]
-            if len(hot) >= 2 and all(v > lim_c for _, v in hot) and not fz.get("hot"):
-                ntfy(topic, f"🧊 Lednice má {fmt(hot[-1][1], 1)} °C", f"Teplota v lednici je přes {fmt(lim_c, 0)} °C už půl hodiny. "
-                     "Otevřené dveře, porucha, nebo lednice bez proudu?", 4, "warning")
-                fz["hot"] = True
+            if len(hot) >= 2 and all(v > lim_c for _, v in hot):
+                fz["hot"], fz["c"] = True, hot[-1][1]
             elif fz.get("hot") and tp_[-1][1] <= lim_c - 1:
-                ntfy(topic, f"✓ Lednice zase chladí ({fmt(tp_[-1][1], 1)} °C)", "Teplota v lednici je zpátky v normě.", 2, "white_check_mark")
                 fz["hot"] = False
+    t_hot = bool(nm and (st.get("fridge_t") or {}).get("hot"))
+    t_msg = (f"Teplota v lednici {fmt((st.get('fridge_t') or {}).get('c'), 1)} °C – přes {fmt(cfg.get('lednice_max_C') or 8, 0)} °C už půl hodiny. "
+             "Otevřené dveře, porucha, nebo lednice bez proudu?") if t_hot else ""
     fid = str(cfg.get("zasuvka_lednice") or "").strip()
     if not fid:
+        alarm(st, topic, "fridge", t_hot, "🧊 Lednice nechladí", t_msg, 4, "warning", ok_title="✓ Lednice zase chladí")
         return
     ts = now.timestamp()
     on_w = 20                                                   # kompresor běží (~55–80 W), v klidu ~0–2 W
@@ -3411,21 +3458,20 @@ def fridge_check(data, st, now, topic, cfg):
             state, info = "off", {"od": cur[1], "h": round(dur / 3600, 1), "lim": round(lim_off / 3600, 1)}
         elif cur[0] and dur >= lim_on:
             state, info = "on", {"od": cur[1], "h": round(dur / 3600, 1), "lim": round(lim_on / 3600, 1)}
-    prev = fs.get("state", "ok")
-    if state != prev:
-        hm = lambda t: f"{rel_day(t, now)} {datetime.fromtimestamp(t, TZ).strftime('%H:%M')}"
-        if state == "off":
-            ntfy(topic, "🧊 Lednice nechladí?", f"Kompresor lednice neběžel od {hm(info['od'])} (už {fmt(info['h'], 1)} h, "
-                 f"obvykle nejdéle ~{fmt(max_off / 3600, 1)} h). Porucha, vypnutá lednice, nebo je v chatě hodně zima?", 4, "snowflake,warning")
-        elif state == "on":
-            ntfy(topic, "🧊 Lednice běží bez přestávky", f"Kompresor běží od {hm(info['od'])} (už {fmt(info['h'], 1)} h, "
-                 f"obvykle nejdéle ~{fmt(max_on / 3600, 1)} h). Otevřené dveře, námraza, nebo porucha?", 4, "warning")
-        elif state == "na":
-            ntfy(topic, "🧊 Lednice bez proudu?", f"Zásuvka lednice nejde přečíst od {hm(info['od'])}, ostatní zásuvky jdou. "
-                 "Vypadlá / vypnutá zásuvka?", 4, "warning")
-        elif prev in ("off", "on", "na"):
-            ntfy(topic, "✓ Lednice zase normálně běží", "Kompresor zase cykluje (běží / stojí).", 2, "white_check_mark")
-        fs["state"] = state
+    # 5.95: jedno upozornění „Lednice nechladí“ – teplota nebo kompresor (bez proudu hlásí „(4) není vidět“)
+    hm = lambda t: f"{rel_day(t, now)} {datetime.fromtimestamp(t, TZ).strftime('%H:%M')}"
+    if state == "off":
+        c_msg = (f"Kompresor neběžel od {hm(info['od'])} (už {fmt(info['h'], 1)} h, obvykle nejdéle ~{fmt(max_off / 3600, 1)} h). "
+                 "Porucha, vypnutá lednice, nebo je v chatě hodně zima?")
+    elif state == "on":
+        c_msg = (f"Kompresor běží od {hm(info['od'])} (už {fmt(info['h'], 1)} h, obvykle nejdéle ~{fmt(max_on / 3600, 1)} h). "
+                 "Otevřené dveře, námraza, nebo porucha?")
+    else:
+        c_msg = ""
+    alarm(st, topic, "fridge", t_hot or state in ("off", "on"),
+          "🧊 Lednice nechladí" if t_hot or state == "off" else "🧊 Lednice běží bez přestávky",
+          "\n".join(x for x in (t_msg, c_msg) if x), 4, "warning", ok_title="✓ Lednice zase normálně chladí")
+    fs["state"] = state
     data["fridge"] = {"state": state, **info, "max_off_h": round(max_off / 3600, 1), "max_on_h": round(max_on / 3600, 1),
                       "now_on": bool(cur and cur[0]) if cur else None, "since": cur[1] if cur else None}
 
@@ -3526,24 +3572,19 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     # 5.34: baterie routeru pod 25 % – vybitý router = chata bez Wi‑Fi a Flip už nic nezapne
     rb = (inv.get("rt") or {}).get("b")
     if fresh and rb is not None:
-        if rb < 25 and not fs.get("rlow"):
-            ntfy(topic, f"📶 Router na chatě má jen {rb:.0f} %",
-                 f"Baterie routeru M7000 {rb:.0f} % ({'nabíjí se' if (inv.get('rt') or {}).get('c') else 'nenabíjí se'}). "
-                 f"Až se vybije, chata je bez Wi‑Fi a bez dat. Zkontroluj zásuvku ({rip or '?'}) v aplikaci Tapo.", 4, "warning")
-            fs["rlow"] = True
-        elif fs.get("rlow") and rb >= 35:
-            fs["rlow"] = False
+        fs["rlow"] = rb < 25 or (bool(fs.get("rlow")) and rb < 35)
+        alarm(st, topic, "router", fs["rlow"], f"📶 Router na chatě má jen {rb:.0f} %",
+              f"Baterie routeru M7000 {rb:.0f} % ({'nabíjí se' if (inv.get('rt') or {}).get('c') else 'nenabíjí se'}). "
+              f"Až se vybije, chata je bez Wi‑Fi a bez dat. Zkontroluj zásuvku (5) v aplikaci Tapo.", 4, "warning",
+              ok_title=f"✓ Router zase nabitý ({rb:.0f} %)")
     # horká baterie Flipu
     ph = inv.get("ph") or {}
     lim = cfg.get("flip_teplota_max_C") or 40
     if fresh and ph.get("t") is not None:
-        if ph["t"] >= lim and not fs.get("hot"):
-            ntfy(topic, f"🔥 Flip je horký – {fmt(ph['t'], 1)} °C",
-                 f"Baterie Flipu má {fmt(ph['t'], 1)} °C ({'nabíjí se' if ph.get('c') else 'nenabíjí se'}). Nad 42 °C Flip nabíjení sám vypne. "
-                 "Nemá na slunci / u topení?", 4, "fire,warning")
-            fs["hot"] = True
-        elif fs.get("hot") and ph["t"] <= lim - 4:
-            fs["hot"] = False
+        fs["hot"] = ph["t"] >= lim or (bool(fs.get("hot")) and ph["t"] > lim - 4)
+        alarm(st, topic, "flip_hot", fs["hot"], f"🔥 Flip je horký – {fmt(ph['t'], 1)} °C",
+              f"Baterie Flipu má {fmt(ph['t'], 1)} °C ({'nabíjí se' if ph.get('c') else 'nenabíjí se'}). Nad 42 °C Flip nabíjení sám vypne. "
+              "Nemá na slunci / u topení?", 4, "fire,warning", ok_title="✓ Flip už není horký")
 
 
 def flip_check(data, st, now, topic, cfg):
@@ -3595,27 +3636,8 @@ def flip_check(data, st, now, topic, cfg):
     data["flip_fc"]["ctl"] = ctl_ok
     if ctl_ok and b >= int(cfg.get("flip_min_pct") or 30) - 5:   # 5.78: řízení dobije pod spodní hranicí (30 %)
         return
-    if t15 - ts < 12 * 3600 and not fp.get("early"):
-        ntfy(topic, f"📱 Flip se nenabíjí – vydrží jen do {hm(t_empty)}",
-             f"Má {b:.0f} %, ubývá ~{rate:.1f} % za hodinu → pod 15 % {hm(t15)}, vybitý {hm(t_empty)}.\n"
-             "Bez Flipu nechodí data z Victronu ani zásuvek. Zkontroluj nabíječku / zásuvku u Flipu.", 4, "battery,warning")
-        fp["early"], fp["early_t"] = True, int(ts)
-    # ranní kontrola před odjezdem (stejný rozvrh jako výhled dne)
-    tk = None
-    for part in str(cfg.get("den_kontrola") or "").split(","):
-        bits = part.strip().split()
-        if len(bits) == 2 and bits[0].lower()[:2] == WD[now.weekday()] and ":" in bits[1]:
-            tk = bits[1]
-    if tk and t_empty - ts < 48 * 3600 and fp.get("morning") != now.strftime("%Y-%m-%d") and ts - fp.get("early_t", 0) > 6 * 3600:
-        try:
-            hh, mm = (int(x) for x in tk.split(":")[:2])
-            t_k = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-            if t_k <= now <= t_k + timedelta(hours=2):        # 5.02: jen ráno v čase kontroly, ne kdykoli během dne
-                ntfy(topic, f"📱 Než odjedeš: Flip se nenabíjí – vybije se {hm(t_empty)}",
-                     f"Má {b:.0f} %, ubývá ~{rate:.1f} % za hodinu. Dej ho nabíjet, jinak přestanou chodit data.", 4, "battery,warning")
-                fp["morning"] = now.strftime("%Y-%m-%d")
-        except ValueError:
-            pass
+    # 5.95: upozornění „Flip se nenabíjí“ sloučená do check_gateway (Flip pod 20 % a nenabíjí se)
+
 
 
 def full_charge_check(data, st, now, topic, cfg):
@@ -3633,10 +3655,10 @@ def full_charge_check(data, st, now, topic, cfg):
         fc.clear()
         return
     if now.timestamp() - fc.get("t", 0) >= 7 * 86400 and 9 <= now.hour < 20:
-        ntfy(topic, f"🔋 Solární baterie {int(days_)} dní bez plného nabití",
+        digest(st, f"🔋 Solární baterie {int(days_)} dní bez plného nabití",
              f"Naposledy plně nabitá (Float) {rel_day(last, now)} {datetime.fromtimestamp(last, TZ).strftime('%-d. %-m.')}. "
              "AGM baterii dlouhé stání nedobité škodí (sulfatace). Až bude slunečno, nech ji nabít – chata klidně na River. "
-             "Jen připomínka, další nejdřív za týden.", 3, "battery")
+             "Jen připomínka, další nejdřív za týden.")
         fc["t"] = now.timestamp()
 
 
@@ -3699,12 +3721,11 @@ def thermo_check(data, st, now, topic, cfg):
                   "Flip ho nemá v nastavení" if want and not x else "Flip od něj nemá hodnotu"
         quiet = ts - last >= lim_min * 60
         if quiet and not e.get("warned"):
-            ntfy(topic, f"🌡️ Teploměr {n} nehlásí", f"Poslední hodnota {rel_day(last, now)} {datetime.fromtimestamp(last, TZ).strftime('%H:%M')}. {why or ''}".strip(),
-                 3, "thermometer,warning")
+            digest(st, f"🌡️ Teploměr {n} nehlásí", f"Poslední hodnota {rel_day(last, now)} {datetime.fromtimestamp(last, TZ).strftime('%H:%M')}. {why or ''}".strip())
             log("ev", f"Teploměr {n} nehlásí – {why}")
             e["warned"] = True
         if has and e.get("warned"):
-            ntfy(topic, f"🌡️ Teploměr {n} zase hlásí", f"{fmt(x.get('t'), 1)} °C", 2, "thermometer")
+            log("ev", f"Teploměr {n} zase hlásí")
             e["warned"] = False
         b = x.get("b")
         if b is not None:
@@ -3712,8 +3733,7 @@ def thermo_check(data, st, now, topic, cfg):
                 e["bw"] = []                            # nová baterie → upozornit znovu
             for lv in levels:
                 if b <= lv and lv not in (e.get("bw") or []):
-                    ntfy(topic, f"🪫 Teploměr {n}: baterie {b} %", "Vyměň baterii (CR2032)." if lv <= 5 else "Baterie teploměru dochází – připrav novou (CR2032).",
-                         3 if lv <= 5 else 2, "battery")
+                    digest(st, f"🪫 Teploměr {n}: baterie {b} %", "Vyměň baterii (CR2032)." if lv <= 5 else "Baterie teploměru dochází – připrav novou (CR2032).")
                     e.setdefault("bw", []).extend([l2 for l2 in levels if l2 >= lv])
                     break
             e["b"] = b
@@ -3740,9 +3760,8 @@ def thermo_check(data, st, now, topic, cfg):
             e["n"] = e.get("n", 0) + (1 if e.get("t") != x.get("tm") else 0)
             e["t"] = x.get("tm")
             if e["n"] >= 2 and ts - e.get("warned", 0) > 12 * 3600:
-                ntfy(topic, f"💧 Suchý vzduch – {x['n']} {fmt(x['h'], 0)} %",
-                     f"V místnosti {x['n']} je jen {fmt(x['h'], 0)} % vlhkosti (dobré je 40–60 %). Dej na kamna hrnec s vodou, ať se odpařuje.",
-                     3, "droplet")
+                digest(st, f"💧 Suchý vzduch – {x['n']} {fmt(x['h'], 0)} %",
+                       "Dobré je 40–60 %. Dej na kamna hrnec s vodou, ať se odpařuje.")
                 e["warned"] = ts
         elif x["h"] >= hmin + 5:
             e.clear()
@@ -3764,17 +3783,15 @@ def frost_check(data, st, now, topic, cfg):
     fz = st.setdefault("frost", {})
     season = now.strftime("%Y") if now.month >= 7 else str(now.year - 1)
     if T <= lim_t and fz.get("first") != season:
-        ntfy(topic, "❄️ Mráz u solární baterie", f"Teplota u baterie {fmt(T, 1)} °C. Nabitá AGM mráz vydrží, "
-             f"vybitá může zamrznout – drž ji nabitou (upozorním, když bude pod {lim_h} # a pod {fmt(lim_t, 0)} °C). "
-             f"Kapacita je v chladu menší (teď ~×{fmt(f, 2)}), výhledy s tím počítají.", 3, "snowflake")
+        digest(st, "❄️ Mráz u solární baterie", f"Teplota u baterie {fmt(T, 1)} °C. Nabitá AGM mráz vydrží, vybitá může zamrznout.")
         fz["first"] = season
     risk = T <= lim_t and pct is not None and pct < lim_h
-    if risk and not fz.get("risk"):
-        ntfy(topic, "❄️⚠️ Vybitá baterie v mrazu", f"Baterie {pct} # při {fmt(T, 1)} °C. Vybitá AGM může v mrazu zamrznout a prasknout. "
-             "Nevybíjej ji dál (chata na River) a dobij ji, jak to půjde.", 4, "snowflake,warning")
+    if risk:
         fz["risk"] = True
     elif fz.get("risk") and (T > lim_t + 2 or (pct is not None and pct >= lim_h + 10)):
         fz["risk"] = False
+    alarm(st, topic, "frost", bool(fz.get("risk")), "❄️⚠️ Vybitá baterie v mrazu", f"Baterie {pct} # při {fmt(T, 1)} °C. Vybitá AGM může v mrazu zamrznout a prasknout. "
+          "Nevybíjej ji dál (chata na River) a dobij ji, jak to půjde.", 4, "snowflake,warning", ok_title="✓ Baterie v mrazu už není vybitá")
 
 
 def night_learn(data, st, now, cfg):
@@ -3826,11 +3843,13 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     hq = data.get("hq") or {}
     if not (on_solar or on_river) or now >= end or hq.get("pct") is None or (rise and now < rise - timedelta(hours=3)):
         data.pop("day_fc", None)
+        if now >= end:
+            alarm(st, topic, "day", False, ok_title=False)      # večer: ranní doporučení tiše končí
         return
     cf, _ = cold_factor(data, cfg)                                        # 4.48: v chladu menší kapacita
     cap = (hq.get("cap") or eff_cap(data, cfg)) * cf
-    alarm = ocv_soc((cfg.get("baterie_kriticka_V") or 12.0) + 0.05)      # 12,0 V pod malou zátěží ≈ klid ~12,05 V
-    ah = (hq["pct"] - alarm) / 100 * cap                                   # Ah nad alarmem
+    alarm_soc = ocv_soc((cfg.get("baterie_kriticka_V") or 12.0) + 0.05)      # 12,0 V pod malou zátěží ≈ klid ~12,05 V
+    ah = (hq["pct"] - alarm_soc) / 100 * cap                                   # Ah nad alarmem
     room = (100 - hq["pct"]) / 100 * cap                                   # kolik se ještě vejde
     idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
     if on_solar:
@@ -3906,7 +3925,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
             break
     res = {"ok": t_empty is None, "t_empty": int(t_empty) if t_empty else None, "t": int(ts), "end": int(end.timestamp()),
            "load_w": round(load_a * 12.4), "rem_kwh": round(rem_kwh, 2), "pct": hq["pct"], "ratio": round(ratio, 2),
-           "ah": round(ah, 1), "alarm": round(alarm), "cap": round(cap),
+           "ah": round(ah, 1), "alarm": round(alarm_soc), "cap": round(cap),
            "prod_ah": round(rem_kwh * 1000 / 13.0 * 0.9, 1), "cons_ah": round(load_a * (end.timestamp() - ts) / 3600, 1),
            "hrs": round((end.timestamp() - ts) / 3600, 1), "src": "solar" if on_solar else "river",
            "night_ok": t_empty_n is None, "t_empty_n": int(t_empty_n) if t_empty_n else None,
@@ -3933,50 +3952,23 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
             pass
     if due:
         st["do_chk"] = day
-    if on_river:                            # chata jede z River: v čas z rozvrhu nabídnout solár, když vydrží do večera
-        # 4.30: nejen v čas z rozvrhu – i během dne, jakmile to poprvé vyjde (baterie se nabíjí, do večera ubývá hodin);
-        # jednou za den, jen do konce výhledu (den_do)
-        if (due or after) and res["ok"] and st.get("do_conn") != day and now.timestamp() < res["end"]:
+    # 5.95: jedno ranní rozhodnutí v čas z rozvrhu (den_kontrola)
+    if on_river:
+        if due and res["ok"] and now.timestamp() < res["end"]:
             ntfy(topic, "☀️ Dnes můžeš chatu přepnout na solární baterii",
                  f"Solární baterie ({hq['pct']} #) s dnešní výrobou podle předpovědi (~{fmt(rem_kwh, 1)} kWh, s rezervou) "
                  f"vydrží chatu (~{res['load_w']} W) do {hh}:{mm:02d}.\nVečer zase přepoj na River.", 3, "sunny,battery")
             st["do_conn"] = day
+        alarm(st, topic, "day", False, ok_title="✓ Chata jede z River")
         return
-    worse = st.get("do_ok_day") == day and not res["ok"]                  # dnes už vycházelo, teď ne
-    if res["ok"]:
-        st["do_ok_day"] = day
-        return
-    if (due or worse) and st.get("do_sent") != day:
-        te = datetime.fromtimestamp(res["t_empty"], TZ).strftime("%H:%M")
-        ntfy(topic, f"⚠️ Dnes ~{te} solární baterie dojde – přepni chatu na River",
-             f"Chata jede ze solární baterie ({hq['pct']} #, obvyklý odběr z baterie ~{res['load_w']} W). Dnes ještě vyrobí ~{fmt(rem_kwh, 1)} kWh "
-             f"(předpověď opravená podle dnešní výroby) – nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\n"
-             "Než odjedeš, přepni chatu na River. Počítáno s rezervou (výroba −20 %, odběr +15 %) – raději zbytečně přepnout, "
-             "než aby přes den došla energie.", 4, "warning,sunny")
+    if due and not res["ok"]:
         st["do_sent"] = day
-
-
-def hash_alert(data, st, now, topic, cfg):
-    """Upozornění, když nabití # klesne pod hranice (výchozí 50 a 30) – každá jednou, znovu až po nabití nad 60 #."""
-    hq = data.get("hq")
-    if not hq or hq.get("pct") is None:
-        return
-    pct = hq["pct"]
-    lims = sorted({int(float(x)) for x in str(cfg.get("hash_upozornit") or "50, 30").replace(";", ",").split(",") if x.strip()}, reverse=True)
-    sent = st.setdefault("hash_sent", [])
-    if pct >= 60 and sent:
-        st["hash_sent"] = []
-        return
-    if cabin_on_river(data, cfg, now, st):
-        return                                   # 5.43: chata jede z River – solární baterii nevybíjí, rada nedává smysl
-    for lim in lims:
-        if pct < lim and lim not in sent:
-            ntfy(topic, f"🔋 Solární baterie pod {lim} #",
-                 f"Nabití podle ampérhodin {pct} # (−{fmt(-hq['ah'], 0)} Ah od plného nabití, kapacita {hq['cap']} Ah). "
-                 + ("Pod 50 # baterie rychle stárne – omez odběr nebo přepni chatu na River." if lim >= 50 else
-                    "Hrozí poškození baterie – přepni chatu na River / odpoj spotřebiče."), 4 if lim < 50 else 3, "battery")
-            sent.append(lim)
-            break
+    te = datetime.fromtimestamp(res["t_empty"], TZ).strftime("%H:%M") if res.get("t_empty") else ""
+    alarm(st, topic, "day", st.get("do_sent") == day and not res["ok"],
+          f"⚠️ Dnes ~{te} solární baterie dojde – přepni chatu na River",
+          f"Chata jede ze solární baterie ({hq['pct']} #, obvyklý odběr z baterie ~{res['load_w']} W). Dnes ještě vyrobí ~{fmt(rem_kwh, 1)} kWh "
+          f"– nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\nNež odjedeš, přepni chatu na River.",
+          4, "warning,sunny", ok_title="✓ Dnes to solár do večera vydrží")
 
 
 def capacity_check(data, st, now, cfg):
@@ -4075,18 +4067,6 @@ def capacity_check(data, st, now, cfg):
         if day.get("qc") != res:
             day["qc"] = res
             print("Test kapacity", date_k, res)
-
-
-def ecoflow_reminder(data, st, now, topic):
-    """Jednorázová připomínka (přání 16. 10. 2026): až poběží EcoFlow, vrátit se k ovládání nabíjení River
-    a k optimalizaci běhu generátoru (viz docs/napady.md)."""
-    if st.get("ef_remind") or not data.get("rivers") or now.timestamp() - (data.get("rivers_t") or 0) > 3600:
-        return
-    ntfy(topic, "🔔 Připomínka: EcoFlow funguje",
-         "Data z EcoFlow už chodí. Domluvili jsme se, že se pak vrátíme k ovládání nabíjení River a k optimalizaci "
-         "nabíjení z generátoru (aby všechny River dobily najednou a generátor běžel co nejkratší dobu). "
-         "Napiš o tom Claudovi – podrobnosti jsou v docs/napady.md.", 3, "bell")
-    st["ef_remind"] = int(now.timestamp())
 
 
 def river_for_plug(pid, pname, rivers, cfg):
@@ -4267,7 +4247,8 @@ def river_capacity(data, st, now, cfg):
 
 def river_supply(data, st, now, topic, cfg, rise, set_):
     """Která River teď napájí chatu, kolik má a na jak dlouho vydrží při průměrném odběru (poslední 3 h).
-    data["river_sup"] = {name, soc, w, h, until}; večer upozorní, když nevydrží do zítřejšího rána."""
+    data["river_sup"] = {name, soc, w, h, until}; 5.95: st["_rvn"] = River do rána nevydrží (upozorní urgent_river ve 22:00)."""
+    st.pop("_rvn", None)
     rv = data.get("rivers") or []
     act = []
     if now.timestamp() - (data.get("rivers_t") or 0) <= 3600:
@@ -4345,20 +4326,15 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     data["river_sup"] = {"name": r["name"], "soc": round(r["soc"]), "w": round(avg), "h": round(h, 1), "until": until,
                          "rate": round(rate, 1) if rate else None, "r_t0": int(r_t0) if r_t0 else None,
                          "cap": cap, "res": res, "sn": str(r.get("sn", ""))[-6:], **plug_extra}
-    # večer: vydrží do zítřejšího rána?
+    # 5.95: vydrží do rána? – upozornění až ve 22:00 spolu se solárem (urgent_river)
     if not (rise and set_):
         return
-    evening = now >= set_ + timedelta(hours=1)
+    evening = now >= set_
     if not evening and not now < rise:
-        st["rv_night_warned"] = False
         return
     morning = (rise + timedelta(days=1) if evening else rise) + timedelta(hours=1)
-    if until < morning.timestamp() and not st.get("rv_night_warned"):
-        ntfy(topic, f"🔋 {r['name']} {do_rana(morning.timestamp(), now)} nevydrží",
-             f"{r['name']} má {fmt(r['soc'])} %, chata bere průměrně ~{fmt(avg)} W → vybije se {rel_day(until, now)} "
-             f"~{datetime.fromtimestamp(until, TZ).strftime('%H:%M')} (rezerva {res} %).\nPřepoj chatu na druhou River nebo omez odběr.",
-             4, "battery,warning")
-        st["rv_night_warned"] = True
+    if until < morning.timestamp():
+        st["_rvn"] = {"n": r["name"], "soc": r["soc"], "avg": avg, "until": int(until), "res": res, "m": int(morning.timestamp())}
 
 
 def river_supply_plugs(data, now, cfg):
@@ -4410,6 +4386,13 @@ def gen_sessions(data, st, now, topic, cfg):
     # nabíjí i z jiné River (červená z malé) a web pak všude psal „nabíjí se z generátoru“ / „generátor běží“.
     # Podle River jen když zásuvka generátoru není nastavená.
     active = gen_on or (not gip and bool(chg) and not auto_on)
+    go = st.get("gen_off")
+    if go and fresh:                                       # 5.95: „vypni generátor“ trvá, dokud generátor běží (max 6 h)
+        still = gen_on and ts - go.get("t", ts) < 6 * 3600
+        alarm(st, topic, "gen_off", still, "⛽ Nabíjení skončilo – vypni generátor", go.get("msg", ""), 4, "fuelpump",
+              ok_title="✓ Generátor vypnutý")
+        if not still:
+            st.pop("gen_off", None)
     log_ = data.setdefault("gen_log", [])
     if not st.get("gen_bf"):                          # jednorázově: dohledat dřívější běhy z uložených bodů (14 dní)
         st["gen_bf"] = True
@@ -4512,8 +4495,8 @@ def gen_sessions(data, st, now, topic, cfg):
         msg = (f"Běžel ~{fmt(dur, 1)} h, dodal {fmt((rec.get('wh') or 0) / 1000, 2)} kWh." if rec.get("wh") else f"Běžel ~{fmt(dur, 1)} h.") + \
               ("\n" + "\n".join(rv_txt) if rv_txt else "") + eff
         log("ev", "Generátor: konec – " + msg.replace("\n", " · "))
-        if ts - (st.get("gen_sum_t") or 0) > 7200:       # 5.85: souhrn už poslalo řízení nabíjení
-            ntfy(topic, "⛽ Generátor doběhl", msg, 2, "fuelpump")
+        if ts - (st.get("gen_sum_t") or 0) > 7200:       # 5.95: bez řízení nabíjení – jen do souhrnu
+            digest(st, "⛽ Generátor doběhl", msg)
 
 
 def plug_watch(data, st, now, topic, cfg):
@@ -4551,10 +4534,6 @@ def plug_watch(data, st, now, topic, cfg):
                 pw[i] = {}
         e = pw.setdefault(i, {})
         if not bad:
-            if e.get("warned"):
-                ntfy(topic, f"🔌 {names.get(i, f'Zásuvka ({i})')} je zase vidět",
-                     f"Flip ji znovu čte (nebyla vidět od {datetime.fromtimestamp(e['since'], TZ).strftime('%H:%M')}).", 2, "electric_plug")
-                log("ev", f"Zásuvka ({i}) zase vidět")
             pw[i] = {}
             continue
         why = "Flip ji v síti nenašel" if p is None else (f"nedostupná – {p['ow']}" if p.get("ow") else "nedostupná (bez proudu nebo mimo Wi-Fi)") if p.get("off") or p.get("gone") \
@@ -4566,14 +4545,16 @@ def plug_watch(data, st, now, topic, cfg):
             e["n"] = e.get("n", 0) + 1
         e["why"] = why
         nm = names.get(i, f"Zásuvka ({i})")
-        miss.append({"id": i, "n": nm, "since": e["since"], "why": why})
-        if not e.get("warned") and e.get("n", 0) >= 2 and ts - e["since"] >= (cfg.get("zasuvky_stale_min") or 8) * 60:
-            extra = " Bez ní hlídač nezná odběr chaty ze solární baterie." if i == mip else ""
-            ntfy(topic, f"🔌 {nm} není vidět",
-                 f"Flip ji nečte od {datetime.fromtimestamp(e['since'], TZ).strftime('%H:%M')} – {why}.{extra}\n"
-                 "Zkontroluj, jestli má proud a Wi-Fi (v aplikaci Tapo je online?).", 4, "electric_plug,warning")
-            log("ev", f"Zásuvka ({i}) není vidět – {why}")
-            e["warned"] = True
+        miss.append({"id": i, "n": nm, "since": e["since"], "why": why,
+                     "ready": e.get("n", 0) >= 2 and ts - e["since"] >= (cfg.get("zasuvky_stale_min") or 8) * 60})
+    # 5.95: jedno upozornění pro všechny nevidět zásuvky; když Flip není na Wi‑Fi, hlásí to „Flip není na Wi‑Fi“
+    ready = [x for x in miss if x["ready"]]
+    hm_ = lambda t: datetime.fromtimestamp(t, TZ).strftime("%H:%M")
+    alarm(st, topic, "plugs", bool(ready) and not st.get("gw_nowifi"),
+          f"🔌 {ready[0]['n']} není vidět" if len(ready) == 1 else f"🔌 {len(ready)} zásuvky nejsou vidět",
+          "\n".join(f"{x['n']}: od {hm_(x['since'])} – {x['why']}." + (" Bez ní hlídač nezná odběr chaty ze solární baterie." if x["id"] == mip else "")
+                    for x in ready) + "\nZkontroluj, jestli má proud a Wi-Fi (v aplikaci Tapo je online?).",
+          4, "electric_plug,warning", ok_title="✓ Zásuvky jsou zase vidět")
     data["plug_miss"] = miss
 
 PRO_CHG_W = (200, 940)     # River 2 Pro: rozsah nabíjecího výkonu ze sítě (AC)
@@ -4596,7 +4577,7 @@ def gen_sum_msg(gs, tnow, topic):
     if tot > 0:
         lines.append(f"Do River celkem {fmt(tot / 1000, 2)} kWh" + (f" = {fmt(tot / gwh * 100)} % z toho, co dal generátor." if gwh > 50 else "."))
     log("ev", "Nabíjení z generátoru – souhrn: " + " · ".join(lines))
-    ntfy(topic, "⛽ Nabíjení z generátoru skončilo", "\n".join(lines), 3, "fuelpump,white_check_mark")
+    return "\n".join(lines)
 
 
 def gen_charge_ctl(data, st, now, topic, cfg):
@@ -4854,18 +4835,20 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         if gs.get("stop") or (gs.get("idle") and tnow - gs["idle"] >= idle_lim):
             out2 = apply({r["sn"]: safe_of(r) for r in rivers if ctl_ok(r) and r.get("online")})
             gs["reset"] = [r["sn"] for r in rivers if ctl_ok(r) and sets.get(r["sn"]) != safe_of(r)]
-            if (gw or 0) > 20 and not gs.get("idle_warned"):
-                ntfy(topic, "⛽ Generátor běží naprázdno", "Nic se nenabíjí – River jsou nabité (nebo odpojené). Vypni generátor.",
-                     4, "fuelpump,white_check_mark")
-                gs["idle_warned"] = True
             log("ev", "Nabíjení z generátoru: konec" + (f" – {', '.join(out2)}" if out2 else ""))
             fr_ = data.setdefault("fuel_runs", [])          # 5.26: záznam nabíjení s palivem a energií (cena se dopočítá)
             if (gs.get("fwh") or 0) > 20:
                 fr_.append({"t0": gs.get("t_on"), "t1": tnow, "fuel": gs.get("fuel") or fuel, "wh": round(gs["fwh"])})
                 del fr_[:-30]
             try:                                            # 5.85: souhrn po skončení nabíjení
-                gen_sum_msg(gs, tnow, topic)
+                txt_ = gen_sum_msg(gs, tnow, topic)
                 st["gen_sum_t"] = tnow
+                if (gw or 0) > 20:                          # 5.95: generátor ještě běží → „vypni“ (opakuje se, gen_sessions)
+                    st["gen_off"] = {"t": int(tnow), "msg": txt_}
+                    alarm(st, topic, "gen_off", True, "⛽ Nabíjení skončilo – vypni generátor", txt_, 4, "fuelpump",
+                          ok_title="✓ Generátor vypnutý")
+                else:
+                    ntfy(topic, "⛽ Nabíjení z generátoru skončilo", txt_, 3, "fuelpump,white_check_mark")
             except Exception as e:
                 print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
@@ -4921,67 +4904,40 @@ def gen_charge_ctl(data, st, now, topic, cfg):
     data["gen_cont"] = bool(gs.get("active"))
 
 def check_river(r, st, topic, cfg):
+    """5.95: jedno upozornění na River (kategorie 1): River, ze které něco jede (velká = chata, malá = 12V světla),
+    má river_vymenit_pod (15 %) a míň a nenabíjí se → „vyměň / přepoj“, opakuje se do přepojení / nabití / „Řeším“.
+    Když přestane dodávat při ≤ 5 %, text se změní na „vypnula se“. Nabitá na 100 % → jen do souhrnu."""
     soc, k = r.get("soc"), "rv_" + str(r["sn"])[-6:]
     if soc is None or not r["online"]:
         return
     name = r["name"]
     io = f"{name}: {fmt(soc)} %, nabíjení {fmt(r.get('in_w'))} W, odběr {fmt(r.get('out_w'))} W"
-    # Skoro vybitá -> vyměnit
-    lim = cfg["river_vymenit_pod"]
-    # 5.85: jen když River opravdu dodává (výstup > 20 W a nenabíjí se) – 26. 10. přišlo „5 % – přepoj chatu“
-    # během nabíjení z generátoru, kdy chata jela ze soláru
-    supplying = (r.get("out_w") or 0) > 20 and (r.get("in_w") or 0) <= 20
-    if cfg["river_vymenit"] and lim is not None and (r.get("wh") or 768) >= 500:   # 4.82: malá chatu nenapájí
+    small = (r.get("wh") or 768) < 500
+    lim = cfg["river_vymenit_pod"] if cfg["river_vymenit_pod"] is not None else 15
+    out_w, in_w = r.get("out_w") or 0, r.get("in_w") or 0
+    was = k in (st.get("al") or {})
+    supplying = out_w > (2 if small else 20) and in_w <= 20
+    died = was and soc <= 5 and out_w <= 3 and in_w <= 20
+    active = bool(cfg["river_vymenit"]) and in_w <= 20 and soc <= (lim + 5 if was else lim) and (supplying or died)
+    if small:
+        left_h = max(0.0, soc - 2) / 100 * (r.get("wh") or 256) * 0.9 / out_w if out_w > 2 else None
+        until = datetime.now(TZ) + timedelta(hours=left_h) if left_h is not None else None
+        ut = f"{rel_day(until.timestamp(), datetime.now(TZ))} ~{until.strftime('%H:%M')}" if until else ""
+        title = f"🔴 Malá River se vypnula – světla jsou bez proudu" if died else f"💡 Malá River {fmt(soc)} % – světla zhasnou {ut}"
+        msg = f"{io}.\nMalá River napájí 12V osvětlení. Vyměň ji nebo nabij."
+    else:
         mins = r.get("dsg_min")
         rest = f" Zbývá asi {fmt(mins / 60, 1)} h." if mins and mins < 6000 else ""
-        if supplying and soc <= lim and not st.get(k + "_low"):
-            ntfy(topic, f"🔄 Vyměň River ({fmt(soc)} %)", f"{io}.{rest}\nPřepoj spotřebiče na druhou River a tuhle nabij.", 4, "battery,warning")
-            st[k + "_low"] = True
-        # 5.68: další stupně – 10 % a 5 % (nejvyšší priorita), a když River přestane dodávat, protože je prázdná
-        sent = set(st.get(k + "_lv") or [])
-        for lv in (10, 5):
-            if supplying and lv < lim and soc <= lv and lv not in sent:
-                ntfy(topic, f"🚨 River {name} jen {fmt(soc)} % – brzy se vypne",
-                     f"{io}.{rest}\nTeď přepoj chatu na druhou River (nebo solár), jinak zůstane bez 230 V.", 5, "rotating_light,battery")
-                sent.add(lv)
-                break
-        out_now = r.get("out_w") or 0
-        if soc <= 5 and st.get(k + "_out", 0) > 20 and out_now <= 3 and "empty" not in sent:
-            ntfy(topic, f"🔴 River {name} se vypnula ({fmt(soc)} %)",
-                 f"{io}.\nRiver přestala dodávat – pokud z ní jela chata, je teď bez 230 V (lednice, Wi‑Fi, Flip).", 5, "rotating_light,warning")
-            sent.add("empty")
-        st[k + "_out"] = out_now
-        st[k + "_lv"] = sorted(sent, key=str)
-        if soc > lim + 10:
-            st[k + "_low"] = False
-            st[k + "_lv"] = []
-    # 5.81: malá River napájí 12V světla (autozásuvka) – upozornit, když dochází (20 / 10 / 5 %) a když se vypne
-    if (r.get("wh") or 768) < 500:
-        out_w, in_w = r.get("out_w") or 0, r.get("in_w") or 0
-        sent = set(st.get(k + "_slv") or [])
-        if out_w > 2 and in_w <= 20:
-            left_h = max(0.0, soc - 2) / 100 * (r.get("wh") or 256) * 0.9 / out_w
-            until = datetime.now(TZ) + timedelta(hours=left_h)
-            ut = f"{rel_day(until.timestamp(), datetime.now(TZ))} ~{until.strftime('%H:%M')}"
-            for lv in (20, 10, 5):
-                if soc <= lv and lv not in sent:
-                    ntfy(topic, f"💡 Malá River {fmt(soc)} % – světla zhasnou {ut}",
-                         f"{io}.\nMalá River napájí 12V osvětlení a vydrží asi do {ut}. Připrav výměnu / nabij ji.",
-                         5 if lv <= 5 else 4, "bulb,battery")
-                    sent.add(lv)
-                    break
-        if soc <= 3 and st.get(k + "_sout", 0) > 2 and out_w <= 1 and "empty" not in sent:
-            ntfy(topic, f"🔴 Malá River se vypnula ({fmt(soc)} %)", f"{io}.\n12V osvětlení je bez proudu.", 5, "bulb,warning")
-            sent.add("empty")
-        st[k + "_sout"] = out_w
-        if soc > 30:
-            sent = set()
-        st[k + "_slv"] = sorted(sent, key=str)
-    # Nabitá při nabíjení (generátor) -> vypnout generátor
-    charging = (r.get("in_w") or 0) > 20
+        title = f"🔴 River {name} se vypnula ({fmt(soc)} %)" if died else f"🔄 River {name} má jen {fmt(soc)} % – přepoj chatu"
+        msg = (f"{io}.\nRiver přestala dodávat – pokud z ní jela chata, je teď bez 230 V (lednice, Wi‑Fi, Flip)." if died
+               else f"{io}.{rest}\nPřepoj chatu na druhou River (nebo solár) a tuhle nabij.")
+    alarm(st, topic, k, active, title, msg, 5, "rotating_light,battery",
+          ok_title=f"✓ {name}: {'nabíjí se' if in_w > 20 else 'už nedodává'} ({fmt(soc)} %)")
+    # Nabitá při nabíjení → jen do souhrnu (konec nabíjení z generátoru hlásí řízení generátoru)
+    charging = in_w > 20
     if cfg["river_nabita"]:
         if soc >= 100 and (charging or st.get(k + "_chg")) and not st.get(k + "_full"):
-            ntfy(topic, f"⛽ {name} nabitá na 100 %", f"Můžeš vypnout generátor (nebo přepojit nabíjení na druhou River).\n{io}", 4, "fuelpump,white_check_mark")
+            digest(st, f"⛽ {name} nabitá na 100 %", io)
             st[k + "_full"] = True
         if soc < 95:
             st[k + "_full"] = False
@@ -5000,88 +4956,72 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
     if os.environ.get("TEST") == "1":
         ntfy(topic, "🔔 Hlídač chaty – test", line, 3, "white_check_mark")
 
-    # Regulátor offline
+    # Regulátor offline – 5.95: kategorie 1 (alarm „reg“, stejný klíč používá i chyba čtení cloudu v main)
     stale = v["age_min"] is None or v["age_min"] > cfg["regulator_offline_min"]
-    if stale and not st.get("stale"):
+    why = vv = since = ""
+    if stale:
         inv = data_ref.get("inverter") or {}
         flip_ok = inv and now.timestamp() - inv.get("t", 0) < 1800
         last_t = data_ref.get("updated")
         since = f"od {rel_day(last_t, now)} {datetime.fromtimestamp(last_t, TZ).strftime('%H:%M')}" if last_t else ""
-        import re
-        rt = next((p for p in inv.get("tp", []) if re.search(r"router|wi-?fi", str(p.get("n", "")), re.I)), None) if flip_ok else None
-        rtx = ""
-        if rt:
-            rtx = (f" Zásuvka „{rt.get('n')}“ je bez odběru – router nejspíš nejede." if rt.get("off") or (rt.get("w") is not None and rt["w"] < 1)
-                   else f" Router má proud ({fmt(rt.get('w'))} W).")
-        why = (("Flip data posílá." + rtx) if flip_ok else "Nechodí ani data z Flipu.") + (
-            "\nMožné příčiny: zaseknutý Wi‑Fi modul regulátoru, vypadlá Wi‑Fi / router na chatě, regulátor bez napájení, výpadek cloudu Solar Guardian."
-            "\n💡 Tip: často pomůže vypnout a zapnout Wi‑Fi modul regulátoru.")
+        why = ("Flip data posílá." if flip_ok else "Nechodí ani data z Flipu.") + \
+            "\n💡 Často pomůže vypnout a zapnout Wi‑Fi modul regulátoru."
         vv = f"\nNapětí teď podle Victronu: {fmt(inv.get('v'), 2)} V." if flip_ok and inv.get("v") is not None else ""
-        ntfy(topic, "📡 Regulátor neposílá data", f"Poslední údaje {since} (před {v['age_min'] or 0:.0f} min). {why}{vv}", 4, "warning")
-    if not stale and st.get("stale"):
-        ntfy(topic, "📡 Regulátor zase posílá data", f"Údaje z regulátoru jsou zase aktuální.\n{line}", 2, "white_check_mark")
+    alarm(st, topic, "reg", stale, "📡 Regulátor neposílá data",
+          f"Poslední údaje {since} (před {v['age_min'] or 0:.0f} min). {why}{vv}", 4, "warning",
+          ok_title="✓ Regulátor zase posílá data", ok_msg=line)
     st["stale"] = stale
     if stale or bv is None:
         return
 
-    # Baterie na 100 % (fáze Float, 2 kontroly po sobě)
+    # Float – 5.95: jen do souhrnu
     st["float_n"] = min(st.get("float_n", 0) + 1, 2) if status == 1 else 0
     if cfg["nabito"] and st["float_n"] >= 2 and not st.get("full_sent"):
-        ntfy(topic, "🔋 Baterie nabitá (Float)", f"Regulátor přešel do Float – baterie je plná. Můžeš zapojit náročnější spotřebič.\n{line}", 2, "battery,sunny")
+        digest(st, "🔋 Solární baterie plně nabitá (Float)", line)
         st["full_sent"] = True
-    if status != 1 and bv < 13.2:  # další „nabito“ až po vybití pod Boost Recovery 13,2 V
+    if status != 1 and bv < 13.2:
         st["full_sent"] = False
 
-    # Panely nevyrábí za denního světla
+    # Panely nevyrábí za denního světla – 5.95: kategorie 1
     if cfg["panely_nevyrabi"] and rise and pv is not None:
         m = timedelta(minutes=cfg["panely_rezerva_min"] or 0)
         daylight = rise + m <= now <= set_ - m
         full = status == 1 or bv >= 13.5  # plná baterie => regulátor sám omezí výkon
         if daylight and pv < (cfg["panely_min_W"] or 0) and not full:
             st.setdefault("pv_low_since", int(now.timestamp()))
-            low_min = (now.timestamp() - st["pv_low_since"]) / 60
-            if low_min >= (cfg["panely_po_dobu_min"] or 0) - 1 and not st.get("pv_sent"):
-                ntfy(topic, "🌥 Panely nevyrábí",
-                     f"Už {low_min:.0f} min jen {fmt(pv)} W, i když je den (slunce dnes {hm(rise)}–{hm(set_)}). "
-                     f"Sníh, zastínění, nebo vypadlý kabel?\n{line}", 4, "warning")
-                st["pv_sent"] = True
-        else:
+        elif not daylight or pv >= max(20, (cfg["panely_min_W"] or 0) * 4) or full:
             st.pop("pv_low_since", None)
-            if st.get("pv_sent") and pv >= max(20, (cfg["panely_min_W"] or 0) * 4):
-                ntfy(topic, "☀️ Panely zase vyrábí", line, 2, "sunny")
-                st["pv_sent"] = False
-        if now > set_:
-            st["pv_sent"] = False
+        low_min = (now.timestamp() - st["pv_low_since"]) / 60 if st.get("pv_low_since") else 0
+        alarm(st, topic, "pv", low_min >= (cfg["panely_po_dobu_min"] or 0) - 1 and bool(st.get("pv_low_since")),
+              "🌥 Panely nevyrábí",
+              f"Už {low_min:.0f} min jen {fmt(pv)} W, i když je den (slunce dnes {hm(rise)}–{hm(set_)}). "
+              f"Sníh, zastínění, nebo vypadlý kabel?\n{line}", 4, "warning",
+              ok_title="✓ Panely zase vyrábí", ok_msg=line)
 
-    # Nízké napětí (2 kontroly po sobě, s hysterezí); posílá se jen nejhorší úroveň
-    levels = (
-        ("off", "odpojeni", "🔌 Měnič se vypíná – 230 V nejde",
-         "Napětí pod {lim} V – měnič Victron (a výstup LOAD regulátoru) se vypíná kvůli ochraně baterie.", 5),
-        ("crit", "baterie_kriticka", "🛑 Odpoj spotřebiče",
-         "Napětí pod {lim} V – alarm regulátoru. Nevybíjej dál, přepni na EcoFlow.", 5),
-        ("warn", "baterie_slabne", "⚠️ Solární baterie slábne",
-         "Napětí pod {lim} V (~50 %). Šetři spotřebu.", 4),
-    )
-    worse = False
+    # Solární baterie – 5.95: jedno upozornění podle napětí (baterie_kriticka_V, 12,0 V), drží do baterie_kriticka_reset_V
     riv = cabin_on_river(data_ref, cfg, now, st) if data_ref else False      # 5.43
-    for key, name, title, text, prio in levels:
-        lim, reset = cfg[name + "_V"], cfg[name + "_reset_V"]
-        if lim is None:
-            continue
-        st[key + "_n"] = min(st.get(key + "_n", 0) + 1, 2) if bv < lim else 0
-        if st[key + "_n"] >= 2 and not st.get(key + "_sent"):
-            if riv and key == "warn":
-                continue                         # chata na River: „šetři spotřebu“ nedává smysl (pošle se po návratu na solár)
-            if riv:
-                title = f"⚠️ Solární baterie pod {fmt(lim, 2)} V, i když chata jede z River"
-                text = ("Chata jede z River, a solární baterie přesto klesla pod {lim} V – něco ji vybíjí "
-                        "(měnič zapnutý naprázdno?) nebo je poškozená.")
-            if not worse:
-                ntfy(topic, title, text.format(lim=fmt(lim, 2), reset=fmt(reset or lim, 2)) + "\n" + line, prio, "warning")
-            st[key + "_sent"] = True
-        if bv > (reset if reset is not None else lim):
-            st[key + "_sent"] = False
-        worse = worse or bool(st.get(key + "_sent"))
+    lim, reset = cfg["baterie_kriticka_V"], cfg["baterie_kriticka_reset_V"]
+    was = "bat_low" in (st.get("al") or {})
+    low = lim is not None and (bv < lim or (was and bv <= (reset or lim)))
+    off_v = cfg.get("odpojeni_V")
+    if riv:
+        t_ = f"⚠️ Solární baterie {fmt(bv, 2)} V, i když chata jede z River"
+        m_ = "Něco ji vybíjí (měnič zapnutý naprázdno?) nebo je poškozená. Zkontroluj, co je na ní zapojené."
+    elif off_v and bv < off_v:
+        t_ = f"🔌 Solární baterie {fmt(bv, 2)} V – měnič se vypíná, přepni chatu na River"
+        m_ = f"Pod {fmt(off_v, 2)} V měnič vypíná 230 V kvůli ochraně baterie."
+    else:
+        t_ = f"🛑 Solární baterie {fmt(bv, 2)} V – přepni chatu na River"
+        m_ = f"Pod {fmt(lim, 2)} V se baterie poškozuje. Přepni chatu na River (nebo odpoj, co nejde nutně)."
+    alarm(st, topic, "bat_low", low, t_, m_ + "\n" + line, 5, "rotating_light,warning",
+          ok_title=f"✓ Solární baterie zase nad {fmt(reset or lim, 2)} V", ok_msg=line)
+    # 12,2 V (baterie_slabne_V) jen do souhrnu
+    wv = cfg.get("baterie_slabne_V")
+    if wv and bv < wv and not low and not riv and not st.get("warn_sent"):
+        digest(st, f"Solární baterie klesla pod {fmt(wv, 2)} V", line)
+        st["warn_sent"] = True
+    if wv and bv > (cfg.get("baterie_slabne_reset_V") or wv):
+        st["warn_sent"] = False
 
     # 5.86: noc má jen dvě pravidla – (1) od 22:00 (nutne_river_v) jedno rozhodnutí „přepni na River“ podle předpovědi
     # (urgent_river), (2) napětí 12,2 / 12,0 V výše. Večerní „sniž odběr“ a „nevydrží“ před 22:00 zrušeny.
@@ -5090,88 +5030,52 @@ def check(v, st, now, topic, cfg, rise, set_, data_ref=None):
 
 
 def urgent_river(data, st, now, topic, cfg, rise, set_):
-    """„TEĎ TO UDĚLEJ“ (přání 18. 10. 2026): od nutne_river_v (22:00) do rána – když chata jede ze solární baterie
-    a předpověď říká, že baterie v noci klesne pod alarm (12,0 V) → naléhavé upozornění „Přepni chatu na River“,
-    opakované po ~5 min, dokud: nepotvrdíš tlačítkem „Přepínám“ (ntfy <téma>-ack), chata nepřejde na River
-    (zásuvka měniče ≤ 3 W a River dodává), nebo nevyjde slunce. Jednou za noc."""
+    """5.95 (kategorie 2): od nutne_river_v (22:00) do rána jedno doporučení „přepni na River“, když zdroj, ze kterého
+    chata jede, do rána nevydrží: solární baterie (předpověď pod 12,0 V) nebo River (st._rvn z river_supply).
+    Tlačítka Řeším / Za 30 min / Za 1 h, opakuje se po 10 min. Konec: přepnuto (chata na River / jiná River), potvrzeno,
+    ráno. Jednou za noc."""
     hhmm = str(cfg.get("nutne_river_v") or "").strip()
-    if not hhmm or hhmm.lower() in ("vypnuto", "ne", "off") or not rise or not set_:
-        return
-    try:
-        hh, mm = (int(x) for x in hhmm.split(":")[:2])
-    except ValueError:
-        return
-    ts = now.timestamp()
-    start_today = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-    if now >= start_today:
-        key = now.strftime("%Y-%m-%d")
-    elif now < rise:
-        key = (now - timedelta(days=1)).strftime("%Y-%m-%d")      # po půlnoci = noc začala včera
-    else:
-        return                                                     # den / večer před 22:00
-    if st.get("ur_done") == key:
-        return
-    inv = data.get("inverter") or {}
-    fresh = inv and ts - inv.get("t", 0) < 1800
-    rids = ips(cfg.get("zasuvky_river"))
-    on_river = fresh and (inv.get("mw") or 0) <= 3 and any(
-        str(p.get("ip")) in rids and (p.get("w") or 0) > 3 for p in inv.get("tp", []))
-    active = st.get("ur_active") == key
-    # potvrzení tlačítkem („ok“) nebo odložení („30“ / „60“ minut – 5.30)
-    if active:
+    win = None
+    if hhmm and hhmm.lower() not in ("vypnuto", "ne", "off") and rise and set_:
         try:
-            u = f"https://ntfy.sh/{topic}-ack/json?poll=1&since={int(st.get('ur_t0', ts))}"
-            got = urllib.request.urlopen(u, timeout=15).read().decode()
-            for ln in got.splitlines():
-                try:
-                    m = json.loads(ln)
-                except ValueError:
-                    continue
-                if m.get("event") != "message":
-                    continue
-                txt = str(m.get("message") or "").strip()
-                if txt.isdigit():
-                    until = int(m.get("time") or ts) + int(txt) * 60
-                    if until > (st.get("ur_snooze") or 0):
-                        st["ur_snooze"] = until
-                        log("ev", f"Přepnutí na River odloženo do {datetime.fromtimestamp(until, TZ).strftime('%H:%M')}")
-                else:
-                    st["ur_done"], st["ur_active"] = key, None
-                    log("ev", "Přepnutí na River potvrzeno")
-                    return
-        except Exception as e:
-            print("Potvrzení (ntfy):", e)
-    if on_river:
-        if active:
-            ntfy(topic, "✓ Chata jede z River", "Solární baterie je teď v klidu – díky.", 2, "white_check_mark")
-        st["ur_done"], st["ur_active"] = key, None
-        st.pop("ur_snooze", None)
+            hh, mm = (int(x) for x in hhmm.split(":")[:2])
+            if now >= now.replace(hour=hh, minute=mm, second=0, microsecond=0):
+                win = now.strftime("%Y-%m-%d")
+            elif now < rise:
+                win = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    if not win:
+        alarm(st, topic, "night", False, ok_title=False)           # ráno: tiše ukončit
         return
+    e = (st.get("al") or {}).get("night")
+    if e and e.get("ack"):
+        st["ur_done"] = win
+    on_river = cabin_on_river(data, cfg, now, st)
     f = st.get("_forecast") or {}
-    if not active and not f.get("t_crit"):
-        return                                                     # baterie do rána vydrží → nic
-    if active and ts - st.get("ur_last", 0) < 4 * 60:
-        return                                                     # nejvýš jednou za ~5 min
-    if ts < (st.get("ur_snooze") or 0):
-        return                                                     # 5.30: odloženo tlačítkem „+30 min / +1 h“
-    if not active:
-        st["ur_active"], st["ur_t0"] = key, int(ts)
-    st["ur_last"] = int(ts)
-    bv = (data.get("last") or {}).get("bat_v")
-    hq = (data.get("hq") or {}).get("pct")
+    rvn = st.get("_rvn")
+    solar_bad = not on_river and bool(f.get("t_crit"))
+    river_bad = on_river and bool(rvn)
     hm = lambda t: datetime.fromtimestamp(t, TZ).strftime("%H:%M")
-    msg = (f"Solární baterie do rána nevydrží: pod 12,0 V {rel_day(f['t_crit'], now)} ~{hm(f['t_crit'])}"
-           + (f", měnič se vypne ~{hm(f['t_off'])}" if f.get("t_off") else "") + ".\n"
-           + f"Teď {fmt(bv, 2)} V" + (f" · {hq} #" if hq is not None else "") + ".\n"
-           + "Přepoj chatu na River. Upozornění se opakuje, dokud neťukneš na „Přepínám“ nebo dokud chata nepřejde na River.") if f.get("t_crit") else (
-           "Přepoj chatu na River – solární baterie do rána nevydrží. Upozornění se opakuje, dokud neťukneš na „Přepínám“.")
-    # 5.30: tlačítka Přepínám / za 30 min / za 1 h (ntfy dovolí 3 – „Přehled“ tu vynechán). Připomenutí s každým během
-    # hlídače (~10 min); naplánované připomenutí za 5 min zrušeno – po odložení by stejně dorazilo.
-    act = lambda lb, b: {"action": "http", "label": lb, "url": f"https://ntfy.sh/{topic}-ack", "method": "POST", "body": b, "clear": True}
-    ack = [act("Přepínám", "ok"), act("Za 30 min", "30"), act("Za 1 h", "60")]
-    ntfy(topic, "⚠️ TEĎ přepni chatu na River", msg + "\nNechceš teď? Odlož o 30 min nebo 1 h – zítra se ozve zase ve " + hhmm + ".",
-         5, "rotating_light,warning", actions=ack, view=False)
-
+    if solar_bad:
+        bv, hq = (data.get("last") or {}).get("bat_v"), (data.get("hq") or {}).get("pct")
+        title = "🌙 Před spaním přepni chatu na River"
+        msg = (f"Solární baterie do rána nevydrží: pod 12,0 V {rel_day(f['t_crit'], now)} ~{hm(f['t_crit'])}"
+               + (f", měnič se vypne ~{hm(f['t_off'])}" if f.get("t_off") else "") + ".\n"
+               + f"Teď {fmt(bv, 2)} V" + (f" · {hq} #" if hq is not None else "") + ".")
+        st["_night_src"] = "solar"
+    elif river_bad:
+        title = f"🌙 Před spaním přepoj chatu na druhou River"
+        msg = (f"{rvn['n']} má {fmt(rvn['soc'])} %, chata bere ~{fmt(rvn['avg'])} W → vybije se {rel_day(rvn['until'], now)} "
+               f"~{hm(rvn['until'])} (rezerva {rvn['res']} %).")
+        st["_night_src"] = "river"
+    else:
+        title, msg = "", ""
+    active = st.get("ur_done") != win and (solar_bad or river_bad or (e is not None and not on_river and st.get("_night_src") == "solar"))
+    alarm(st, topic, "night", active, title or (e or {}).get("title", "🌙 Před spaním přepni chatu na River"), msg, 4, "crescent_moon,warning",
+          ok_title="✓ Do rána to už vydrží" if st.get("_night_src") == "river" or not on_river else "✓ Chata jede z River", ok_msg="")
+    if e and not active:
+        st["ur_done"] = win
 
 
 if __name__ == "__main__":
