@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.126", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.127", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1453,7 +1453,7 @@ function detBsim(body){
   const rows = B.var.map(v=>{ const a = v.years["0"], b = v.years["3"];
     return `<tr><td style="padding:4px">${escH(v.name)}</td>${td(nf(a.usable_wh/1000,2))}${td(`<b>${a.short}</b>`)}${td(b.short)}${td(nf(a.river_wh/1000,1))}${td(nf(a.waste_wh/1000,1))}</tr>`; }).join("");
   const months = Object.keys(B.var[0].years["0"].months).sort();
-  const mrows = B.var.map(v=>`<tr><td style="padding:4px;white-space:nowrap">${escH(v.name.replace(/\s*\(.*\)/,""))}</td>${months.map(m=>{ const x = v.years["0"].months[m]; return td(x ? `${x.short}/${x.n}` : "–"); }).join("")}</tr>`).join("");
+  const mrows = B.var.map(v=>`<tr><td style="padding:4px;white-space:nowrap">${escH(v.name.replace(/\s*\(.*\)/,""))}</td>${months.map(m=>{ const x = v.years["0"].months[m]; return td(x ? `${x.short} z ${x.n}` : "–"); }).join("")}</tr>`).join("");
   const P = B.pred;
   const HELP = `<details class="card" style="line-height:1.5"><summary style="cursor:pointer;font-weight:600">❓ Jak vybrat baterii – úvaha, ceny, sklep</summary>
     <p><b>Větší baterie pomůže jen tehdy, když ji slunce dokáže naplnit.</b> V zimě se nenaplní ani malá – větší kapacita tam skoro nic nezmění. V létě stačí i malá (krátké noci, panely ji dobijí), navíc se ve Floatu zahazuje energie. Rozhodují přechodná období (říjen–listopad, březen–duben): baterie má pohodlně utáhnout noc, ideálně i jeden zatažený den, když ji pak slunce dobije.</p>
@@ -1464,9 +1464,11 @@ function detBsim(body){
     <p class="sub">Tabulka níž sleduje typ i kapacitu (AGM 100 / 200 Ah, LiFePO4 50–200 Ah) na tvé skutečné historii. Předpoklady o účinnosti a stárnutí jsou typické hodnoty, ne měření.</p></details>`;
   body.insertAdjacentHTML("beforeend", HELP);
   body.insertAdjacentHTML("beforeend", `<div class="card"><b>Kolik dní by chata potřebovala River</b> <span class="sub">(${dTxt(B.od)} – ${dTxt(B.do)}, ${B.n} dní)</span>
+    <div class="sub" style="margin-top:4px;line-height:1.45">Hlídač den po dni „přehraje“ tvou skutečnou historii: baterii nabíjí slunce podle skutečného počasí a vybíjí obvyklá spotřeba chaty. <b>Dní s River</b> = kolik dní z ${B.n} by baterie nestačila (přes den nebo v noci po něm) a chata by musela jet z River – méně je lépe. <b>Po 3 letech</b> = totéž se zestárlou baterií. <b>Z River</b> = kolik energie by za celé období musela dodat River. <b>Zahozeno</b> = slunce, které by se do plné baterie už nevešlo.</div>
     <div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;width:100%">
     <tr style="color:var(--muted);text-align:right"><th style="text-align:left;padding:4px">baterie</th><th>využitelné<br>kWh</th><th>dní<br>s River</th><th>po 3<br>letech</th><th>z River<br>kWh</th><th>zahozeno<br>kWh</th></tr>${rows}</table></div></div>
-    <div class="card"><b>Po měsících</b> <span class="sub">(dní s River / dní)</span><div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums">
+    <div class="card"><b>Po měsících – kolik dní by byla potřeba River</b>
+    <div class="sub" style="margin-top:4px;line-height:1.45">„23 z 31“ = z 31 dní toho měsíce (za které máme počasí) by s touhle baterií chata 23 dní potřebovala River – baterie by nestačila přes den nebo v noci po něm. Menší první číslo = lepší; 0 = celý měsíc jen ze soláru. Porovnávej po sloupci (stejný měsíc, různé baterie).</div><div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums">
     <tr style="color:var(--muted)"><th></th>${months.map(m=>`<th style="padding:4px">${m.slice(5)}/${m.slice(2,4)}</th>`).join("")}</tr>${mrows}</table></div></div>
     <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se to počítá:</b> každý den historie se skutečným počasím (archiv záření). Výroba = kolik by panely daly bez přiškrcení ve Floatu (model, který se hlídač učí z tvé výroby) × počet zapojených panelů ten den. Spotřeba = obvyklá spotřeba chaty: přes den ~${nf(P.day_w)} W, v noci ~${nf(P.night_w)} W (+ ztráty měniče a ${nf(P.idle_w)} W naprázdno). Den s River = baterie by v ten den nebo následující noc došla. „Zahozeno“ = slunce, které by se do plné baterie už nevešlo.
     Předpoklady: AGM hloubka vybití 50 %, účinnost nabíjení 85 %, ztráta ~15 % kapacity ročně; LiFePO4 90 %, 95 %, ~2 % ročně (typické hodnoty, ne měření). Tvoje současná: změřená kapacita, do alarmu 12,0 V. Čím delší historie (zima, jaro), tím přesnější.</div>`);
