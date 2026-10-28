@@ -1563,8 +1563,15 @@ def night_load_a(data, cfg, ts):
     """5.101: obvyklý noční odběr ze solární baterie (A, i ztráty měniče) – medián nocí 21–5 h za 7 dní (chata na
     soláru i na River – zásuvky měří stejný odběr), × oprava z minulých nocí (night_learn). Jediný pro výhled dne
     i předpověď noci. Vrací (A, oprava)."""
-    rids = ips(cfg.get("zasuvky_river"))
     idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
+    w = night_w(data, cfg, ts)
+    nf_ = (data.get("dfl") or {}).get("f") or 1.0
+    return (w / 0.88 + idle) / 12.4 * nf_, nf_
+
+
+def night_w(data, cfg, ts):
+    """5.118: obvyklý noční odběr chaty ve W (na 230 V, jak měří zásuvky) – medián nocí 21–5 h za 7 dní."""
+    rids = ips(cfg.get("zasuvky_river"))
 
     def _nw(p):                                   # 5.113: odběr chaty podle toho, z čeho jela (jeden výpočet)
         cs_ = pt_src(p, cfg)
@@ -1576,9 +1583,7 @@ def night_load_a(data, cfg, ts):
     nmw = sorted(w_ for p in data.get("points", []) if p["t"] >= ts - 7 * 86400 and (p.get("pv_w") or 0) < 5
                  and (datetime.fromtimestamp(p["t"], TZ).hour >= 21 or datetime.fromtimestamp(p["t"], TZ).hour < 5)
                  and (w_ := _nw(p)) is not None)
-    w = nmw[len(nmw) // 2] if len(nmw) >= 12 else (cfg.get("noc_spotreba_W") or 30)
-    nf_ = (data.get("dfl") or {}).get("f") or 1.0
-    return (w / 0.88 + idle) / 12.4 * nf_, nf_
+    return nmw[len(nmw) // 2] if len(nmw) >= 12 else (cfg.get("noc_spotreba_W") or 30)
 
 
 def forecast(data, now, cfg):
@@ -1673,6 +1678,8 @@ def main():
     st = data.setdefault("state", {})
     now = datetime.now(TZ)
     cfg = load_config()
+    global PLAN
+    PLAN = load_plan()                                     # 5.118: plán nepřítomnosti (web)
     alarm_acks(st, topic)                                  # 5.95: tlačítka Řeším / Za 30 min / Za 1 h
     rise, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
     data["cfg"] = cfg
@@ -1830,6 +1837,8 @@ def main():
                          ("Učení výhledu", lambda: night_learn(data, st, now, cfg)),
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Kdy na River", lambda: eve_plan(data, st, now, topic, cfg)),
+                         ("Plán nepřítomnosti", lambda: away_plan(data, st, now, topic, cfg)),
+                         ("Připomínka plánu", lambda: plan_reminder(data, st, now, topic, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
                          ("Palivo a cena", lambda: fuel_stats(data, st, now, cfg)),
@@ -4119,7 +4128,18 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     data["day_fc"] = {ok, t_empty, t} pro web. Upozornění (Vysoká): v čas z rozvrhu den_kontrola (po dnech)
     a kdykoli během dne, když se výhled zhorší (ráno vydrželo, teď ne). Noc řeší jiná upozornění."""
     ts = now.timestamp()
-    end = day_end(cfg, now)                           # 5.117: v den s odjezdem do návratu (den_navrat), jinak den_do
+    # 5.118: nejbližší nepřítomnost dnes (plán / obvyklý rozvrh) → vydržet do návratu; jinak den_do
+    AW = next_away(cfg, PLAN, now, within_h=24)
+    if AW and AW[0].date() > now.date():
+        AW = None
+    if AW:
+        end = AW[1]
+    else:
+        try:
+            hh, mm = (int(x) for x in str(cfg.get("den_do") or "22:00").split(":")[:2])
+        except ValueError:
+            hh, mm = 22, 0
+        end = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
     hh, mm = end.hour, end.minute
     inv = data.get("inverter") or {}
     fresh = inv and ts - inv.get("t", 0) < 1800
@@ -4209,22 +4229,23 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     data["day_fc"] = res
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu) – 5.117: stejná funkce jako večerní plán
-    tchk = sched_time(cfg, now)
+    tchk = AW[0] if AW else None                      # 5.118: odjezd (úsek nepřítomnosti) – kontrola při každém odjezdu
     tk = tchk.strftime("%H:%M") if tchk else None
-    due = bool(tchk) and now >= tchk and st.get("do_chk") != day
+    akey = str(int(tchk.timestamp())) if tchk else day
+    due = bool(tchk) and now >= tchk and st.get("do_chk") != akey
     after = bool(tchk) and now >= tchk          # už je po dnešním čase kontroly (pro nabídku soláru během dne)
     if due:
-        st["do_chk"] = day
+        st["do_chk"] = akey
     # 5.95: jedno ranní rozhodnutí v čas z rozvrhu (den_kontrola)
     if on_river:
         # 5.116: den s odjezdem (čas v rozvrhu) → jen v ten čas (pak už přepnout nejde); den bez odjezdu → jednou,
         # jakmile to poprvé vyjde (po východu slunce)
-        free_ok = not tk and rise and now >= rise and st.get("do_conn") != day
+        free_ok = not tk and rise and now >= rise and st.get("do_conn") != akey
         if (due or free_ok) and res["ok"] and now.timestamp() < res["end"]:
             ntfy(topic, "☀️ Dnes můžeš chatu přepnout na solární baterii",
                  f"Solární baterie ({hq['pct']} #) s dnešní výrobou podle předpovědi (~{fmt(rem_kwh, 1)} kWh, s rezervou) "
                  f"vydrží chatu (~{res['load_w']} W) do {hh}:{mm:02d}.\nVečer ti napíšu, do kdy přepnout zpátky na River.", 3, "sunny,battery")
-            st["do_conn"] = day
+            st["do_conn"] = akey
         alarm(st, topic, "day", False, ok_title="✓ Chata jede z River")
         return
     if due and not res["ok"]:
@@ -4235,6 +4256,101 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
           f"Chata jede ze solární baterie ({hq['pct']} #, obvyklý odběr z baterie ~{res['load_w']} W). Dnes ještě vyrobí ~{fmt(rem_kwh, 1)} kWh "
           f"– nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\nNež odjedeš, přepni chatu na River.",
           4, "warning,sunny", ok_title="✓ Dnes to solár do večera vydrží")
+
+
+# ---- 5.118: plán nepřítomnosti (plan.txt, zapisuje web) ----
+PLAN_FILE = "plan.txt"
+PLAN = {}                                             # načte main() – {datum: [(od, do, tlačítko)]}
+
+
+def load_plan(path=PLAN_FILE):
+    """plan.txt: řádky „YYYY-MM-DD: HH:MM-HH:MM, HH:MM-HH:MM“ (kdy jsem pryč; „do“ menší než „od“ = do druhého dne),
+    „YYYY-MM-DD: doma“. Hvězdička za úsekem = zadáno tlačítkem „Odjíždím“ (hlídač pošle potvrzení).
+    Vrací {datum: [(od, do, tlačítko)]} – den v souboru = platí přesně tak (prázdný seznam = doma)."""
+    out = {}
+    try:
+        lines = open(path, encoding="utf-8").read().splitlines()
+    except OSError:
+        return out
+    import re as _re
+    for ln in lines:
+        ln = ln.split("#", 1)[0].strip()
+        m = _re.match(r"^(\d{4}-\d{2}-\d{2})\s*:\s*(.*)$", ln)
+        if not m:
+            continue
+        try:
+            d = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        ivs = []
+        for part in m.group(2).split(","):
+            mm = _re.match(r"^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*(\*?)\s*$", part)
+            if not mm:
+                continue
+            h1, m1, h2, m2 = (int(x) for x in mm.groups()[:4])
+            if h1 > 23 or m1 > 59 or h2 > 24 or m2 > 59:
+                continue
+            a = datetime(d.year, d.month, d.day, tzinfo=TZ) + timedelta(hours=h1, minutes=m1)
+            b = datetime(d.year, d.month, d.day, tzinfo=TZ) + timedelta(hours=h2, minutes=m2)
+            if b <= a:
+                b += timedelta(days=1)                   # přes půlnoc
+            ivs.append((a, b, bool(mm.group(5))))
+        out[d] = sorted(ivs)
+    return out
+
+
+def away_list(cfg, plan, t0, days=3):
+    """Úseky nepřítomnosti [(od, do, tlačítko)] od dne t0 na `days` dní: den v plan.txt platí přesně, jinak
+    obvyklý rozvrh (den_kontrola = odjezd, den_navrat / den_do = návrat). Seřazené, překryvy sloučené."""
+    ivs = []
+    d0 = t0.date() - timedelta(days=1)                 # i včerejší úsek přes půlnoc
+    for i in range(days + 1):
+        d = d0 + timedelta(days=i)
+        if d in plan:
+            ivs += plan[d]
+        else:
+            dep = sched_time(cfg, d)
+            if dep:
+                ivs.append((dep, day_end(cfg, d), False))
+    ivs.sort()
+    out = []
+    for a, b, f in ivs:
+        if out and a <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], b), out[-1][2] or f)
+        else:
+            out.append((a, b, f))
+    return out
+
+
+def next_away(cfg, plan, now, within_h=20):
+    """Úsek nepřítomnosti, který právě běží, nebo nejbližší, který začne do within_h."""
+    for a, b, f in away_list(cfg, plan, now):
+        if b > now:
+            return (a, b, f) if a - now <= timedelta(hours=within_h) else None
+    return None
+
+
+def next_departure(cfg, plan, now, within_h=20):
+    """Nejbližší budoucí odjezd (začátek úseku nepřítomnosti) do within_h: (od, do, tlačítko) nebo None."""
+    for a, b, f in away_list(cfg, plan, now):
+        if a > now:
+            return (a, b, f) if a - now <= timedelta(hours=within_h) else None
+    return None
+
+
+def is_away(cfg, plan, now):
+    """Jsem teď pryč? Jen podle plánu (plan.txt) nebo obvyklého rozvrhu s časem návratu (den_navrat). Bez známého
+    návratu se nepředpokládá, že jsem pryč až do den_do – upozornění, na která můžu reagovat, by jinak nechodila."""
+    for i in (-1, 0):
+        d = (now + timedelta(days=i)).date()
+        if d in plan:
+            if any(a <= now < b for a, b, f in plan[d]):
+                return True
+        else:
+            dep, ret = sched_time(cfg, d), sched_time(cfg, d, "den_navrat")
+            if dep and ret and dep <= now < ret:
+                return True
+    return False
 
 
 def day_end(cfg, d):
@@ -4308,7 +4424,13 @@ def energy_model(data, cfg, now):
         _, (r, z) = sun_of(t)
         return day_a if r and z and r.timestamp() <= t < z.timestamp() else night_a
 
-    return {"cap": cap, "alarm_soc": alarm_soc, "idle_a": idle / 12.4, "prod_ah": prod_ah, "load_a": load_a,
+    nw_ = night_w(data, cfg, now.timestamp())
+
+    def load_w(t):                                    # 5.118: odběr chaty na 230 V (pro výdrž River)
+        _, (r, z) = sun_of(t)
+        return day_w if r and z and r.timestamp() <= t < z.timestamp() else nw_
+
+    return {"cap": cap, "alarm_soc": alarm_soc, "idle_a": idle / 12.4, "prod_ah": prod_ah, "load_a": load_a, "load_w": load_w,
             "ah_now": ((hq.get("pct") - alarm_soc) / 100 * cap) if hq.get("pct") is not None else None,
             "room": ((100 - hq["pct"]) / 100 * cap) if hq.get("pct") is not None else None}
 
@@ -4340,8 +4462,9 @@ def eve_plan(data, st, now, topic, cfg):
     if M["ah_now"] is None:
         return
     rise_t, set_t = sun_times(cfg["sirka"], cfg["delka"], now.date())
-    # odjezd: nejbližší čas z rozvrhu po teď (dnes ráno ještě před ním, jinak zítra)
-    D = next((x for x in (sched_time(cfg, now), sched_time(cfg, now + timedelta(days=1))) if x and x > now), None)
+    # odjezd: nejbližší úsek nepřítomnosti z plánu (plan.txt) / obvyklého rozvrhu – 5.118
+    ND = next_departure(cfg, PLAN, now, within_h=24)
+    D = ND[0] if ND else None
     nxt = now.date() + timedelta(days=0 if rise_t and now < rise_t else 1)
     r_next = sun_times(cfg["sirka"], cfg["delka"], nxt)[0]
     morning = (r_next + timedelta(minutes=cfg.get("nabijeni_od_vychodu_min") or 0)) if r_next else None
@@ -4365,7 +4488,7 @@ def eve_plan(data, st, now, topic, cfg):
 
     need, target, dend, t_sw = 0.0, morning, None, None
     if D:
-        dend = day_end(cfg, D)                         # 5.117: do návratu (rozvrh den_navrat), jinak den_do
+        dend = ND[1]                                   # 5.118: do návratu z plánu
         # nejmenší zásoba v čase odjezdu, se kterou solár utáhne chatu do večera (půlením)
         if sim_level(M, D.timestamp(), dend.timestamp(), top, top)[0] > 0:
             a, b = 0.0, top
@@ -4393,13 +4516,210 @@ def eve_plan(data, st, now, topic, cfg):
     data["eve"] = res
     # jen od západu slunce (dřív je člověk typicky ještě pryč) do rána, jen když chata jede ze soláru
     evening = set_t and now >= set_t or (rise_t and now < rise_t)
-    due = cs_ == "s" and evening and not res["ok"] and (t_sw is None or ts >= t_sw - 1800)
+    due = cs_ == "s" and evening and not res["ok"] and (t_sw is None or ts >= t_sw - 1800) and not is_away(cfg, PLAN, now)
     when = "hned" if t_sw is None or t_sw <= ts + 300 else "do ~" + datetime.fromtimestamp(t_sw, TZ).strftime("%H:%M")
     why = (f"ráno v {D.strftime('%H:%M')} (odjezd podle rozvrhu) musí v solární baterii zbýt aspoň ~{need_pct} #, "
            f"aby solár s předpovědí výroby utáhl chatu do {dend.strftime('%H:%M')}" if D else
            f"solární baterie musí vydržet do rána ({rel_day(target.timestamp(), now)} ~{target.strftime('%H:%M')}) nad alarmem 12,0 V")
     alarm(st, topic, "eve", due, f"🔌 Přepni chatu na River {when}",
           f"Teď {data['hq'].get('pct')} #. Když zůstane chata na soláru déle, nevyjde to: {why}.", 4, "electric_plug", ok_title=False)
+
+
+def river_models(data, cfg, now):
+    """5.118: velké River (malá chatu nenapájí) pro plán: {konec SN: {name, soc, cap (Wh do chaty na 100 %), per100
+    (Wh nabíjení na 100 %), chg_w (W při nabíjení), est (kapacita jen ze štítku)}}. % vypnuté River = poslední známé."""
+    out, rl, rc = {}, data.get("rv_last") or {}, data.get("rv_cap") or {}
+    sup = data.get("river_sup") or {}
+    for r in data.get("rivers") or []:
+        nom = r.get("wh") or cfg.get("river_Wh") or 768
+        if nom < 500:
+            continue
+        k6 = str(r.get("sn", ""))[-6:]
+        soc = r.get("soc") if r.get("online") and r.get("soc") is not None else (rl.get(k6) or {}).get("soc")
+        if soc is None:
+            continue
+        c = rc.get(k6) or {}
+        cap, est = (c["cap"], False) if c.get("cap") and (c.get("n") or 0) >= 2 else (nom * 0.9, True)
+        if sup.get("sn") == k6 and sup.get("rate") and sup.get("w"):
+            cap, est = sup["w"] / sup["rate"] * 100, False        # změřený úbytek % při skutečném odběru
+        ses = [x for x in (c.get("chg") or {}).get("ses") or [] if x.get("t1", 0) > x.get("t0", 0)]
+        ws = sorted(x["wh"] / ((x["t1"] - x["t0"]) / 3600) for x in ses if x.get("wh"))
+        out[k6] = {"name": r.get("name") or k6, "soc": float(soc), "cap": cap, "est": est,
+                   "per100": (c.get("chg") or {}).get("per100") or nom / 0.9,
+                   "chg_w": ws[len(ws) // 2] if ws else 600}
+    return out
+
+
+def gen_windows(t0, t1):
+    """Úseky [od, do] v intervalu t0–t1, kdy smí běžet generátor (6:00–22:00, noční klid)."""
+    out, d = [], t0.date()
+    while True:
+        a = max(t0, datetime(d.year, d.month, d.day, 6, 0, tzinfo=TZ))
+        b = min(t1, datetime(d.year, d.month, d.day, 22, 0, tzinfo=TZ))
+        if a < b:
+            out.append((a, b))
+        d += timedelta(days=1)
+        if datetime(d.year, d.month, d.day, tzinfo=TZ) >= t1:
+            return out
+
+
+def away_plan(data, st, now, topic, cfg):
+    """5.118: čím chata pojede, až budu pryč (plán nepřítomnosti, 30 h dopředu).
+    Pro každý úsek nepřítomnosti postupně: solár (vydrží s předpovědí?) → zapojená River → druhá velká River.
+    Doma (mezi úseky) jede chata ze zapojené River (jako v noci), solár se jen nabíjí.
+    • úsek, na který nic nevydrží → „⛽ Nabij River …“ s nejpozdějším začátkem nabíjení v době, kdy jsem doma
+      a smí běžet generátor (6–22), nebo „nic nevydrží“, když se nabíjení nikam nevejde (alarm „chg“, kategorie 2)
+    • v čas odjezdu: zapojená River nevydrží do návratu → „Než odjedeš: přepoj na …“ (alarm „dep“); úsek zadaný
+      tlačítkem „Odjíždím“ dostane i potvrzení „✓ vydrží“. data["away_plan"] pro web."""
+    ts = now.timestamp()
+    data.pop("away_plan", None)
+    ivs = [I for I in away_list(cfg, PLAN, now, days=2) if I[1] > now and I[0] <= now + timedelta(hours=30)]
+    data["away"] = [[int(a.timestamp()), int(b.timestamp()), 1 if f else 0]
+                    for a, b, f in away_list(cfg, PLAN, now, days=8) if b > now]
+    M = energy_model(data, cfg, now)
+    RV = river_models(data, cfg, now)
+    res_pct = cfg.get("river_rezerva_pct") or 5
+    if not ivs or M["ah_now"] is None:
+        alarm(st, topic, "chg", False, ok_title=False)
+        return
+    inv = data.get("inverter") or {}
+    cs_ = inv_src(inv, cfg) if inv and ts - inv.get("t", 0) < 1800 else None
+    conn = (data.get("river_sup") or {}).get("sn")
+    if conn not in RV:
+        conn = None
+    conn0 = conn                                       # opravdu zapojená teď (conn se v plánu mění)
+    top = M["ah_now"] + M["room"]
+
+    def drop(k, a, b):                                 # o kolik % klesne River k, když na ní chata jede a–b
+        tot, t = 0.0, a.timestamp()
+        while t < b.timestamp():
+            dt = min(600, b.timestamp() - t)
+            tot += M["load_w"](t) * dt / 3600
+            t += dt
+        return tot / RV[k]["cap"] * 100
+
+    soc = {k: v["soc"] for k, v in RV.items()}
+    L, t, plan, fails = M["ah_now"], now, [], []
+    for a, b, f in ivs:
+        a = max(a, now)
+        # doma: zapojená River (nebo solár, když žádná River není / je prázdná)
+        if a > t:
+            hk = conn if conn and soc[conn] - drop(conn, t, a) >= res_pct else None
+            if hk:
+                soc[hk] -= drop(hk, t, a)
+                L = sim_level(M, t.timestamp(), a.timestamp(), L, top, solar_until=t.timestamp())[1]
+            else:
+                L = sim_level(M, t.timestamp(), a.timestamp(), L, top)[1]
+        lo_s, end_s = sim_level(M, a.timestamp(), b.timestamp(), L, top)
+        cand = []
+        if lo_s > 0:
+            cand.append(("solar", None))
+        for k in sorted(RV, key=lambda k: (k != conn, -soc[k])):
+            if soc[k] - drop(k, a, b) >= res_pct:
+                cand.append(("river", k))
+        if cand:
+            kind, k = cand[0]
+            if kind == "solar":
+                L = end_s
+            else:
+                soc[k] -= drop(k, a, b)
+                L = sim_level(M, a.timestamp(), b.timestamp(), L, top, solar_until=a.timestamp())[1]
+                conn = k
+            plan.append({"a": int(a.timestamp()), "b": int(b.timestamp()), "src": kind, "k": k, "btn": f})
+        else:
+            plan.append({"a": int(a.timestamp()), "b": int(b.timestamp()), "src": None, "k": None, "btn": f})
+            fails.append((a, b, dict(soc)))                # stav River na začátku úseku (po cestě se z nich bralo)
+            L = max(0.0, sim_level(M, a.timestamp(), b.timestamp(), L, top)[1])
+        t = b
+    out = {"t": int(ts), "ivs": plan, "rv": {k: {"name": v["name"], "soc": round(v["soc"]), "est": v["est"]} for k, v in RV.items()}}
+    # nabíjení pro první úsek, na který nic nestačí
+    chg = None
+    if fails:
+        a, b, soc_a = fails[0]
+        home = []                                          # kdy jsem doma před tím úsekem
+        tt = now
+        for a2, b2, _ in ivs:
+            if a2 >= a:
+                break
+            if a2 > tt:
+                home.append((tt, a2))
+            tt = max(tt, b2)
+        if a > tt:
+            home.append((tt, a))
+        best = None
+        for k, v in RV.items():
+            used = v["soc"] - soc_a[k]                            # co se z ní vezme do začátku úseku
+            need = res_pct + drop(k, a, b) + 5 + max(0.0, used)    # +5 % rezerva
+            if need > 100:
+                continue
+            wh = max(0.0, need - v["soc"]) / 100 * v["per100"]
+            dur = wh / max(100.0, v["chg_w"]) * 3600
+            for ha, hb in home:
+                for ga, gb in gen_windows(ha, hb):
+                    if (gb - ga).total_seconds() >= dur:
+                        late = gb.timestamp() - dur
+                        if not best or late > best["late"] or (late == best["late"] and dur < best["dur"]):
+                            best = {"k": k, "name": v["name"], "need": round(need), "dur": dur, "late": late,
+                                    "win": (ga.timestamp(), gb.timestamp())}
+        chg = {"a": int(a.timestamp()), "b": int(b.timestamp()), **({k_: v_ for k_, v_ in best.items() if k_ != "win"} if best else {"none": True})}
+        if best:
+            chg["win"] = [int(best["win"][0]), int(best["win"][1])]
+    out["chg"] = chg
+    data["away_plan"] = out
+    hm = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M") if not isinstance(x, datetime) else x.strftime("%H:%M")
+    rd = lambda x: rel_day(x if not isinstance(x, datetime) else x.timestamp(), now)
+    # upozornění na nabíjení: když jsem doma (ne pryč), od 2 h před nejpozdějším začátkem (nebo hned, když nic nevyjde)
+    if chg and not is_away(cfg, PLAN, now):
+        if chg.get("none"):
+            due = True
+            title = f"⚠️ {rd(chg['a']).capitalize()} {hm(chg['a'])}–{hm(chg['b'])} chatu nic neutáhne"
+            msg = ("Ani solár, ani River nevydrží, a nabití River z generátoru se do té doby nevejde (generátor jen 6:00–22:00). "
+                   "Omez spotřebu, nebo uprav plán.")
+        else:
+            due = ts >= chg["late"] - 2 * 3600
+            title = f"⛽ Nabij {chg['name']} – začni nejpozději {rd(chg['late'])} v {hm(chg['late'])}"
+            msg = (f"{rd(chg['a']).capitalize()} {hm(chg['a'])}–{hm(chg['b'])} jsi pryč a solár ani River to bez nabití neutáhnou. "
+                   f"{chg['name']} nabij aspoň na ~{chg['need']} % (~{fmt(chg['dur'] / 3600, 1)} h). Generátor jen 6:00–22:00.")
+        alarm(st, topic, "chg", due, title, msg, 4, "fuelpump", ok_title=False)
+    else:
+        alarm(st, topic, "chg", False, ok_title=False)
+    # kontrola v čas odjezdu
+    cur = next(((a, b, f) for a, b, f in ivs if a <= now < b and ts - a.timestamp() < 2 * 3600), None)
+    if cur:
+        key = str(int(cur[0].timestamp()))
+        if st.get("dep_chk") != key and cs_ in ("s", "r"):
+            st["dep_chk"] = key
+            a, b, f = cur
+            if cs_ == "r" and conn0:
+                left = RV[conn0]["soc"]
+                ok = left - drop(conn0, now, b) >= res_pct
+                if not ok:
+                    alt = [k for k in RV if k != conn0 and RV[k]["soc"] - drop(k, now, b) >= res_pct]
+                    sol_ok = (data.get("day_fc") or {}).get("ok") and (data.get("day_fc") or {}).get("end") == int(b.timestamp())
+                    if not sol_ok:                              # solár nabízí ranní „můžeš na solár“ zvlášť
+                        tip = (f"Přepoj na „{RV[alt[0]]['name']}“ ({round(RV[alt[0]]['soc'])} %)." if alt else
+                               "Ani druhá River nevydrží – nabij ji, nebo omez spotřebu.")
+                        alarm(st, topic, "dep", True, f"🔋 Než odjedeš: {RV[conn0]['name']} nevydrží do {hm(b)}",
+                              f"Má {round(left)} %, při obvyklém odběru by do návratu v {hm(b)} spadla pod {res_pct} %. {tip}",
+                              4, "battery", ok_title=False)
+                elif f:
+                    ntfy(topic, f"✓ Můžeš jet – {RV[conn0]['name']} vydrží do {hm(b)}", f"Má {round(left)} %, obvyklý odběr.", 2, "white_check_mark")
+            elif cs_ == "s" and f and (data.get("day_fc") or {}).get("ok"):
+                ntfy(topic, f"✓ Můžeš jet – solár vydrží do {hm(b)}", "Podle předpovědi výroby a obvyklého odběru.", 2, "white_check_mark")
+    if not cur:
+        alarm(st, topic, "dep", False, ok_title=False)
+
+
+def plan_reminder(data, st, now, topic, cfg):
+    """5.118: v neděli od 20:00 jednou: „📅 Doplň plán na příští týden“ – rovnou otevře tabulku na webu."""
+    if now.weekday() != 6 or now.hour < 20 or st.get("plan_rem") == now.strftime("%Y-%m-%d"):
+        return
+    st["plan_rem"] = now.strftime("%Y-%m-%d")
+    days = [(now + timedelta(days=i)).date() for i in range(1, 8)]
+    if all(d in PLAN for d in days):
+        return
+    ntfy(topic, "📅 Doplň plán na příští týden", "Kdy budeš pryč – podle toho hlídač hlídá solár, River a nabíjení.",
+         3, "calendar", actions=[{"action": "view", "label": "Otevřít plán", "url": DASHBOARD + "#plan", "clear": True}], view=False)
 
 
 def capacity_check(data, st, now, cfg):

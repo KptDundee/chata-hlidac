@@ -3,6 +3,16 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.118 – 28. 10. 2026
+- Plán „🗓 Kdy jsem pryč“ (dlaždice ve Výhledu): tabulka na 8 dní – pro každý den „doma“ nebo úseky od–do (i víc za den, i přes půlnoc), „Jako minulý týden“, Uložit. Ukládá se do plan.txt. Den, který v plánu není, jede podle obvyklého rozvrhu v Nastavení (odjezd / návrat).
+- V neděli ve 20:00 přijde „📅 Doplň plán na příští týden“ – tlačítko rovnou otevře tabulku (když už je týden vyplněný, nepřijde).
+- Tlačítko 🚗 nahoře: „Odjíždím – kdy se vrátíš?“ zapíše úsek do plánu a hlídač hned zkontroluje, jestli zapojený zdroj vydrží do návratu; pošle „✓ Můžeš jet …“, nebo co přepnout.
+- Čím chata pojede, až budu pryč (30 h dopředu): pro každý úsek postupně solár → zapojená River → druhá velká River (doma mezi úseky jede chata ze zapojené River).
+  - Když na některý úsek nic nevydrží: „⛽ Nabij {River} – začni nejpozději v HH:MM“ – nabíjení jen v době, kdy jsem doma a smí běžet generátor (6:00–22:00, noční klid), i s polední pauzou, když se do ní vejde. Přijde 2 h před nejpozdějším začátkem. Když se nabití nikam nevejde: „⚠️ … chatu nic neutáhne“.
+  - V čas odjezdu: když zapojená River nevydrží do návratu – „🔋 Než odjedeš: … přepoj na …“.
+  - Výdrž River: změřený úbytek % (jinak změřená kapacita River, jinak štítek × 0,9); rychlost nabíjení z minulých nabíjení (jinak 600 W).
+- Výhled dne, večerní „Přepni na River do …“ a ranní „můžeš na solár“ berou odjezdy a návraty z plánu (i dva úseky za den). Upozornění, na která musím reagovat na místě, nechodí, když jsem podle plánu pryč.
+
 ## 5.117 – 28. 10. 2026
 - Nastavení „Výhled dne – návrat“ (den_navrat): čas návratu pro každý den zvlášť. Ve dny s časem odjezdu musí chata na soláru vydržet do návratu – podle toho ranní kontrola soláru, dlaždice „do HH:MM“ i večerní „Přepni chatu na River do …“. Den bez času návratu = „Výhled dne – vydržet do“ (22:00).
 

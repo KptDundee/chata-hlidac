@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.117", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.118", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -260,7 +260,7 @@ details.sec>.in{margin-top:8px}
   <header>
     <h1>⚡ Chata – elektřina<span class="ver" id="ver">v3.6</span></h1>
     <div class="hrow"><div class="sub"><span id="upd">…</span><div id="flipbat"></div></div>
-    <div style="display:flex;gap:8px;margin-left:auto"><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
+    <div style="display:flex;gap:8px;margin-left:auto"><button id="depart" title="Odjíždím – zkontrolovat, jestli zdroj vydrží do návratu">🚗</button><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
   <div class="card hide" id="tokbox" style="margin-bottom:12px">
     <b>Načítání na povel</b>
@@ -681,6 +681,7 @@ function render(){
   renderCap(d, days);
   try{ renderWire(d); }catch(e){ console.error(e); }
   try{ renderHome(d); }catch(e){ console.error("home", e); }
+  if(location.hash === "#plan" && !render.planOpened){ render.planOpened = true; try{ history.replaceState(null, "", location.pathname); }catch(_){} openDet("plan"); }   // 5.118: odkaz z nedělní připomínky
   dotChart($("c_min"), dd, "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   $("tbl").innerHTML = days.slice().reverse().slice(0,60).map(k=>{const x=d.days[k];return `<tr><td>${new Date(k).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}</td><td>${nf(x.solar_kwh,2)}</td><td>${nf(x.min_v,2)}</td><td>${nf(x.max_v,2)}</td><td>${x.hq_min!=null?nf(x.hq_min):"–"}</td><td>${x.soc_min!=null&&x.soc_min<999?nf(x.soc_min):"–"}</td></tr>`}).join("") || `<tr><td colspan="6">Zatím žádné dny</td></tr>`;
 }
@@ -1437,6 +1438,103 @@ function tileNight(d, h){
       a: cls==="ok" ? "Odhad podle počasí – přesně dnes po západu" : "Dnes večer omez odběr / připrav River"};
   }
   return {...t, cls:"na", v:"–", st:"Předpověď dnes večer", a:""};
+}
+/* ---------- 5.118: plán nepřítomnosti (plan.txt) – tabulka na týden, tlačítko 🚗 Odjíždím ---------- */
+const GHP_ = () => "https://api.github.com/repos/"+REPO+"/contents/plan.txt";
+const WDN = ["ne","po","út","st","čt","pá","so"];
+const pad2 = n => String(n).padStart(2,"0");
+const dK = dt => `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}`;
+function planParse(txt){ const out = {};
+  for(const ln of String(txt||"").split("\n")){ const m = ln.split("#")[0].trim().match(/^(\d{4}-\d{2}-\d{2})\s*:\s*(.*)$/); if(!m) continue;
+    out[m[1]] = m[2].split(",").map(x=>x.trim().match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*(\*?)$/)).filter(Boolean).map(x=>({a:x[1].padStart(5,"0"), b:x[2].padStart(5,"0"), btn:!!x[3]})); }
+  return out; }
+function planText(P){
+  const keys = Object.keys(P).sort(), cut = dK(new Date(Date.now() - 14*86400e3));
+  return "# kdy jsem pryč (zapisuje web): YYYY-MM-DD: HH:MM-HH:MM, … · prázdné = doma · * = tlačítko Odjíždím\n"
+    + keys.filter(k=>k>=cut).map(k=>`${k}: ${P[k].map(x=>`${x.a}-${x.b}${x.btn?"*":""}`).join(", ")}`).join("\n") + "\n"; }
+async function planLoad(tok){
+  const r = await fetch(GHP_()+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+  if(r.status===404) return {P:{}, sha:null};
+  if(!r.ok) throw new Error("Plán nejde načíst ("+r.status+")");
+  const j = await r.json(); return {P:planParse(utf8b64.dec(j.content)), sha:j.sha}; }
+async function planSave(tok, P, sha, msg){
+  const w = await fetch(GHP_(),{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
+    body:JSON.stringify({message:"Plán: "+msg, content:utf8b64.enc(planText(P)), ...(sha?{sha}:{}), branch:"main"})});
+  if(!w.ok) throw new Error("Plán nejde uložit ("+w.status+")");
+  await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{method:"POST",
+    headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"}, body:JSON.stringify({ref:"main",inputs:{test:false,wake:true}})}).catch(()=>{}); }
+/* úseky z hlídače (data.away = plán / obvyklý rozvrh) pro den k → [{a,b}] */
+function awayDay(d, k){ return (d.away||[]).filter(x=>dK(new Date(x[0]*1000))===k).map(x=>({a:hmT(x[0]), b:hmT(x[1]), btn:!!x[2]})); }
+function tilePlan(d, h){
+  const t = {k:"plan", icon:"🗓", label:"Kdy jsem pryč"}, A = d.away_plan, nxt = (d.away||[]).find(x=>x[1] > h.now);
+  if(!nxt) return {...t, cls:"na", v:"–", st:"Žádný odjezd v plánu", a:"Doplň plán na týden"};
+  const iv = A && (A.ivs||[]).find(x=>x.b > h.now), rv = (A && A.rv) || {};
+  const src = !iv ? "" : iv.src==="solar" ? "solár" : iv.src==="river" ? `River ${pn((rv[iv.k]||{}).name||"")}` : "nic nevydrží";
+  const away = nxt[0] <= h.now;
+  const ch = A && A.chg;
+  return {...t, cls: ch ? (ch.none ? "bad" : "warn") : "ok", v: `${hmT(away ? nxt[1] : nxt[0])}<small>${away ? "návrat" : relDay(nxt[0])}</small>`,
+    st: away ? `Pryč do ${relDay(nxt[1])} ${hmT(nxt[1])}` : `Odjezd ${relDay(nxt[0])} ${hmT(nxt[0])}–${hmT(nxt[1])}`,
+    a: ch ? (ch.none ? "Nic to neutáhne – omez spotřebu" : `Nabij ${pn(ch.name)} – začni do ${relDay(ch.late)} ${hmT(ch.late)}`) : src ? `Pojede: ${src}` : ""};
+}
+function detPlan(body){
+  const d = DATA, tok = store.get("ghtok");
+  body.insertAdjacentHTML("beforeend", `<div class="card" id="plan_box"><div class="sub">Načítám plán…</div></div>`);
+  const box = $("plan_box");
+  if(!tok){ box.innerHTML = `<div>Pro úpravu plánu je potřeba přihlášení ke GitHubu (stejné jako u Nastavení).</div>`; $("tokbox").classList.remove("hide"); return; }
+  planLoad(tok).then(({P, sha})=>{
+    const days = []; for(let i=0;i<8;i++){ const dt = new Date(); dt.setHours(12,0,0,0); dt.setDate(dt.getDate()+i); days.push(dt); }
+    const row = (dt) => { const k = dK(dt), own = P[k], ivs = own || awayDay(d, k), home = own ? !own.length : !ivs.length;
+      const iv = (x, j) => `<div class="pliv" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="time" data-pa="${j}" value="${x.a||""}" style="font:inherit"> – <input type="time" data-pb="${j}" value="${x.b||""}" style="font:inherit"><button type="button" data-pdel style="font:inherit;padding:2px 8px">✕</button></div>`;
+      return `<div class="plrow" data-k="${k}" style="padding:8px 0;border-bottom:1px solid var(--line)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${WDN[dt.getDay()]} ${dt.getDate()}. ${dt.getMonth()+1}.${own ? "" : ` <span class="sub">(obvyklý rozvrh)</span>`}</b>
+          <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-home ${home?"checked":""}> doma</label></div>
+        <div class="plivs" style="${home?"display:none":""}">${(ivs.length?ivs:[{a:"",b:""}]).map(iv).join("")}<button type="button" data-padd style="font:inherit;padding:4px 10px;margin-top:2px">+ další úsek</button></div></div>`; };
+    box.innerHTML = `<div class="sub" style="margin-bottom:6px">Kdy budeš pryč (od – do). „Do“ dřív než „od“ = přes půlnoc. Den bez úprav jede podle obvyklého rozvrhu v Nastavení.</div>
+      ${days.map(row).join("")}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="pl_save" style="font:inherit;padding:8px 14px;font-weight:600">Uložit plán</button>
+      <button type="button" id="pl_copy" style="font:inherit;padding:8px 14px">Jako minulý týden</button></div><div class="sub" id="pl_msg" style="margin-top:6px"></div>`;
+    box.addEventListener("click", e => {
+      const r = e.target.closest(".plrow"); if(!r) return;
+      if(e.target.matches("[data-padd]")){ const n = r.querySelectorAll(".pliv").length; e.target.insertAdjacentHTML("beforebegin", `<div class="pliv" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="time" data-pa="${n}" style="font:inherit"> – <input type="time" data-pb="${n}" style="font:inherit"><button type="button" data-pdel style="font:inherit;padding:2px 8px">✕</button></div>`); }
+      if(e.target.matches("[data-pdel]")) e.target.closest(".pliv").remove();
+    });
+    box.addEventListener("change", e => { if(e.target.matches("[data-home]")){ e.target.closest(".plrow").querySelector(".plivs").style.display = e.target.checked ? "none" : ""; } });
+    $("pl_copy").onclick = () => { for(const r of box.querySelectorAll(".plrow")){ const k = r.dataset.k, dt = new Date(k+"T12:00"); dt.setDate(dt.getDate()-7);
+      const src = P[dK(dt)] || awayDay(d, dK(dt)); const home = !src.length; r.querySelector("[data-home]").checked = home;
+      const L = r.querySelector(".plivs"); L.style.display = home ? "none" : "";
+      L.querySelectorAll(".pliv").forEach(x=>x.remove()); const add = L.querySelector("[data-padd]");
+      for(const [j,x] of (src.length?src:[{a:"",b:""}]).entries()) add.insertAdjacentHTML("beforebegin", `<div class="pliv" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="time" data-pa="${j}" value="${x.a}" style="font:inherit"> – <input type="time" data-pb="${j}" value="${x.b}" style="font:inherit"><button type="button" data-pdel style="font:inherit;padding:2px 8px">✕</button></div>`); }
+      $("pl_msg").textContent = "Zkopírováno z minulého týdne – zkontroluj a ulož."; };
+    $("pl_save").onclick = async () => {
+      const N = {...P};
+      for(const r of box.querySelectorAll(".plrow")){ const k = r.dataset.k;
+        if(r.querySelector("[data-home]").checked){ N[k] = []; continue; }
+        const ivs = [...r.querySelectorAll(".pliv")].map(x=>({a:x.querySelector("[data-pa]").value, b:x.querySelector("[data-pb]").value})).filter(x=>x.a && x.b);
+        N[k] = ivs.map(x=>({...x, btn:false})); }
+      $("pl_save").disabled = true; $("pl_msg").textContent = "Ukládám…";
+      try{ await planSave(tok, N, sha, "týden od " + dK(days[0])); $("pl_msg").textContent = "Uloženo ✓ – hlídač plán načte při příštím běhu (do pár minut)."; }
+      catch(err){ $("pl_msg").textContent = err.message; $("pl_save").disabled = false; }
+    };
+  }).catch(err=>{ box.innerHTML = `<div>${escH(err.message)}</div>`; });
+}
+async function departNow(){
+  const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
+  const d = DATA, now = new Date(), k = dK(now), nowS = now.getTime()/1000;
+  const nx = (d.away||[]).find(x=>x[1] > nowS && x[0] - nowS < 6*3600), def = nx ? hmT(nx[1]) : (d.cfg?.den_do || "22:00");
+  const ret = prompt("Odjíždíš. Kdy se vrátíš? (HH:MM)", def); if(ret === null) return;
+  const m = ret.trim().match(/^(\d{1,2})[:.](\d{2})$/); if(!m) return alert("Zadej čas jako 18:30.");
+  const a = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, b = `${m[1].padStart(2,"0")}:${m[2]}`;
+  const btn = $("depart"); btn.disabled = true;
+  try{
+    const {P, sha} = await planLoad(tok);
+    const cur = P[k] || awayDay(d, k);
+    // úseky, které už skončily, nechat; ten, který teď začíná / probíhá, nahradit novým
+    const keep = cur.filter(x=>(x.b <= a && x.b > x.a) || x.a >= b);         // skončené i pozdější úseky zůstanou
+    P[k] = [...keep, {a, b, btn:true}].sort((x,y)=>x.a.localeCompare(y.a));
+    await planSave(tok, P, sha, `odjezd ${a}, návrat ${b} (tlačítko)`);
+    alert(`Zapsáno: pryč ${a}–${b}. Do pár minut přijde na telefon, jestli zdroj vydrží.`);
+  }catch(e){ alert("Nejde zapsat: "+e.message); }
+  btn.disabled = false;
 }
 function tileTomorrow(d, h){
   const t = {k:"wx", icon:"☀️", label:"Zítra a počasí"};
@@ -2628,7 +2726,7 @@ function renderHome(d){
   const T = {
     chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h)].filter(Boolean),
     prod: [tileProdSolar(d, h), tileProdGen(d, h)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
-    out: [tileNight(d,h), tileTomorrow(d,h)], past: [tilePastNight(d,h), tileYesterday(d,h)],
+    out: [tileNight(d,h), tileTomorrow(d,h), tilePlan(d,h)], past: [tilePastNight(d,h), tileYesterday(d,h)],
     long: [tileWire(d,h), tileHealth(d,h), tilePanels(d,h), tileSystem(d,h)] };
   $("h_dev").innerHTML = T.chata.map(tileHtml).join("");
   $("h_day").innerHTML = T.prod.map(tileHtml).join("");
@@ -2677,6 +2775,7 @@ const DET = {
   pan:   {t:"🔆 Panely", s:"Kolik panelů zapojit a pojistka", ids:["s_pan"]},
   sys:   {t:"📡 Systém", s:"Co posílá data a deník událostí", ids:["sysInfo","s_log"]},
   log:   {t:"📋 Deník", s:"Automatika, upozornění a chyby", ids:["s_log"]},
+  plan:  {t:"🗓 Kdy jsem pryč", s:"Plán na týden – podle něj hlídač hlídá solár, River a nabíjení", build:detPlan},
   all:   {t:"🗂 Všechny údaje", s:"Kompletní původní přehled", ids:["heroSec","tilesSec","wxcard","s_plugs","s_pan","s_health","s_charts","s_log","s_tbl"]},
 };
 let DET_MOVED = [], DET_K = null, DETR = "d";
@@ -3321,6 +3420,7 @@ async function triggerLive(){
   function done(msg){ clearInterval(liveTimer); btn.disabled=false; btn.textContent="⚡ Načíst"; $("upd").textContent = msg + " · " + $("upd").textContent; }
 }
 $("live").addEventListener("click",triggerLive);
+$("depart").addEventListener("click",departNow);
 $("toksave").addEventListener("click",()=>{const t=$("tok").value.trim();if(!t)return;store.set("ghtok",t);$("tok").value="";$("tokbox").classList.add("hide");triggerLive();});
 $("tokcancel").addEventListener("click",()=>$("tokbox").classList.add("hide"));
 
@@ -3330,8 +3430,8 @@ const SETTINGS = [
   ["Upozornění", [
     ["nabito","Baterie nabitá na 100 %","V souhrnu ve 22:00","","", "sw"],
     ["panely_nevyrabi","Panely nevyrábí přes den","Sníh, stín nebo vypadlý kabel","","", "sw"],
-    ["den_kontrola","Výhled dne – kontrola před odjezdem","Kdy ráno zkontrolovat, jestli chata na soláru vydrží do večera – pro každý den zvlášť (vypnutý den = nekontrolovat)","",0,"week"],
-    ["den_navrat","Výhled dne – návrat","Kdy se ten den vracíš – do té doby musí chata na soláru vydržet (jen ve dny s časem odjezdu; prázdný den = „vydržet do“)","",0,"week"],
+    ["den_kontrola","Obvyklý rozvrh – odjezd","Kdy obvykle odjíždíš – platí pro dny, které nemáš v plánu „🗓 Kdy jsem pryč“ (vypnutý den = doma)","",0,"week"],
+    ["den_navrat","Obvyklý rozvrh – návrat","Kdy se obvykle vracíš – do té doby musí zdroj vydržet (prázdný den = „vydržet do“)","",0,"week"],
     ["den_do","Výhled dne – vydržet do","Do kolika má chata na soláru vydržet ve dny bez času návratu (pak řeší noc jiná upozornění)","",0,"time"],
     ["nutne_river_v","Před spaním: přepni na River","Od tohoto času, když zdroj do rána nevydrží; opakuje se po 10 min","",0,"timeopt"],
     ["vecerni_souhrn_hodina","Večerní souhrn (každý večer)","Hodina, kdy každý večer přijde přehled dneška","h",1,"opt"],
