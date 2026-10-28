@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.121", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.122", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2613,7 +2613,7 @@ function detRiver(body){
     const col = M && !M.ok ? "--crit" : "--good";
     head = `<div style="font-size:14px;color:var(--text2)">Chatu napájí <b style="color:var(--text)">${escH(pn(rs.name))}</b> · ${nf(rs.soc)} % · ~${nf(rs.w)} W</div>
       <div style="font-size:26px;font-weight:700;margin:4px 0;color:var(${col})">vydrží do ~${hmT(rs.until)} <span style="font-size:15px;font-weight:600">${relDay(rs.until)}</span></div>
-      <div class="sub">${M ? (M.ok ? `${cap1(doRana(M.mor))} vydrží – ${rano(M.mor)} zbude ~${nf(Math.max(0,M.socM))} %` : `${cap1(doRana(M.mor))} nevydrží – připrav druhou River nebo omez odběr`) : ""} · ${rs.rate ? `výdrž podle úbytku od ${relDay(rs.r_t0)} ${hmT(rs.r_t0)} (−${nf(rs.rate,1)} %/h)` : `výdrž podle odběru ~${nf(rs.w)} W a ${rs.capm ? `změřené kapacity River (~${nf(rs.capm)} Wh do chaty)` : "kapacity River"}`}, do rezervy ${nf(rs.res ?? 5)} %</div>`;
+      <div class="sub">${M ? (M.ok ? `${cap1(doRana(M.mor))} vydrží – ${rano(M.mor)} zbude ~${nf(Math.max(0,M.socM))} %` : `${cap1(doRana(M.mor))} nevydrží – připrav druhou River nebo omez odběr`) : ""} · ${rs.hist ? `výdrž podle minulých vybíjení (−${nf(rs.hist,1)} %/h)` : rs.rate ? `výdrž podle úbytku od ${relDay(rs.r_t0)} ${hmT(rs.r_t0)} (−${nf(rs.rate,1)} %/h)` : `výdrž podle odběru ~${nf(rs.w)} W a ${rs.capm ? `změřené kapacity River (~${nf(rs.capm)} Wh do chaty)` : "kapacity River"}`}, do rezervy ${nf(rs.res ?? 5)} %</div>`;
   } else if(rs){
     head = `<div style="font-size:14px">Chatu napájí <b>${escH(pn(rs.name))}</b> · ~${nf(rs.w)} W</div><div class="sub">% a výdrž až EcoFlow pošle nabití této River.</div>`;
   } else head = `<div style="font-size:14px">${h.rvOn ? "Chata jede z River" : "Chata jede ze solární baterie – River chatu nenapájí."}</div>`;

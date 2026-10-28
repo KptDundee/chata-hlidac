@@ -4549,6 +4549,7 @@ def river_models(data, cfg, now):
         ses = [x for x in (c.get("chg") or {}).get("ses") or [] if x.get("t1", 0) > x.get("t0", 0)]
         ws = sorted(x["wh"] / ((x["t1"] - x["t0"]) / 3600) for x in ses if x.get("wh"))
         out[k6] = {"name": r.get("name") or k6, "soc": float(soc), "cap": cap, "est": est,
+                   "pph": river_hist_pph(data.get("state") or {}, k6),   # 5.122: %/h z minulých vybíjení
                    "per100": (c.get("chg") or {}).get("per100") or nom / 0.9,
                    "chg_w": ws[len(ws) // 2] if ws else 600}
     return out
@@ -4595,6 +4596,8 @@ def away_plan(data, st, now, topic, cfg):
     top = M["ah_now"] + M["room"]
 
     def drop(k, a, b):                                 # o kolik % klesne River k, když na ní chata jede a–b
+        if RV[k].get("pph"):
+            return RV[k]["pph"] * (b - a).total_seconds() / 3600      # 5.122: jak to bylo v minulosti
         tot, t = 0.0, a.timestamp()
         while t < b.timestamp():
             dt = min(600, b.timestamp() - t)
@@ -4967,6 +4970,20 @@ def river_capacity(data, st, now, cfg):
                    "drop_sum": sum(x["s0"] - x["s1"] for x in last8), "live": lv}
     data["rv_cap"] = out
 
+def river_hist_pph(st, k6=None):
+    """5.122: jak rychle River chatu v minulosti ubývala (%/h) – medián minulých vybíjení (aspoň 2 h, aspoň o 20 %).
+    Nejdřív vybíjení této River (aspoň 2), jinak všech velkých River (chata bere pořád zhruba stejně). None = nevíme."""
+    ses = st.get("rv_ses") or {}
+
+    def rates(lst):
+        return sorted((x["s0"] - x["s1"]) / ((x["t1"] - x["t0"]) / 3600) for x in lst
+                      if x.get("t1", 0) - x.get("t0", 0) >= 7200 and x.get("s0", 0) - x.get("s1", 0) >= 20)
+    r = rates(ses.get(k6) or []) if k6 else []
+    if len(r) < 2:
+        r = rates([x for v in ses.values() for x in v])
+    return r[len(r) // 2] if len(r) >= 2 else None
+
+
 def river_supply(data, st, now, topic, cfg, rise, set_):
     """Která River teď napájí chatu, kolik má a na jak dlouho vydrží při průměrném odběru (poslední 3 h).
     data["river_sup"] = {name, soc, w, h, until}; 5.95: st["_rvn"] = River do rána nevydrží (upozorní urgent_river ve 22:00)."""
@@ -5045,7 +5062,10 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
             break
         ser.append((p["t"], e_["s"]))
     rate, r_t0 = None, None
-    if len(ser) >= 3:
+    hist = river_hist_pph(st, k6)                               # 5.122: hlavně podle minulých vybíjení
+    if hist:
+        h = max(0.0, r["soc"] - res) / hist
+    if len(ser) >= 3 and not hist:
         (t1, s1), (t0, s0) = ser[0], ser[-1]
         hrs = (t1 - t0) / 3600
         # 5.121: fyzikální kontrola – River nemůže dodávat avg W a ubývat pomaleji, než odpovídá celé kapacitě
@@ -5055,9 +5075,9 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
             rate, r_t0 = (s0 - s1) / hrs, t0
             h = max(0.0, r["soc"] - res) / rate
     until = int(now.timestamp() + h * 3600)
-    pph = rate if rate else avg / use_wh * 100                  # 5.121: %/h, se kterým se počítá (web stejně)
+    pph = hist or rate or avg / use_wh * 100                    # 5.121/5.122: %/h, se kterým se počítá (web stejně)
     data["river_sup"] = {"name": r["name"], "soc": round(r["soc"]), "w": round(avg), "h": round(h, 1), "until": until, "pph": round(pph, 2),
-                         "capm": round(use_wh) if not rate else None,
+                         "capm": round(use_wh) if not rate and not hist else None, "hist": round(hist, 2) if hist else None,
                          "rate": round(rate, 1) if rate else None, "r_t0": int(r_t0) if r_t0 else None,
                          "cap": cap, "res": res, "sn": str(r.get("sn", ""))[-6:], **plug_extra}
     # 5.95: vydrží do rána? – upozornění až ve 22:00 spolu se solárem (urgent_river)
