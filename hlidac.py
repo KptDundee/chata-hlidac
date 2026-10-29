@@ -766,8 +766,19 @@ def attach_rivers(data, rivers, now):
     """EcoFlow (čteno teď) k bodu z téže chvíle (±5 min), jinak vlastní bod."""
     pt = flip_point(data, int(now.timestamp()))
     pt["rv"] = [{k_: v_ for k_, v_ in (("s", r.get("soc")), ("i", r.get("in_w")), ("o", r.get("out_w")),
-                                       ("k", str(r.get("sn", ""))[-6:]), ("de", r.get("de"))) if v_ is not None or k_ != "de"}
-                for r in rivers]       # 4.99: „k“ = konec SN; 5.73: „de“ = počítadlo vybité energie
+                                       ("k", str(r.get("sn", ""))[-6:]), ("de", r.get("de")), ("c", dc12_w(r)))
+                 if v_ is not None or k_ not in ("de", "c")}
+                for r in rivers]       # 5.142: „c“ = 12 V výstup (W)
+
+
+def dc12_w(r):
+    """5.142: kolik W jde 12 V výstupem River (světla). Když EcoFlow hlásí přímo 12 V / autozásuvku, bere se to,
+    jinak celkový výstup − 220 V výstup. Bez údajů None."""
+    if r.get("car_w") is not None:
+        return round(r["car_w"], 1)
+    if r.get("out_w") is not None and r.get("ac_out_w") is not None:
+        return round(max(0.0, r["out_w"] - r["ac_out_w"]), 1)
+    return None       # 4.99: „k“ = konec SN; 5.73: „de“ = počítadlo vybité energie
 
 
 def sync_inverter_voltage(data, inv, tol=150):
@@ -3210,6 +3221,10 @@ def read_ecoflow_app(rivers, data, st, now, force=False):
                         pass
                     break
         r["socs"] = {k: q[k] for k in KEYS_EF()["soc"] if q.get(k) is not None}
+        for n_ in ("pd.carWatts", "mppt.carOutWatts", "pd.dcOutWatts"):        # 5.142: 12 V výstup (autozásuvka / DC)
+            if isinstance(q.get(n_), (int, float)):
+                r["car_w"] = float(q[n_])
+                break
         if q.get("mppt.cfgChgWatts") is not None:           # 4.88: nastavený nabíjecí výkon (skutečný, z River)
             try:
                 r["cfg_w"] = int(q["mppt.cfgChgWatts"])
@@ -3513,12 +3528,21 @@ def river_days(data, now, cfg):
         if dt <= 0 or dt > 900:
             continue
         k = datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d")
-        a = agg.setdefault(k, {"c": {}, "s": {}, "tot": 0.0})
+        a = agg.setdefault(k, {"c": {}, "s": {}, "tot": 0.0, "sol": 0.0, "dc": {}})
         a["tot"] += dt
+        for e_ in p.get("rv") or []:                # 5.142: 12 V výstup River – čas zapnutý (> 1 W) a Wh
+            if e_.get("c") is not None and e_.get("k"):
+                b_ = a["dc"].setdefault(e_["k"], [0.0, 0.0, 0.0])
+                b_[0] += dt
+                if e_["c"] > 1:
+                    b_[1] += dt
+                    b_[2] += e_["c"] * dt / 3600
         cs_ = pt_src(p, cfg)                       # 5.113: jeden výpočet
         if cs_ not in ("s", "r"):
             continue
         sol = cs_ == "s"
+        if sol:
+            a["sol"] += dt
         for rid in rids:
             if (p["tp"].get(rid) or 0) > 3:
                 b = a["s" if sol else "c"]
@@ -3533,6 +3557,8 @@ def river_days(data, now, cfg):
         d["rh"] = {i: round(v / 3600, 2) for i, v in a["c"].items()}
         d["rhs"] = {i: round(v / 3600, 2) for i, v in a["s"].items()}
         d["rhh"] = round(a["tot"] / 3600, 1)
+        d["sh"] = round(a["sol"] / 3600, 2)                          # 5.142: hodiny, kdy chata jela ze soláru
+        d["dc"] = {k6: {"h": round(v[0] / 3600, 2), "on": round(v[1] / 3600, 2), "wh": round(v[2])} for k6, v in a["dc"].items()}
 
 
 def cons_compare(data, st, now, topic, cfg):

@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.142**: `dc12_w(r)` = `car_w` (q: pd.carWatts / mppt.carOutWatts / pd.dcOutWatts) nebo out_w − ac_out_w; bod `rv[].c`. `river_days` → `days[k].sh` (h, cs = s), `days[k].dc[k6] = {h, on (> 1 W), wh}`. Web `pieHtml(items, fmt)` (SVG donut), `srcPiesHtml(d, h)` – čas ze `sh` + `rh[plug]` (+ nezjištěno = rhh − součet), energie z `tp[mip]` + `tp[plug]`, období podle DETR; v `detRiver` za grafy, v `detBat` na konci. `dc12Html` za grafem % malé River (wh < 500); River v grafech % seřazené podle wh.
+
 **5.141**: web `#genbar` + `genBar()` (z `renderHome` a po 60 s) – běží (`gen_plan` bez `end`, < 15 min, `rv` neprázdné, `fin` > teď − 5 min) → „hotovo ~fin · zbývá“.
 
 **5.140**: `gen_stop.res` = čas, kdy po zastavení zase nabíjí; web pruh jen bez `res`.

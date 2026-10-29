@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.142 – 29. 10. 2026
+- EcoFlow a Solární baterie: karta „Na co jela chata“ – dva koláčové grafy za zvolené období (Dnes / 48 h / Týden / Rok / Vše): podle času (solár, každá River, nezjištěno) a podle energie (kWh přes měnič a z výstupu každé River).
+- EcoFlow: grafy „kolik má v baterii“ napřed velké River, pak malá; za malou karta „12 V (světla)“ – kolik % času byl 12 V výstup zapnutý (> 1 W), hodiny a kWh. Údaj z EcoFlow (autozásuvka / DC výstup, jinak celkový výstup − 220 V).
+- Hlídač: po dnech `sh` (hodiny na solár) a `dc` (12 V výstup každé River: hodiny s údajem, zapnuto, Wh); v bodech u River `c` = W na 12 V.
+
 ## 5.141 – 29. 10. 2026
 - Hlavní stránka: pod pruhem upozornění zelený proužek „⛽ Generátor · hotovo ~15:19 · zbývá 1 h 05 min“, dokud generátor nabíjí (odpočet po minutě, ťuknutí otevře Generátor). Po dobití zmizí.
 
