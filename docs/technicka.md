@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.139**: web `fuelAdd(f)` = formulář `#fuelDlg` (radio f / when stop|now|at / full, `datetime-local`), zápis řádku do palivo.txt jako dřív. `genPlanHtml`: tlačítka paliva + pruh při `gen_stop` < 3 h bez novějšího `fuel[f].cur`; detail Generátor otevře „start“, když běží nabíjení nebo `gen_stop` < 3 h.
+
 **5.138**: `gen_charge_ctl` – `gs.soc_ok[sn] = [soc, t]` (věrohodné: Δ ∈ [−3, 3 + 2·min]; jinak poslední dobrý do 20 min, log jednou), `soc_()` všude v plánu; přepočet `plan_t` po 600 / 300 / 120 s podle max % (< 75 / < 90 / ≥ 90), změny ≥ 30 W; větev „minima se nevejdou“ jen při Σ minim > avail + 1 (dřív Σ plánu > avail – plovoucí chyba).
 
 **5.137**: `gen_charge_ctl` – `con` = všechny ovladatelné online River se `soc` < 100 (nebo berou > 20 W); `insess` / `low` už o rozdělení nerozhodují.

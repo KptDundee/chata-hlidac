@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.139 – 29. 10. 2026
+- Generátor → ▶️ Start: výrazná tlačítka „🔄 Vyměnil jsem lahev“ a „⛽ Natankoval jsem“ hned pod volbou paliva. Když se generátor zastavil (posledních 3 h, ještě bez zápisu nové lahve), nad nimi žlutý pruh „⚠️ Generátor se zastavil v 13:45. Došla lahev?“. Během nabíjení a po zastavení se detail Generátor otevře rovnou na ▶️ Start.
+- Zápis paliva jedním formulářem místo řady dotazů: lahev / tankování, cena (předvyplněná minulá), kdy (když se generátor zastavil / teď / jindy – výběr data a času), plná / částečně, litry u benzínu.
+
 ## 5.138 – 29. 10. 2026
 - Oprava chyby: při třech River spadl výpočet kvůli zaokrouhlení (1500,0000001 > 1500 W) do větve „nevejdou se ani minima“ – nejprázdnější dostala všechno, ostatní minimum (940 W vs. 200 W, generátor nevyužitý). Teď jen když se minima opravdu nevejdou.
 - Průběžná kontrola, ať všechny River doběhnou zároveň: výkony se přepočítají pod 75 % po 10 min, 75–90 % po 5 min, nad 90 % po 2 min (podle nejplnější); mění se jen River s rozdílem ≥ 30 W. Plná River → její výkon hned dostanou ostatní.

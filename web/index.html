@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.138", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.139", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2046,7 +2046,12 @@ function genPlanHtml(d){
   const btn = `<div style="display:flex;gap:8px;margin:6px 0 4px">${FB("benzin","⛽ Benzín")}${FB("lpg","🔥 Plyn")}</div>`
     + `<div class="sub" style="margin-bottom:4px">${run ? `Nabíjí na: <b>${fl}</b> (max ${nf(gmax)} W). Po novém startu generátoru zmáčkni palivo, na které jede – spustí se znovu.` : "<b>Postup:</b> 1) zmáčkni palivo (Benzín / Plyn) – tím se nabíjení spustí, klidně před startem · 2) nastartuj generátor a zapoj River, nech ho 1–2 min zahřát · 3) v aplikaci Tapo zapni zásuvku (7) · 4) za 30 s hlídač nastaví výkony sám · konec: vypni generátor"}</div>`
     + (run ? `<button onclick="genCmd('stop', this)" style="${sty(false)};width:100%;flex:none;font-weight:600">⏹ Ukončit nabíjení</button>` : "");
-  let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}`;
+  /* 5.139: palivo hned u nabíjení – výrazně, ať se nemusí hledat */
+  const GS = d.gen_stop, stopNew = GS && Date.now()/1000 - GS.t < 3*3600 && !(((d.fuel||{})[GS.fuel]||{}).cur && d.fuel[GS.fuel].cur.t > GS.t);
+  const fb2 = `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:2px dashed var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)`;
+  const fuelBtns = (stopNew ? `<div style="margin:8px 0 4px;padding:10px;border-radius:12px;background:color-mix(in srgb,var(--warn) 25%,transparent);font-weight:600">⚠️ Generátor se zastavil ${relDay(GS.t)} v ${hmT(GS.t)}. Došla ${GS.fuel==="lpg" ? "lahev" : "nádrž"}? Po výměně zapiš →</div>` : "")
+    + `<div style="display:flex;gap:8px;margin:6px 0 4px"><button onclick="fuelAdd('lpg')" style="${fb2}">🔄 Vyměnil jsem lahev</button><button onclick="fuelAdd('benzin')" style="${fb2}">⛽ Natankoval jsem</button></div>`;
+  let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}${fuelBtns}`;
   if(run){
     h += (P.wait ? `<div class="sub" style="margin:4px 0">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
       + rowI("Generátor", `${P.gw!=null ? nf(P.gw)+" W z " : "max "}${nf(P.gmax)} W (${P.gmax_gen ? `generátor hlásí max ${nf(P.gmax_gen)} W, nastaveno ${fl}` : fl})${P.gd && P.gd.fuel!=null ? ` · palivo ${nf(P.gd.fuel)} %` : ""}`)
@@ -2085,40 +2090,57 @@ function genFuel(f, el, running){     // 4.92: přepínač paliva – vždy plat
 }
 /* 5.26: palivo – nová lahev PB / tankování benzínu (zapisuje se do palivo.txt), kWh na lahev a cena za kWh */
 const GHF_ = () => "https://api.github.com/repos/"+REPO+"/contents/palivo.txt";   // 5.29: až při použití (REPO je níž)
-async function fuelAdd(f){
+/* 5.139: nová lahev / tankování – jeden formulář místo řady dotazů (cena, kdy, plná, litry) */
+function fuelAdd(f){
   const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
-  const F = (DATA.fuel||{})[f] || {}, last = (F.hist||[]).slice(-1)[0];
-  const price = prompt(f==="lpg" ? "Nová lahev PB 10 kg – cena v Kč:" : "Natankováno benzínu – cena celkem v Kč:", last ? String(last.price) : "");
-  if(price === null || !price.trim()) return;
-  let lit = "";
-  if(f==="benzin"){ lit = prompt("Kolik litrů?", last && last.l ? String(last.l) : "") || ""; }
-  /* 5.136: kdy se lahev / nádrž vyměnila – aby se dvě lahve nesmíchaly, i když se zapisuje až po novém startu */
-  const GS = DATA.gen_stop, nowS = Date.now()/1000;
-  let when = new Date();
-  if(GS && GS.fuel===f && nowS - GS.t < 6*3600 && confirm(`Generátor se zastavil ${relDay(GS.t)} v ${hmT(GS.t)}${f==="lpg" ? " – došla tehdy lahev" : " – došel tehdy benzín"}?\n\nOK = výměna v ${hmT(GS.t)} (co jelo potom, patří už ${f==="lpg" ? "nové lahvi" : "novému tankování"})\nZrušit = zadám čas sám`)){
-    when = new Date(GS.t*1000 + 1000);
-  } else {
-    const tt = prompt(`Kdy ${f==="lpg" ? "jsi lahev vyměnil" : "jsi natankoval"}? Prázdné = teď, jinak čas dnes (např. 14:35) nebo „28.10. 14:35“.`, "");
-    if(tt === null) return;
-    if(tt.trim()){
-      const m = tt.trim().match(/^(?:(\d{1,2})\.\s*(\d{1,2})\.?\s+)?(\d{1,2})[:.](\d{2})$/);
-      if(!m) return alert("Čas nerozumím – zkus např. 14:35 nebo 28.10. 14:35");
-      when = new Date(); if(m[1]){ when.setMonth(+m[2]-1, +m[1]); } when.setHours(+m[3], +m[4], 0, 0);
-      if(when > new Date()) { if(m[1]) when.setFullYear(when.getFullYear()-1); else when.setDate(when.getDate()-1); }
-    }
-  }
-  const full = confirm(f==="lpg" ? "Je lahev úplně plná?\n\nOK = plná · Zrušit = jen částečně (do průměru se nepočítá)" : "Natankováno do plna?\n\nOK = plno · Zrušit = jen část (do průměru se nepočítá)");
-  const now = when, pad = n => String(n).padStart(2,"0");
-  const line = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} | ${f} | ${price.replace(/[^0-9.,]/g,"")} | ${full ? "plna" : "castecna"}${f==="benzin" ? ` | ${lit.replace(/[^0-9.,]/g,"")}` : ""}`;
-  try{
-    const r = await fetch(GHF_()+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
-    let txt = "# lahve PB a tankování benzínu: čas | palivo | cena Kč | plna/castecna | litry (zapisuje web)\n", sha;
-    if(r.ok){ const j = await r.json(); txt = utf8b64.dec(j.content); sha = j.sha; }
-    const w = await fetch(GHF_(),{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
-      body:JSON.stringify({message:`Palivo: ${line}`, content:utf8b64.enc(txt.replace(/\n?$/,"\n")+line+"\n"), ...(sha?{sha}:{}), branch:"main"})});
-    if(!w.ok) throw new Error("GitHub odpověděl "+w.status);
-    alert("Zapsáno ✓ – hlídač od teď počítá energii na " + (f==="lpg" ? "tuhle lahev." : "tohle tankování."));
-  }catch(e){ alert("Nejde zapsat: "+e.message); }
+  const old = $("fuelDlg"); if(old) old.remove();
+  const pad = n => String(n).padStart(2,"0"), loc = t => { const x = new Date(t); return `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}T${pad(x.getHours())}:${pad(x.getMinutes())}`; };
+  const GS = DATA.gen_stop, nowS = Date.now()/1000, stopOk = GS && nowS - GS.t < 6*3600;
+  const inp = "font:inherit;font-size:17px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box";
+  const seg = (name, opts, cur) => `<div style="display:flex;gap:6px">${opts.map(([v,t])=>`<label style="flex:1;text-align:center;padding:10px 6px;border-radius:10px;border:1px solid var(--line);cursor:pointer"><input type="radio" name="${name}" value="${v}" ${v===cur?"checked":""} style="margin-right:4px">${t}</label>`).join("")}</div>`;
+  const d = document.createElement("div"); d.id = "fuelDlg";
+  d.style.cssText = "position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center";
+  d.innerHTML = `<form style="background:var(--surface);color:var(--text);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;max-height:92vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:18px">Nové palivo</b><button type="button" data-x style="font:inherit;font-size:22px;background:none;border:0;color:var(--text);cursor:pointer">✕</button></div>
+    ${seg("f", [["lpg","🔥 Nová lahev PB"],["benzin","⛽ Natankováno"]], f)}
+    <label>Cena v Kč<input name="price" inputmode="decimal" style="${inp}"></label>
+    <label data-lit>Kolik litrů<input name="lit" inputmode="decimal" style="${inp}"></label>
+    <div>Kdy<div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+      ${stopOk ? `<label style="padding:8px;border:1px solid var(--line);border-radius:10px"><input type="radio" name="when" value="stop" checked> když se generátor zastavil – ${relDay(GS.t)} ${hmT(GS.t)} <span class="sub">(došlo palivo)</span></label>` : ""}
+      <label style="padding:8px;border:1px solid var(--line);border-radius:10px"><input type="radio" name="when" value="now" ${stopOk?"":"checked"}> teď</label>
+      <label style="padding:8px;border:1px solid var(--line);border-radius:10px"><input type="radio" name="when" value="at"> jindy: <input type="datetime-local" name="at" value="${loc(Date.now())}" style="${inp};width:auto;font-size:15px;padding:6px"></label>
+    </div></div>
+    <div>Plná?${seg("full", [["1","✔ plná / do plna"],["0","jen částečně"]], "1")}<div class="sub" style="margin-top:3px">Částečná se do průměru kWh na lahev nepočítá.</div></div>
+    <button type="submit" style="font:inherit;font-weight:700;font-size:17px;padding:14px;border-radius:12px;border:0;background:var(--good);color:#fff;cursor:pointer">Zapsat</button>
+    <div data-msg class="sub"></div></form>`;
+  document.body.appendChild(d);
+  const fm = d.querySelector("form"), upd = () => { const fv = fm.f.value, F = (DATA.fuel||{})[fv] || {}, last = (F.hist||[]).slice(-1)[0];
+    d.querySelector("[data-lit]").style.display = fv==="benzin" ? "" : "none";
+    if(!fm.price.dataset.touched) fm.price.value = last ? String(last.price) : "";
+    if(!fm.lit.dataset.touched) fm.lit.value = last && last.l ? String(last.l) : ""; };
+  fm.price.oninput = () => fm.price.dataset.touched = 1; fm.lit.oninput = () => fm.lit.dataset.touched = 1;
+  fm.querySelectorAll("input[name=f]").forEach(x => x.onchange = upd); upd();
+  fm.at.onfocus = () => { fm.querySelector("input[name=when][value=at]").checked = true; };
+  d.querySelector("[data-x]").onclick = () => d.remove();
+  d.onclick = e => { if(e.target === d) d.remove(); };
+  fm.onsubmit = async e => { e.preventDefault();
+    const msg = d.querySelector("[data-msg]"), fv = fm.f.value, price = fm.price.value.replace(/[^0-9.,]/g,"");
+    if(!price) { msg.innerHTML = `<b style="color:var(--crit)">Zadej cenu.</b>`; return; }
+    let when = new Date(); const wv = fm.when.value;
+    if(wv === "stop") when = new Date(GS.t*1000 + 1000);
+    else if(wv === "at"){ when = new Date(fm.at.value); if(isNaN(when) || when > new Date(Date.now()+60000)) { msg.innerHTML = `<b style="color:var(--crit)">Čas nesedí.</b>`; return; } }
+    const line = `${when.getFullYear()}-${pad(when.getMonth()+1)}-${pad(when.getDate())} ${pad(when.getHours())}:${pad(when.getMinutes())} | ${fv} | ${price} | ${fm.full.value==="1" ? "plna" : "castecna"}${fv==="benzin" ? ` | ${fm.lit.value.replace(/[^0-9.,]/g,"")}` : ""}`;
+    msg.textContent = "Zapisuji…";
+    try{
+      const r = await fetch(GHF_()+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+      let txt = "# lahve PB a tankování benzínu: čas | palivo | cena Kč | plna/castecna | litry (zapisuje web)\n", sha;
+      if(r.ok){ const j = await r.json(); txt = utf8b64.dec(j.content); sha = j.sha; }
+      const w = await fetch(GHF_(),{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
+        body:JSON.stringify({message:`Palivo: ${line}`, content:utf8b64.enc(txt.replace(/\n?$/,"\n")+line+"\n"), ...(sha?{sha}:{}), branch:"main"})});
+      if(!w.ok) throw new Error("GitHub odpověděl "+w.status);
+      fm.innerHTML = `<b style="font-size:18px">Zapsáno ✓</b><div>${fv==="lpg" ? "Nová lahev" : "Tankování"} od ${relDay(when/1000)} ${hmT(when/1000)} · ${price} Kč. Hlídač od toho času počítá energii na ${fv==="lpg" ? "tuhle lahev" : "tohle tankování"}.</div><button type="button" onclick="this.closest('#fuelDlg').remove()" style="font:inherit;font-weight:700;padding:12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text)">Zavřít</button>`;
+    }catch(err){ msg.innerHTML = `<b style="color:var(--crit)">Nejde zapsat: ${escH(err.message)}</b>`; }
+  };
 }
 /* 5.28: upravit cenu poslední lahve / tankování (např. když si ji Petr upřesní) */
 async function fuelEdit(f, ts){   /* 5.135: ts = čas záznamu (unix) – upraví jen tu jednu lahev; bez ts poslední */
@@ -3213,6 +3235,8 @@ function detGen(body){
   const genWh = k => Math.max(dayTp(k)[U.gen]||0, ((d.days||{})[k]||{}).gq||0);
   const tk = dkey(h.now), wk = dd.slice(-7), gd = ((d.ef_gens||[]).find(g=>g.gd)||{}).gd || {};
   const GT = tabsHead("gn_tab", [["data","📊 Data"],["start","▶️ Start"]]), vis = k => GT.cur===k ? "" : ' style="display:none"';
+  { const P_ = d.gen_plan, nw_ = Date.now()/1000;   /* 5.139: během nabíjení / po zastavení generátoru rovnou ▶️ Start (tlačítka paliva) */
+    if((P_ && !P_.end && nw_ - P_.t < 900) || (d.gen_stop && nw_ - d.gen_stop.t < 3*3600)){ GT.cur = "start"; GT.html = GT.html.replace(/data-t="data" aria-pressed="true"/, 'data-t="data" aria-pressed="false"').replace(/data-t="start" aria-pressed="false"/, 'data-t="start" aria-pressed="true"'); } }
   body.insertAdjacentHTML("beforeend", GT.html + `<div id="gn_tab_start"${vis("start")}>` + genPlanHtml(d) + fuelHtml(d) + `</div><div id="gn_tab_data"${vis("data")}>`
     + chartCard("dg_w", "Výkon generátoru", "W · 48 h · zásuvka (7), během nabíjení i z EcoFlow")
     + chartCard("dg_rv", "Co se nabilo do které River", `kWh za den · příjem River podle EcoFlow (od 5.85 během nabíjení po ~30 s, dřív jen při čtení hlídače) · ${efs.map(e=>`<span style="color:${e.color}">■</span> ${escH(e.name)}`).join(" · ")}`)
