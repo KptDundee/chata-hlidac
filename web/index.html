@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.134", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.135", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2106,13 +2106,13 @@ async function fuelAdd(f){
   }catch(e){ alert("Nejde zapsat: "+e.message); }
 }
 /* 5.28: upravit cenu poslední lahve / tankování (např. když si ji Petr upřesní) */
-async function fuelEdit(f){
+async function fuelEdit(f, ts){   /* 5.135: ts = čas záznamu (unix) – upraví jen tu jednu lahev; bez ts poslední */
   const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
   try{
     const r = await fetch(GHF_()+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
     if(!r.ok) throw new Error("GitHub odpověděl "+r.status);
     const j = await r.json(), lines = utf8b64.dec(j.content).split("\n");
-    const i = lines.map((l,k)=>[l,k]).filter(([l])=>{ const b = l.split("#")[0].split("|").map(x=>x.trim()); return b.length >= 3 && (f==="lpg" ? /^(lpg|plyn|pb)/i.test(b[1]) : /^benz/i.test(b[1])); }).pop();
+    const i = lines.map((l,k)=>[l,k]).filter(([l])=>{ const b = l.split("#")[0].split("|").map(x=>x.trim()); return b.length >= 3 && (f==="lpg" ? /^(lpg|plyn|pb)/i.test(b[1]) : /^benz/i.test(b[1])) && (ts==null || b[0]===fuelTs(ts)); }).pop();
     if(!i) return alert("Zatím žádný záznam.");
     const b = i[0].split("#")[0].split("|").map(x=>x.trim());
     const price = prompt(`Cena ${f==="lpg" ? "lahve" : "tankování"} z ${b[0]} v Kč:`, b[2]); if(price === null || !price.trim()) return;
@@ -2123,19 +2123,22 @@ async function fuelEdit(f){
     alert("Cena upravena ✓");
   }catch(e){ alert("Nejde upravit: "+e.message); }
 }
+function fuelTs(ts){ const x = new Date(ts*1000), pad = n => String(n).padStart(2,"0"); return `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())} ${pad(x.getHours())}:${pad(x.getMinutes())}`; }
 function fuelHtml(d){
   const F = d.fuel || {}, P = d.gen_plan, run = P && !P.end && Date.now()/1000 - P.t < 900;
   const blk = (f, nm, btn) => { const x = F[f] || {}, c = x.cur;
-    const cost = x.czk_kwh ? `1 kWh ≈ <b>${nf(x.czk_kwh,0)} Kč</b>${x.avg_kwh ? ` · ${f==="lpg" ? "lahev" : "tankování"} ≈ ${nf(x.avg_kwh,1)} kWh` : ""} <span class="sub">(${x.n}× plná)</span>`
+    const cost = x.czk_kwh ? `1 kWh dnes ≈ <b>${nf(x.czk_kwh,0)} Kč</b> <span class="sub">(podle poslední lahve)</span>${x.avg_kwh ? ` · ${f==="lpg" ? "lahev" : "tankování"} ≈ ${nf(x.avg_kwh,1)} kWh <span class="sub">(průměr z ${x.n}× plná)</span>` : ""}`
       : `<span class="sub">cena za kWh až po spotřebování první plné ${f==="lpg" ? "lahve" : "nádrže"}</span>`;
     const curT = c ? `${f==="lpg" ? "lahev" : "tankováno"} ${relDay(c.t)} ${hmT(c.t)} · ${nf(c.price,0)} Kč${c.l ? ` · ${nf(c.l,1)} l` : ""}${c.full ? "" : " · <span style='color:var(--warn)'>částečně</span>"} → zatím <b>${nf(c.wh/1000,2)} kWh</b>${c.left_pct!=null ? ` · zbývá ~${c.left_pct} %` : ""}${!x.czk_kwh && c.full && c.wh > 100 ? ` · zatím ${nf(c.price/(c.wh/1000),0)} Kč/kWh (klesá, jak lahev dojíždí)` : ""} · <a href="#" onclick="event.preventDefault();fuelEdit('${f}')">upravit cenu</a>` : `<span class="sub">zatím nic nezapsáno</span>`;
+    const old_ = (x.hist||[]).filter(h=>h.closed).reverse();   /* 5.135: každá lahev se svou cenou, cenu jde opravit zvlášť */
+    const histT = old_.length ? `<details style="margin-top:3px"><summary class="sub" style="cursor:pointer">Předchozí ${f==="lpg" ? "lahve" : "tankování"} (${old_.length}) – každá má svou cenu</summary><div style="font-size:13px;margin-top:3px">${old_.map(h=>`${relDay(h.t)} · ${nf(h.price,0)} Kč · ${nf(h.wh/1000,2)} kWh${h.full ? "" : " · částečně"}${h.czk_kwh!=null ? ` → <b>${nf(h.czk_kwh,0)} Kč/kWh</b>${h.est ? " (odhad)" : ""}` : ""} · <a href="#" onclick="event.preventDefault();fuelEdit('${f}',${h.t})">✎</a>`).join("<br>")}</div><div class="sub" style="margin-top:3px">Změna ceny jedné lahve přepočítá jen ji a nabíjení, která z ní jela – ostatní lahve zůstávají.</div></details>` : "";
     return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${nm}</b><button onclick="fuelAdd('${f}')" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer">${btn}</button></div>
-      <div style="font-size:13.5px;margin-top:3px">${curT}</div><div style="font-size:13.5px">${cost}</div></div>`; };
+      <div style="font-size:13.5px;margin-top:3px">${curT}</div><div style="font-size:13.5px">${cost}</div>${histT}</div>`; };
   const runs = (d.fuel_runs||[]).slice(-6).reverse();
   return `<div class="card"><h2 style="margin:0 0 4px">Palivo a cena</h2>${blk("lpg","🔥 Plyn – lahev PB 10 kg","+ nová lahev")}${blk("benzin","⛽ Benzín","+ natankováno")}
     ${run && P.fwh ? `<div style="font-size:13.5px;margin-top:6px">Toto nabíjení zatím ${nf(P.fwh/1000,2)} kWh${(F[P.fuel]||{}).czk_kwh ? ` ≈ ${nf(P.fwh/1000*(F[P.fuel]).czk_kwh,0)} Kč` : ""}</div>` : ""}
     ${runs.length ? `<div class="sub" style="margin-top:6px">Poslední nabíjení: ${runs.map(r=>`${relDay(r.t0)} ${hmT(r.t0)} ${r.fuel==="lpg"?"plyn":"benzín"} ${nf(r.wh/1000,2)} kWh${r.czk!=null?` ≈ ${r.czk} Kč`:""}`).join(" · ")}</div>` : ""}
-    <div class="sub" style="margin-top:6px;line-height:1.45">Při výměně lahve / tankování zmáčkni tlačítko a zadej cenu. Hlídač pak měří, kolik kWh generátor z lahve vyrobil (výkon generátoru během nabíjení). Částečně plná lahev se do průměru nepočítá – její cena je jen odhad z minulých.</div></div>`;
+    <div class="sub" style="margin-top:6px;line-height:1.45">Při výměně lahve / tankování zmáčkni tlačítko a zadej cenu. Hlídač pak měří, kolik kWh generátor z lahve vyrobil (výkon generátoru během nabíjení). Každá lahev má svou cenu za kWh (její cena ÷ kWh z ní) – nabíjení se ocení lahví, ze které jelo. Částečně plná lahev se do průměru kWh na lahev nepočítá.</div></div>`;
 }
 async function genCmd(cmd, el, fel){
   const tok = store.get("ghtok");

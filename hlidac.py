@@ -3612,7 +3612,7 @@ def fuel_stats(data, st, now, cfg):
     """5.26: lahve PB a tankování benzínu (palivo.txt, zapisuje web: „čas | lpg/benzin | cena Kč | plna/castecna | litry“).
     Energie generátoru podle paliva (st.fuel_e – roste během nabíjení). Každý záznam = od té chvíle se pálí tohle palivo
     → kWh na lahev / tankování = počítadlo u dalšího záznamu stejného paliva − počítadlo při tomto záznamu.
-    Cena za kWh = součet cen / součet kWh jen z plných a už spotřebovaných (průměr); částečně plné = odhad z průměru.
+    5.135: cena za kWh zvlášť pro každou lahev (její cena / její kWh); nabíjení se ocení lahví, ze které se tehdy pálilo.
     data["fuel"] = {lpg|benzin: {cur, avg_kwh, czk_kwh, n, hist}}, ceny nabíjení do data["fuel_runs"]."""
     try:
         lines = open(FUEL_FILE, encoding="utf-8").read().splitlines()
@@ -3654,7 +3654,7 @@ def fuel_stats(data, st, now, cfg):
         k = f"{e['f']}:{e['t']}"
         if k not in snap:
             snap[k] = 0.0 if e["t"] < st["fuel_e_t0"] else fe.get(e["f"], 0.0)   # záznam z doby před počítadlem → od začátku
-    out = {}
+    out, fuel_hist_all = {}, {}
     for f in ("lpg", "benzin"):
         es = [e for e in ent if e["f"] == f]
         hist = []
@@ -3664,18 +3664,30 @@ def fuel_stats(data, st, now, cfg):
             b = snap.get(f"{f}:{es[i + 1]['t']}", fe.get(f, 0.0)) if closed else fe.get(f, 0.0)
             hist.append({"t": e["t"], "price": e["price"], "full": e["full"], "l": e["l"], "wh": round(max(0.0, b - a)), "closed": closed})
         ok = [x for x in hist if x["closed"] and x["full"] and x["wh"] > 100]
-        czk_kwh = sum(x["price"] for x in ok) / (sum(x["wh"] for x in ok) / 1000) if ok else None
-        avg_kwh = sum(x["wh"] for x in ok) / len(ok) / 1000 if ok else None
+        avg_kwh = sum(x["wh"] for x in ok) / len(ok) / 1000 if ok else None    # jen energie – ceny do průměru nevstupují
+        # 5.135: každá lahev má vlastní cenu za kWh (Petr: cena plynu se mění, změna jedné lahve nesmí změnit ostatní).
+        # Spotřebovaná plná: její cena / její kWh. Rozpálená nebo částečná: její cena / obvyklé kWh na lahev (odhad).
+        for x in hist:
+            if x["closed"] and x["full"] and x["wh"] > 100:
+                x["czk_kwh"], x["est"] = round(x["price"] / (x["wh"] / 1000), 1), False
+            elif avg_kwh and x["full"]:
+                x["czk_kwh"], x["est"] = round(x["price"] / avg_kwh, 1), True
+            elif x["closed"] and x["wh"] > 100 and not x["full"]:
+                x["czk_kwh"], x["est"] = round(x["price"] / (x["wh"] / 1000), 1), False   # částečná: zaplacená cena / co z ní bylo
+            else:
+                x["czk_kwh"], x["est"] = None, True
         cur = hist[-1] if hist else None
         if cur and not cur["closed"]:
             cur = dict(cur)
             cur["left_pct"] = round(max(0.0, 100 - cur["wh"] / 1000 / avg_kwh * 100)) if avg_kwh and cur["full"] else None
-        # cena za kWh pro odhad: průměr; bez průměru z aktuální plné lahve zatím nejde
+        now_c = next((x["czk_kwh"] for x in reversed(hist) if x["czk_kwh"]), None)    # dnešní cena = poslední lahev s cenou
         out[f] = {"cur": cur if cur and not cur["closed"] else None, "avg_kwh": round(avg_kwh, 2) if avg_kwh else None,
-                  "czk_kwh": round(czk_kwh, 1) if czk_kwh else None, "n": len(ok), "hist": hist[-8:], "e": round(fe.get(f, 0.0))}
+                  "czk_kwh": now_c, "n": len(ok), "hist": hist[-12:], "e": round(fe.get(f, 0.0))}
+        fuel_hist_all[f] = hist
     data["fuel"] = out
-    for r in data.get("fuel_runs") or []:                   # cena každého nabíjení (odhad z průměru)
-        c = (out.get(r.get("fuel")) or {}).get("czk_kwh")
+    for r in data.get("fuel_runs") or []:                   # 5.135: cena nabíjení podle lahve, ze které se tehdy pálilo
+        hs = [x for x in fuel_hist_all.get(r.get("fuel")) or [] if x["t"] <= (r.get("t0") or 0)]
+        c = hs[-1]["czk_kwh"] if hs else None
         r["czk"] = round(r["wh"] / 1000 * c) if c else None
 
 

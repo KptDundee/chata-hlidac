@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.135 – 29. 10. 2026
+- Palivo: každá lahev / tankování má vlastní cenu za 1 kWh (její cena ÷ kWh, které z ní generátor vyrobil). Nabíjení se ocení lahví, ze které se tehdy pálilo. Oprava ceny jedné lahve (✎ u ní v „Předchozí lahve“) přepočítá jen ji a její nabíjení – ostatní se nemění. „1 kWh dnes“ = poslední lahev s cenou (rozpálená = její cena ÷ průměrné kWh na lahev); z ní i cena v kartě „Jaká baterie“. Průměr kWh na lahev se počítá jen z energie, ceny do něj nevstupují.
+
 ## 5.134 – 29. 10. 2026
 - Karta „Jaká baterie“: období s rokem („6. 10. 2025 – 28. 10. 2026 – celý rok i se zimou“); pod tabulkou po měsících šedé kontrolní řádky – výroba podle modelu, skutečná výroba a spotřeba kWh/den – ať je vidět, z čeho přehrání vychází.
 - Skutečná kapacita River: „1 % nabití stojí: 0–20 %: X Wh · … · 80–100 %: Y Wh“ – z nabíjení (generátor po 30 s), jestli je dobíjení u plné dražší.

@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.135**: `fuel_stats` – `hist[i].czk_kwh` za každou lahev (spotřebovaná: cena / kWh; rozpálená plná: cena / `avg_kwh`, `est`), `avg_kwh` jen z energie; `fuel[f].czk_kwh` = poslední lahev s cenou; `fuel_runs[].czk` podle lahve s největším `t` ≤ `t0`; `hist` posledních 12. Web `fuelEdit(f, ts)` upraví řádek s daným časem, „Předchozí lahve“ s ✎.
+
 **5.131**: `ticho` → `QUIET` (minuty), `in_quiet()`, `alarm(..., cat=2)` v klidu nevytvoří ani nezopakuje (day, eve, chg, dep, night).
 
 **5.130**: `battery_sim` → `bsim.price = {czk_kwh = fuel[palivo].czk_kwh × medián(rv_cap.chg.per100 / rv_cap.cap), gen, fuel, ratio}`; web sloupec „stálo by River“ a Kč po měsících.
