@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.141**: web `#genbar` + `genBar()` (z `renderHome` a po 60 s) – běží (`gen_plan` bez `end`, < 15 min, `rv` neprázdné, `fin` > teď − 5 min) → „hotovo ~fin · zbývá“.
+
 **5.140**: `gen_stop.res` = čas, kdy po zastavení zase nabíjí; web pruh jen bez `res`.
 
 **5.139**: web `fuelAdd(f)` = formulář `#fuelDlg` (radio f / when stop|now|at / full, `datetime-local`), zápis řádku do palivo.txt jako dřív. `genPlanHtml`: tlačítka paliva + pruh při `gen_stop` < 3 h bez novějšího `fuel[f].cur`; detail Generátor otevře „start“, když běží nabíjení nebo `gen_stop` < 3 h.

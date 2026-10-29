@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.141 – 29. 10. 2026
+- Hlavní stránka: pod pruhem upozornění zelený proužek „⛽ Generátor · hotovo ~15:19 · zbývá 1 h 05 min“, dokud generátor nabíjí (odpočet po minutě, ťuknutí otevře Generátor). Po dobití zmizí.
+
 ## 5.140 – 29. 10. 2026
 - Generátor se zastavil z jiného důvodu než palivo: stačí ho nastartovat. Jakmile River zase berou, žlutý pruh „Došla lahev?“ zmizí sám (`gen_stop.res`); čas zastavení zůstane ve formuláři, kdyby se lahev zapisovala až potom.
 

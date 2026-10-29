@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.140", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.141", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -272,6 +272,7 @@ details.sec>.in{margin-top:8px}
   <!-- ===== nová hlavní stránka: verdikt + dlaždice (detail po ťuknutí) ===== -->
   <section id="home">
     <div class="abar" id="alerts" data-det="alerts" role="button"></div>
+    <div class="abar hide" id="genbar" data-det="gen" role="button" style="--ac:var(--good)"></div>
     <h2 class="hh">Teď</h2>
     <div class="hgrid" id="h_src"></div>
     <!-- 5.15: sekce rozbalovací; s červeným / oranžovým příznakem se rozbalí samy -->
@@ -2838,8 +2839,19 @@ function renderHome(d){
     : onlyQ ? `<span class="dot">✓</span><span class="ab">Nic naléhavého <span style="font-weight:500;color:var(--text2)">· ${A.map(a=>a.t.replace(/^Zdraví baterie: /,"baterie: ")).join(" · ")}</span></span><span class="go" style="position:static">›</span>`
     : `<span class="dot">${A.length}</span><span class="ab">${top.t}${A.length>1?` <span style="font-weight:500;color:var(--text2)">+ ${A.length-1} další</span>`:""}</span><span class="go" style="position:static">›</span>`;
   ALERTS = A;
+  genBar();
 }
 let ALERTS = [];
+/* 5.141: pruh pod upozorněními, dokud generátor nabíjí – kdy bude hotovo a kolik zbývá (odpočet po minutě) */
+function genBar(){
+  const el = $("genbar"); if(!el || !DATA) return;
+  const P = DATA.gen_plan, now = Date.now()/1000;
+  const run = P && !P.end && now - P.t < 900 && (P.rv||[]).length && P.fin && P.fin > now - 300;
+  el.classList.toggle("hide", !run); if(!run) return;
+  const left = Math.max(0, Math.round((P.fin - now)/60)), lt = left >= 60 ? `${Math.floor(left/60)} h ${String(left%60).padStart(2,"0")} min` : `${left} min`;
+  el.innerHTML = `<span class="dot">⛽</span><span class="ab">Generátor · hotovo ${relDay(P.fin)==="dnes" ? "" : relDay(P.fin)+" "}~${hmT(P.fin)} <span style="font-weight:500;color:var(--text2)">· zbývá ${left > 0 ? lt : "chvilka"}</span></span><span class="go" style="position:static">›</span>`;
+}
+setInterval(genBar, 60000);
 function detAlerts(body){
   const d = DATA, h = homeData(d), RS = regStale(d);
   const more = {
