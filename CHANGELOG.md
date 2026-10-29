@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.145 – 30. 10. 2026
+- Nabíjení z generátoru (Petr: úplně jednoduše): nabíjí se = generátor dává proud (zásuvka (7) / EcoFlow generátor > 20 W) **a** některá River bere. Bez údaje o generátoru stačí, že River bere. Nabíjení River ze soláru (generátor 0 W) se za nabíjení z generátoru nepovažuje.
+
 ## 5.144 – 29. 10. 2026
 - Oprava chyby z 5.137: „nabíjí se“ se bralo jako „některá River není plná“ – relace nabíjení z generátoru se sama spustila a neskončila, na hlavní stránce visel proužek „Generátor · hotovo … zbývá chvilka“ bez generátoru. Teď nabíjí = některá River opravdu bere (> 20 W) nebo generátor dodává; výkon se pak dělí mezi všechny nenabité River jako dřív. Zaseknutá relace skončí sama (bez zprávy – souhrn jen když se něco nabilo).
 - Věrohodnost % River: povolená změna oběma směry (≤ 3 + 2 % za minutu) – River napájející chatu může ubývat.

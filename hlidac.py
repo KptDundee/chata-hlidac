@@ -5629,7 +5629,10 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             small_w = 0.0
         # 5.144: nabíjí = některá River opravdu bere (> 20 W) nebo generátor dodává. 5.137 tu omylem bralo „některá
         # River není plná“ → relace se sama spustila a nikdy neskončila (proužek „Generátor · hotovo“ bez generátoru).
-        charging = any(acw(r) > 20 for r in ctl) or small_w > 0 or (gw or 0) > 20
+        # 5.145 (Petr): nabíjí se = generátor dává proud a některá River bere. Bez údaje o generátoru (zásuvka (7)
+        # i EcoFlow mlčí) stačí, že River bere. Nabíjení ze soláru (zásuvka River automatiky) sem nepatří – generátor 0 W.
+        rv_take = any(acw(r) > 20 for r in ctl) or small_w > 0
+        charging = rv_take and (gw is None or gw > 20)
         if not charging:
             con = []
         out = []

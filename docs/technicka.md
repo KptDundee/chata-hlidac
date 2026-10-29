@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.145**: `charging = rv_take and (gw is None or gw > 20)`, `rv_take` = některá ovladatelná River `acw` > 20 W nebo malá > 20 W.
+
 **5.144**: `gen_charge_ctl` – `charging` = některá ovladatelná River `acw` > 20 W nebo malá / generátor > 20 W (5.137 omylem `bool(con)`); bez nabíjení `con = []`. Souhrn po konci jen když `fwh` > 20 nebo generátor běží. `soc_ok` |Δ| ≤ 3 + 2·min.
 
 **5.143**: web `srcSegs(d, h, t0, now)` – úseky z bodů (`ptSrc`; River = zásuvka s největším W > 3; bod platí do dalšího, max 15 min), `srcStripHtml` (SVG pás + popisky, ne pro Rok / Vše), `srcPiesHtml` čas pro krátká období ze `srcSegs`; solár `--s6`.
