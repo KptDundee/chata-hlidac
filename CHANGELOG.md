@@ -4,7 +4,7 @@
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
 ## 5.133 – 29. 10. 2026
-- Plán nepřítomnosti: místo obecného „chatu nic neutáhne“ konkrétně „⚠️ Dnes 06:54–12:00: do návratu nic nevydrží – žlutá dojde ~10:49, červená ~07:27, solár ~07:04 – vracíš se ve 12:00“. Nabíjení se hledá pro každý úsek, na který nic nestačí (dřív jen pro první) – např. „⛽ Nabij žlutou – začni nejpozději v 12:38“ na odpolední úsek, když se nabití vejde do polední pauzy.
+- Plán nepřítomnosti: místo obecného „chatu nic neutáhne“ konkrétně „⚠️ Dnes 06:54–12:00: do návratu nic nevydrží – žlutá dojde ~10:49, červená ~07:27, solár ~07:04 – vracíš se ve 12:00“. Nabíjení se hledá pro každý úsek, na který nic nestačí (dřív jen pro první) – např. „⛽ Nabij žlutou – začni nejpozději v 13:18“ na odpolední úsek, když se nabití vejde do polední pauzy.
 
 ## 5.132 – 29. 10. 2026
 - River „má jen 15 % – přepoj“ v nočním klidu jen tehdy, když River opravdu nevydrží do konce klidu (rána) – výdrž stejná jako všude (obvyklý odběr × kapacita River). Když do rána zbude aspoň rezerva, nebudí.
