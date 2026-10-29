@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.144 – 29. 10. 2026
+- Oprava chyby z 5.137: „nabíjí se“ se bralo jako „některá River není plná“ – relace nabíjení z generátoru se sama spustila a neskončila, na hlavní stránce visel proužek „Generátor · hotovo … zbývá chvilka“ bez generátoru. Teď nabíjí = některá River opravdu bere (> 20 W) nebo generátor dodává; výkon se pak dělí mezi všechny nenabité River jako dřív. Zaseknutá relace skončí sama (bez zprávy – souhrn jen když se něco nabilo).
+- Věrohodnost % River: povolená změna oběma směry (≤ 3 + 2 % za minutu) – River napájející chatu může ubývat.
+
 ## 5.143 – 29. 10. 2026
 - EcoFlow a Solární baterie: barevný pás „Co kdy napájelo chatu“ – na ose čas (Dnes = 24 h, 48 h, Týden), barva = solár / která River / nezjištěno / bez napájení, pod ním hodiny celkem. Rok a Vše jen v koláčích.
 - Koláč „Podle času“ pro Dnes / 48 h / Týden se počítá přímo z měření, stejně jako pás – oba se vždy shodují. Solár zeleně (oranžová se pletla s červenou River).

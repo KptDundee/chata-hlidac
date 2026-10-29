@@ -5575,7 +5575,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gens = data.get("ef_gens") or []
         inv = data.get("inverter") or {}
         g = (inv.get("gen") or {}) if inv and tnow - inv.get("t", 0) < 600 else {}
-        # 5.138: kontrola věrohodnosti % – při nabíjení přibude nejvýš ~2 % za minutu a skoro nic neubude. Chybějící
+        # 5.138: kontrola věrohodnosti % – přibude ani ubude nejvýš ~2 % za minutu (+3). Chybějící
         # nebo nesmyslný údaj (50 % → za 5 min 0 % nebo 100 %) se nepoužije, platí poslední dobrý. Po delší mezeře
         # (> 20 min bez dobrého údaje) se nový údaj bere.
         sok = gs.setdefault("soc_ok", {})
@@ -5584,7 +5584,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             sn_, v_ = r.get("sn"), r.get("soc")
             last = sok.get(sn_)
             if v_ is not None and (not last or tnow - last[1] > 1200
-                                   or -3 <= v_ - last[0] <= 3 + 2 * (tnow - last[1]) / 60):
+                                   or abs(v_ - last[0]) <= 3 + 2 * (tnow - last[1]) / 60):
                 sok[sn_] = [v_, tnow]
                 sv[sn_] = v_
             elif last and tnow - last[1] <= 1200:
@@ -5627,7 +5627,11 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         small_w = 0.0 if small and ctl_ok(small) else (small.get("in_w") or 0) if small else max(0.0, (gw or 0) - con_in)
         if small_w < 20:
             small_w = 0.0
-        charging = bool(con) or small_w > 0 or (gw or 0) > 20
+        # 5.144: nabíjí = některá River opravdu bere (> 20 W) nebo generátor dodává. 5.137 tu omylem bralo „některá
+        # River není plná“ → relace se sama spustila a nikdy neskončila (proužek „Generátor · hotovo“ bez generátoru).
+        charging = any(acw(r) > 20 for r in ctl) or small_w > 0 or (gw or 0) > 20
+        if not charging:
+            con = []
         out = []
         # River, která se přestala nabíjet (plná / odpojená) → hned zpět na bezpečný výkon
         idle_pros = {r["sn"]: safe_of(r) for r in ctl if r not in con and sets.get(r["sn"]) not in (None, safe_of(r))}
@@ -5800,6 +5804,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                             "c0": {f_: round(c0_.get(f_, c1_[f_]), 1) for f_ in c1_}, "c1": c1_})
                 del fr_[:-30]
             try:                                            # 5.85: souhrn po skončení nabíjení
+                if (gs.get("fwh") or 0) <= 20 and (gw or 0) <= 20:
+                    raise StopIteration                     # 5.144: nic se nenabilo → žádná zpráva
                 txt_ = gen_sum_msg(gs, tnow, topic)
                 st["gen_sum_t"] = tnow
                 if (gw or 0) > 20:                          # 5.95: generátor ještě běží → „vypni“ (opakuje se, gen_sessions)
@@ -5808,6 +5814,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                           ok_title="✓ Generátor vypnutý")
                 else:
                     ntfy(topic, "⛽ Nabíjení z generátoru skončilo", txt_, 3, "fuelpump,white_check_mark")
+            except StopIteration:
+                pass
             except Exception as e:
                 print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
