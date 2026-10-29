@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.131", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.132", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1533,10 +1533,17 @@ function detPlan(body){
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${WDN[dt.getDay()]} ${dt.getDate()}. ${dt.getMonth()+1}.${own ? "" : ` <span class="sub">(obvyklý rozvrh)</span>`}</b>
           <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-home ${home?"checked":""}> doma</label></div>
         <div class="plivs" style="${home?"display:none":""}">${(ivs.length?ivs:[{a:"",b:""}]).map(iv).join("")}<button type="button" data-padd style="font:inherit;padding:4px 10px;margin-top:2px">+ další úsek</button></div></div>`; };
+    const AP = d.away_plan, calc = !AP || !(AP.ivs||[]).length ? "" : `<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)"><b>Jak hlídač počítá nejbližší úseky</b>
+      <div class="sub" style="margin:4px 0 6px">Obvyklý odběr chaty: přes den ~${nf(AP.w_day)} W, v noci ~${nf(AP.w_night)} W. Doma mezi úseky jede chata ze zapojené River. River musí na konci úseku mít aspoň ${nf(AP.res)} %.</div>
+      ${AP.ivs.map(iv=>{ const W = iv.why||{}, R = AP.rv||{};
+        const rv = Object.entries(W.rv||{}).map(([k,x])=>`${escH(pn((R[k]||{}).name||k))}: na začátku ~${x.s0} %, spotřebuje ~${x.drop} % (kapacita ${R[k]&&R[k].cap?`~${R[k].cap} Wh do chaty${R[k].est?", ze štítku":""}`:"?"}) → ${x.ok?`zbude ~${x.s0-x.drop} % ✓`:`<b style="color:var(--crit)">nestačí</b>`}`).join("<br>");
+        const res = iv.src==="solar" ? "pojede solár" : iv.src==="river" ? `pojede ${escH(pn((R[iv.k]||{}).name||""))}` : `<b style="color:var(--crit)">nic nestačí</b>`;
+        return `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px"><b>${relDay(iv.a)} ${hmT(iv.a)}–${hmT(iv.b)}</b> → ${res}<br>Solár: na začátku ~${W.sol?Math.max(0,W.sol.pct0):"?"} # → ${W.sol&&W.sol.ok?"vydrží ✓":"nevydrží"}<br>${rv}</div>`; }).join("")}
+      <div class="sub" style="margin-top:4px">Spočítáno ${relDay(AP.t)} ${hmT(AP.t)}.</div></div>`;
     box.innerHTML = `<div class="sub" style="margin-bottom:6px">Kdy budeš pryč (od – do). „Do“ dřív než „od“ = přes půlnoc. Den bez úprav jede podle obvyklého rozvrhu v Nastavení.</div>
       ${days.map(row).join("")}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="pl_save" style="font:inherit;padding:8px 14px;font-weight:600">Uložit plán</button>
-      <button type="button" id="pl_copy" style="font:inherit;padding:8px 14px">Jako minulý týden</button></div><div class="sub" id="pl_msg" style="margin-top:6px"></div>`;
+      <button type="button" id="pl_copy" style="font:inherit;padding:8px 14px">Jako minulý týden</button></div><div class="sub" id="pl_msg" style="margin-top:6px"></div>${calc}`;
     box.addEventListener("click", e => {
       const r = e.target.closest(".plrow"); if(!r) return;
       if(e.target.matches("[data-padd]")){ const n = r.querySelectorAll(".pliv").length; e.target.insertAdjacentHTML("beforebegin", `<div class="pliv" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="time" data-pa="${n}" style="font:inherit"> – <input type="time" data-pb="${n}" style="font:inherit"><button type="button" data-pdel style="font:inherit;padding:2px 8px">✕</button></div>`); }

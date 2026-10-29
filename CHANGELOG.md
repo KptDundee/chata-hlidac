@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.132 – 29. 10. 2026
+- River „má jen 15 % – přepoj“ v nočním klidu jen tehdy, když River opravdu nevydrží do konce klidu (rána) – výdrž stejná jako všude (obvyklý odběr × kapacita River). Když do rána zbude aspoň rezerva, nebudí.
+- Plán „Kdy jsem pryč“: pod tabulkou rozpis „Jak hlídač počítá nejbližší úseky“ – obvyklý odběr den / noc, pro každý úsek solár (# na začátku, vydrží?) a každá River (% na začátku, kolik spotřebuje, s jakou kapacitou, kolik zbude). Ať je vidět přesně, proč hlídač radí, co radí.
+
 ## 5.131 – 29. 10. 2026
 - Noční klid (nastavení „Noční klid upozornění“, výchozí 0:00–5:45): v tu dobu chodí jen ohrožení chodu (kategorie 1 – baterie pod 12,0 V, River pod 15 %, lednice, měnič, Brána…). Doporučení (kategorie 2 – přepni na River, nabij River, než odjedeš, výhled dne, před spaním) se v klidu nepošlou ani nezopakují; když po skončení klidu pořád platí, přijdou normálně. 29. 10. budilo „⚠️ … chatu nic neutáhne“ od 03:46 po 10 minutách.
 

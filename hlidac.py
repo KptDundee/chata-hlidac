@@ -3337,7 +3337,7 @@ def read_ecoflow(data, st, now, topic, cfg):
     for r in rivers:
         print(f"EcoFlow {r['name']}: {fmt(r.get('soc'))} %, vstup {fmt(r.get('in_w'))} W, výstup {fmt(r.get('out_w'))} W"
               + ("" if r["online"] else " (offline)"))
-        check_river(r, st, topic, cfg)
+        check_river(r, st, topic, cfg, data)
     return rivers
 
 
@@ -4638,6 +4638,8 @@ def away_plan(data, st, now, topic, cfg):
             else:
                 L = sim_level(M, t.timestamp(), a.timestamp(), L, top)[1]
         lo_s, end_s = sim_level(M, a.timestamp(), b.timestamp(), L, top)
+        why = {"sol": {"pct0": round(M["alarm_soc"] + L / M["cap"] * 100), "ok": lo_s > 0},          # 5.132: rozpis pro web
+               "rv": {k: {"s0": round(soc[k]), "drop": round(drop(k, a, b)), "ok": soc[k] - drop(k, a, b) >= res_pct} for k in RV}}
         cand = []
         if lo_s > 0:
             cand.append(("solar", None))
@@ -4652,13 +4654,15 @@ def away_plan(data, st, now, topic, cfg):
                 soc[k] -= drop(k, a, b)
                 L = sim_level(M, a.timestamp(), b.timestamp(), L, top, solar_until=a.timestamp())[1]
                 conn = k
-            plan.append({"a": int(a.timestamp()), "b": int(b.timestamp()), "src": kind, "k": k, "btn": f})
+            plan.append({"a": int(a.timestamp()), "b": int(b.timestamp()), "src": kind, "k": k, "btn": f, "why": why})
         else:
-            plan.append({"a": int(a.timestamp()), "b": int(b.timestamp()), "src": None, "k": None, "btn": f})
+            plan.append({"a": int(a.timestamp()), "b": int(b.timestamp()), "src": None, "k": None, "btn": f, "why": why})
             fails.append((a, b, dict(soc)))                # stav River na začátku úseku (po cestě se z nich bralo)
             L = max(0.0, sim_level(M, a.timestamp(), b.timestamp(), L, top)[1])
         t = b
-    out = {"t": int(ts), "ivs": plan, "rv": {k: {"name": v["name"], "soc": round(v["soc"]), "est": v["est"]} for k, v in RV.items()}}
+    out = {"t": int(ts), "ivs": plan, "rv": {k: {"name": v["name"], "soc": round(v["soc"]), "est": v["est"], "cap": round(v["cap"])} for k, v in RV.items()},
+           "res": res_pct, "w_day": round(M["load_w"](datetime(now.year, now.month, now.day, 12, tzinfo=TZ).timestamp())),
+           "w_night": round(M["load_w"](datetime(now.year, now.month, now.day, 2, tzinfo=TZ).timestamp()))}
     # nabíjení pro první úsek, na který nic nestačí
     chg = None
     if fails:
@@ -5682,7 +5686,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         go = step(int(time.time()))
     data["gen_cont"] = bool(gs.get("active"))
 
-def check_river(r, st, topic, cfg):
+def check_river(r, st, topic, cfg, data=None):
     """5.95: jedno upozornění na River (kategorie 1): River, ze které něco jede (velká = chata, malá = 12V světla),
     má river_vymenit_pod (15 %) a míň a nenabíjí se → „vyměň / přepoj“, opakuje se do přepojení / nabití / „Řeším“.
     Když přestane dodávat při ≤ 5 %, text se změní na „vypnula se“. Nabitá na 100 % → jen do souhrnu."""
@@ -5698,6 +5702,16 @@ def check_river(r, st, topic, cfg):
     supplying = out_w > (2 if small else 20) and in_w <= 20
     died = was and soc <= 5 and out_w <= 3 and in_w <= 20
     active = bool(cfg["river_vymenit"]) and in_w <= 20 and soc <= (lim + 5 if was else lim) and (supplying or died)
+    # 5.132: v nočním klidu jen když River opravdu nevydrží do konce klidu (rána) – „15 %“ v noci, když do rána zbude
+    # ještě aspoň rezerva, nebudí. Výdrž stejná jako všude (river_sup: obvyklý odběr × změřená kapacita River).
+    if active and not died and not small and in_quiet():
+        sup = (data or {}).get("river_sup") or {}
+        now_ = datetime.now(TZ)
+        qe = now_.replace(hour=QUIET[1] // 60, minute=QUIET[1] % 60, second=0, microsecond=0)
+        if qe <= now_:
+            qe += timedelta(days=1)
+        if sup.get("sn") == str(r["sn"])[-6:] and sup.get("until") and sup["until"] >= qe.timestamp():
+            active = False
     if small:
         left_h = max(0.0, soc - 2) / 100 * (r.get("wh") or 256) * 0.9 / out_w if out_w > 2 else None
         until = datetime.now(TZ) + timedelta(hours=left_h) if left_h is not None else None
