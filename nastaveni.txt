@@ -174,4 +174,4 @@ teplomery_ticho_min = 60         # upozornit, když teploměr tolik minut nepoš
 teplomery_baterie = 10, 5        # upozornit na baterii teploměru při těchto %
 vlhkost_hlidat = Pokoj, Loznice, Kuchyne   # obytné místnosti – upozornit na suchý vzduch (topení v kamnech)
 vlhkost_min = 40                 # upozornit na suchý vzduch pod tolik % (dobré je 40–60 %; Petr 24. 10.: 40 s rezervou)
-gen_povel =                      start:lpg:1793277024# povel z tlačítka nabíjení z generátoru (zapisuje web – neměnit)
+gen_povel =                      start:lpg:1793277030# povel z tlačítka nabíjení z generátoru (zapisuje web – neměnit)
