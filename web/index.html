@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.142", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.143", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2695,6 +2695,39 @@ function rvCapCard(d){
   }).join("");
   return H + `<div class="sub">Kolik Wh by River dala do chaty ze 100 % na 0 % – spočítané z jejích vybíjení (co naměřila zásuvka na jejím výstupu ÷ o kolik % klesla).</div>${rows}</div>`;
 }
+/* 5.143: barevný pás – co v kterou dobu napájelo chatu (z bodů měření; Dnes / 48 h / Týden) */
+function srcSegs(d, h, t0, now){
+  const U = useModel(d), R = rivModel(d, h).R;
+  const pts = (d.points||[]).filter(p=>p.t >= t0 - 900 && (p.tp || p.mw!=null)).sort((a,b)=>a.t-b.t);
+  const col = {s:css("--s6"), q:css("--muted"), z:css("--crit")}, name = {s:"Solár", q:"nezjištěno", z:"bez napájení"};
+  const who = p => { const c = ptSrc(p, U.rids); if(c==="s") return "s"; if(c==="r"){ let best=null, bw=3; for(const r of R){ const w = (p.tp||{})[r.id]||0; if(w > bw){ bw=w; best=r; } } return best ? "r:"+best.id : "q"; } return c==="0" ? "z" : "q"; };
+  const segs = [];
+  for(let i=0;i<pts.length;i++){ const p = pts[i], a = Math.max(t0, p.t), b = Math.min(now, i+1<pts.length ? Math.min(pts[i+1].t, p.t+900) : Math.min(now, p.t+900));
+    if(b <= a) continue; const k = who(p), L = segs[segs.length-1];
+    if(L && L.k===k && a - L.b < 60) L.b = b; else segs.push({k, a, b}); }
+  const cOf = k => k.startsWith("r:") ? (R.find(r=>"r:"+r.id===k)||{}).color || col.q : col[k];
+  const nOf = k => k.startsWith("r:") ? (R.find(r=>"r:"+r.id===k)||{}).short || "River" : name[k];
+  const tot = {}; segs.forEach(g=>tot[g.k]=(tot[g.k]||0)+(g.b-g.a));
+  return {segs, cOf, nOf, tot};
+}
+function srcStripHtml(d, h){
+  if(detLong()) return "";
+  const now = Date.now()/1000, hrs = detHours(), t0 = now - hrs*3600, {segs, cOf, nOf, tot} = srcSegs(d, h, t0, now);
+  const W = 1000, X = t => ((t - t0) / (now - t0) * W).toFixed(1);
+  const step = hrs <= 26 ? 3*3600 : hrs <= 50 ? 6*3600 : 86400;
+  const ticks = []; { const z = new Date(t0*1000); z.setMinutes(0,0,0); if(step===86400) z.setHours(0); let t = z.getTime()/1000;
+    while(t < t0) t += 3600; while(t <= now){ const dd = new Date(t*1000), fr = (t - t0)/(now - t0); if((step===86400 ? dd.getHours()===0 : dd.getHours() % (step/3600) === 0) && fr > .05 && fr < .95) ticks.push(t); t += 3600; } }
+  const lab = t => { const dd = new Date(t*1000); return step===86400 ? ["ne","po","út","st","čt","pá","so"][dd.getDay()]+" "+dd.getDate()+"." : String(dd.getHours()).padStart(2,"0")+":00"; };
+  const svg = `<svg viewBox="0 0 ${W} 58" preserveAspectRatio="none" style="width:100%;height:58px;display:block">
+    <rect x="0" y="4" width="${W}" height="30" rx="4" fill="var(--line)" opacity=".35"/>
+    ${segs.map(g=>`<rect x="${X(g.a)}" y="4" width="${Math.max(0.6, X(g.b)-X(g.a))}" height="30" fill="${cOf(g.k)}"><title>${escH(nOf(g.k))}: ${relDay(g.a)} ${hmT(g.a)}–${hmT(g.b)}</title></rect>`).join("")}
+    ${ticks.map(t=>`<line x1="${X(t)}" x2="${X(t)}" y1="34" y2="40" stroke="var(--text2)" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join("")}
+  </svg><div style="position:relative;height:16px;font-size:11px;color:var(--text2)">${ticks.map((t,i)=>`<span style="position:absolute;left:${(t-t0)/(now-t0)*100}%;transform:translateX(-50%);white-space:nowrap">${lab(t)}</span>`).join("")}</div>`;
+  const used = Object.keys(tot);
+  const leg = used.sort((a,b)=>tot[b]-tot[a]).map(k=>`<span style="white-space:nowrap"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${cOf(k)};margin-right:4px"></span>${escH(nOf(k))} ${nf(tot[k]/3600, tot[k] < 36000 ? 1 : 0)} h</span>`).join(" · ");
+  return `<div class="card"><h2 style="margin:0 0 6px">Co kdy napájelo chatu</h2>${segs.length ? svg + `<div style="font-size:13px;margin-top:6px;line-height:1.7">${leg}</div>` : `<div class="sub">Za toto období nejsou měření.</div>`}
+    <div class="sub" style="margin-top:4px">Z měření Flipu (po ~10 min). Šedé pozadí = žádné měření. Rok / Vše jen v koláčích.</div></div>`;
+}
 /* 5.142: koláčové grafy – na co jela chata (čas a energie) za zvolené období (Dnes / 48 h / Týden / Rok / Vše) */
 function pieHtml(items, fmtV){
   const it = items.filter(x=>x.v > 0), tot = it.reduce((a,x)=>a+x.v, 0);
@@ -2716,14 +2749,19 @@ function srcPiesHtml(d, h){
   const keys = Object.keys(d.days||{}).sort().filter(k=>k >= USE_FROM && k <= dkey(now));
   const n = DETR==="d" ? 1 : DETR==="48" ? 2 : DETR==="168" ? 7 : DETR==="y" ? 365 : 99999;
   const span = keys.filter(k=>k >= dkey(now - (n-1)*86400)), D = k => (d.days||{})[k] || {};
-  const per = DETR==="d" ? "dnes" : DETR==="48" ? "včera a dnes" : DETR==="168" ? "posledních 7 dní" : DETR==="y" ? "poslední rok" : "celou dobu";
-  const solC = css("--s2");
+  const per = DETR==="d" ? "posledních 24 h" : DETR==="48" ? "posledních 48 h" : DETR==="168" ? "posledních 7 dní" : DETR==="y" ? "poslední rok" : "celou dobu";
+  const solC = css("--s6");
   // čas: jen dny, kde je spočítaný i solár (od 5.142, body se drží 14 dní)
-  const tk = span.filter(k=>D(k).sh != null);
-  const tItems = [{name:"Solár", color:solC, v:tk.reduce((a,k)=>a+(D(k).sh||0),0)},
-    ...R.map(r=>({name:r.short, color:r.color, v:tk.reduce((a,k)=>a+((D(k).rh||{})[r.id]||0),0)}))];
-  const known = tItems.reduce((a,x)=>a+x.v,0), cov = tk.reduce((a,k)=>a+(D(k).rhh||0),0);
-  if(cov - known > 0.5) tItems.push({name:"nezjištěno", color:css("--muted"), v:cov-known});
+  let tk = span.filter(k=>D(k).sh != null), tItems;
+  if(!detLong()){        // 5.143: krátká období přímo z měření – stejně jako pás „Co kdy napájelo chatu“
+    const S = srcSegs(d, h, now - detHours()*3600, now);
+    tItems = Object.keys(S.tot).map(k=>({name:S.nOf(k), color:S.cOf(k), v:S.tot[k]/3600})); tk = tItems.length ? ["x"] : [];
+  } else {
+    tItems = [{name:"Solár", color:solC, v:tk.reduce((a,k)=>a+(D(k).sh||0),0)},
+      ...R.map(r=>({name:r.short, color:r.color, v:tk.reduce((a,k)=>a+((D(k).rh||{})[r.id]||0),0)}))];
+    const known = tItems.reduce((a,x)=>a+x.v,0), cov = tk.reduce((a,k)=>a+(D(k).rhh||0),0);
+    if(cov - known > 0.5) tItems.push({name:"nezjištěno", color:css("--muted"), v:cov-known});
+  }
   const eItems = [{name:"Solár", color:solC, v:span.reduce((a,k)=>a+((D(k).tp||{})[U.mip]||0),0)},
     ...R.map(r=>({name:r.short, color:r.color, v:span.reduce((a,k)=>a+((D(k).tp||{})[r.id]||0),0)}))];
   const hT = v => `${nf(v, v < 10 ? 1 : 0)} h`, kT = v => `${nf(v/1000, v < 10000 ? 2 : 1)} kWh`;
@@ -2781,7 +2819,7 @@ function detRiver(body){
   // 3) po dnech – která River kdy jela (střídání River přes zimu)
     + chartCard("rv_hd", "Kolik hodin která River napájela chatu", `po dnech · ${RL.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ")}`)
     + chartCard("rv_kd", "Kolik která River dodala", `kWh za den (do chaty i spotřebičů) · ${RL.map(l=>`<span style="color:${l.color}">■</span> ${l.name}`).join(" · ")}`)
-    + srcPiesHtml(d, h)
+    + srcStripHtml(d, h) + srcPiesHtml(d, h)
     + "@@RVTAB@@";
   // 4) čísla
   const k2 = wh => wh==null ? "–" : nf(wh/1000, 2);
@@ -3080,7 +3118,7 @@ function detBat(body){
   if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands,modes:true,refs:[[50,"--serious","50 #"],[100,"--muted"]]});
   else empty($("dc_hash"), "Spočítá se po prvních hodinách dat.");
   lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,modes:true});
-  body.insertAdjacentHTML("beforeend", srcPiesHtml(d, h));      // 5.142: na co jela chata
+  body.insertAdjacentHTML("beforeend", srcStripHtml(d, h) + srcPiesHtml(d, h));      // 5.142 / 5.143: na co jela chata
 }
 function detNight(body){
   const d = DATA, h = homeData(d), nt = tileNight(d, h), f = d.forecast;

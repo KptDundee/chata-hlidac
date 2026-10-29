@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.143 – 29. 10. 2026
+- EcoFlow a Solární baterie: barevný pás „Co kdy napájelo chatu“ – na ose čas (Dnes = 24 h, 48 h, Týden), barva = solár / která River / nezjištěno / bez napájení, pod ním hodiny celkem. Rok a Vše jen v koláčích.
+- Koláč „Podle času“ pro Dnes / 48 h / Týden se počítá přímo z měření, stejně jako pás – oba se vždy shodují. Solár zeleně (oranžová se pletla s červenou River).
+
 ## 5.142 – 29. 10. 2026
 - EcoFlow a Solární baterie: karta „Na co jela chata“ – dva koláčové grafy za zvolené období (Dnes / 48 h / Týden / Rok / Vše): podle času (solár, každá River, nezjištěno) a podle energie (kWh přes měnič a z výstupu každé River).
 - EcoFlow: grafy „kolik má v baterii“ napřed velké River, pak malá; za malou karta „12 V (světla)“ – kolik % času byl 12 V výstup zapnutý (> 1 W), hodiny a kWh. Údaj z EcoFlow (autozásuvka / DC výstup, jinak celkový výstup − 220 V).
