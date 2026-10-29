@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.138 – 29. 10. 2026
+- Oprava chyby: při třech River spadl výpočet kvůli zaokrouhlení (1500,0000001 > 1500 W) do větve „nevejdou se ani minima“ – nejprázdnější dostala všechno, ostatní minimum (940 W vs. 200 W, generátor nevyužitý). Teď jen když se minima opravdu nevejdou.
+- Průběžná kontrola, ať všechny River doběhnou zároveň: výkony se přepočítají pod 75 % po 10 min, 75–90 % po 5 min, nad 90 % po 2 min (podle nejplnější); mění se jen River s rozdílem ≥ 30 W. Plná River → její výkon hned dostanou ostatní.
+- Kontrola věrohodnosti %: při nabíjení přibude nejvýš ~2 % za minutu (+3) a skoro nic neubude; chybějící nebo nesmyslný údaj (50 % → 0 % / 100 %) se nepoužije, platí poslední dobrý (zápis do deníku). Po 20 min bez dobrého údaje se nový bere.
+
 ## 5.137 – 29. 10. 2026
 - Nabíjení z generátoru jednoduše: výkon se dělí mezi všechny připojené River, které nejsou plné (podle toho, kolik každé chybí). Dřív jen mezi ty, které hlídač v tu chvíli viděl brát – jedna vypadla z výpočtu a druhá dostala všechno (940 W vs. 200 W, generátor jen 1150 W).
 
