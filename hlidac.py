@@ -41,7 +41,7 @@ DEFAULTS = {
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
-    "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00", "den_navrat": "",
+    "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00", "den_navrat": "", "ticho": "0:00-5:45",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
@@ -1102,11 +1102,25 @@ def alarm_acks(st, topic):
             log("ev", f"{e.get('title', key)} – potvrzeno „Řeším“")
 
 
-def alarm(st, topic, key, active, title="", msg="", prio=5, tags="rotating_light,warning", ok_title=None, ok_msg=""):
-    """Kategorie 1 a 2: upozornění s tlačítky, opakuje se, dokud trvá, není potvrzené ani odložené."""
+QUIET = (0, 345)                                   # 5.131: noční klid v minutách od půlnoci (ticho = 0:00-5:45)
+
+
+def in_quiet(t=None):
+    """Je teď noční klid (nastavení „ticho“)? Tehdy chodí jen upozornění kategorie 1 (ohrožení chodu)."""
+    d = datetime.fromtimestamp(t or time.time(), TZ)
+    m, (a, b) = d.hour * 60 + d.minute, QUIET
+    return (a <= m < b) if a <= b else (m >= a or m < b)
+
+
+def alarm(st, topic, key, active, title="", msg="", prio=5, tags="rotating_light,warning", ok_title=None, ok_msg="", cat=1):
+    """Kategorie 1 a 2: upozornění s tlačítky, opakuje se, dokud trvá, není potvrzené ani odložené.
+    5.131: kategorie 2 (doporučení) v nočním klidu nic neposílá – ani poprvé, ani opakování; když to po skončení klidu
+    pořád platí, přijde normálně."""
     al = st.setdefault("al", {})
     e = al.get(key)
     ts = int(time.time())
+    if active and cat == 2 and in_quiet(ts):
+        return
     if not active:
         if e:
             if not e.get("ack") and ok_title is not False:
@@ -1685,7 +1699,12 @@ def main():
     st = data.setdefault("state", {})
     now = datetime.now(TZ)
     cfg = load_config()
-    global PLAN
+    global PLAN, QUIET
+    try:                                                   # 5.131: noční klid „0:00-5:45“
+        a_, b_ = str(cfg.get("ticho") or "").split("-")
+        QUIET = tuple(int(x.split(":")[0]) * 60 + int(x.split(":")[1]) for x in (a_.strip(), b_.strip()))
+    except (ValueError, IndexError):
+        pass
     PLAN = load_plan()                                     # 5.118: plán nepřítomnosti (web)
     alarm_acks(st, topic)                                  # 5.95: tlačítka Řeším / Za 30 min / Za 1 h
     rise, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
@@ -4265,7 +4284,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
           f"⚠️ Dnes ~{te} solární baterie dojde – přepni chatu na River",
           f"Chata jede ze solární baterie ({hq['pct']} #, obvyklý odběr z baterie ~{res['load_w']} W). Dnes ještě vyrobí ~{fmt(rem_kwh, 1)} kWh "
           f"– nestačí: pod 12,0 V dnes ~{te}, dřív než {hh}:{mm:02d}.\nNež odjedeš, přepni chatu na River.",
-          4, "warning,sunny", ok_title="✓ Dnes to solár do večera vydrží")
+          4, "warning,sunny", ok_title="✓ Dnes to solár do večera vydrží", cat=2)
 
 
 # ---- 5.118: plán nepřítomnosti (plan.txt, zapisuje web) ----
@@ -4532,7 +4551,7 @@ def eve_plan(data, st, now, topic, cfg):
            f"aby solár s předpovědí výroby utáhl chatu do {dend.strftime('%H:%M')}" if D else
            f"solární baterie musí vydržet do rána ({rel_day(target.timestamp(), now)} ~{target.strftime('%H:%M')}) nad alarmem 12,0 V")
     alarm(st, topic, "eve", due, f"🔌 Přepni chatu na River {when}",
-          f"Teď {data['hq'].get('pct')} #. Když zůstane chata na soláru déle, nevyjde to: {why}.", 4, "electric_plug", ok_title=False)
+          f"Teď {data['hq'].get('pct')} #. Když zůstane chata na soláru déle, nevyjde to: {why}.", 4, "electric_plug", ok_title=False, cat=2)
 
 
 def river_models(data, cfg, now):
@@ -4688,7 +4707,7 @@ def away_plan(data, st, now, topic, cfg):
             title = f"⛽ Nabij {chg['name']} – začni nejpozději {rd(chg['late'])} v {hm(chg['late'])}"
             msg = (f"{rd(chg['a']).capitalize()} {hm(chg['a'])}–{hm(chg['b'])} jsi pryč a solár ani River to bez nabití neutáhnou. "
                    f"{chg['name']} nabij aspoň na ~{chg['need']} % (~{fmt(chg['dur'] / 3600, 1)} h). Generátor jen 6:00–22:00.")
-        alarm(st, topic, "chg", due, title, msg, 4, "fuelpump", ok_title=False)
+        alarm(st, topic, "chg", due, title, msg, 4, "fuelpump", ok_title=False, cat=2)
     else:
         alarm(st, topic, "chg", False, ok_title=False)
     # kontrola v čas odjezdu
@@ -4709,7 +4728,7 @@ def away_plan(data, st, now, topic, cfg):
                                "Ani druhá River nevydrží – nabij ji, nebo omez spotřebu.")
                         alarm(st, topic, "dep", True, f"🔋 Než odjedeš: {RV[conn0]['name']} nevydrží do {hm(b)}",
                               f"Má {round(left)} %, při obvyklém odběru by do návratu v {hm(b)} spadla pod {res_pct} %. {tip}",
-                              4, "battery", ok_title=False)
+                              4, "battery", ok_title=False, cat=2)
                 elif f:
                     ntfy(topic, f"✓ Můžeš jet – {RV[conn0]['name']} vydrží do {hm(b)}", f"Má {round(left)} %, obvyklý odběr.", 2, "white_check_mark")
             elif cs_ == "s" and f and (data.get("day_fc") or {}).get("ok"):
@@ -5836,7 +5855,7 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
     else:
         title, msg = "", ""
     active = st.get("ur_done") != win and (solar_bad or river_bad or (e is not None and not on_river and st.get("_night_src") == "solar"))
-    alarm(st, topic, "night", active, title or (e or {}).get("title", "🌙 Před spaním přepni chatu na River"), msg, 4, "crescent_moon,warning",
+    alarm(st, topic, "night", active, title or (e or {}).get("title", "🌙 Před spaním přepni chatu na River"), msg, 4, "crescent_moon,warning", cat=2,
           ok_title="✓ Do rána to už vydrží" if st.get("_night_src") == "river" or not on_river else "✓ Chata jede z River", ok_msg="")
     if e and not active:
         st["ur_done"] = win

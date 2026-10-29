@@ -39,6 +39,7 @@ den_kontrola = po 8:00, út 5:45, st 8:00, čt 5:45, pá 8:00, so 9:00, ne 9:00 
 den_navrat =                    # výhled dne: kdy se ten den vracíš (po dnech jako den_kontrola) – v den s odjezdem musí solár vydržet do návratu; den bez času = den_do
 den_do = 22:00                 # výhled dne: do kolika má chata na soláru vydržet
 nutne_river_v = 22:00          # od kdy naléhavě opakovat „TEĎ přepni chatu na River“ (po 5 min), když baterie do rána nevydrží a chata jede ze soláru; vypnuto = nikdy
+ticho = 0:00-5:45              # noční klid: v tu dobu chodí jen ohrožení chodu (baterie pod 12,0 V, River pod 15 %, lednice…); doporučení (přepni, nabij, odjezd) počkají na konec klidu
 # od kdy ráno panely reálně nabíjí (minut po východu slunce)
 nabijeni_od_vychodu_min = 90
 # kapacita solární baterie

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.131 – 29. 10. 2026
+- Noční klid (nastavení „Noční klid upozornění“, výchozí 0:00–5:45): v tu dobu chodí jen ohrožení chodu (kategorie 1 – baterie pod 12,0 V, River pod 15 %, lednice, měnič, Brána…). Doporučení (kategorie 2 – přepni na River, nabij River, než odjedeš, výhled dne, před spaním) se v klidu nepošlou ani nezopakují; když po skončení klidu pořád platí, přijdou normálně. 29. 10. budilo „⚠️ … chatu nic neutáhne“ od 03:46 po 10 minutách.
+
 ## 5.130 – 28. 10. 2026
 - Karta „Jaká baterie“: kolik by stála energie z River – celkem i po měsících. Cena 1 kWh dodané z River do chaty = cena kWh z generátoru (palivo) × kolik Wh se do River nabije na 100 % ÷ kolik Wh River na 100 % dodá do chaty (ztráty nabíjení a měniče River) – jen ze změřených hodnot; dokud nejsou, „–“. Rozdíl mezi řádky = úspora.
 
