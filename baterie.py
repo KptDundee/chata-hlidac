@@ -49,14 +49,14 @@ def simulate(days, usable_wh, eff):
 
 def update(data, st, now, cfg, sun_times, model_for, label_panels, night_w, day_w, cur_ah=None):
     """Jednou denně: data["bsim"] = {t, od, do, n, var: [{name, years: {0: {...}, 3: {...}}}], pred}."""
-    if st.get("bsim_day") == now.strftime("%Y-%m-%d") and (data.get("bsim") or {}).get("nv") == len(VARIANTS):
+    if st.get("bsim_day") == now.strftime("%Y-%m-%d") and (data.get("bsim") or {}).get("nv") == len(VARIANTS) and (data.get("bsim") or {}).get("mon"):
         return
     st["bsim_day"] = now.strftime("%Y-%m-%d")
     wx = data.get("wx") or {}
     lab, _ = label_panels(data, cfg, now.date())
     idle = (cfg.get("menic_vlastni_W") or 6) + (cfg.get("desulfator_W") or 0)
     nw, dw = night_w, day_w
-    cache, days = {}, []
+    cache, days, mon = {}, [], {}
     today = now.date()
     for k in sorted(wx):
         w = wx.get(k)
@@ -76,6 +76,14 @@ def update(data, st, now, cfg, sun_times, model_for, label_panels, night_w, day_
         day_h = (z - r).total_seconds() / 3600
         night_h = (r2 - z).total_seconds() / 3600
         days.append((k, prod, (dw / 0.88 + idle) * day_h, (nw / 0.88 + idle) * night_h))
+        mo = mon.setdefault(k[:7], {"n": 0, "pm": 0.0, "pr": 0.0, "nr": 0, "c": 0.0})    # 5.134: kontrola modelu po měsících
+        mo["n"] += 1
+        mo["pm"] += prod / 1000
+        mo["c"] += ((dw / 0.88 + idle) * day_h + (nw / 0.88 + idle) * night_h) / 1000
+        real = (data.get("days", {}).get(k) or {}).get("solar_kwh")
+        if real is not None:
+            mo["pr"] += real
+            mo["nr"] += 1
     if not days:
         data["bsim"] = {"t": int(now.timestamp()), "n": 0}
         return
@@ -93,6 +101,10 @@ def update(data, st, now, cfg, sun_times, model_for, label_panels, night_w, day_
                            "river_wh": sum(x["river_wh"] for x in res.values()),
                            "waste_wh": sum(x["waste_wh"] for x in res.values())}
         var.append({"name": name, "ah": ah, "years": yrs})
-    data["bsim"] = {"t": int(now.timestamp()), "nv": len(VARIANTS), "od": days[0][0], "do": days[-1][0], "n": len(days), "var": var,
+    for mo in mon.values():
+        mo["pm"] = round(mo["pm"] / mo["n"], 2)
+        mo["c"] = round(mo["c"] / mo["n"], 2)
+        mo["pr"] = round(mo["pr"] / mo["nr"], 2) if mo["nr"] else None
+    data["bsim"] = {"t": int(now.timestamp()), "nv": len(VARIANTS), "mon": mon, "od": days[0][0], "do": days[-1][0], "n": len(days), "var": var,
                     "pred": {"night_w": round(nw), "day_w": round(dw), "idle_w": idle,
                              "var": [{"name": n, "dod": d, "eff": e, "loss": l} for n, _, _, d, e, l in vs]}}

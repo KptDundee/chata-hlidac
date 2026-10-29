@@ -5036,6 +5036,20 @@ def river_capacity(data, st, now, cfg):
         st["rv_chg"][k6] = lc
         pc = sorted(x["per100"] for x in lc[-8:])
         out_chg = {"per100": pc[len(pc) // 2] if pc else None, "n": len(pc), "ses": lc[-6:]}
+        # 5.134: kolik Wh stojí 1 % nabití v různých pásmech (0–20 … 80–100 %) – je nabíjení u plné dražší?
+        # Z bodů během nabíjení (generátor po 30 s), mezi sousedními body do 20 min, kde % vzrostla.
+        bins = st.setdefault("rv_bins", {}).setdefault(k6, {})
+        seen_t = st.setdefault("rv_bins_t", {}).get(k6, 0)
+        for (t1, s1, i1, *_), (t2, s2, i2, *_) in zip(ser, ser[1:]):
+            if t2 <= seen_t or i1 <= 20 or i2 <= 20 or not 0 < t2 - t1 <= 1200 or s2 <= s1:
+                continue
+            bk = str(min(80, int(s1 // 20) * 20))
+            bb = bins.setdefault(bk, [0.0, 0.0])
+            bb[0] += (i1 + i2) / 2 * (t2 - t1) / 3600
+            bb[1] += s2 - s1
+        if ser:
+            st["rv_bins_t"][k6] = max(seen_t, ser[-1][0])
+        out_chg["bins"] = {b_: round(v_[0] / v_[1], 1) for b_, v_ in bins.items() if v_[1] >= 5}
         out[k6] = {"name": r.get("name"), "nom": nom, "ses": last8, "bat": r.get("bat"), "chg": out_chg,
                    "cap": caps[len(caps) // 2] if caps else None, "n": len(caps),
                    "drop_sum": sum(x["s0"] - x["s1"] for x in last8), "live": lv}

@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.134 – 29. 10. 2026
+- Karta „Jaká baterie“: období s rokem („6. 10. 2025 – 28. 10. 2026 – celý rok i se zimou“); pod tabulkou po měsících šedé kontrolní řádky – výroba podle modelu, skutečná výroba a spotřeba kWh/den – ať je vidět, z čeho přehrání vychází.
+- Skutečná kapacita River: „1 % nabití stojí: 0–20 %: X Wh · … · 80–100 %: Y Wh“ – z nabíjení (generátor po 30 s), jestli je dobíjení u plné dražší.
+
 ## 5.133 – 29. 10. 2026
 - Plán nepřítomnosti: místo obecného „chatu nic neutáhne“ konkrétně „⚠️ Dnes 06:54–12:00: do návratu nic nevydrží – žlutá dojde ~10:49, červená ~07:27, solár ~07:04 – vracíš se ve 12:00“. Nabíjení se hledá pro každý úsek, na který nic nestačí (dřív jen pro první) – např. „⛽ Nabij žlutou – začni nejpozději v 13:18“ na odpolední úsek, když se nabití vejde do polední pauzy.
 
