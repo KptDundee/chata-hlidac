@@ -4554,6 +4554,12 @@ def eve_plan(data, st, now, topic, cfg):
           f"Teď {data['hq'].get('pct')} #. Když zůstane chata na soláru déle, nevyjde to: {why}.", 4, "electric_plug", ok_title=False, cat=2)
 
 
+def pn_(n):
+    """Jméno bez úvodních závorek „(3) (R) “ (jako web)."""
+    import re as _re
+    return _re.sub(r"^\s*\(\d{1,3}\)\s*(\([^)]*\)\s*)?", "", str(n or "")).strip()
+
+
 def river_models(data, cfg, now):
     """5.118: velké River (malá chatu nenapájí) pro plán: {konec SN: {name, soc, cap (Wh do chaty na 100 %), per100
     (Wh nabíjení na 100 %), chg_w (W při nabíjení), est (kapacita jen ze štítku)}}. % vypnuté River = poslední známé."""
@@ -4638,8 +4644,22 @@ def away_plan(data, st, now, topic, cfg):
             else:
                 L = sim_level(M, t.timestamp(), a.timestamp(), L, top)[1]
         lo_s, end_s = sim_level(M, a.timestamp(), b.timestamp(), L, top)
-        why = {"sol": {"pct0": round(M["alarm_soc"] + L / M["cap"] * 100), "ok": lo_s > 0},          # 5.132: rozpis pro web
-               "rv": {k: {"s0": round(soc[k]), "drop": round(drop(k, a, b)), "ok": soc[k] - drop(k, a, b) >= res_pct} for k in RV}}
+        def r_out(k):                                  # kdy by River k došla na rezervu (v úseku), jinak None
+            d_ = drop(k, a, b)
+            if d_ <= 0 or soc[k] - d_ >= res_pct:
+                return None
+            return int(a.timestamp() + max(0.0, soc[k] - res_pct) / d_ * (b - a).total_seconds())
+
+        def s_out():                                   # kdy by solár došel na alarm (v úseku), jinak None
+            lv, t = L, a.timestamp()
+            while t < b.timestamp():
+                lv = min(lv + M["prod_ah"](t, 600), top) - M["load_a"](t) * 600 / 3600
+                if lv <= 0:
+                    return int(t)
+                t += 600
+            return None
+        why = {"sol": {"pct0": round(M["alarm_soc"] + L / M["cap"] * 100), "ok": lo_s > 0, "out": s_out() if lo_s <= 0 else None},
+               "rv": {k: {"s0": round(soc[k]), "drop": round(drop(k, a, b)), "ok": soc[k] - drop(k, a, b) >= res_pct, "out": r_out(k)} for k in RV}}
         cand = []
         if lo_s > 0:
             cand.append(("solar", None))
@@ -4657,16 +4677,18 @@ def away_plan(data, st, now, topic, cfg):
             plan.append({"a": int(a.timestamp()), "b": int(b.timestamp()), "src": kind, "k": k, "btn": f, "why": why})
         else:
             plan.append({"a": int(a.timestamp()), "b": int(b.timestamp()), "src": None, "k": None, "btn": f, "why": why})
-            fails.append((a, b, dict(soc)))                # stav River na začátku úseku (po cestě se z nich bralo)
+            fails.append((a, b, dict(soc), why))           # stav River na začátku úseku (po cestě se z nich bralo)
             L = max(0.0, sim_level(M, a.timestamp(), b.timestamp(), L, top)[1])
         t = b
     out = {"t": int(ts), "ivs": plan, "rv": {k: {"name": v["name"], "soc": round(v["soc"]), "est": v["est"], "cap": round(v["cap"])} for k, v in RV.items()},
            "res": res_pct, "w_day": round(M["load_w"](datetime(now.year, now.month, now.day, 12, tzinfo=TZ).timestamp())),
            "w_night": round(M["load_w"](datetime(now.year, now.month, now.day, 2, tzinfo=TZ).timestamp()))}
-    # nabíjení pro první úsek, na který nic nestačí
-    chg = None
-    if fails:
-        a, b, soc_a = fails[0]
+    # 5.133: pro každý úsek, na který nic nestačí: nabití River (když se vejde do doby doma a 6–22), jinak „nevydrží“
+    # s konkrétním časem, kdy co dojde. První úsek s možným nabitím → „chg“, první bez něj → „short“.
+    hm = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M") if not isinstance(x, datetime) else x.strftime("%H:%M")
+    rd = lambda x: rel_day(x if not isinstance(x, datetime) else x.timestamp(), now)
+    chg = short = None
+    for a, b, soc_a, why in fails:
         home = []                                          # kdy jsem doma před tím úsekem
         tt = now
         for a2, b2, _ in ivs:
@@ -4691,29 +4713,31 @@ def away_plan(data, st, now, topic, cfg):
                         late = gb.timestamp() - dur
                         if not best or late > best["late"] or (late == best["late"] and dur < best["dur"]):
                             best = {"k": k, "name": v["name"], "need": round(need), "dur": dur, "late": late,
-                                    "win": (ga.timestamp(), gb.timestamp())}
-        chg = {"a": int(a.timestamp()), "b": int(b.timestamp()), **({k_: v_ for k_, v_ in best.items() if k_ != "win"} if best else {"none": True})}
-        if best:
-            chg["win"] = [int(best["win"][0]), int(best["win"][1])]
-    out["chg"] = chg
+                                    "win": [int(ga.timestamp()), int(gb.timestamp())]}
+        if best and not chg:
+            chg = {"a": int(a.timestamp()), "b": int(b.timestamp()), **best}
+        elif not best and not short:
+            outs = [f"{pn_(RV[k]['name'])} dojde ~{hm(x['out'])}" for k, x in why["rv"].items() if x.get("out")]
+            if why["sol"].get("out"):
+                outs.append(f"solár ~{hm(why['sol']['out'])}")
+            short = {"a": int(a.timestamp()), "b": int(b.timestamp()), "outs": outs}
+    out["chg"], out["short"] = chg, short
     data["away_plan"] = out
-    hm = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M") if not isinstance(x, datetime) else x.strftime("%H:%M")
-    rd = lambda x: rel_day(x if not isinstance(x, datetime) else x.timestamp(), now)
-    # upozornění na nabíjení: když jsem doma (ne pryč), od 2 h před nejpozdějším začátkem (nebo hned, když nic nevyjde)
-    if chg and not is_away(cfg, PLAN, now):
-        if chg.get("none"):
-            due = True
-            title = f"⚠️ {rd(chg['a']).capitalize()} {hm(chg['a'])}–{hm(chg['b'])} chatu nic neutáhne"
-            msg = ("Ani solár, ani River nevydrží, a nabití River z generátoru se do té doby nevejde (generátor jen 6:00–22:00). "
-                   "Omez spotřebu, nebo uprav plán.")
-        else:
-            due = ts >= chg["late"] - 2 * 3600
-            title = f"⛽ Nabij {chg['name']} – začni nejpozději {rd(chg['late'])} v {hm(chg['late'])}"
-            msg = (f"{rd(chg['a']).capitalize()} {hm(chg['a'])}–{hm(chg['b'])} jsi pryč a solár ani River to bez nabití neutáhnou. "
-                   f"{chg['name']} nabij aspoň na ~{chg['need']} % (~{fmt(chg['dur'] / 3600, 1)} h). Generátor jen 6:00–22:00.")
-        alarm(st, topic, "chg", due, title, msg, 4, "fuelpump", ok_title=False, cat=2)
+    home_now = not is_away(cfg, PLAN, now)
+    if chg and home_now:
+        title = f"⛽ Nabij {pn_(chg['name'])} – začni nejpozději {rd(chg['late'])} v {hm(chg['late'])}"
+        msg = (f"{rd(chg['a']).capitalize()} {hm(chg['a'])}–{hm(chg['b'])} jsi pryč a solár ani River to bez nabití neutáhnou. "
+               f"Nabij aspoň na ~{chg['need']} % (~{fmt(chg['dur'] / 3600, 1)} h). Generátor jen 6:00–22:00.")
+        alarm(st, topic, "chg", ts >= chg["late"] - 2 * 3600, title, msg, 4, "fuelpump", ok_title=False, cat=2)
     else:
         alarm(st, topic, "chg", False, ok_title=False)
+    if short and home_now:
+        title = f"⚠️ {rd(short['a']).capitalize()} {hm(short['a'])}–{hm(short['b'])}: do návratu nic nevydrží"
+        msg = ((", ".join(short["outs"]) + f" – vracíš se v {hm(short['b'])}. " if short["outs"] else "")
+               + "Nabít se to do té doby nestihne (generátor jen 6:00–22:00). Omez spotřebu, nebo se vrať dřív.")
+        alarm(st, topic, "short", True, title, msg, 4, "warning", ok_title=False, cat=2)
+    else:
+        alarm(st, topic, "short", False, ok_title=False)
     # kontrola v čas odjezdu
     cur = next(((a, b, f) for a, b, f in ivs if a <= now < b and ts - a.timestamp() < 2 * 3600), None)
     if cur:
@@ -4728,7 +4752,7 @@ def away_plan(data, st, now, topic, cfg):
                     alt = [k for k in RV if k != conn0 and RV[k]["soc"] - drop(k, now, b) >= res_pct]
                     sol_ok = (data.get("day_fc") or {}).get("ok") and (data.get("day_fc") or {}).get("end") == int(b.timestamp())
                     if not sol_ok:                              # solár nabízí ranní „můžeš na solár“ zvlášť
-                        tip = (f"Přepoj na „{RV[alt[0]]['name']}“ ({round(RV[alt[0]]['soc'])} %)." if alt else
+                        tip = (f"Přepoj na „{pn_(RV[alt[0]]['name'])}“ ({round(RV[alt[0]]['soc'])} %)." if alt else
                                "Ani druhá River nevydrží – nabij ji, nebo omez spotřebu.")
                         alarm(st, topic, "dep", True, f"🔋 Než odjedeš: {RV[conn0]['name']} nevydrží do {hm(b)}",
                               f"Má {round(left)} %, při obvyklém odběru by do návratu v {hm(b)} spadla pod {res_pct} %. {tip}",
