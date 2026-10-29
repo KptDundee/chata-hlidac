@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.136 – 29. 10. 2026
+- Palivo v zimě (plyn a benzín na střídačku, lahev dojde uprostřed nabíjení): hlídač si během nabíjení ukládá průběh počítadel obou paliv (po 2 min). Výměna lahve / tankování se přiřadí k času, kdy se stala – i když se zapíše až po novém startu nebo zpětně. Lahev = všechno nabíjení z plynu od jejího zápisu do další lahve, benzín mezi tím se do ní nepočítá (a naopak).
+- Nabíjení, ve kterém lahev došla, se ocení po částech (stará lahev + nová); nabíjení s plynem i benzínem ukazuje obě části („plyn 0,50 + benzín 0,40 kWh“).
+- Hlídač zaznamená okamžik, kdy se generátor uprostřed nabíjení zastavil. „+ nová lahev“ ho nabídne jako čas výměny; jinak jde čas zadat ručně (14:35 / 28.10. 14:35), prázdné = teď.
+
 ## 5.135 – 29. 10. 2026
 - Palivo: každá lahev / tankování má vlastní cenu za 1 kWh (její cena ÷ kWh, které z ní generátor vyrobil). Nabíjení se ocení lahví, ze které se tehdy pálilo. Oprava ceny jedné lahve (✎ u ní v „Předchozí lahve“) přepočítá jen ji a její nabíjení – ostatní se nemění. „1 kWh dnes“ = poslední lahev s cenou (rozpálená = její cena ÷ průměrné kWh na lahev); z ní i cena v kartě „Jaká baterie“. Průměr kWh na lahev se počítá jen z energie, ceny do něj nevstupují.
 
