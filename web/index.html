@@ -2849,7 +2849,7 @@ function genBar(){
   const run = P && !P.end && now - P.t < 900 && (P.rv||[]).length && P.fin && P.fin > now - 300;
   el.classList.toggle("hide", !run); if(!run) return;
   const left = Math.max(0, Math.round((P.fin - now)/60)), lt = left >= 60 ? `${Math.floor(left/60)} h ${String(left%60).padStart(2,"0")} min` : `${left} min`;
-  el.innerHTML = `<span class="dot">⛽</span><span class="ab">Generátor · hotovo ${relDay(P.fin)==="dnes" ? "" : relDay(P.fin)+" "}~${hmT(P.fin)} <span style="font-weight:500;color:var(--text2)">· zbývá ${left > 0 ? lt : "chvilka"}</span></span><span class="go" style="position:static">›</span>`;
+  el.innerHTML = `<span class="dot">⛽</span><span class="ab" style="white-space:normal;overflow:visible">Generátor · hotovo ${relDay(P.fin)==="dnes" ? "" : relDay(P.fin)+" "}~${hmT(P.fin)} <span style="font-weight:500;color:var(--text2);white-space:nowrap">· zbývá ${left > 0 ? lt : "chvilka"}</span></span><span class="go" style="position:static">›</span>`;
 }
 setInterval(genBar, 60000);
 function detAlerts(body){
