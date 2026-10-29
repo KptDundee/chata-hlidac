@@ -5571,7 +5571,9 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             if not rr or full_ or (sn in low and tnow - low[sn] >= 120) or not rr.get("online"):
                 insess.remove(sn)
                 low.pop(sn, None)
-        con = [r for r in ctl if r["sn"] in insess]
+        # 5.137: jednoduše – nabíjí se každá připojená River, která není plná (Petr: žádné složitosti). Dřív jen ty, které
+        # „viditelně braly“ – jedna z výpočtu vypadla a druhá dostala všechno (940 W vs. 200 W, generátor na 1150 W).
+        con = [r for r in ctl if (r.get("soc") or 0) < 100 or acw(r) > 20]
         con_in = sum(acw(r) for r in con)
         gd = next((x.get("gd") for x in gens if x.get("gd")), None) or {}
         gw = g.get("w") if g.get("w") is not None else gd.get("w")
@@ -5582,7 +5584,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         charging = bool(con) or small_w > 0 or (gw or 0) > 20
         out = []
         # River, která se přestala nabíjet (plná / odpojená) → hned zpět na bezpečný výkon
-        idle_pros = {r["sn"]: safe_of(r) for r in ctl if r["sn"] not in insess and sets.get(r["sn"]) not in (None, safe_of(r))}
+        idle_pros = {r["sn"]: safe_of(r) for r in ctl if r not in con and sets.get(r["sn"]) not in (None, safe_of(r))}
         if idle_pros:
             out += apply(idle_pros)
         if not gs.get("active") and charging:              # relace sama (bez tlačítka) – River se nabíjejí

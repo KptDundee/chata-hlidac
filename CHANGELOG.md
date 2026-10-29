@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.137 – 29. 10. 2026
+- Nabíjení z generátoru jednoduše: výkon se dělí mezi všechny připojené River, které nejsou plné (podle toho, kolik každé chybí). Dřív jen mezi ty, které hlídač v tu chvíli viděl brát – jedna vypadla z výpočtu a druhá dostala všechno (940 W vs. 200 W, generátor jen 1150 W).
+
 ## 5.136 – 29. 10. 2026
 - Palivo v zimě (plyn a benzín na střídačku, lahev dojde uprostřed nabíjení): hlídač si během nabíjení ukládá průběh počítadel obou paliv (po 2 min). Výměna lahve / tankování se přiřadí k času, kdy se stala – i když se zapíše až po novém startu nebo zpětně. Lahev = všechno nabíjení z plynu od jejího zápisu do další lahve, benzín mezi tím se do ní nepočítá (a naopak).
 - Nabíjení, ve kterém lahev došla, se ocení po částech (stará lahev + nová); nabíjení s plynem i benzínem ukazuje obě části („plyn 0,50 + benzín 0,40 kWh“).

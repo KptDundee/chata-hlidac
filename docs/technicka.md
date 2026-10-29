@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.137**: `gen_charge_ctl` – `con` = všechny ovladatelné online River se `soc` < 100 (nebo berou > 20 W); `insess` / `low` už o rozdělení nerozhodují.
+
 **5.136**: krok nabíjení zapisuje `st.fuel_log` = [t, lpg, benzin] (počítadla `fuel_e`, body ≥ 120 s, 60 dní), `gs.c0` = počítadla na začátku relace, `gs.stop_t` / `data.gen_stop {t, fuel}` = generátor se zastavil (ever, gw ≤ 5). `fuel_runs[]` + `wh_f`, `c0`, `c1`. `fuel_stats`: snímek záznamu = `c_at(f, t)` (interpolace v `fuel_log`), cena nabíjení = překryv [c0, c1] s rozsahy lahví v prostoru počítadla × `czk_kwh` lahve (chybí-li cena kterékoli části → None). Web `fuelAdd` – čas výměny (nabídka `gen_stop` do 6 h, ruční HH:MM / D.M. HH:MM).
 
 **5.135**: `fuel_stats` – `hist[i].czk_kwh` za každou lahev (spotřebovaná: cena / kWh; rozpálená plná: cena / `avg_kwh`, `est`), `avg_kwh` jen z energie; `fuel[f].czk_kwh` = poslední lahev s cenou; `fuel_runs[].czk` podle lahve s největším `t` ≤ `t0`; `hist` posledních 12. Web `fuelEdit(f, ts)` upraví řádek s daným časem, „Předchozí lahve“ s ✎.
