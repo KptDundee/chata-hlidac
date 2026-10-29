@@ -5740,7 +5740,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             data["gen_stop"] = {"t": tnow, "fuel": fuel}
             log("ev", f"Nabíjení z generátoru: generátor se zastavil ({'plyn' if fuel == 'lpg' else 'benzín'})")
         if charging:
-            gs.pop("stop_t", None)
+            if gs.pop("stop_t", None) and data.get("gen_stop"):
+                data["gen_stop"]["res"] = tnow         # 5.140: zase nabíjí – pruh na webu zmizí, čas zastavení zůstane pro formulář
         gs["e_t"], gs["e_w"] = tnow, tot_in
         gp_ = data.setdefault("gen_pts", [])                # 5.06: výkon generátoru po 30 s (graf i bez Flipu)
         gp_.append([tnow, round(gw) if gw is not None else None, tot_in])

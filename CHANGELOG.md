@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.140 – 29. 10. 2026
+- Generátor se zastavil z jiného důvodu než palivo: stačí ho nastartovat. Jakmile River zase berou, žlutý pruh „Došla lahev?“ zmizí sám (`gen_stop.res`); čas zastavení zůstane ve formuláři, kdyby se lahev zapisovala až potom.
+
 ## 5.139 – 29. 10. 2026
 - Generátor → ▶️ Start: výrazná tlačítka „🔄 Vyměnil jsem lahev“ a „⛽ Natankoval jsem“ hned pod volbou paliva. Když se generátor zastavil (posledních 3 h, ještě bez zápisu nové lahve), nad nimi žlutý pruh „⚠️ Generátor se zastavil v 13:45. Došla lahev?“. Během nabíjení a po zastavení se detail Generátor otevře rovnou na ▶️ Start.
 - Zápis paliva jedním formulářem místo řady dotazů: lahev / tankování, cena (předvyplněná minulá), kdy (když se generátor zastavil / teď / jindy – výběr data a času), plná / částečně, litry u benzínu.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.139", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.140", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2047,9 +2047,9 @@ function genPlanHtml(d){
     + `<div class="sub" style="margin-bottom:4px">${run ? `Nabíjí na: <b>${fl}</b> (max ${nf(gmax)} W). Po novém startu generátoru zmáčkni palivo, na které jede – spustí se znovu.` : "<b>Postup:</b> 1) zmáčkni palivo (Benzín / Plyn) – tím se nabíjení spustí, klidně před startem · 2) nastartuj generátor a zapoj River, nech ho 1–2 min zahřát · 3) v aplikaci Tapo zapni zásuvku (7) · 4) za 30 s hlídač nastaví výkony sám · konec: vypni generátor"}</div>`
     + (run ? `<button onclick="genCmd('stop', this)" style="${sty(false)};width:100%;flex:none;font-weight:600">⏹ Ukončit nabíjení</button>` : "");
   /* 5.139: palivo hned u nabíjení – výrazně, ať se nemusí hledat */
-  const GS = d.gen_stop, stopNew = GS && Date.now()/1000 - GS.t < 3*3600 && !(((d.fuel||{})[GS.fuel]||{}).cur && d.fuel[GS.fuel].cur.t > GS.t);
+  const GS = d.gen_stop, stopNew = GS && !GS.res && Date.now()/1000 - GS.t < 3*3600 && !(((d.fuel||{})[GS.fuel]||{}).cur && d.fuel[GS.fuel].cur.t > GS.t);
   const fb2 = `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:2px dashed var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)`;
-  const fuelBtns = (stopNew ? `<div style="margin:8px 0 4px;padding:10px;border-radius:12px;background:color-mix(in srgb,var(--warn) 25%,transparent);font-weight:600">⚠️ Generátor se zastavil ${relDay(GS.t)} v ${hmT(GS.t)}. Došla ${GS.fuel==="lpg" ? "lahev" : "nádrž"}? Po výměně zapiš →</div>` : "")
+  const fuelBtns = (stopNew ? `<div style="margin:8px 0 4px;padding:10px;border-radius:12px;background:color-mix(in srgb,var(--warn) 25%,transparent);font-weight:600">⚠️ Generátor se zastavil ${relDay(GS.t)} v ${hmT(GS.t)}. Došla ${GS.fuel==="lpg" ? "lahev" : "nádrž"}? Po výměně zapiš →<div style="font-weight:400;font-size:13px;margin-top:3px">Zastavil se z jiného důvodu? Stačí ho nastartovat – nabíjení pokračuje samo (pruh pak zmizí).</div></div>` : "")
     + `<div style="display:flex;gap:8px;margin:6px 0 4px"><button onclick="fuelAdd('lpg')" style="${fb2}">🔄 Vyměnil jsem lahev</button><button onclick="fuelAdd('benzin')" style="${fb2}">⛽ Natankoval jsem</button></div>`;
   let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}${fuelBtns}`;
   if(run){
