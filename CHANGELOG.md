@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.146 – 30. 10. 2026
+- Zimní / letní provoz se posuzuje podle posledních 3 celých dní, ne podle toho, na čem chata jede teď. Dřív stačilo 30 min na River → každou noc „❄️ zimní provoz · chata na River“, i když chata přes den jede ze soláru. Teď zima = chata ani jeden z posledních 3 dní nejela ze soláru aspoň 2 h; jinak léto. Štítek: „zimní provoz · chata trvale na River“ / „letní provoz · přes den solární baterie“.
+
 ## 5.145 – 30. 10. 2026
 - Nabíjení z generátoru (Petr: úplně jednoduše): nabíjí se = generátor dává proud (zásuvka (7) / EcoFlow generátor > 20 W) **a** některá River bere. Bez údaje o generátoru stačí, že River bere. Nabíjení River ze soláru (generátor 0 W) se za nabíjení z generátoru nepovažuje.
 

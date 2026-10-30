@@ -2389,28 +2389,29 @@ def track_soc(data, st, v, now, cfg, inv, mode):
 
 
 def detect_mode(data, st, cfg, now, inv):
-    """Letní provoz = chata jede z měniče (solární baterie); zimní = měnič vypnutý, chatu napájí River."""
+    """Letní provoz = chata přes den jede ze solární baterie (v noci klidně River); zimní = chata několik dní vůbec
+    nejede ze soláru, napájí ji River (5.146: posoudí se z posledních 3 celých dní, days[k].sh)."""
     want = str(cfg.get("rezim") or "auto").strip().lower()
     if want in ("leto", "léto", "zima"):
         mode = "zima" if want == "zima" else "leto"
         data["mode"] = {"m": mode, "auto": False}
         st["mode"] = mode
         return mode
+    # 5.146: podle posledních 3 celých dní, ne podle teď. Dřív stačilo 30 min na River → každou noc „zimní provoz“,
+    # i když chata přes den jede ze soláru. Zima = chata ani jeden z těch dní nejela ze soláru aspoň 2 h; léto = jela.
+    today = now.strftime("%Y-%m-%d")
+    dd = data.get("days") or {}
+    last3 = [dd[k]["sh"] for k in sorted(dd) if k < today and (dd[k] or {}).get("sh") is not None
+             and (dd[k].get("rhh") or 0) >= 18][-3:]
     guess = None
-    if inv and now.timestamp() - inv["t"] < 3600:
-        cs_ = inv_src(inv, cfg)                    # 5.113: jeden výpočet
-        if cs_ == "r":
-            guess = "zima"
-        elif cs_ == "s":
-            guess = "leto"
+    if len(last3) == 3:
+        guess = "zima" if all(x < 2 for x in last3) else "leto"
     mode = st.get("mode") or "leto"
-    if guess and guess != mode:                 # přepnout až po 3 bězích za sebou (30 min)
-        st["mode_n"] = st.get("mode_n", 0) + 1
-        if st["mode_n"] >= 3:
-            log("ev", "Přechod na zimní provoz (chatu napájí River)" if guess == "zima" else "Přechod na letní provoz (chata jede ze solární baterie)")
-            mode, st["mode_n"], st["mode_since"] = guess, 0, int(now.timestamp())
-    else:
-        st["mode_n"] = 0
+    if guess and guess != mode:
+        log("ev", "Přechod na zimní provoz (chata už několik dní nejede ze soláru)" if guess == "zima"
+            else "Letní provoz (chata přes den jede ze solární baterie)")
+        mode, st["mode_since"] = guess, int(now.timestamp())
+    st["mode_n"] = 0
     st["mode"] = mode
     data["mode"] = {"m": mode, "auto": True, "since": st.get("mode_since")}
     return mode
