@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.148**: `outlook` – den: M = odjezd před východem (away_list z PLAN / rozvrhu) jinak východ, E = příjezd když úsek nepřítomnosti obsahuje západ jinak západ; rate = dc_day/24 v %/h; e = clamp(ráno + výroba − rate·(E−M)); lvl 2 = e − rate·noc ≥ alarm (soc_from_v(krit + 0,05)), 1 = ráno + výroba − rate·(E−M) ≥ alarm, 0 jinak; ráno dalšího dne podle lvl (2 noc na soláru, 1 = e, 0 = ráno + výroba). Řádek: lvl, M, E, dep, arr, mvm, e, av, nm, mv, ok (= lvl ≥ 1, ne dnes). Web barvy podle lvl, `tileTomorrow`, rada. `soc_estimate`: odběr 0, když `cabin.cs` = r.
+
 **5.147**: `detect_mode` = `panely_pocet` ≥ 2 → zima, jinak léto (ruční `rezim` dál přednost); 5.146 zrušeno.
 
 **5.146**: `detect_mode` – poslední 3 celé dny s `sh` a `rhh` ≥ 18 h: zima když všechny `sh` < 2 h, jinak léto; bez 3 dní se režim nemění (ruční `rezim` dál přednost).

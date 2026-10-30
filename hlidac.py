@@ -2362,8 +2362,9 @@ def track_soc(data, st, v, now, cfg, inv, mode):
     s, t0 = st.get("soc"), st.get("soc_t")
     ts = now.timestamp()
     fresh = inv and ts - inv["t"] < 1800
-    load_w = inv.get("mw") if fresh and inv.get("mw") is not None else (0 if mode == "zima" else cfg["noc_spotreba_W"] or 0)
-    idle = 0 if mode == "zima" else (cfg["menic_vlastni_W"] or 0)
+    on_riv = (data.get("cabin") or {}).get("cs") == "r" if data.get("cabin") else mode == "zima"   # 5.148
+    load_w = inv.get("mw") if fresh and inv.get("mw") is not None else (0 if on_riv else cfg["noc_spotreba_W"] or 0)
+    idle = 0 if on_riv else (cfg["menic_vlastni_W"] or 0)
     load_a = (load_w / 0.88 + idle) / bv if load_w or idle else 0.0
     rise, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
     night = rise and (now < rise - timedelta(minutes=10) or now > set_ + timedelta(hours=2))
@@ -2439,11 +2440,15 @@ def cabin_consumption(data, cfg, mode, now):
 
 
 def outlook(data, st, cfg, now, mode, preds):
-    """Simulace stavu solární baterie na 7 dní podle předpovědi výroby a spotřeby chaty.
+    """Simulace solární baterie na 7 dní podle předpovědi výroby a spotřeby chaty.
 
-    Léto: chata jede ze solární baterie celý den i noc.
-    Zima: solární baterie se jen nabíjí; den „k připojení“ = ráno ≥ zima_pripojit_od_V a po dni
-    s chatou na solární baterii zůstane ≥ zima_pripojit_do_V.
+    5.148 (Petr) – pro každý den dvě hranice, stejně v létě i v zimě:
+      2 = solár utáhne chatu celý den i noc (do dalšího rána nad alarmem),
+      1 = utáhne ji od rána do večera (pak River),
+      0 = ani to.
+    Ráno = východ slunce; když se ten den odjíždí před východem, hodina odjezdu. Večer = západ slunce; když je
+    chata v tu dobu sama (odjezd), hodina příjezdu. Ráno dalšího dne: po 2 se počítá s nocí na solár, jinak baterie
+    v noci jen odpočívá (chata na River).
     """
     cap = eff_cap(data, cfg)
     idle = cfg["menic_vlastni_W"] or 0
@@ -2452,45 +2457,50 @@ def outlook(data, st, cfg, now, mode, preds):
     soc = data.get("soc_est")
     if soc is None or not preds:
         return None
+    alarm = soc_from_v((cfg.get("baterie_kriticka_V") or 12.0) + 0.05)
+    rate = dc_day / 24 / 12.4 / cap * 100                          # % za hodinu, když chata jede ze soláru
     today = now.date().isoformat()
     produced = (data["days"].get(today) or {}).get("solar_kwh") or 0
+    try:
+        ivs = away_list(cfg, PLAN, now, days=8)
+    except Exception:
+        ivs = []
     rows = []
     for p in preds[:7]:
         dd = Date_from(p["d"])
         rise, set_ = sun_times(cfg["sirka"], cfg["delka"], dd)
-        light_h = (set_ - rise).total_seconds() / 3600 if rise else 10
+        if not rise:
+            continue
+        M = next((a for a, b, _ in ivs if a.date() == dd and a < rise), rise)          # odjezd před východem
+        E = next((b for a, b, _ in ivs if a < set_ < b), set_)                         # pryč při západu → příjezd
         kwh = p["kwh"]
+        start, morning = M, soc
         if p["d"] == today:
             kwh = max(0.0, kwh - produced) if now < set_ else 0.0
-            frac_day = max(0.0, min(1.0, (set_ - now).total_seconds() / 3600 / light_h)) if rise and now < set_ else 0.0
+            start = max(M, now)
+        gain = kwh * 1000 * 0.9 / 12.8 / cap * 100
+        day_h = max(0.0, (E - start).total_seconds() / 3600)
+        e = max(0.0, min(100.0, morning + gain - rate * day_h))     # večer s chatou na soláru
+        next_m = start + timedelta(hours=24) if p["d"] != today else datetime.combine(dd + timedelta(days=1), rise.timetz())
+        night_h = max(0.0, (next_m - max(E, start)).total_seconds() / 3600)
+        full = e - rate * night_h
+        lvl = 2 if full >= alarm else 1 if (morning + gain - rate * day_h) >= alarm and E > start else 0
+        r = {"d": p["d"], "kwh": p["kwh"], "txt": p["txt"], "m": round(morning), "lvl": lvl,
+             "M": int(M.timestamp()), "E": int(E.timestamp()), "dep": M != rise, "arr": E != set_,
+             "mvm": round(v_from_soc(morning), 2), "e": round(e), "av": round(v_from_soc(e) - 0.04, 2)}
+        r["ok"] = lvl >= 1 and p["d"] != today
+        if lvl == 2:
+            soc = max(0.0, full)
+        elif lvl == 1:
+            soc = e                                                 # v noci chata na River, baterie odpočívá
         else:
-            frac_day = 1.0
-        gain = kwh * 1000 * 0.9 / 12.8 / cap * 100                     # % z výroby
-        day_use = dc_day * light_h / 24 / 12.4 / cap * 100 * frac_day  # % spotřeba přes den
-        night_use = dc_day * (24 - light_h) / 24 / 12.4 / cap * 100     # % spotřeba v noci
-        morning = soc
-        r = {"d": p["d"], "kwh": p["kwh"], "txt": p["txt"], "m": round(morning)}
-        if mode == "zima":
-            od = soc_from_v(cfg["zima_pripojit_od_V"] or 12.7)
-            do = soc_from_v(cfg["zima_pripojit_do_V"] or 12.4)
-            full_day_use = dc_day * light_h / 24 / 12.4 / cap * 100
-            r["after"] = round(max(0, min(100, morning + gain - full_day_use)))
-            r["ok"] = bool(p["d"] != today and morning >= od and r["after"] >= do)
-            r["mvm"] = round(v_from_soc(morning), 2)                   # solární baterie ráno (v klidu)
-            r["av"] = round(v_from_soc(r["after"]) - 0.04, 2)          # po dni s chatou
-            soc = min(100.0, soc + gain)                               # bez připojení se jen nabíjí
-            r["e"] = round(soc)
-            r["ev"] = round(v_from_soc(soc), 2)                 # klidové napětí solární baterie večer
-        else:
-            e = morning + gain - day_use
-            r["waste"] = round(max(0.0, e - 100) / 100 * cap * 12.8 / 1000, 2)
-            e = max(0.0, min(100.0, e))
-            r["e"] = round(e)
-            soc = max(0.0, e - night_use)
-            r["nm"] = round(soc)                                       # ráno dalšího dne
-            r["mv"] = round(v_from_soc(soc) - 0.04, 2)                 # napětí ráno (pod malým odběrem)
+            soc = min(100.0, morning + gain)                        # chata celý den na River, baterie se jen nabíjí
+        r["waste"] = round(max(0.0, morning + gain - rate * day_h - 100) / 100 * cap * 12.8 / 1000, 2) if lvl else 0
+        r["nm"] = round(soc)                                         # ráno dalšího dne
+        r["mv"] = round(v_from_soc(soc) - 0.04, 2)
+        r["ev"] = round(v_from_soc(soc), 2)
         rows.append(r)
-    return {"mode": mode, "days": rows, "ac_day": round(ac_day), "dc_day": round(dc_day)}
+    return {"mode": mode, "days": rows, "ac_day": round(ac_day), "dc_day": round(dc_day), "alarm": round(alarm)}
 
 
 def Date_from(k):
@@ -2536,9 +2546,10 @@ def weather_and_outlook(data, st, cfg, now, topic, mode):
         t = days[1]
         tomorrow = t["d"]
         if t.get("ok") and st.get("connect_sent") != tomorrow:
+            hm_ = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M")
             digest(st, "☀️ Zítra můžeš chatu připojit na solární baterii",
-                 f"Zítra ráno ~{fmt(t.get('mvm'), 2)} V, zítra {t['txt'] or ''} ~{fmt(t['kwh'], 1)} kWh, zítra večer s chatou zbyde ~{fmt(t.get('av'), 2)} V.\n"
-                 f"Zítra večer zase přepoj na River.")
+                 f"Zítra {t['txt'] or ''} ~{fmt(t['kwh'], 1)} kWh. " + ("Solár utáhne chatu celý den i noc." if t.get("lvl") == 2 else
+                 f"Solár utáhne chatu zítra od {hm_(t['M'])} do {hm_(t['E'])}, pak přepoj na River (zbyde ~{fmt(t.get('av'), 2)} V)."))
             st["connect_sent"] = tomorrow
     # přechody sezón (nejvýš jednou za 14 dní)
     if cfg.get("sezona_upozornit") and len(days) >= 5 and now.hour >= 18 and now.timestamp() - st.get("season_sent", 0) > 14 * 86400:

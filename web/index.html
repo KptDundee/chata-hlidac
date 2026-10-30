@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.147", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.148", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -875,21 +875,18 @@ function renderWx(d){
   // doporučení
   let rec = "";
   const t = days[1];
-  if(zima){
-    const okd = days.slice(1).find(x=>x.ok);
-    rec = okd ? `☀️ Chatu půjde přes den připojit na solární baterii <b>${dn(okd.d)}</b> (${dn(okd.d)} ráno ~${nf(okd.mvm,2)} V, ${dn(okd.d)} večer ~${nf(okd.av,2)} V).`
-              : `❄️ Příštích 7 dní nebude solární baterie dost nabitá k připojení (dnes večer ~${days[0]?.ev!=null?nf(days[0].ev,2)+" V":(days[0]?.e ?? "?")+" %"}).`;
-  } else if(t){
-    // days[i].mv = napětí ráno PO dni i (tj. ráno dne i+1)
-    const mvs = days.slice(1).filter(x=>x.mv!=null);
-    const low = mvs.find(x=>x.mv < WARN_V);
-    rec = low ? `⚠️ Podle předpovědi bude baterie <b>${dn(nextK(low.d))} ráno</b> jen ~${nf(low.mv,1)} V – ${dn(low.d)} málo slunce na spotřebu chaty.`
-              : mvs.length ? `✓ Na příští dny výroba stačí – baterie v žádném z příštích rán neklesne pod ~${nf(Math.min(...mvs.map(x=>x.mv)),1)} V.` : "";
+  // 5.148: dvě hranice pro každý den – 2 = solár utáhne chatu celý den i noc, 1 = od rána do večera, 0 = ani to
+  const hasL = days.some(x=>x.lvl!=null);
+  if(hasL && t){
+    const span = x => `od ${hmT(x.M)}${x.dep ? " (odjezd)" : ""} do ${hmT(x.E)}${x.arr ? " (příjezd)" : ""}`;
+    rec = t.lvl===2 ? `☀️ Zítra solár utáhne chatu <b>celý den i noc</b>.`
+        : t.lvl===1 ? `🌤 Zítra solár utáhne chatu <b>${span(t)}</b>, pak River.`
+        : (()=>{ const nx = days.slice(2).find(x=>x.lvl>=1); return `❄️ Zítra solár chatu neutáhne – chata na River.${nx ? ` Nejdřív <b>${dn(nx.d)}</b> (${nx.lvl===2 ? "celý den i noc" : span(nx)}).` : " Ani v dalších dnech podle předpovědi."}`; })();
   }
   const bars = preds.map((p,i)=>{ const o = days.find(x=>x.d===p.d) || {}; const h = Math.round(p.kwh/maxK*60);
-    const col = zima ? (o.ok?"var(--good)":"var(--s1)") : (need && p.kwh>=need ? "var(--good)" : "var(--s1)");
+    const col = o.lvl===2 ? "var(--good)" : o.lvl===1 ? "var(--warn)" : "var(--s1)";
     const vcol = v => v==null ? "var(--muted)" : v < CRIT_V ? "var(--crit)" : v < WARN_V ? "var(--serious)" : "var(--muted)";
-    const sv = zima ? o.ev : (days.find(x=>x.d===prevK(p.d)) || {}).mv;   // napětí RÁNO tohoto dne
+    const sv = o.mvm;   // 5.148: napětí ráno tohoto dne (podle simulace)
     const sub = sv!=null ? `<span style="color:${vcol(sv)}">${nf(sv,1)} V</span>` : "";
     return `<div style="flex:1;min-width:0;text-align:center" title="${p.txt}">
       <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden">${dshort(p.d)}</div>
@@ -904,7 +901,8 @@ function renderWx(d){
       <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · 2 panely":"☀️ letní provoz · 1 panel"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
     <div style="display:flex;gap:4px;margin-top:12px">${bars}</div>
     <div style="margin-top:10px">${rec}</div>
-    <div class="sub" style="margin-top:6px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně kolik musí panely vyrobit: ~${nf(need,2)} kWh/den = chata ${nf((ol.ac_day||0)/1000,2)} (lednice, světla, kamery, wifi) + měnič ${nf(((ol.dc_day||0)-(ol.ac_day||0))/1000,2)} (účinnost a vlastní spotřeba) + nabíjení baterie ${nf(need-(ol.dc_day||0)/1000,2)}; nabíjení River se nepočítá)`:""}${zima?" · pod sloupcem napětí solární baterie ten den večer (v klidu), zeleně den vhodný k připojení":" · pod sloupcem očekávané napětí baterie ten den ráno (pod „zítra“ = zítra ráno), zeleně den, kdy výroba pokryje spotřebu"}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
+    <div class="sub" style="margin-top:6px;font-size:12px"><span style="color:var(--good)">■</span> solár utáhne chatu celý den i noc · <span style="color:var(--warn)">■</span> od rána do večera (pak River) · <span style="color:var(--s1)">■</span> ani to. Ráno = východ slunce, při dřívějším odjezdu odjezd; večer = západ slunce, při pozdějším příjezdu příjezd.</div>
+    <div class="sub" style="margin-top:4px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně kolik musí panely vyrobit: ~${nf(need,2)} kWh/den = chata ${nf((ol.ac_day||0)/1000,2)} (lednice, světla, kamery, wifi) + měnič ${nf(((ol.dc_day||0)-(ol.ac_day||0))/1000,2)} (účinnost a vlastní spotřeba) + nabíjení baterie ${nf(need-(ol.dc_day||0)/1000,2)}; nabíjení River se nepočítá)`:""} · pod sloupcem napětí solární baterie ten den ráno (podle výpočtu)${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
     <details style="margin-top:2px"><summary style="font-size:13px">Jak přesně předpovídá</summary><div class="sub" style="font-size:12.5px;line-height:1.5">${acc}<br>Model zná zvlášť přímé a rozptýlené světlo a pro každou roční dobu se učí z minulých let – v zimě sám zjistí, že přímé slunce na panely nedopadá. Dny, kdy byla baterie brzy plná (výroba přiškrcená), do učení nepočítá.</div>${accRows?`<div style="font-size:12.5px;margin-top:6px">${accRows}</div>`:""}</details>`;
   el.classList.remove("hide");
 }
@@ -1423,7 +1421,6 @@ function tileNight(d, h){
     return {...t, cls: M.ok ? "ok" : "bad", v: M.ok ? `${nf(Math.max(0,M.socM))}<small>% River ${rano(M.mor)}</small>` : `${hmT(rs.until)}<small>River vybitá ${relDay(rs.until)}</small>`,
       st: M.ok ? cap1(`River ${doRana(M.mor)} vydrží`) : `River se vybije ${relDay(rs.until)} ~${hmT(rs.until)}`,
       a: M.ok ? `Při obvyklém odběru ~${nf(rs.typ_w ?? rs.w)} W · solární baterie ${dayPhase(d).ph==="day" ? "se zatím jen nabíjí" : "odpočívá"}` : "Dnes večer omez odběr / připrav druhou River"}; }
-  if(ol && ol.mode === "zima") return {...t, cls:"ok", v:"River", st:"Zimní provoz", a:"Chata každou noc jede z River"};
   { const F = d.day_fc;   // 4.74: přes den stejný výpočet jako dlaždice Solární baterie (výhled dne), ať si neodporují
     if(F && h.now - F.t <= 1800 && F.src !== "river" && F.night_ok != null){
       if(!F.night_ok) return {...t, cls:"bad", v: F.t_empty_n ? `${hmT(F.t_empty_n)}<small>došla by ${relDay(F.t_empty_n)}</small>` : "ne",
@@ -1598,10 +1595,10 @@ function tileTomorrow(d, h){
   const p = w.preds.find(x=>x.d===tk) || w.preds[1]; if(!p) return {...t, cls:"na", v:"–", st:"Bez předpovědi", a:""};
   const ol = w.ol || {}, need = ol.dc_day ? ol.dc_day/1000/0.9 : null;
   const v = `${nf(p.kwh, p.kwh<1?2:1)}<small>kWh</small>`, txt = (p.txt||"").replace(/^./, c=>c.toUpperCase());
-  if(ol.mode === "zima"){
-    const o = (ol.days||[]).find(x=>x.d===p.d) || {};
-    return {...t, cls:"ok", v, st: o.ok ? `${txt} – jde připojit` : `${txt}`, a: o.ok ? "Přes den chata na solární baterii" : "Chata zůstává na River"};
-  }
+  { const o = (ol.days||[]).find(x=>x.d===p.d) || {};     // 5.148: dvě hranice
+    if(o.lvl!=null) return o.lvl===2 ? {...t, cls:"ok", v, st:`${txt} – celý den i noc`, a:"Solár utáhne chatu i přes noc"}
+      : o.lvl===1 ? {...t, cls:"ok", v, st:`${txt} – přes den`, a:`Solár ${hmT(o.M)}–${hmT(o.E)}, pak River`}
+      : {...t, cls:"warn", v, st:`${txt} – solár neutáhne`, a:"Chata na River"}; }
   if(need && p.kwh >= need) return {...t, cls:"ok", v, st:`${txt} – dobije`, a:"Nic nedělej"};
   if(need && p.kwh >= need*0.6) return {...t, cls:"ok", v, st:`${txt} – skoro stačí`, a:"Nic zvláštního"};
   return {...t, cls:"warn", v, st:`${txt} – nedobije`, a:"Šetři, případně přepni na River"};
@@ -3694,8 +3691,6 @@ const SETTINGS = [
   ["Počasí a zimní provoz", [
     ["pocasi","Předpověď výroby podle počasí","Učí se z historie tvých panelů","","", "sw"],
     ["rezim","Provoz","Automaticky podle počtu panelů (1 = léto, 2 = zima)",["auto","leto","zima"],["automaticky","letní","zimní"],"sel"],
-    ["zima_pripojit_od_V","Zima: připojit solár, když má to ráno aspoň","Napětí solární baterie v klidu","V",0.05,"num"],
-    ["zima_pripojit_do_V","…a po dni s chatou zbyde aspoň","","V",0.05,"num"],
     ["sezona_upozornit","Upozornit na přechod zima ↔ léto","Podle předpovědi na příští dny","","", "sw"],
   ]],
   ["Panely a pojistka", [

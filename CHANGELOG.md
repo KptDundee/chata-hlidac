@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.148 – 30. 10. 2026
+- Výhled počasí – pro každý den dvě hranice, stejně v létě i v zimě: zeleně = solár utáhne chatu celý den i noc, žlutě = od rána do večera (pak River), modře = ani to. Ráno = východ slunce, při odjezdu před východem hodina odjezdu; večer = západ slunce, když je chata při západu sama, hodina příjezdu (z plánu / rozvrhu). Pod sloupcem napětí ráno. Rada pod grafem a dlaždice Zítra podle toho.
+- Noční dlaždice už neukazuje „Zimní provoz“ jen podle štítku; odhad nabití bere odběr podle toho, na čem chata jede. Nastavení „Zima: připojit solár od / do V“ odstraněno (nahrazeno hranicemi).
+
 ## 5.147 – 30. 10. 2026
 - Letní / zimní provoz = počet zapojených panelů (Nastavení panely_pocet: 1 = léto, 2 = zima). Nic se neodhaduje z toho, na čem chata jede. Štítek „❄️ zimní provoz · 2 panely“ / „☀️ letní provoz · 1 panel“. (Nahrazuje 5.146.)
 
