@@ -4166,49 +4166,49 @@ def full_charge_plan(data, st, now, topic, cfg):
 
 
 def heat_plan(data, st, now, topic, cfg):
-    """5.153 (Petr): kdy zatopit přes den. Jen když jsem na chatě (ne pryč podle plánu / rozvrhu) a 6:00–22:00.
-    Teplota pokoje za poslední hodinu neklesá → topí se, nic se nepočítá. Klesá → od aktuální teploty naučené
-    chladnutí (stejný model jako na ráno) do 22:00; kdy klesne na chladnuti_min_C (19 °C). Upozornění (nízká
-    důležitost) chladnuti_predstih_min (60) min předem, jednou za jedno chladnutí (znovu až po zatopení).
-    data["heat"] = {state: away / night / nomodel / heat / below / ok / cool, lim, lead, T, hit, warn, curve}"""
+    """5.153 / 5.154 (Petr): kdy zatopit přes den.
+    Křivka (graf) vždy, když je naučené chladnutí: od teď 10 h dopředu, „kdyby se od teď netopilo“, podle předpovědi
+    venkovní teploty (ochlazení / oteplení se v ní projeví). Venkovní předpověď po hodinách do data["heat"]["out"].
+    Upozornění jen podle pravidel: jsem na chatě (ne pryč), 6:00–22:00, teplota za hodinu klesá (jinak se topí),
+    nad hranicí chladnuti_min_C a hranice padne do 22:00; chladnuti_predstih_min předem, jednou za chladnutí.
+    data["heat"] = {state: away / night / nomodel / heat / below / ok / cool, lim, lead, T, hit, warn, curve, out}"""
     c = data.get("cool") or {}
     lim, lead = float(cfg.get("chladnuti_min_C") or 19), int(cfg.get("chladnuti_predstih_min") or 60)
-    h = {"lim": lim, "lead": lead, "t": int(now.timestamp()), "T": c.get("T_now"), "trend": c.get("trend")}
+    ts = now.timestamp()
+    h = {"lim": lim, "lead": lead, "t": int(ts), "T": c.get("T_now"), "trend": c.get("trend")}
     data["heat"] = h
     hs = st.setdefault("heat", {})
+    O = sorted((int(t), v) for t, v in ((st.get("wo") or {}).get("h") or {}).items())
+    h["out"] = [[t, v] for t, v in O if ts - 7 * 3600 <= t <= ts + 11 * 3600]
+    if c.get("T_now") is not None and c.get("k"):
+        import chladnuti
+        cv = chladnuti.curve(st, c["k"], c["T_now"], ts, ts + 10 * 3600)
+        if cv:
+            h["curve"] = cv
+            hit = next((t for t, T in cv if T <= lim), None)
+            if hit:
+                h["hit"], h["warn"] = int(hit), int(hit - lead * 60)
+    if c.get("trend") is not None and c["trend"] >= 0:
+        hs.pop("sent", None)                                 # topí se → další chladnutí smí upozornit znovu
     if is_away(cfg, PLAN, now):
         h["state"] = "away"
-        return
-    if not 6 <= now.hour < 22:
+    elif not 6 <= now.hour < 22:
         h["state"] = "night"
-        return
-    if c.get("T_now") is None or not c.get("k"):
+    elif c.get("T_now") is None or not c.get("k") or not h.get("curve"):
         h["state"] = "nomodel"
-        return
-    if c.get("trend") is None or c["trend"] >= 0:
-        h["state"] = "heat"                                  # neklesá → topí se
-        hs.pop("sent", None)
-        return
-    if c["T_now"] <= lim:
+    elif c.get("trend") is None or c["trend"] >= 0:
+        h["state"] = "heat"
+    elif c["T_now"] <= lim:
         h["state"] = "below"
-        return
-    import chladnuti
-    end = now.replace(hour=22, minute=0, second=0, microsecond=0)
-    cv = chladnuti.curve(st, c["k"], c["T_now"], now.timestamp(), end.timestamp())
-    if not cv:
-        h["state"] = "nomodel"
-        return
-    h["curve"] = cv
-    hit = next((t for t, T in cv if T <= lim), None)
-    if hit is None:
-        h["state"] = "ok"                                    # do 22:00 neklesne pod hranici
-        return
-    h.update(state="cool", hit=int(hit), warn=int(hit - lead * 60))
-    if now.timestamp() >= hit - lead * 60 and not hs.get("sent"):
-        mins = max(0, round((hit - now.timestamp()) / 60))
-        ntfy(topic, f"🔥 Zatop – v {datetime.fromtimestamp(hit, TZ).strftime('%H:%M')} bude v pokoji {fmt(lim, 0)} °C",
+    elif not h.get("hit") or h["hit"] > now.replace(hour=22, minute=0, second=0, microsecond=0).timestamp():
+        h["state"] = "ok"
+    else:
+        h["state"] = "cool"
+    if h["state"] == "cool" and ts >= h["warn"] and not hs.get("sent"):
+        mins = max(0, round((h["hit"] - ts) / 60))
+        ntfy(topic, f"🔥 Zatop – v {datetime.fromtimestamp(h['hit'], TZ).strftime('%H:%M')} bude v pokoji {fmt(lim, 0)} °C",
              f"Teď {fmt(c['T_now'], 1)} °C, klesá. {fmt(lim, 0)} °C asi za {fmt_h(mins / 60) if mins >= 60 else f'{mins} min'}.", 2, "fire")
-        hs["sent"] = int(now.timestamp())
+        hs["sent"] = int(ts)
 
 
 def cold_factor(data, cfg):
