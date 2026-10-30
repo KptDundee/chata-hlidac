@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.157 – 30. 10. 2026
+- Graf „Noc: pokoj a venku“: předpověď začíná od nejvyšší teploty po 0:00 (po přiložení teplota ještě chvíli stoupá), ne přímo v 0:00 – dřív začínala chladnout o 2–3 h dřív než skutečnost a byla celou noc ~3 °C níž. Stejný bod, od kterého se model učí.
+
 ## 5.156 – 30. 10. 2026
 - Teploty: pevné pořadí grafů – Pokoj, Ložnice, Baterie, Kuchyně, Koupelna, Lednice (ostatní za nimi).
 - Kdy zatopit: dvě výrazná čísla nahoře – „🔥 Zatop do 15:16“ a „🛏️ Ve 0:00 mít aspoň X °C“ (aby ráno v 7:00 bylo 21 °C; od spaní do rána se netopí, přiložení před spaním = rezerva). Nové nastavení „Chodím spát v“ (0:00). Zrušen nepoužitelný údaj „musí být teď ~35 °C“.
