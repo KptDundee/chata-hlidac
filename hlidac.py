@@ -1071,6 +1071,14 @@ def ntfy(topic, title, msg, prio=3, tags="", note=None, actions=None, delay=None
 ALARM_REPEAT_S = 570
 
 
+def fmt_h(h):
+    """5.151 (Petr): hodiny všude jako hod:min („2:42 h“)."""
+    if h is None:
+        return "–"
+    m = int(round(abs(h) * 60))
+    return f"{'−' if h < 0 else ''}{m // 60}:{m % 60:02d} h"
+
+
 def digest(st, title, msg=""):
     """Kategorie 3 – žádná zvláštní zpráva, jen řádek do večerního souhrnu."""
     d = st.setdefault("digest", [])
@@ -1935,7 +1943,7 @@ def send_cmd(topic, ip, on, reason):
 
 def dur(sec):
     m = int(sec // 60)
-    return f"{m // 60} h {m % 60:02d} min" if m >= 60 else f"{m} min"
+    return f"{m // 60}:{m % 60:02d} h" if m >= 60 else f"{m} min"     # 5.151: hod:min
 
 
 def river_auto(v, st, now, topic, cfg, rise, set_, data, inv=None):
@@ -2244,7 +2252,7 @@ def watch_publish(data, v, st, now, topic, cfg):
         od = t0.strftime("%H:%M") if t0.date() == now.date() else f"{rel_day(rs['t0'], now)} {t0.strftime('%H:%M')}"
         fc = f"🔋 {rs['name']} · {rs['now']} W\nod {od} · {fmt(rs['wh'] / 1000, 2)} kWh"
     elif rs:
-        hh =f"{rs['h']:.0f} h" if rs["h"] >= 1.5 else f"{rs['h'] * 60:.0f} min"
+        hh = fmt_h(rs["h"]) if rs["h"] >= 1.5 else f"{rs['h'] * 60:.0f} min"
         fc = f"🔋 River {rs['soc']} % · ~{hh}\ndo {rel_day(rs['until'], now)} {datetime.fromtimestamp(rs['until'], TZ).strftime('%H:%M')}"
         if rs["soc"] <= (cfg["river_vymenit_pod"] or 15):
             lvl = max(lvl, 1)
@@ -2411,28 +2419,18 @@ def detect_mode(data, st, cfg, now, inv):
 
 
 def cabin_consumption(data, cfg, mode, now):
-    """Spotřeba chaty za den (Wh na výstupu, AC) – medián posledních 7 celých dní.
-
-    Léto: lednice + ostatní (světla, kamery, wifi) – BEZ nabíjení River přebytkem (to není spotřeba chaty).
-    Když chybí, zásuvka měniče za dny, kdy se River nenabíjela. Zima: zásuvky na River.
-    """
+    """Spotřeba chaty za den (Wh AC) – medián posledních 7 celých dní.
+    5.151 (Petr): celá chata bez ohledu na zdroj = zásuvka měniče (1) + zásuvky na výstupu River (2, 3, 6).
+    Od měniče se odečte zásuvka nabíjení River přebytkem (river_auto_ip) – to není spotřeba chaty."""
     inv = data.get("inverter") or {}
     mip = inv.get("mip") or str(cfg.get("zasuvka_menic") or "").strip()
-    fip = str(cfg.get("zasuvka_lednice") or "").strip()
+    aip = str(cfg.get("river_auto_ip") or "").strip()
     rivers = ips(cfg.get("zasuvky_river"))
     vals = []
     for k in sorted(data["days"])[-9:-1]:
-        day = data["days"][k]
-        tp = day.get("tp") or {}
-        if mode == "zima":
-            x = sum(tp.get(i, 0) for i in rivers)
-        elif fip and tp.get(fip) and day.get("on") is not None:
-            x = tp[fip] + day["on"] * 24
-        elif mip and not day.get("ra_min"):
-            x = tp.get(mip)
-        else:
-            x = None
-        if x and x > 50:
+        tp = data["days"][k].get("tp") or {}
+        x = max(0.0, (tp.get(mip) or 0) - (tp.get(aip) or 0)) + sum(tp.get(i, 0) or 0 for i in rivers)
+        if x > 50:
             vals.append(x)
     if len(vals) >= 2:
         vals.sort()
@@ -3150,7 +3148,7 @@ def check_gateway(inv, st, now, topic, cfg):
     gh_age = (now.timestamp() - (st.get("flip_gh") or 0)) / 60
     if inv and age <= lim and st.get("flip_gh") and gh_age > 90 and not st.get("gw_nogh"):
         digest(st, "🐢 Flip neposílá data přes GitHub",
-               f"Naposledy před {gh_age / 60:.1f} h – nejspíš prošlý GitHub token v Bráně.")
+               f"Naposledy před {fmt_h(gh_age / 60)} – nejspíš prošlý GitHub token v Bráně.")
         st["gw_nogh"] = True
     elif gh_age <= 30:
         st["gw_nogh"] = False
@@ -3878,10 +3876,10 @@ def fridge_check(data, st, now, topic, cfg):
     # 5.95: jedno upozornění „Lednice nechladí“ – teplota nebo kompresor (bez proudu hlásí „(4) není vidět“)
     hm = lambda t: f"{rel_day(t, now)} {datetime.fromtimestamp(t, TZ).strftime('%H:%M')}"
     if state == "off":
-        c_msg = (f"Kompresor neběžel od {hm(info['od'])} (už {fmt(info['h'], 1)} h, obvykle nejdéle ~{fmt(max_off / 3600, 1)} h). "
+        c_msg = (f"Kompresor neběžel od {hm(info['od'])} (už {fmt_h(info['h'])}, obvykle nejdéle ~{fmt_h(max_off / 3600)}). "
                  "Porucha, vypnutá lednice, nebo je v chatě hodně zima?")
     elif state == "on":
-        c_msg = (f"Kompresor běží od {hm(info['od'])} (už {fmt(info['h'], 1)} h, obvykle nejdéle ~{fmt(max_on / 3600, 1)} h). "
+        c_msg = (f"Kompresor běží od {hm(info['od'])} (už {fmt_h(info['h'])}, obvykle nejdéle ~{fmt_h(max_on / 3600)}). "
                  "Otevřené dveře, námraza, nebo porucha?")
     else:
         c_msg = ""
@@ -4905,7 +4903,7 @@ def away_plan(data, st, now, topic, cfg):
     if chg and home_now:
         title = f"⛽ Nabij {pn_(chg['name'])} – začni nejpozději {rd(chg['late'])} v {hm(chg['late'])}"
         msg = (f"{rd(chg['a']).capitalize()} {hm(chg['a'])}–{hm(chg['b'])} jsi pryč a solár ani River to bez nabití neutáhnou. "
-               f"Nabij aspoň na ~{chg['need']} % (~{fmt(chg['dur'] / 3600, 1)} h). Generátor jen 6:00–22:00.")
+               f"Nabij aspoň na ~{chg['need']} % (~{fmt_h(chg['dur'] / 3600)}). Generátor jen 6:00–22:00.")
         alarm(st, topic, "chg", ts >= chg["late"] - 2 * 3600, title, msg, 4, "fuelpump", ok_title=False, cat=2)
     else:
         alarm(st, topic, "chg", False, ok_title=False)
@@ -5481,7 +5479,7 @@ def gen_sessions(data, st, now, topic, cfg):
                 rv_txt.append(f"{v.get('name') or 'River'} {fmt(v['s0'])} → {fmt(v['s1'])} % (+{fmt(d_ / 1000, 2)} kWh)")
         dur = (rec["t1"] - rec["t0"]) / 3600
         eff = f" · účinnost ~{fmt(got / rec['wh'] * 100)} %" if rec.get("wh") and got > 0 else ""
-        msg = (f"Běžel ~{fmt(dur, 1)} h, dodal {fmt((rec.get('wh') or 0) / 1000, 2)} kWh." if rec.get("wh") else f"Běžel ~{fmt(dur, 1)} h.") + \
+        msg = (f"Běžel ~{fmt_h(dur)}, dodal {fmt((rec.get('wh') or 0) / 1000, 2)} kWh." if rec.get("wh") else f"Běžel ~{fmt_h(dur)}.") + \
               ("\n" + "\n".join(rv_txt) if rv_txt else "") + eff
         log("ev", "Generátor: konec – " + msg.replace("\n", " · "))
         if ts - (st.get("gen_sum_t") or 0) > 7200:       # 5.95: bez řízení nabíjení – jen do souhrnu
@@ -6008,7 +6006,7 @@ def check_river(r, st, topic, cfg, data=None):
         msg = f"{io}.\nMalá River napájí 12V osvětlení. Vyměň ji nebo nabij."
     else:
         mins = r.get("dsg_min")
-        rest = f" Zbývá asi {fmt(mins / 60, 1)} h." if mins and mins < 6000 else ""
+        rest = f" Zbývá asi {fmt_h(mins / 60)}." if mins and mins < 6000 else ""
         title = f"🔴 River {name} se vypnula ({fmt(soc)} %)" if died else f"🔄 River {name} má jen {fmt(soc)} % – přepoj chatu"
         msg = (f"{io}.\nRiver přestala dodávat – pokud z ní jela chata, je teď bez 230 V (lednice, Wi‑Fi, Flip)." if died
                else f"{io}.{rest}\nPřepoj chatu na druhou River (nebo solár) a tuhle nabij.")

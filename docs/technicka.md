@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.151**: `cabin_consumption` = tp[mip] − tp[river_auto_ip] + Σ tp[zasuvky_river] (medián 7 dní, bez režimu). Web `hmH(h)` / `valU` (grafy s unit „h“), Python `fmt_h`, `dur` = h:mm. `detHours` „d“ = od půlnoci (min 0,05 h). `srcSegs` klíče q / qr s důvodem, výpis pod pásem.
+
 **5.150**: `outlook` – cap = (hq.cap | eff_cap) × cold_factor, alarm = ocv_soc(krit + 0,05) v #; řádek + g, du, nu, full, al; `need_full` = dc_day/1000/0,9, `need_day` = need_full · medián(východ–západ)/24 (jen čáry). Web: pod sloupcem `m` #, čáry --good / --warn, tabulka „Jak vyšla barva dne“.
 
 **5.149**: `full_charge_plan` (po `full_charge_check`) – od `plne_nabiti_od_dni` dní od `last_full`; řádky `wxo.ol.days`: n = dní, než Σ výroba (kWh·0,9/12,8/cap) ≥ (100 − ráno %)·1,2; kandidát (nedobije, n, začátek) min, začátek ≤ last_full + `plne_nabiti_dni`; běžící plán (`st.fullplan.start` ≤ dnes) – zbytek ze `soc_est`. `data.fullplan = {start, n, end, days_since, lim, deadline, late, need, cur}`; digest při vzniku / změně, ntfy 19–22 h den předem. Web `#fullbar` / `fullBar()`.

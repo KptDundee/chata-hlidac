@@ -138,7 +138,7 @@ def _fit(R, s, e, tout, inwin=lambda t: True, why=None):
         h = (tb - ta) / 3600
         if h < 3 or Ta - Tb < 0.8:
             if why is not None and h >= 1:
-                why.append(f"{datetime.fromtimestamp(ta, _TZ).strftime('%d.%m. %H:%M')}: {h:.1f} h, pokles {Ta - Tb:.1f} °C – málo (aspoň 3 h a 0,8 °C)")
+                why.append(f"{datetime.fromtimestamp(ta, _TZ).strftime('%d.%m. %H:%M')}: {int(h)}:{int(round(h % 1 * 60)):02d} h, pokles {Ta - Tb:.1f} °C – málo (aspoň 3 h a 0,8 °C)")
             continue
         integ, ok, outs = 0.0, True, []
         for (t0, T0), (t1, T1) in zip(pc, pc[1:]):

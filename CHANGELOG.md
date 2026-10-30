@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.151 – 30. 10. 2026
+- Spotřeba chaty pro výhled = celá chata bez ohledu na zdroj: zásuvka měniče (1) − nabíjení River přebytkem (8) + zásuvky na výstupu River (2, 3, 6), medián 7 celých dní. Dřív v zimním režimu jen zásuvky River (0,48 kWh místo ~0,75 kWh).
+- „Dnes“ v detailech = přesně od 0:00 (dřív nejméně 3 h); koláč „dnes od 0:00“.
+- Hodiny všude jako hod:min („2:42 h“) – web (grafy, tabulky, popisky, koláče, proužky) i zprávy.
+- Pás „Co kdy napájelo chatu“: nezjištěno s důvodem (měnič i Victron mlčí / River, ale zásuvky River bez odběru) a časy pod pásem.
+
 ## 5.150 – 30. 10. 2026
 - Výhled počasí: pod sloupcem nabití solární baterie ráno v # (dnes skutečné, dál odhad) místo voltů – dřív se # převádělo na volty tabulkou, která k # nesedí (12,1 V místo skutečných 12,37 V). Alarm 12,0 V převedený do # jako jinde (dřív jinou tabulkou), kapacita jako u # (× chlad).
 - Dvě orientační čárkované čáry: kolik musí panely vyrobit na celý den (24 h) a na provoz od východu do západu slunce (medián týdne). Barva dál podle výpočtu se zůstatkem z předchozího dne.
