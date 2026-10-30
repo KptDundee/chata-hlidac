@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.154", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.155", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2000,7 +2000,7 @@ function detFlip(body){
 }
 function detFridge(body){
   const d = DATA, fid = String(d.cfg?.zasuvka_lednice ?? "4"), nm = d.cfg?.teplomer_lednice, fr = d.fridge || {};
-  const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - 48*3600);
+  const pts = (d.points||[]).filter(p=>p.t >= Date.now()/1000 - TEMPH*3600);   // 5.155
   const S1 = fridgeStats(d, 24), S7 = fridgeStats(d, 7*24), hasT = nm && pts.some(p=>p.th && p.th[nm]!=null);
   const D = d.days||{}, dd = Object.keys(D).sort().slice(-14).map(k=>({k, v:(D[k].tp||{})[fid]!=null ? D[k].tp[fid]/1000 : null}));
   let rec = [];
@@ -2008,8 +2008,8 @@ function detFridge(body){
   if(fr.state==="off") rec.push("Kompresor neobvykle dlouho stojí – zkontroluj, jestli lednice běží (zapnutá, termostat, proud).");
   if(fr.state==="on") rec.push("Kompresor běží bez přestávky – otevřené dveře, námraza nebo porucha.");
   if(!nm) rec.push("Tip: s teploměrem Xiaomi v lednici (Nastavení → Teploměr v lednici) uvidíš přímo teplotu a přijde upozornění, když se ohřeje.");
-  body.insertAdjacentHTML("beforeend", (hasT ? chartCard("dl_t", "Teplota v lednici", `°C · 48 h · červeně ${d.cfg?.lednice_max_C ?? 8} °C = upozornění`) : "")
-    + chartCard("dl_w", "Kompresor lednice", "W · 48 h · zásuvka lednice (běží ~55–80 W, stojí ~0 W)")
+  body.insertAdjacentHTML("beforeend", tempSeg() + (hasT ? chartCard("dl_t", "Teplota v lednici", `°C · ${tempLab()} · červeně ${d.cfg?.lednice_max_C ?? 8} °C = upozornění`) : "")
+    + chartCard("dl_w", "Kompresor lednice", `W · ${tempLab()} · zásuvka lednice (běží ~55–80 W, stojí ~0 W)`)
     + chartCard("dl_duty", "Jak dlouho kompresor běžel", "% dne · 30 dní · světlejší = den s neúplnými daty (pod 20 h)")
     + chartCard("dl_d", "Spotřeba lednice po dnech", "kWh · 14 dní")
     + `<div class="card">
@@ -2020,8 +2020,8 @@ function detFridge(body){
     </div>`
     + (rec.length ? `<div class="card"><b>Doporučení</b><div class="sub" style="margin-top:4px;line-height:1.55">${rec.join("<br>")}</div></div>` : "")
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Hlídač upozorní, když kompresor stojí déle než ${d.cfg?.lednice_ticho_h ?? 3} h nebo běží déle než ${d.cfg?.lednice_bezi_h ?? 2} h (hranice se přizpůsobí posledním 7 dnům), když zásuvka lednice nejde přečíst${nm?`, nebo když je v lednici tepleji než ${d.cfg?.lednice_max_C ?? 8} °C déle než 30 min`:""}.</div>`);
-  if(hasT) lineChart($("dl_t"), pts.map(p=>({t:p.t, c:p.th && p.th[nm]!=null ? p.th[nm] : null})), "c", css("--s1"), {unit:"°C",dec:1,hours:48,refs:[[d.cfg?.lednice_max_C ?? 8,"--crit"]]});
-  lineChart($("dl_w"), pts.map(p=>({t:p.t, w:p.tp && p.tp[fid]!=null ? p.tp[fid] : null})), "w", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:48});
+  if(hasT) lineChart($("dl_t"), pts.map(p=>({t:p.t, c:p.th && p.th[nm]!=null ? p.th[nm] : null})), "c", css("--s1"), {unit:"°C",dec:1,hours:TEMPH,refs:[[d.cfg?.lednice_max_C ?? 8,"--crit"]]});
+  lineChart($("dl_w"), pts.map(p=>({t:p.t, w:p.tp && p.tp[fid]!=null ? p.tp[fid] : null})), "w", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:TEMPH});
   { const dk = Object.keys(D).sort().filter(k=>D[k].fd!=null).slice(-30).map(k=>({k, v:D[k].fd, h:D[k].fh, n:D[k].fn, w:D[k].fw}));   // 4.73
     if(dk.length) barChart($("dl_duty"), dk, "v", css("--s1"), {unit:"%",dec:0,label:k=>dayLabel(k),
       op:q=>q.h < 20 && q.k !== dkey(Date.now()/1000) ? .45 : 1,
@@ -2378,9 +2378,14 @@ function coolNight(d, h, n){
   svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move);
   svg.addEventListener("pointerleave", ev=>{ if(ev.pointerType==="mouse"){ ch.setAttribute("opacity",0); hideTip(); } });
 }
+/* 5.155: přepínač období pro grafy teplot a lednice (body se drží 14 dní) */
+let TEMPH = 48; try{ TEMPH = +localStorage.getItem("temph") || 48; }catch(_){}
+const tempSeg = () => `<div class="seg" id="tempseg" style="margin-bottom:12px">${[[24,"24 h"],[48,"48 h"],[168,"Týden"]].map(([v,l])=>`<button data-hh="${v}" aria-pressed="${TEMPH===v}">${l}</button>`).join("")}</div>`;
+const tempLab = () => TEMPH===168 ? "týden" : TEMPH+" h";
+document.addEventListener("click", e => { const b = e.target.closest("#tempseg button"); if(!b) return; TEMPH = +b.dataset.hh; try{ localStorage.setItem("temph", TEMPH); }catch(_){} openDet(DET_K); });
 function detTemps(body){
   const d = DATA, h = homeData(d), cfg = d.cfg || {}, th = (d.inverter && d.inverter.th) || [], lim = cfg.lednice_max_C ?? 8;
-  const pts = (d.points||[]).filter(p=>p.t >= h.now - 48*3600 && p.th);
+  const pts = (d.points||[]).filter(p=>p.t >= h.now - TEMPH*3600 && p.th);
   // 5.10: jen teploměry, které Flip posílá teď (staré / přejmenované zmizí); starší body podle očištěného jména
   const clean = n => String(n).replace(/^[\s,;:.]+|[\s,;:.]+$/g, "");
   const names = [...new Set([...th.map(x=>clean(x.n)), ...pts.flatMap(p=>Object.keys(p.th||{}).map(clean))])].filter(Boolean);   // 5.12: i ty, co teď chvíli mlčí
@@ -2391,13 +2396,13 @@ function detTemps(body){
   body.insertAdjacentHTML("beforeend", TT.html + `<div id="tt_tab_data" style="${TT.cur==="data"?"":"display:none"}"></div><div id="tt_tab_cool" style="${TT.cur==="cool"?"":"display:none"}"></div>`);
   tabsWire("tt_tab", ["data","cool"]);
   const dataBox = $("tt_tab_data"), coolBox = $("tt_tab_cool");
-  dataBox.insertAdjacentHTML("beforeend", names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · 48 h${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
+  dataBox.insertAdjacentHTML("beforeend", tempSeg() + names.map(n=>chartCard(id(n), `${escH(n)}${role(n)}`, `°C · ${tempLab()}${n === cfg.teplomer_lednice ? ` · červeně ${lim} °C = upozornění` : n === cfg.teplomer_baterie ? ` · modře 0 °C (mráz)` : ""}`)).join("")
     + `<div class="card"><h2 style="margin:0 0 6px">Teď</h2>${th.length ? th.map(x=>rowI(`<b>${escH(x.n)}</b>${role(x.n)}`, thWhy(x) ? thWhy(x) : `${x.old ? `<span class="sub">Flip ho teď neslyší – poslední hodnota:</span> <span style="color:var(--muted)">` : "<span>"}${x.t!=null ? nf(x.t,1)+" °C" : "–"}${x.h!=null ? ` · ${nf(x.h)} % vlhkost` : ""}${x.b!=null ? ` · baterie ${x.b} %${x.bt && Date.now()/1000 - x.bt > 3600 ? ` <span class="sub">(změřeno ${relDay(x.bt)} ${hmT(x.bt)})</span>` : ""}` : ""} · ${agoS(x.tm)}</span>`)).join("") : '<span class="sub">Flip zatím žádný teploměr neslyší.</span>'}</div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Teploměry Xiaomi vysílají přes Bluetooth, Flip je zachytí a pošle s ostatními daty. Který teploměr je u baterie a který v lednici, nastavíš v Nastavení (jménem jako ve Flipu). Teplota u baterie se bere pro hlídání mrazu a menší kapacitu v chladu, teplota v lednici pro upozornění nad ${lim} °C.</div>`);
   coolCard(coolBox, d, h);
   for(const n of names){ const el = $(id(n)); if(!el) continue;
     const ser = pts.map(p=>({t:p.t, c:val(p, n)}));
-    if(ser.some(q=>q.c!=null)) lineChart(el, ser, "c", css("--s1"), {unit:"°C",dec:1,hours:48, refs: n === cfg.teplomer_lednice ? [[lim,"--crit"]] : n === cfg.teplomer_baterie ? [[0,"--s1"]] : undefined});
+    if(ser.some(q=>q.c!=null)) lineChart(el, ser, "c", css("--s1"), {unit:"°C",dec:1,hours:TEMPH, refs: n === cfg.teplomer_lednice ? [[lim,"--crit"]] : n === cfg.teplomer_baterie ? [[0,"--s1"]] : undefined});
     else empty(el, "Zatím málo dat – graf se naplní během pár hodin."); }
 }
 function tileDevices(d, h){
@@ -3027,7 +3032,7 @@ const DET = {
   wx:    {t:"☀️ Počasí a výroba", s:"Předpověď na 7 dní", ids:["wxcard"]},
   alerts:{t:"⚠️ K řešení", s:"Jen mimořádné věci – pravidelné (noc, zítřek) jsou ve svých dlaždicích", build:detAlerts},
   gen:   {t:"⛽ Generátor", s:"Nabíjení River z generátoru – spustit, výkon, kam a kolik", build:detGen},
-  temps: {t:"🌡️ Teploty", s:"Teploměry Xiaomi – teplota a vlhkost, 48 h", build:detTemps},
+  temps: {t:"🌡️ Teploty", s:"Teploměry Xiaomi – teplota a vlhkost", build:detTemps},
   river: {t:"🔋 EcoFlow", s:"Přehled River – kolik mají, co dělají, jak dlouho vydrží", build:detRiver},
   plugs: {t:"🔌 River a zásuvky (původní)", s:"Automatika nabíjení River, zásuvky Tapo", ids:["riverInfo","rivers","s_plugs"]},
   use:   {t:"🏠 Spotřeba chaty", s:"Co bralo a kdy – ze soláru i z River", build:b=>detUse(b,"a")},

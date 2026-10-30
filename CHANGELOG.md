@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.155 – 30. 10. 2026
+- Grafy teplot (Teploty → Data) a lednice: přepínač 24 h / 48 h / Týden (pamatuje si volbu).
+
 ## 5.154 – 30. 10. 2026
 - Kdy zatopit: graf vždy (i když se topí, jsi pryč nebo je noc) – posledních 6 h naměřeno, 10 h odhad „kdyby se od teď netopilo“ podle předpovědi venkovní teploty (ochlazení / oteplení se projeví); stupnice °C, mřížka, čára „teď“, pod časem venkovní teplota z předpovědi. Upozornění dál jen podle pravidel (na chatě, 6–22, teplota klesá).
 

@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.155**: web `TEMPH` (localStorage temph), `tempSeg()` / `tempLab()` v `detTemps` a `detFridge`.
+
 **5.154**: `heat_plan` – křivka vždy (teď → +10 h, je-li k a T), `hit` / `warn` vždy, `heat.out` = venku po hodinách (−7 h … +11 h); stav jen pro text a upozornění. Web `heatCard` – osa −6 h … +10 h, stupnice, venku pod časem.
 
 **5.153**: `heat_plan` (po `chladnuti.update`) – `is_away` → away, mimo 6–22 → night, bez k / T → nomodel, `cool.trend` ≥ 0 → heat (reset `st.heat.sent`), T ≤ lim → below, jinak `chladnuti.curve(st, k, T, teď, 22:00)` → hit (první T ≤ lim), warn = hit − předstih; ntfy prio 2 jednou. `data.heat`. Web `heatCard` nahoře v `coolCard`.
