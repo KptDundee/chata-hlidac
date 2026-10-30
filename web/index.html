@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.149", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.150", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -871,8 +871,8 @@ function renderWx(d){
   const prevK = k => { const x=new Date(k+"T12:00"); x.setDate(x.getDate()-1); return x.toLocaleDateString("sv-SE"); };
   const dshort = k => { const s=dn(k); if(s==="dnes"||s==="zítra") return s; const x=new Date(k+"T12:00"); return x.toLocaleDateString("cs-CZ",{weekday:"short"})+" "+x.getDate()+"."; };
   const icon = c => c==null?"·":c<=1?"☀️":c===2?"⛅":c===3?"☁️":c<=48?"🌫":c<=67||(c>=80&&c<=82)?"🌧":c<=86?"🌨":"⛈";
-  const preds = w.preds.slice(0,7), maxK = Math.max(0.2, ...preds.map(p=>p.kwh), (ol.dc_day||0)/1000/0.9);
-  const need = ol.dc_day ? ol.dc_day/1000/0.9 : null;
+  const need = ol.need_full ?? (ol.dc_day ? ol.dc_day/1000/0.9 : null), needD = ol.need_day ?? null;   // 5.150: dvě čáry
+  const preds = w.preds.slice(0,7), maxK = Math.max(0.2, ...preds.map(p=>p.kwh), need||0) * 1.08;
   // doporučení
   let rec = "";
   const t = days[1];
@@ -887,12 +887,11 @@ function renderWx(d){
   const bars = preds.map((p,i)=>{ const o = days.find(x=>x.d===p.d) || {}; const h = Math.round(p.kwh/maxK*60);
     const col = o.lvl===2 ? "var(--good)" : o.lvl===1 ? "var(--warn)" : "var(--s1)";
     const vcol = v => v==null ? "var(--muted)" : v < CRIT_V ? "var(--crit)" : v < WARN_V ? "var(--serious)" : "var(--muted)";
-    const sv = o.mvm;   // 5.148: napětí ráno tohoto dne (podle simulace)
-    const sub = sv!=null ? `<span style="color:${vcol(sv)}">${nf(sv,1)} V</span>` : "";
+    const sub = o.m!=null ? `<span style="color:${o.al!=null && o.m < o.al ? "var(--crit)" : "var(--muted)"}">${nf(o.m)} #</span>` : "";   // 5.150: ráno v #
     return `<div style="flex:1;min-width:0;text-align:center" title="${p.txt}">
       <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden">${dshort(p.d)}</div>
       <div style="font-size:18px;line-height:1.3">${icon(p.code)}</div>
-      <div style="height:64px;display:flex;align-items:flex-end;justify-content:center;position:relative">${need?`<div style="position:absolute;left:0;right:0;bottom:${Math.round(need/maxK*60)}px;border-top:1.5px dashed var(--muted)"></div>`:""}<div style="width:62%;max-width:26px;height:${Math.max(2,h)}px;background:${col};border-radius:4px 4px 0 0"></div></div>
+      <div style="height:64px;display:flex;align-items:flex-end;justify-content:center;position:relative">${need?`<div style="position:absolute;left:0;right:0;bottom:${Math.round(need/maxK*60)}px;border-top:2px dashed var(--good)"></div>`:""}${needD?`<div style="position:absolute;left:0;right:0;bottom:${Math.round(needD/maxK*60)}px;border-top:2px dashed var(--warn)"></div>`:""}<div style="width:62%;max-width:26px;height:${Math.max(2,h)}px;background:${col};border-radius:4px 4px 0 0"></div></div>
       <div style="font-size:12px;font-weight:600;font-variant-numeric:tabular-nums">${nf(p.kwh,p.kwh<1?2:1)}</div>
       <div style="font-size:10.5px;color:var(--muted);white-space:nowrap">${sub}</div></div>`; }).join("");
   const acc = w.acc_med!=null ? `Předpověď se učí z tvých panelů: posledních ${w.acc.length} dní odchylka obvykle ±${w.acc_med} %${w.bias && Math.abs(w.bias-1)>0.04?` · oprava ×${nf(w.bias,2)}`:""}.`
@@ -900,10 +899,13 @@ function renderWx(d){
   const accRows = (w.acc||[]).slice(-7).reverse().map(a=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--line)"><span>${dn(a.d)}</span><span style="font-variant-numeric:tabular-nums">předpověď ${nf(a.p,2)} → skutečnost <b>${nf(a.a,2)}</b> kWh</span></div>`).join("");
   el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>Počasí a výroba</b>
       <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · 2 panely":"☀️ letní provoz · 1 panel"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
-    <div style="display:flex;gap:4px;margin-top:12px">${bars}</div>
+    <div class="sub" style="margin-top:8px;font-size:12px">Číslo = výroba panelů podle předpovědi v kWh za den · pod ním nabití solární baterie ráno v # (dnes skutečné, dál odhad)</div>
+    <div style="display:flex;gap:4px;margin-top:4px">${bars}</div>
     <div style="margin-top:10px">${rec}</div>
-    <div class="sub" style="margin-top:6px;font-size:12px"><span style="color:var(--good)">■</span> solár utáhne chatu celý den i noc · <span style="color:var(--warn)">■</span> od rána do večera (pak River) · <span style="color:var(--s1)">■</span> ani to. Ráno = východ slunce, při dřívějším odjezdu odjezd; večer = západ slunce, při pozdějším příjezdu příjezd.</div>
-    <div class="sub" style="margin-top:4px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně kolik musí panely vyrobit: ~${nf(need,2)} kWh/den = chata ${nf((ol.ac_day||0)/1000,2)} (lednice, světla, kamery, wifi) + měnič ${nf(((ol.dc_day||0)-(ol.ac_day||0))/1000,2)} (účinnost a vlastní spotřeba) + nabíjení baterie ${nf(need-(ol.dc_day||0)/1000,2)}; nabíjení River se nepočítá)`:""} · pod sloupcem napětí solární baterie ten den ráno (podle výpočtu)${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
+    <div class="sub" style="margin-top:6px;font-size:12px"><span style="color:var(--good)">┅</span> <b>${need?nf(need,2):"–"} kWh</b> – výroba na celý den (24 h) · <span style="color:var(--warn)">┅</span> <b>${needD?nf(needD,2):"–"} kWh</b> – na provoz od východu do západu slunce. Čáry jsou orientační. Barva sloupce počítá i s tím, co v baterii zbylo z předchozího dne: <span style="color:var(--good)">■</span> solár utáhne chatu celý den i noc · <span style="color:var(--warn)">■</span> přes den, pak River · <span style="color:var(--s1)">■</span> ani to.</div>
+    ${days.some(x=>x.g!=null) ? `<details style="margin-top:4px"><summary style="font-size:13px">Jak vyšla barva dne</summary><div style="overflow-x:auto"><table style="font-size:12.5px;margin-top:4px;border-collapse:collapse;width:100%;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right"><thead><tr style="color:var(--text2)"><th style="text-align:left">#</th><th>ráno</th><th>+výr.</th><th>−den</th><th>večer</th><th>−noc</th><th>ráno po</th></tr></thead><tbody>${days.map(x=>`<tr style="border-top:1px solid var(--line)"><td style="text-align:left;padding:3px 0">${dshort(x.d)}</td><td>${nf(x.m)}</td><td>+${nf(x.g)}</td><td>−${nf(x.du)}</td><td>${nf(x.e)}</td><td>−${nf(x.nu)}</td><td style="color:var(${x.lvl===2?"--good":x.lvl===1?"--warn":"--s1"});font-weight:600">${nf(x.full)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="sub" style="margin-top:4px;line-height:1.5">Vše v # (100 = plná). Alarm 12,0 V ≈ ${days[0] && days[0].al!=null ? nf(days[0].al) : "?"} #. Večer = ráno + výroba − spotřeba od rána do večera (víc než 100 se nevejde). „Ráno po“ = kdyby chata jela ze soláru i v noci. Zeleně: ráno po ≥ alarm. Žlutě: večer ≥ alarm. Po žlutém dni jede chata v noci na River, takže další den začíná s tím, co zbylo večer – proto může po slabším dni vyjít zelená i při menší výrobě.</div></details>` : ""}
+    <div class="sub" style="margin-top:4px;font-size:12px">kWh za den podle předpovědi počasí${need?` · na celý den musí panely vyrobit ~${nf(need,2)} kWh/den = chata ${nf((ol.ac_day||0)/1000,2)} (lednice, světla, kamery, wifi) + měnič ${nf(((ol.dc_day||0)-(ol.ac_day||0))/1000,2)} (účinnost a vlastní spotřeba) + nabíjení baterie ${nf(need-(ol.dc_day||0)/1000,2)}; nabíjení River se nepočítá)`:""}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
     <details style="margin-top:2px"><summary style="font-size:13px">Jak přesně předpovídá</summary><div class="sub" style="font-size:12.5px;line-height:1.5">${acc}<br>Model zná zvlášť přímé a rozptýlené světlo a pro každou roční dobu se učí z minulých let – v zimě sám zjistí, že přímé slunce na panely nedopadá. Dny, kdy byla baterie brzy plná (výroba přiškrcená), do učení nepočítá.</div>${accRows?`<div style="font-size:12.5px;margin-top:6px">${accRows}</div>`:""}</details>`;
   el.classList.remove("hide");
 }

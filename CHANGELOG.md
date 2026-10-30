@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.150 – 30. 10. 2026
+- Výhled počasí: pod sloupcem nabití solární baterie ráno v # (dnes skutečné, dál odhad) místo voltů – dřív se # převádělo na volty tabulkou, která k # nesedí (12,1 V místo skutečných 12,37 V). Alarm 12,0 V převedený do # jako jinde (dřív jinou tabulkou), kapacita jako u # (× chlad).
+- Dvě orientační čárkované čáry: kolik musí panely vyrobit na celý den (24 h) a na provoz od východu do západu slunce (medián týdne). Barva dál podle výpočtu se zůstatkem z předchozího dne.
+- „Jak vyšla barva dne“: tabulka po dnech v # – ráno, + výroba, − přes den, večer, − noc, ráno po (barva). Popisky s jednotkami.
+
 ## 5.149 – 30. 10. 2026
 - Plán dobití solární baterie do plna: od 7. dne bez plného nabití (Float) hlídač v předpovědi na týden vybere, kdy začít a kolik dní za sebou to potrvá (chata na River, solár jen nabíjí; dní = dokud výroba nepokryje, co chybí do plna + 20 %). Z možností ta s nejmenším počtem dní; začít se musí nejpozději 14. den (konec zaručit nejde – počasí). Přepočítává se každý běh; do souhrnu, když plán vznikne / změní se začátek; večer před začátkem zpráva. Konec = Float.
 - Hlavní stránka: proužek „🔋 Dobití do plna: od út 3. 11. · asi 2 dny“, během „den 1 ze 2 – chata na River“. Nastavení: plne_nabiti_od_dni (7), plne_nabiti_dni (14 = nejpozději začít).

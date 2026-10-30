@@ -2443,22 +2443,24 @@ def cabin_consumption(data, cfg, mode, now):
 def outlook(data, st, cfg, now, mode, preds):
     """Simulace solární baterie na 7 dní podle předpovědi výroby a spotřeby chaty.
 
-    5.148 (Petr) – pro každý den dvě hranice, stejně v létě i v zimě:
+    5.148 (Petr) – pro každý den dvě hranice, stejně v létě i v zimě (se zůstatkem z předchozího dne):
       2 = solár utáhne chatu celý den i noc (do dalšího rána nad alarmem),
       1 = utáhne ji od rána do večera (pak River),
       0 = ani to.
+    5.150: vše v # (naše nabití: 100 = plná, 0 = prázdná podle kapacity), alarm 12,0 V převedený do # (ocv_soc), kapacita
+    jako jinde (# × chlad). Orientační čáry need_full / need_day = kolik musí panely vyrobit na 24 h / východ–západ.
     Ráno = východ slunce; když se ten den odjíždí před východem, hodina odjezdu. Večer = západ slunce; když je
     chata v tu dobu sama (odjezd), hodina příjezdu. Ráno dalšího dne: po 2 se počítá s nocí na solár, jinak baterie
     v noci jen odpočívá (chata na River).
     """
-    cap = eff_cap(data, cfg)
+    cap = ((data.get("hq") or {}).get("cap") or eff_cap(data, cfg)) * cold_factor(data, cfg)[0]   # 5.150: jako #
     idle = cfg["menic_vlastni_W"] or 0
     ac_day = cabin_consumption(data, cfg, mode, now)               # Wh AC za 24 h
     dc_day = ac_day / 0.88 + idle * 24                             # Wh z baterie za 24 h (při zapojení)
     soc = data.get("soc_est")
     if soc is None or not preds:
         return None
-    alarm = soc_from_v((cfg.get("baterie_kriticka_V") or 12.0) + 0.05)
+    alarm = ocv_soc((cfg.get("baterie_kriticka_V") or 12.0) + 0.05)      # 5.150: v # jako energy_model
     rate = dc_day / 24 / 12.4 / cap * 100                          # % za hodinu, když chata jede ze soláru
     today = now.date().isoformat()
     produced = (data["days"].get(today) or {}).get("solar_kwh") or 0
@@ -2466,6 +2468,15 @@ def outlook(data, st, cfg, now, mode, preds):
         ivs = away_list(cfg, PLAN, now, days=8)
     except Exception:
         ivs = []
+    # 5.150: orientační čáry – kolik musí panely vyrobit na celý den (24 h) a na provoz od východu do západu (medián týdne)
+    import statistics as _stt
+    lh = []
+    for p in preds[:7]:
+        r_, z_ = sun_times(cfg["sirka"], cfg["delka"], Date_from(p["d"]))
+        if r_:
+            lh.append((z_ - r_).total_seconds() / 3600)
+    need_full = dc_day / 1000 / 0.9
+    need_day = need_full * (_stt.median(lh) if lh else 10) / 24
     rows = []
     for p in preds[:7]:
         dd = Date_from(p["d"])
@@ -2487,6 +2498,7 @@ def outlook(data, st, cfg, now, mode, preds):
         full = e - rate * night_h
         lvl = 2 if full >= alarm else 1 if (morning + gain - rate * day_h) >= alarm and E > start else 0
         r = {"d": p["d"], "kwh": p["kwh"], "txt": p["txt"], "m": round(morning), "lvl": lvl,
+             "g": round(gain), "du": round(rate * day_h), "nu": round(rate * night_h), "full": round(full), "al": round(alarm),
              "M": int(M.timestamp()), "E": int(E.timestamp()), "dep": M != rise, "arr": E != set_,
              "mvm": round(v_from_soc(morning), 2), "e": round(e), "av": round(v_from_soc(e) - 0.04, 2)}
         r["ok"] = lvl >= 1 and p["d"] != today
@@ -2501,7 +2513,8 @@ def outlook(data, st, cfg, now, mode, preds):
         r["mv"] = round(v_from_soc(soc) - 0.04, 2)
         r["ev"] = round(v_from_soc(soc), 2)
         rows.append(r)
-    return {"mode": mode, "days": rows, "ac_day": round(ac_day), "dc_day": round(dc_day), "alarm": round(alarm)}
+    return {"mode": mode, "days": rows, "ac_day": round(ac_day), "dc_day": round(dc_day), "alarm": round(alarm),
+            "need_full": round(need_full, 2), "need_day": round(need_day, 2)}
 
 
 def Date_from(k):
