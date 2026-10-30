@@ -302,6 +302,26 @@ def update(data, st, now, cfg, log=print):
         if a0 is not None and a1 is not None and a1 - a0 > 0.001:
             c.update(morning=tm, target=target, pred=round(a0 + (a1 - a0) * c["T_now"], 1),
                      need_T=round((target - a0) / (a1 - a0), 1))
+    if ks or c.get("k"):
+        # 5.156 (Petr): kolik °C mít v pokoji, když jdu spát (chladnuti_spat, 0:00), aby ráno (chladnuti_rano) bylo
+        # chladnuti_cil_C – stejný model a předpověď venku, od spaní do rána se netopí (přiložení před spaním = rezerva)
+        k = c["k"]
+        hh, mm = (str(cfg.get("chladnuti_rano") or "7:00").split(":") + ["0"])[:2]
+        bh, bm = (str(cfg.get("chladnuti_spat") or "0:00").split(":") + ["0"])[:2]
+        bed = now.replace(hour=int(bh), minute=int(bm), second=0, microsecond=0)
+        mor = now.replace(hour=int(hh), minute=int(mm), second=0, microsecond=0)
+        if mor <= now:
+            mor += timedelta(days=1)
+        while bed >= mor:
+            bed -= timedelta(days=1)
+        if bed < now - timedelta(hours=1):
+            bed += timedelta(days=1)
+            mor += timedelta(days=1) if mor <= bed else timedelta(0)
+        target = float(cfg.get("chladnuti_cil_C") or 21)
+        b0, b1 = _sim(0.0, bed.timestamp(), mor.timestamp(), k, tout), _sim(1.0, bed.timestamp(), mor.timestamp(), k, tout)
+        if b0 is not None and b1 is not None and b1 - b0 > 0.001:
+            c.update(bed=int(bed.timestamp()), bed_mor=int(mor.timestamp()), target=target,
+                     need_bed=round((target - b0) / (b1 - b0), 1))
     data["cool"] = c
 
 

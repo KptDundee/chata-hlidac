@@ -155,6 +155,7 @@ chladnuti_rano = 7:00             # předpověď „ráno bude ~X °C“ na tent
 chladnuti_noc_od = 0:00          # učit se chladnutí jen z noci, kdy se netopí – od
 chladnuti_noc_do = 7:00          # … do
 chladnuti_cil_C = 21              # kolik °C chci ráno – z toho „musí být při dotopení ~Z °C“
+chladnuti_spat = 0:00                 # kdy chodím spát – kolik °C mít v pokoji v tu dobu, aby ráno bylo chladnuti_cil_C
 venku_sirka = 50.095              # venkovní teplota: Praha-Hrdlořezy
 venku_delka = 14.517
 zasuvka_router = 5               # zásuvka, ze které se napájí router M7000 (číslo; prázdné = neřídit)

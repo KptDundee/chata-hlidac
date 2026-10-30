@@ -32,7 +32,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60,
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
