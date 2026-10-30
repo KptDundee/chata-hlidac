@@ -2389,27 +2389,18 @@ def track_soc(data, st, v, now, cfg, inv, mode):
 
 
 def detect_mode(data, st, cfg, now, inv):
-    """Letní provoz = chata přes den jede ze solární baterie (v noci klidně River); zimní = chata několik dní vůbec
-    nejede ze soláru, napájí ji River (5.146: posoudí se z posledních 3 celých dní, days[k].sh)."""
+    """Letní / zimní provoz = počet zapojených panelů (panely_pocet: 1 = léto, 2 = zima)."""
     want = str(cfg.get("rezim") or "auto").strip().lower()
     if want in ("leto", "léto", "zima"):
         mode = "zima" if want == "zima" else "leto"
         data["mode"] = {"m": mode, "auto": False}
         st["mode"] = mode
         return mode
-    # 5.146: podle posledních 3 celých dní, ne podle teď. Dřív stačilo 30 min na River → každou noc „zimní provoz“,
-    # i když chata přes den jede ze soláru. Zima = chata ani jeden z těch dní nejela ze soláru aspoň 2 h; léto = jela.
-    today = now.strftime("%Y-%m-%d")
-    dd = data.get("days") or {}
-    last3 = [dd[k]["sh"] for k in sorted(dd) if k < today and (dd[k] or {}).get("sh") is not None
-             and (dd[k].get("rhh") or 0) >= 18][-3:]
-    guess = None
-    if len(last3) == 3:
-        guess = "zima" if all(x < 2 for x in last3) else "leto"
+    # 5.147 (Petr): letní / zimní provoz = počet zapojených panelů (léto 1, zima 2), nic jiného.
+    guess = "zima" if int(cfg.get("panely_pocet") or 1) >= 2 else "leto"
     mode = st.get("mode") or "leto"
-    if guess and guess != mode:
-        log("ev", "Přechod na zimní provoz (chata už několik dní nejede ze soláru)" if guess == "zima"
-            else "Letní provoz (chata přes den jede ze solární baterie)")
+    if guess != mode:
+        log("ev", "Zimní provoz (2 panely)" if guess == "zima" else "Letní provoz (1 panel)")
         mode, st["mode_since"] = guess, int(now.timestamp())
     st["mode_n"] = 0
     st["mode"] = mode

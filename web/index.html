@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.146", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.147", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -901,7 +901,7 @@ function renderWx(d){
     : `Předpověď se učí z historie tvých panelů; přesnost se ukáže po pár dnech porovnávání.`;
   const accRows = (w.acc||[]).slice(-7).reverse().map(a=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--line)"><span>${dn(a.d)}</span><span style="font-variant-numeric:tabular-nums">předpověď ${nf(a.p,2)} → skutečnost <b>${nf(a.a,2)}</b> kWh</span></div>`).join("");
   el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>Počasí a výroba</b>
-      <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · chata trvale na River":"☀️ letní provoz · přes den solární baterie"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
+      <span class="pill" style="font-size:12.5px;padding:3px 10px">${zima?"❄️ zimní provoz · 2 panely":"☀️ letní provoz · 1 panel"}${d.mode && d.mode.auto===false?" (ručně)":""}</span></div>
     <div style="display:flex;gap:4px;margin-top:12px">${bars}</div>
     <div style="margin-top:10px">${rec}</div>
     <div class="sub" style="margin-top:6px;font-size:12px">kWh za den podle předpovědi počasí${need?` · čárkovaně kolik musí panely vyrobit: ~${nf(need,2)} kWh/den = chata ${nf((ol.ac_day||0)/1000,2)} (lednice, světla, kamery, wifi) + měnič ${nf(((ol.dc_day||0)-(ol.ac_day||0))/1000,2)} (účinnost a vlastní spotřeba) + nabíjení baterie ${nf(need-(ol.dc_day||0)/1000,2)}; nabíjení River se nepočítá)`:""}${zima?" · pod sloupcem napětí solární baterie ten den večer (v klidu), zeleně den vhodný k připojení":" · pod sloupcem očekávané napětí baterie ten den ráno (pod „zítra“ = zítra ráno), zeleně den, kdy výroba pokryje spotřebu"}${w.typ!=null?` · v tuhle roční dobu obvykle ~${nf(w.typ,2)} kWh`:""}</div>
@@ -3693,7 +3693,7 @@ const SETTINGS = [
   ]],
   ["Počasí a zimní provoz", [
     ["pocasi","Předpověď výroby podle počasí","Učí se z historie tvých panelů","","", "sw"],
-    ["rezim","Provoz","Automaticky pozná podle měniče a River",["auto","leto","zima"],["automaticky","letní","zimní"],"sel"],
+    ["rezim","Provoz","Automaticky podle počtu panelů (1 = léto, 2 = zima)",["auto","leto","zima"],["automaticky","letní","zimní"],"sel"],
     ["zima_pripojit_od_V","Zima: připojit solár, když má to ráno aspoň","Napětí solární baterie v klidu","V",0.05,"num"],
     ["zima_pripojit_do_V","…a po dni s chatou zbyde aspoň","","V",0.05,"num"],
     ["sezona_upozornit","Upozornit na přechod zima ↔ léto","Podle předpovědi na příští dny","","", "sw"],

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.147 – 30. 10. 2026
+- Letní / zimní provoz = počet zapojených panelů (Nastavení panely_pocet: 1 = léto, 2 = zima). Nic se neodhaduje z toho, na čem chata jede. Štítek „❄️ zimní provoz · 2 panely“ / „☀️ letní provoz · 1 panel“. (Nahrazuje 5.146.)
+
 ## 5.146 – 30. 10. 2026
 - Zimní / letní provoz se posuzuje podle posledních 3 celých dní, ne podle toho, na čem chata jede teď. Dřív stačilo 30 min na River → každou noc „❄️ zimní provoz · chata na River“, i když chata přes den jede ze soláru. Teď zima = chata ani jeden z posledních 3 dní nejela ze soláru aspoň 2 h; jinak léto. Štítek: „zimní provoz · chata trvale na River“ / „letní provoz · přes den solární baterie“.
 
