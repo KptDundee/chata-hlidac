@@ -303,3 +303,20 @@ def update(data, st, now, cfg, log=print):
             c.update(morning=tm, target=target, pred=round(a0 + (a1 - a0) * c["T_now"], 1),
                      need_T=round((target - a0) / (a1 - a0), 1))
     data["cool"] = c
+
+
+def curve(st, k, T0, t0, t1, step=600):
+    """5.153: předpověď chladnutí od teď (T0) do t1 po 10 min – stejný model jako na ráno. [(t, T)] nebo None."""
+    O = sorted((int(t), v) for t, v in ((st.get("wo") or {}).get("h") or {}).items())
+    if not O or not k:
+        return None
+    out, T, t = [(int(t0), round(T0, 2))], float(T0), int(t0)
+    while t < t1:
+        dt = min(step, t1 - t)
+        o = _interp(O, t)
+        if o is None:
+            return out if len(out) > 1 else None
+        T += -k * (T - o) * dt / 3600
+        t += dt
+        out.append((t, round(T, 2)))
+    return out

@@ -32,7 +32,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7,
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60,
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -1877,6 +1877,7 @@ def main():
                          ("Teploměry", lambda: thermo_check(data, st, now, topic, cfg)),
                          ("Data internetu", lambda: net_usage(data, st, now, cfg)),
                          ("Chladnutí pokoje", lambda: chladnuti.update(data, st, now, cfg)),
+                         ("Kdy zatopit", lambda: heat_plan(data, st, now, topic, cfg)),
                          ("Plné nabití", lambda: full_charge_check(data, st, now, topic, cfg)),
                          ("Plán dobití do plna", lambda: full_charge_plan(data, st, now, topic, cfg)),
                          ("Flip – výdrž", lambda: flip_check(data, st, now, topic, cfg)),
@@ -4162,6 +4163,52 @@ def full_charge_plan(data, st, now, topic, cfg):
              f"Zítra{'' if n == 1 else f' a {n - 1} další den' if n == 2 else f' a další {n - 1} dny' if n else ' a další dny'} nech chatu na River – solár jen nabíjí. "
              f"{int(ds)} dní bez plného nabití.", 3, "battery")
         fp["eve"] = d.isoformat()
+
+
+def heat_plan(data, st, now, topic, cfg):
+    """5.153 (Petr): kdy zatopit přes den. Jen když jsem na chatě (ne pryč podle plánu / rozvrhu) a 6:00–22:00.
+    Teplota pokoje za poslední hodinu neklesá → topí se, nic se nepočítá. Klesá → od aktuální teploty naučené
+    chladnutí (stejný model jako na ráno) do 22:00; kdy klesne na chladnuti_min_C (19 °C). Upozornění (nízká
+    důležitost) chladnuti_predstih_min (60) min předem, jednou za jedno chladnutí (znovu až po zatopení).
+    data["heat"] = {state: away / night / nomodel / heat / below / ok / cool, lim, lead, T, hit, warn, curve}"""
+    c = data.get("cool") or {}
+    lim, lead = float(cfg.get("chladnuti_min_C") or 19), int(cfg.get("chladnuti_predstih_min") or 60)
+    h = {"lim": lim, "lead": lead, "t": int(now.timestamp()), "T": c.get("T_now"), "trend": c.get("trend")}
+    data["heat"] = h
+    hs = st.setdefault("heat", {})
+    if is_away(cfg, PLAN, now):
+        h["state"] = "away"
+        return
+    if not 6 <= now.hour < 22:
+        h["state"] = "night"
+        return
+    if c.get("T_now") is None or not c.get("k"):
+        h["state"] = "nomodel"
+        return
+    if c.get("trend") is None or c["trend"] >= 0:
+        h["state"] = "heat"                                  # neklesá → topí se
+        hs.pop("sent", None)
+        return
+    if c["T_now"] <= lim:
+        h["state"] = "below"
+        return
+    import chladnuti
+    end = now.replace(hour=22, minute=0, second=0, microsecond=0)
+    cv = chladnuti.curve(st, c["k"], c["T_now"], now.timestamp(), end.timestamp())
+    if not cv:
+        h["state"] = "nomodel"
+        return
+    h["curve"] = cv
+    hit = next((t for t, T in cv if T <= lim), None)
+    if hit is None:
+        h["state"] = "ok"                                    # do 22:00 neklesne pod hranici
+        return
+    h.update(state="cool", hit=int(hit), warn=int(hit - lead * 60))
+    if now.timestamp() >= hit - lead * 60 and not hs.get("sent"):
+        mins = max(0, round((hit - now.timestamp()) / 60))
+        ntfy(topic, f"🔥 Zatop – v {datetime.fromtimestamp(hit, TZ).strftime('%H:%M')} bude v pokoji {fmt(lim, 0)} °C",
+             f"Teď {fmt(c['T_now'], 1)} °C, klesá. {fmt(lim, 0)} °C asi za {fmt_h(mins / 60) if mins >= 60 else f'{mins} min'}.", 2, "fire")
+        hs["sent"] = int(now.timestamp())
 
 
 def cold_factor(data, cfg):

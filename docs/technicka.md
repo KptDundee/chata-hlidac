@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.153**: `heat_plan` (po `chladnuti.update`) – `is_away` → away, mimo 6–22 → night, bez k / T → nomodel, `cool.trend` ≥ 0 → heat (reset `st.heat.sent`), T ≤ lim → below, jinak `chladnuti.curve(st, k, T, teď, 22:00)` → hit (první T ≤ lim), warn = hit − předstih; ntfy prio 2 jednou. `data.heat`. Web `heatCard` nahoře v `coolCard`.
+
 **5.152**: `srcSegs` – úsek q / qr ≤ 900 s mezi dvěma známými úseky (navazujícími < 60 s) se rozdělí v půlce (stejný zdroj → sloučí).
 
 **5.151**: `cabin_consumption` = tp[mip] − tp[river_auto_ip] + Σ tp[zasuvky_river] (medián 7 dní, bez režimu). Web `hmH(h)` / `valU` (grafy s unit „h“), Python `fmt_h`, `dur` = h:mm. `detHours` „d“ = od půlnoci (min 0,05 h). `srcSegs` klíče q / qr s důvodem, výpis pod pásem.

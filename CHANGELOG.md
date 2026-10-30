@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.153 – 30. 10. 2026
+- Kdy zatopit přes den (Teploty → Chladnutí): jen když jsem na chatě (ne pryč podle plánu / rozvrhu) a 6:00–22:00. Teplota pokoje za poslední hodinu neklesá = topí se, nepočítá se. Klesá = odhad chladnutí podle naučeného modelu a předpovědi venku do 22:00; „19 °C dosáhne ~17:10 → zatop do ~16:10“. Graf: dnes naměřeno, odhad čárkovaně, hranice. Upozornění (nízká důležitost) hodinu předem, jednou za jedno chladnutí. Nastavení: chladnuti_min_C (19 °C), chladnuti_predstih_min (60 min).
+
 ## 5.152 – 30. 10. 2026
 - Pás „Co kdy napájelo chatu“ a koláč času: krátký nezjištěný úsek (do 15 min) mezi dvěma známými zdroji = přepnutí / mezera mezi měřeními – napůl předchozímu a napůl dalšímu zdroji (stejný zdroj z obou stran = celý jemu). Delší zůstává „nezjištěno“. Důvod „zásuvka měniče (1) neposlala odběr“ (dřív nepřesně „měnič i Victron mlčí“).
 
