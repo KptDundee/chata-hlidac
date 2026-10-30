@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.152 – 30. 10. 2026
+- Pás „Co kdy napájelo chatu“ a koláč času: krátký nezjištěný úsek (do 15 min) mezi dvěma známými zdroji = přepnutí / mezera mezi měřeními – napůl předchozímu a napůl dalšímu zdroji (stejný zdroj z obou stran = celý jemu). Delší zůstává „nezjištěno“. Důvod „zásuvka měniče (1) neposlala odběr“ (dřív nepřesně „měnič i Victron mlčí“).
+
 ## 5.151 – 30. 10. 2026
 - Spotřeba chaty pro výhled = celá chata bez ohledu na zdroj: zásuvka měniče (1) − nabíjení River přebytkem (8) + zásuvky na výstupu River (2, 3, 6), medián 7 celých dní. Dřív v zimním režimu jen zásuvky River (0,48 kWh místo ~0,75 kWh).
 - „Dnes“ v detailech = přesně od 0:00 (dřív nejméně 3 h); koláč „dnes od 0:00“.

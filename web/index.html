@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.151", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.152", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2704,12 +2704,18 @@ function srcSegs(d, h, t0, now){
   const pts = (d.points||[]).filter(p=>p.t >= t0 - 900 && (p.tp || p.mw!=null)).sort((a,b)=>a.t-b.t);
   const col = {s:css("--s6"), q:css("--muted"), qr:css("--muted"), z:css("--crit")};
   // 5.151: nezjištěno s důvodem – q = měnič neodpověděl a Victron mlčí (nejde poznat, jestli solár), qr = podle pravidla River, ale žádná zásuvka River neukázala odběr
-  const name = {s:"Solár", q:"nezjištěno – měnič i Victron mlčí", qr:"nezjištěno – River, ale zásuvky River bez odběru", z:"bez napájení"};
+  const name = {s:"Solár", q:"nezjištěno – zásuvka měniče (1) neposlala odběr", qr:"nezjištěno – River, ale zásuvky River bez odběru", z:"bez napájení"};
   const who = p => { const c = ptSrc(p, U.rids); if(c==="s") return "s"; if(c==="r"){ let best=null, bw=3; for(const r of R){ const w = (p.tp||{})[r.id]||0; if(w > bw){ bw=w; best=r; } } return best ? "r:"+best.id : "qr"; } return c==="0" ? "z" : "q"; };
   const segs = [];
   for(let i=0;i<pts.length;i++){ const p = pts[i], a = Math.max(t0, p.t), b = Math.min(now, i+1<pts.length ? Math.min(pts[i+1].t, p.t+900) : Math.min(now, p.t+900));
     if(b <= a) continue; const k = who(p), L = segs[segs.length-1];
     if(L && L.k===k && a - L.b < 60) L.b = b; else segs.push({k, a, b}); }
+  // 5.152: krátký nezjištěný úsek (do 15 min) mezi dvěma známými zdroji = přepnutí / mezera mezi měřeními:
+  // napůl předchozímu a napůl dalšímu zdroji (stejný zdroj z obou stran = celý jemu). Delší zůstává „nezjištěno“.
+  for(let i=1;i<segs.length-1;i++){ const g = segs[i], A = segs[i-1], B = segs[i+1];
+    if((g.k==="q"||g.k==="qr") && g.b - g.a <= 900 && !/^q/.test(A.k) && !/^q/.test(B.k) && g.a - A.b < 60 && B.a - g.b < 60){
+      const mid = A.k===B.k ? g.b : (g.a + g.b)/2; A.b = mid; B.a = mid; segs.splice(i,1); i--;
+      if(A.k===B.k){ A.b = B.b; segs.splice(i+1,1); } } }
   const cOf = k => k.startsWith("r:") ? (R.find(r=>"r:"+r.id===k)||{}).color || col.q : col[k];
   const nOf = k => k.startsWith("r:") ? (R.find(r=>"r:"+r.id===k)||{}).short || "River" : name[k];
   const tot = {}; segs.forEach(g=>tot[g.k]=(tot[g.k]||0)+(g.b-g.a));
@@ -2731,9 +2737,9 @@ function srcStripHtml(d, h){
   const used = Object.keys(tot);
   const leg = used.sort((a,b)=>tot[b]-tot[a]).map(k=>`<span style="white-space:nowrap"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${cOf(k)};margin-right:4px"></span>${escH(nOf(k))} ${hmH(tot[k]/3600)}</span>`).join(" · ");
   const unk = segs.filter(g=>g.k==="q"||g.k==="qr");
-  const unkT = unk.length ? `<div class="sub" style="margin-top:4px">Nezjištěno: ${unk.slice(-6).map(g=>`${relDay(g.a)==="dnes"?"":relDay(g.a)+" "}${hmT(g.a)}–${hmT(g.b)} (${g.k==="q"?"měnič i Victron mlčí":"zásuvky River bez odběru"})`).join(" · ")}${unk.length > 6 ? ` · a ${unk.length-6} dalších` : ""}</div>` : "";
+  const unkT = unk.length ? `<div class="sub" style="margin-top:4px">Nezjištěno: ${unk.slice(-6).map(g=>`${relDay(g.a)==="dnes"?"":relDay(g.a)+" "}${hmT(g.a)}–${hmT(g.b)} (${g.k==="q"?"zásuvka měniče (1) neposlala odběr":"zásuvky River bez odběru"})`).join(" · ")}${unk.length > 6 ? ` · a ${unk.length-6} dalších` : ""}</div>` : "";
   return `<div class="card"><h2 style="margin:0 0 6px">Co kdy napájelo chatu</h2>${segs.length ? svg + `<div style="font-size:13px;margin-top:6px;line-height:1.7">${leg}</div>` + unkT : `<div class="sub">Za toto období nejsou měření.</div>`}
-    <div class="sub" style="margin-top:4px">Z měření Flipu (po ~10 min). Šedé pozadí = žádné měření. Rok / Vše jen v koláčích.</div></div>`;
+    <div class="sub" style="margin-top:4px">Z měření Flipu (po ~10 min). Krátký nezjištěný úsek (do 15 min) mezi dvěma zdroji se bere jako přepnutí a rozdělí napůl; delší zůstává „nezjištěno“. Šedé pozadí = žádné měření. Rok / Vše jen v koláčích.</div></div>`;
 }
 /* 5.142: koláčové grafy – na co jela chata (čas a energie) za zvolené období (Dnes / 48 h / Týden / Rok / Vše) */
 function pieHtml(items, fmtV){
