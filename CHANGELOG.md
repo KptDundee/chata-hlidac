@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.158 – 30. 10. 2026
+- Dlaždice Solární baterie: řádek „na River do ~07:11“ přejmenován na „přepnout na River – nejpozději zítra ~07:11 (aby ráno zbylo X #)“ – je to rada, ne stav (chata na River nejede).
+
 ## 5.157 – 30. 10. 2026
 - Graf „Noc: pokoj a venku“: předpověď začíná od nejvyšší teploty po 0:00 (po přiložení teplota ještě chvíli stoupá), ne přímo v 0:00 – dřív začínala chladnout o 2–3 h dřív než skutečnost a byla celou noc ~3 °C níž. Stejný bod, od kterého se model učí.
 
