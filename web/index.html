@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.158", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.159", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2329,9 +2329,9 @@ function coolCard(body, d, h){
     <div class="card chart"><h2>Noc: ${escH(c.room)} a venku</h2>
       <div class="cs"><span style="color:var(--s1)">━</span> ${escH(c.room)} · <span style="color:var(--s4)">┅</span> předpověď (od nejvyšší teploty po ${W[0]} – po přiložení teplota ještě chvíli stoupá; nadcházející noc od spaní z potřebné teploty) · <span style="color:var(--s3)">━</span> venku · šedé = noc bez topení, ze které se učí</div>
       <div class="sub" style="margin-top:2px">K čemu: u minulých nocí porovnáš, jak pokoj skutečně chladl (modře) s předpovědí (oranžově) – když sedí, dá se věřit i číslu „ve 0:00 mít aspoň …“.${c.k && c.n < c.need ? ` Zatím hrubý odhad ze ${c.k_n||0} nocí, přesnější po ${c.need} nocích (teď ${c.n}).` : ""}</div>
-      <div class="seg" id="cool_nights" style="margin:6px 0;overflow-x:auto;flex-wrap:nowrap"></div><div id="cool_ch"></div></div>`
+      <div class="sub" style="margin-top:8px;font-weight:600;color:var(--text)">Vyber noc:</div><div class="seg" id="cool_nights" style="margin:4px 0 8px;flex-wrap:wrap;gap:4px"></div><div id="cool_ch"></div></div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to číst:</b> „ztráta na 10 °C rozdílu“ 0,8 °C/h znamená: při 20 °C uvnitř a 10 °C venku klesá ~0,8 °C za hodinu, při rozdílu 20 °C ~1,6 °C/h; jak se teploty přibližují, chladnutí zpomaluje. Čím menší číslo, tím líp chata drží teplo. Předpověď v grafu je jen orientační – nezná vaření, dýchání ani větrání. Učí se jen z noci ${W[0]}–${W[1]} (přes den se topí udržovacím topením), z konce noci (na začátku ještě hřejí kamna) a bez větrání (🪟).</div>`);
-  coolNight(d, h, 0);
+  { const b0 = new Date(); b0.setHours(20,0,0,0); coolNight(d, h, new Date().getHours() >= 12 && Date.now()/1000 < b0.getTime()/1000 ? 1 : 0); }   // 5.159: přes den rovnou minulá noc (dnešní ještě nezačala)
 }
 function coolNight(d, h, n){
   const c = d.cool, el = $("cool_ch"), bar = $("cool_nights"); if(!el || !c) return;
