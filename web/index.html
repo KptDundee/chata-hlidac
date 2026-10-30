@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.159", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.160", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2297,7 +2297,7 @@ function heatCard(d){
     : st==="heat" ? bigL("🔥", "Topí se", hitT ? `kdyby se přestalo, ${nf(lim,0)} °C ${hitT}` : "")
     : st==="ok" ? bigL("🔥", "Do 22:00 netřeba", `teplota klesá, ale pod ${nf(lim,0)} °C neklesne`)
     : bigL("🔥", st==="away" ? "Jsi pryč" : st==="night" ? "Noc" : "–", st==="away" || st==="night" ? "upozornění se teď neposílá" : "zatím se nedá spočítat");
-  const bedBig = c.need_bed!=null && c.bed ? bigL("🛏️", `Ve ${hmT(c.bed)} mít aspoň ${nf(c.need_bed,1)} °C`, `aby ${relDay(c.bed_mor)} v ${hmT(c.bed_mor)} bylo ${nf(c.target,0)} °C (přiložení před spaním = rezerva navíc)`) : "";
+  const bedBig = c.need_bed!=null && c.bed ? bigL("🛏️", `Ve ${hmT(c.bed)} mít aspoň ${nf(c.need_bed,1)} °C`, `aby ${relDay(c.bed_mor)} v ${hmT(c.bed_mor)} bylo ${nf(c.target,0)} °C${c.bias!=null && Math.abs(c.bias) >= 0.1 ? ` · podle posledních ${c.bias_n} nocí ${c.bias < 0 ? "o" : "o"} ${nf(Math.abs(c.need_bed - c.need_bed_raw),1)} °C ${c.bias < 0 ? "víc" : "méně"} (ráno bývá ${c.bias < 0 ? "chladněji" : "tepleji"} než předpověď)` : ""} · přiložení před spaním = rezerva navíc`) : "";
   return `<div class="card"><h2 style="margin:0 0 6px">🔥 Kdy zatopit – ${escH(c.room||"pokoj")}${H.T!=null ? ` <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--text2)">· teď ${nf(H.T,1)} °C</span>` : ""}</h2>${heatBig}${bedBig}<div class="sub" style="font-size:13.5px">${msg}</div>${svg}
     <div class="sub" style="margin-top:6px;line-height:1.5">Odhad chladnutí podle naučeného modelu a předpovědi venkovní teploty – když se má ochladit, klesá rychleji, když oteplit, pomaleji. Upozornění (${H.lead} min předem, jednou za jedno chladnutí) jen když jsi na chatě, 6:00–22:00 a teplota za poslední hodinu klesá. Hranici a předstih nastavíš v Nastavení → Chladnutí.</div></div>`;
 }
@@ -2317,6 +2317,7 @@ function coolCard(body, d, h){
     + `</div>`;
   let rows = "";
   if(c.live) rows += rowI("Právě teď chladne", `${nf(c.live.rate,1)} °C/h`);
+  if(c.bias!=null) rows += rowI("Ráno proti předpovědi", `typicky ${c.bias > 0 ? "+" : c.bias < 0 ? "−" : ""}${nf(Math.abs(c.bias),1)} °C <span class="sub">(medián ${c.bias_n} nocí; − = chladněji)</span>`);   // 5.160
   if(c.r10!=null) rows += rowI("Jak chata drží teplo", `${nf(c.r10,2)} °C/h na každých 10 °C rozdílu <span class="sub">(${c.k_src==="noci" ? `hrubě z ${c.k_n} ${c.k_n===1?"noci":"nocí"}` : `z ${c.n} ${c.n===1?"noci":"nocí"}`}; čím méně, tím líp)</span>`);
   if(learn) rows += rowI("Předpověď na ráno", `<span class="sub">až po ${c.need} nocích (teď ${c.n})</span>`);
   else if(c.pred!=null){
@@ -2329,7 +2330,7 @@ function coolCard(body, d, h){
     <div class="card chart"><h2>Noc: ${escH(c.room)} a venku</h2>
       <div class="cs"><span style="color:var(--s1)">━</span> ${escH(c.room)} · <span style="color:var(--s4)">┅</span> předpověď (od nejvyšší teploty po ${W[0]} – po přiložení teplota ještě chvíli stoupá; nadcházející noc od spaní z potřebné teploty) · <span style="color:var(--s3)">━</span> venku · šedé = noc bez topení, ze které se učí</div>
       <div class="sub" style="margin-top:2px">K čemu: u minulých nocí porovnáš, jak pokoj skutečně chladl (modře) s předpovědí (oranžově) – když sedí, dá se věřit i číslu „ve 0:00 mít aspoň …“.${c.k && c.n < c.need ? ` Zatím hrubý odhad ze ${c.k_n||0} nocí, přesnější po ${c.need} nocích (teď ${c.n}).` : ""}</div>
-      <div class="sub" style="margin-top:8px;font-weight:600;color:var(--text)">Vyber noc:</div><div class="seg" id="cool_nights" style="margin:4px 0 8px;flex-wrap:wrap;gap:4px"></div><div id="cool_ch"></div></div>`
+      <div class="sub" style="margin-top:8px;font-weight:600;color:var(--text)">Vyber noc:</div><div class="seg" id="cool_nights" style="margin:4px 0 8px;flex-wrap:wrap;gap:4px"></div><div id="cool_ninfo" style="font-size:14px;margin:2px 0 4px"></div><div id="cool_ch"></div></div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to číst:</b> „ztráta na 10 °C rozdílu“ 0,8 °C/h znamená: při 20 °C uvnitř a 10 °C venku klesá ~0,8 °C za hodinu, při rozdílu 20 °C ~1,6 °C/h; jak se teploty přibližují, chladnutí zpomaluje. Čím menší číslo, tím líp chata drží teplo. Předpověď v grafu je jen orientační – nezná vaření, dýchání ani větrání. Učí se jen z noci ${W[0]}–${W[1]} (přes den se topí udržovacím topením), z konce noci (na začátku ještě hřejí kamna) a bez větrání (🪟).</div>`);
   { const b0 = new Date(); b0.setHours(20,0,0,0); coolNight(d, h, new Date().getHours() >= 12 && Date.now()/1000 < b0.getTime()/1000 ? 1 : 0); }   // 5.159: přes den rovnou minulá noc (dnešní ještě nezačala)
 }
@@ -2350,6 +2351,8 @@ function coolNight(d, h, n){
   bar.innerHTML = nights.map((x,i)=>`<button type="button" data-n="${i}" aria-pressed="${i===n}" style="white-space:nowrap">${x.lab}</button>`).join("");
   bar.onclick = e => { const b = e.target.closest("button"); if(b) coolNight(d, h, +b.dataset.n); };
   const N = nights[n]; if(!N) return empty(el, "Zatím málo dat.");
+  { const cn = (c.nights||[]).find(x=>x.tb > N.t0 && x.tb <= N.t1 && x.err!=null), info = $("cool_ninfo");   // 5.160
+    if(info) info.innerHTML = cn ? `Ráno ${hmT(cn.tb)}: skutečnost <b>${nf(cn.Tb,1)} °C</b>, předpověď ${nf(cn.pred,1)} °C → <b style="color:var(${cn.err < -0.4 ? "--crit" : cn.err > 0.4 ? "--good" : "--text"})">${cn.err > 0 ? "+" : cn.err < 0 ? "−" : ""}${nf(Math.abs(cn.err),1)} °C</b>` : ""; }
   const R = room.filter(q=>q.t>=N.t0 && q.t<=N.t1), O = out.filter(q=>q.t>=N.t0 && q.t<=N.t1);   // 5.156: jen v okně (dřív svislé čáry na okrajích)
   // předpověď: od začátku okna (0:00) z naměřené teploty; když okno ještě nezačalo nebo běží, od teď
   let P = []; const k = c.k;

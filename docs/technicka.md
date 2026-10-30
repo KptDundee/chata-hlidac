@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.160**: `chladnuti.update` – noc `pk` (max v okně), `pred` = _sim od pk do tb, `err` = Tb − pred; `cool.bias` = medián posledních ≤ 7 err (≥ 3), `need_bed` = raw − bias/(b1 − b0), `need_bed_raw`. Web `#cool_ninfo`, řádek „Ráno proti předpovědi“.
+
 **5.157**: web `coolNight` – start předpovědi = max R mezi začátkem okna a min(teď, konec noci).
 
 **5.156**: `chladnuti.update` → `cool.bed`, `bed_mor`, `need_bed` (simulace spaní → ráno, nastavení chladnuti_spat); web `heatCard` velká čísla, `coolNight` R/O jen v [t0, t1], bez pásu, P od `bed` z `need_bed` pro nadcházející noc; `detTemps` pořadí ORD.

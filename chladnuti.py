@@ -264,7 +264,8 @@ def update(data, st, now, cfg, log=print):
         hrs = (pts[-1][0] - pts[0][0]) / 3600
         mx_rise = max(0.0, max(pts[i][1] - min(T for _, T in pts[:i + 1]) for i in range(len(pts))))
         os_ = [tout(t) for t, _ in pts[::6] if tout(t) is not None]
-        nights.append({"ta": int(pts[0][0]), "tb": int(pts[-1][0]), "Ta": pts[0][1], "Tb": pts[-1][1],
+        pk = max(pts, key=lambda q: q[1])                # 5.160: nejvyšší teplota v okně (po přiložení) – odtud předpověď
+        nights.append({"ta": int(pts[0][0]), "tb": int(pts[-1][0]), "Ta": pts[0][1], "Tb": pts[-1][1], "pk": [int(pk[0]), pk[1]],
                        "avg": round((pts[0][1] - pts[-1][1]) / hrs, 2) if hrs > 0 else None,
                        "To": round(sum(os_) / len(os_), 1) if os_ else None, "heat": 1 if mx_rise >= 0.5 else 0})
     c["nights"] = nights
@@ -302,6 +303,17 @@ def update(data, st, now, cfg, log=print):
         if a0 is not None and a1 is not None and a1 - a0 > 0.001:
             c.update(morning=tm, target=target, pred=round(a0 + (a1 - a0) * c["T_now"], 1),
                      need_T=round((target - a0) / (a1 - a0), 1))
+    if c.get("k"):
+        # 5.160 (Petr): každá noc – o kolik byla ráno skutečnost jiná než předpověď od nejvyšší teploty (záporné = chladněji)
+        errs = []
+        for x in nights:
+            p_ = _sim(x["pk"][1], x["pk"][0], x["tb"], c["k"], tout) if x["tb"] - x["pk"][0] >= 2 * 3600 else None
+            if p_ is not None:
+                x["pred"], x["err"] = round(p_, 1), round(x["Tb"] - p_, 1)
+                errs.append(x["err"])
+        if len(errs) >= 3:
+            e_ = sorted(errs[-7:])
+            c["bias"], c["bias_n"] = round(e_[len(e_) // 2], 1), len(e_)
     if ks or c.get("k"):
         # 5.156 (Petr): kolik °C mít v pokoji, když jdu spát (chladnuti_spat, 0:00), aby ráno (chladnuti_rano) bylo
         # chladnuti_cil_C – stejný model a předpověď venku, od spaní do rána se netopí (přiložení před spaním = rezerva)
@@ -320,8 +332,11 @@ def update(data, st, now, cfg, log=print):
         target = float(cfg.get("chladnuti_cil_C") or 21)
         b0, b1 = _sim(0.0, bed.timestamp(), mor.timestamp(), k, tout), _sim(1.0, bed.timestamp(), mor.timestamp(), k, tout)
         if b0 is not None and b1 is not None and b1 - b0 > 0.001:
+            raw = (target - b0) / (b1 - b0)
+            # 5.160: oprava podle posledních nocí – vychází-li ráno typicky o 1 °C chladněji, mít večer o tolik víc
+            corr = -(c.get("bias") or 0) / (b1 - b0) if c.get("bias") is not None else 0.0
             c.update(bed=int(bed.timestamp()), bed_mor=int(mor.timestamp()), target=target,
-                     need_bed=round((target - b0) / (b1 - b0), 1))
+                     need_bed=round(raw + corr, 1), need_bed_raw=round(raw, 1))
     data["cool"] = c
 
 
