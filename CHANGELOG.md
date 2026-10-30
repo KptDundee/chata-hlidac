@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.149 – 30. 10. 2026
+- Plán dobití solární baterie do plna: od 7. dne bez plného nabití (Float) hlídač v předpovědi na týden vybere, kdy začít a kolik dní za sebou to potrvá (chata na River, solár jen nabíjí; dní = dokud výroba nepokryje, co chybí do plna + 20 %). Z možností ta s nejmenším počtem dní; začít se musí nejpozději 14. den (konec zaručit nejde – počasí). Přepočítává se každý běh; do souhrnu, když plán vznikne / změní se začátek; večer před začátkem zpráva. Konec = Float.
+- Hlavní stránka: proužek „🔋 Dobití do plna: od út 3. 11. · asi 2 dny“, během „den 1 ze 2 – chata na River“. Nastavení: plne_nabiti_od_dni (7), plne_nabiti_dni (14 = nejpozději začít).
+
 ## 5.148 – 30. 10. 2026
 - Výhled počasí – pro každý den dvě hranice, stejně v létě i v zimě: zeleně = solár utáhne chatu celý den i noc, žlutě = od rána do večera (pak River), modře = ani to. Ráno = východ slunce, při odjezdu před východem hodina odjezdu; večer = západ slunce, když je chata při západu sama, hodina příjezdu (z plánu / rozvrhu). Pod sloupcem napětí ráno. Rada pod grafem a dlaždice Zítra podle toho.
 - Noční dlaždice už neukazuje „Zimní provoz“ jen podle štítku; odhad nabití bere odběr podle toho, na čem chata jede. Nastavení „Zima: připojit solár od / do V“ odstraněno (nahrazeno hranicemi).

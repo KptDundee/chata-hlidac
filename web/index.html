@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.148", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.149", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -273,6 +273,7 @@ details.sec>.in{margin-top:8px}
   <section id="home">
     <div class="abar" id="alerts" data-det="alerts" role="button"></div>
     <div class="abar hide" id="genbar" data-det="gen" role="button" style="--ac:var(--good)"></div>
+    <div class="abar hide" id="fullbar" data-det="bat" role="button" style="--ac:var(--s1)"></div>
     <h2 class="hh">Teď</h2>
     <div class="hgrid" id="h_src"></div>
     <!-- 5.15: sekce rozbalovací; s červeným / oranžovým příznakem se rozbalí samy -->
@@ -2925,7 +2926,7 @@ function renderHome(d){
     : onlyQ ? `<span class="dot">✓</span><span class="ab">Nic naléhavého <span style="font-weight:500;color:var(--text2)">· ${A.map(a=>a.t.replace(/^Zdraví baterie: /,"baterie: ")).join(" · ")}</span></span><span class="go" style="position:static">›</span>`
     : `<span class="dot">${A.length}</span><span class="ab">${top.t}${A.length>1?` <span style="font-weight:500;color:var(--text2)">+ ${A.length-1} další</span>`:""}</span><span class="go" style="position:static">›</span>`;
   ALERTS = A;
-  genBar();
+  genBar(); fullBar();
 }
 let ALERTS = [];
 /* 5.141: pruh pod upozorněními, dokud generátor nabíjí – kdy bude hotovo a kolik zbývá (odpočet po minutě) */
@@ -2938,6 +2939,18 @@ function genBar(){
   el.innerHTML = `<span class="dot">⛽</span><span class="ab" style="white-space:normal;overflow:visible">Generátor · hotovo ${relDay(P.fin)==="dnes" ? "" : relDay(P.fin)+" "}~${hmT(P.fin)} <span style="font-weight:500;color:var(--text2);white-space:nowrap">· zbývá ${left > 0 ? lt : "chvilka"}</span></span><span class="go" style="position:static">›</span>`;
 }
 setInterval(genBar, 60000);
+/* 5.149: proužek – plán dobití solární baterie do plna (od 7 dní bez Float, začít nejpozději 14. den) */
+function fullBar(){
+  const el = $("fullbar"); if(!el || !DATA) return;
+  const F = DATA.fullplan; el.classList.toggle("hide", !F); if(!F) return;
+  const dm = k => { const x = new Date(k+"T12:00"); return dkey(Date.now()/1000)===k ? "dnes" : dkey(Date.now()/1000+86400)===k ? "zítra" : ["ne","po","út","st","čt","pá","so"][x.getDay()]+" "+x.getDate()+". "+(x.getMonth()+1)+"."; };
+  const nd = n => n==null ? "víc dní" : `${n} ${n===1?"den":n<5?"dny":"dní"}`;
+  if(!F.start){ el.innerHTML = `<span class="dot">🔋</span><span class="ab" style="white-space:normal;overflow:visible">${F.days_since} dní bez plného nabití <span style="font-weight:500;color:var(--text2)">· den k dobití zatím v předpovědi není</span></span><span class="go" style="position:static">›</span>`; return; }
+  const main = 0 ? ""
+    : F.cur ? `Dobíjení do plna · den ${F.cur}${F.n ? ` z ${F.n}` : ""} – chata na River`
+    : `Dobití do plna: od ${dm(F.start)} · asi ${nd(F.n)}`;
+  el.innerHTML = `<span class="dot">🔋</span><span class="ab" style="white-space:normal;overflow:visible">${main} <span style="font-weight:500;color:var(--text2);white-space:nowrap">· ${F.days_since} dní bez plného nabití</span></span><span class="go" style="position:static">›</span>`;
+}
 function detAlerts(body){
   const d = DATA, h = homeData(d), RS = regStale(d);
   const more = {
@@ -3716,7 +3729,8 @@ const SETTINGS = [
     ["mraz_hlidat","Hlídat mráz u solární baterie","Vybitá AGM může v mrazu zamrznout (teplota z regulátoru)","","", "sw"],
     ["mraz_C","Mráz = teplota baterie pod","","°C",1,"num"],
     ["mraz_hash","Upozornit při mrazu pod","Nabití solární baterie","#",5,"num"],
-    ["plne_nabiti_dni","Připomenout plné nabití po","Kolik dní bez Floatu – AGM nemá dlouho stát nedobitá","dní",1,"num"],
+    ["plne_nabiti_od_dni","Plánovat dobití do plna od","Po kolika dnech bez Floatu hlídač v předpovědi vybere dny k dobití (chata na River)","dní",1,"num"],
+    ["plne_nabiti_dni","Dobití začít nejpozději","Kolikátý den bez Floatu musí dobíjení začít (a připomenutí)","dní",1,"num"],
     ["teplomer_baterie","Teploměr u solární baterie","Jméno teploměru Xiaomi (jak je zadané ve Flipu) – jeho teplota se bere pro mráz a kapacitu v chladu","",0,"str"],
     ["teplomer_lednice","Teploměr v lednici","Jméno teploměru Xiaomi v lednici","",0,"str"],
     ["teplomery","Teploměry, které mají hlásit","Jména oddělená čárkou (jako ve Flipu) – když některý nehlásí, přijde upozornění","",0,"str"],
