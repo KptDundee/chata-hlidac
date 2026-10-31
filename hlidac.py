@@ -3734,6 +3734,13 @@ def fuel_stats(data, st, now, cfg):
         # Spotřebovaná plná: její cena / její kWh. Rozpálená nebo částečná: její cena / obvyklé kWh na lahev (odhad).
         # 5.164: předběžně podle spotřeby generátoru – kolik g plynu stojí 1 kWh (měřeno g/h při nabíjení na plyn)
         fg = (st.get("fuel_gr") or {}).get(f)
+        # 5.165 (Petr): nabíjení před měřením g/h – odhad 660 g/h při plném výkonu (~1524 W, změřeno) = ~433 g/kWh,
+        # přičte se jednou: energie aktuální lahve od jejího zápisu do začátku měření
+        if f == "lpg" and fg is not None and st.get("fuel_gr0") is not None and not st.get("fuel_gr_seed") and es:
+            pre = max(0.0, st["fuel_gr0"] - snap.get(f"lpg:{es[-1]['t']}", 0.0))
+            fg[0], fg[1] = round(fg[0] + pre * 660 / 1524, 1), round(fg[1] + pre, 1)
+            st["fuel_gr_seed"] = round(pre)
+            log("ev", f"Plyn: nabíjení před měřením g/h ({fmt(pre / 1000, 2)} kWh) dopočteno odhadem 660 g/h při ~1,5 kW")
         gpk = fg[0] / (fg[1] / 1000) if f == "lpg" and fg and fg[1] >= 300 else None
         for x in hist:
             if x["closed"] and x["full"] and x["wh"] > 100:
@@ -5923,6 +5930,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             # 5.164 (Petr): na plyn generátor hlásí spotřebu v g/h (pd.remainTime, ověřeno na telefonu) → kolik g stojí 1 kWh
             gph = gd.get("gph") if fuel == "lpg" else None
             if gph is not None and 50 <= float(gph) <= 2000 and (gw or 0) > 100:
+                if "fuel_gr0" not in st:
+                    st["fuel_gr0"] = round(fe_.get("lpg", 0.0) - de2, 1)      # počítadlo plynu, když měření g/h začalo
                 fg_ = st.setdefault("fuel_gr", {}).setdefault("lpg", [0.0, 0.0])
                 fg_[0] = round(fg_[0] + float(gph) * (tnow - gs["f_t"]) / 3600, 1)
                 fg_[1] = round(fg_[1] + de2, 1)
