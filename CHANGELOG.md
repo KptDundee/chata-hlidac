@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.169 – 31. 10. 2026
+- Nabíjení z generátoru: co River chybí do plna se počítá z naměřených Wh na 1 % po pásmech (poslední procenta stojí víc) a nikdy méně než 3 %, dokud nabíjí. Skoro plná River (99 %) dřív dostala jen 200 W a dobíjela se o 10 min déle než ostatní. Průběžný přepočet zůstává.
+
 ## 5.168 – 31. 10. 2026
 - Generátor: nová záložka 💰 Cena – velkým písmem „🏠 1 kWh z River do chaty“ (se všemi ztrátami), pod tím plné nabití 0→100 % každé River, výroba 1 kWh z generátoru; pod tím karta Palivo a cena (lahve, nabíjení). Záložka Start jen spouštění a tlačítka paliva.
 

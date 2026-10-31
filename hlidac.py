@@ -5840,7 +5840,16 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gmax_eff = min(gmax, gm) if gm and 1400 <= gm <= 2500 else gmax     # 4.94: jen věrohodná hodnota
         budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0)
         avail = max(0.0, budget_eff - small_w)
-        need = {r["sn"]: max(0.0, (100 - soc_(r)) / 100 * (r.get("wh") or 768)) for r in con}
+        # 5.169 (Petr): co chybí do plna podle naměřených Wh na 1 % v pásmech (rv_cap.chg.bins; poslední procenta stojí víc)
+        # a nikdy méně než 3 % – skoro plná River jinak spadla na 200 W a dobíjela se o 10 min déle než ostatní
+        rvc_ = data.get("rv_cap") or {}
+
+        def need_wh(r):
+            ch_ = ((rvc_.get(str(r.get("sn", ""))[-6:]) or {}).get("chg") or {})
+            bins_, dflt = ch_.get("bins") or {}, (ch_.get("per100") or (r.get("wh") or 768)) / 100
+            start_ = 100 - max(100 - soc_(r), 3)
+            return sum(max(0.0, min(b_ + 20, 100) - max(b_, start_)) * float(bins_.get(str(b_)) or dflt) for b_ in range(0, 100, 20))
+        need = {r["sn"]: need_wh(r) for r in con}
         if con and tnow - gs["first"] >= 30:               # 30 s po začátku nabíjení → vypočítané výkony
             left, todo = avail, dict(need)
             while todo:

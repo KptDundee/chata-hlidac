@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.169**: `gen_charge_ctl` need = Σ pásem (0–20 … 80–100) přes zbývající % × rv_cap.chg.bins (jinak per100/100, jinak wh/100), zbývá ≥ 3 %.
+
 **5.166**: `fuel_runs[].rv` = Wh do každé River (gs.rwh); web `fuelHtml` – gen = czk_kwh plyn | benzín, ratio = medián rv_cap.chg.per100 / cap, užitek = gen × ratio, plné nabití = per100/1000 × gen, run.czk × podíl rv.
 
 **5.165**: `st.fuel_gr0` = počítadlo plynu při prvním měření g/h; `fuel_stats` jednou přičte (fuel_gr0 − snap lahve) × 660/1524 g a stejné Wh (`st.fuel_gr_seed`).
