@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.173 – 31. 10. 2026
+- Oprava: když je měnič vypnutý, zásuvka měniče (1) je bez proudu a Flip ji neposílá. Hlídač pak hledal zásuvku měniče „podle názvu“ (220 V) a vzal zásuvku River „(2) ZLUTA ECFLW 220V“ → „chata jede ze solární baterie, River napájí spotřebič“ a večer „přepni na River“, i když chata jela z River. Záloha podle názvu jen když zásuvka měniče není v nastavení (a nikdy zásuvky River / generátoru); web stejně.
+
 ## 5.172 – 31. 10. 2026
 - Večerní „🌙 Před spaním přepni chatu na River“ (solární baterie do rána nevydrží) jen když chata prokazatelně jede ze soláru (měnič dodává). Když zdroj nejde poznat, nechodí – přišlo i s chatou na River. Alarm 12,0 V zůstává.
 

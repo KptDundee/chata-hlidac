@@ -2873,9 +2873,13 @@ def inv_from_msg(last, now, cfg=None):
     cfg = cfg or DEFAULTS
     by_ip = {p.get("ip"): p for p in inv.get("tp", []) if p.get("ip")}
     menic = by_ip.get(str(cfg.get("zasuvka_menic") or "").strip())
-    if not menic:                        # záloha: podle názvu
+    # 5.173: záloha podle názvu jen když zásuvka měniče není nastavená. Když je nastavená (1) a chybí (měnič vypnutý →
+    # zásuvka bez proudu), dřív se podle „220“ v názvu vzala zásuvka River „(2) ZLUTA ECFLW 220V“ → „chata jede ze soláru“.
+    if not menic and not str(cfg.get("zasuvka_menic") or "").strip():
         import re
-        menic = next((p for p in inv.get("tp", []) if re.search(r"m[eě]ni[cč]|inverter|220|230", str(p.get("n", "")), re.I)), None)
+        skip_ = set(ips(cfg.get("zasuvky_river"))) | {str(cfg.get("zasuvka_generator") or "")}
+        menic = next((p for p in inv.get("tp", []) if str(p.get("ip")) not in skip_
+                      and re.search(r"m[eě]ni[cč]|inverter|220|230", str(p.get("n", "")), re.I)), None)
     rivers = [by_ip[i] for i in ips(cfg.get("zasuvky_river")) if i in by_ip]
     gen = by_ip.get(str(cfg.get("zasuvka_generator") or "").strip())
     if menic:

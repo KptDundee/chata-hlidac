@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.172", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.173", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -624,7 +624,7 @@ function render(){
   // spotřeba dnes: zásuvka za měničem (W na výstupu) + přepočet na odběr ze solární baterie
   const tpd = (d.days && d.days[tday] && d.days[tday].tp) || {}, names = d.plug_names || {};
   const cfgM = String(d.cfg?.zasuvka_menic ?? "").trim();
-  const mip = (cfgM && tpd[cfgM]!=null) ? cfgM : (d.inverter && d.inverter.mip) || Object.keys(names).find(ip=>/m[eě]ni[cč]|inverter|220|230/i.test(names[ip]));
+  const mip = cfgM ? cfgM : (d.inverter && d.inverter.mip) || Object.keys(names).find(ip=>/m[eě]ni[cč]|inverter|220|230/i.test(names[ip]));   // 5.173: nastavená zásuvka měniče platí i když chybí
   const ips = s => String(s||"").split(/[,;\s]+/).filter(Boolean);
   const rWh = ips(d.cfg?.zasuvky_river).reduce((s,ip)=>s+(tpd[ip]||0),0);
   const mWh = mip!=null ? tpd[mip] : null;
