@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.168 – 31. 10. 2026
+- Generátor: nová záložka 💰 Cena – velkým písmem „🏠 1 kWh z River do chaty“ (se všemi ztrátami), pod tím plné nabití 0→100 % každé River, výroba 1 kWh z generátoru; pod tím karta Palivo a cena (lahve, nabíjení). Záložka Start jen spouštění a tlačítka paliva.
+
 ## 5.167 – 31. 10. 2026
 - Dlaždice Flip: místo oříznutého „zá… (9) vypnutá · chata jede z River → nabíjí jen pod 30 %“ jeden řádek „nabíjení: nenabíjí · zapne se pod 30 %“ (podrobnosti o zásuvce (9) v detailu Flipu).
 
