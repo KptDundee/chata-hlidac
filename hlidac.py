@@ -5987,6 +5987,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 whf_ = {f_: round(c1_[f_] - c0_.get(f_, c1_[f_])) for f_ in c1_ if c1_[f_] - c0_.get(f_, c1_[f_]) > 5}
                 main_ = max(whf_, key=whf_.get) if whf_ else (gs.get("fuel") or fuel)
                 fr_.append({"t0": gs.get("t_on"), "t1": tnow, "fuel": main_, "wh": round(gs["fwh"]), "wh_f": whf_,
+                            "rv": {k6_: round(v_) for k6_, v_ in (gs.get("rwh") or {}).items() if v_ > 5},   # 5.166: Wh do každé River
                             "c0": {f_: round(c0_.get(f_, c1_[f_]), 1) for f_ in c1_}, "c1": c1_})
                 del fr_[:-30]
             try:                                            # 5.85: souhrn po skončení nabíjení
