@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.162 – 31. 10. 2026
+- Jaká baterie: výroba dne = vyšší z modelu a skutečnosti (model v létě podceňuje – učí se jen z nepřiškrcených dnů); den, kdy regulátor přešel do Float (baterie plná), se počítá jako pokrytý. Dřív vycházelo v létě skoro celý měsíc na River. Měsíce s méně než 20 dny dat šedě „jen N dní dat“. Přepočet hned (verze výpočtu v cache).
+
 ## 5.161 – 31. 10. 2026
 - Zpráva „✓ Vyřešeno: …“: místo nesrozumitelného „Už to trvá jen v historii.“ teď „Už neplatí – trvalo 03:10–04:19. Nic dělat nemusíš.“ V nočním klidu (0:00–5:45) se neposílá, jen do večerního souhrnu.
 

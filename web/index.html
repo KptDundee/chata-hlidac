@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.161", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.162", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1468,7 +1468,7 @@ function detBsim(body){
   const rows = B.var.map(v=>{ const a = v.years["0"], b = v.years["3"], pf = isPref(v);
     return `<tr style="${pf?"background:color-mix(in srgb,var(--good) 14%,transparent)":""}"><td style="padding:4px">${pf?"⭐ ":""}${escH(v.name)}</td>${td(nf(a.usable_wh/1000,2))}${td(`<b>${a.short}</b>`)}${td(b.short)}${td(nf(a.river_wh/1000,1))}${td(kc(a.river_wh))}</tr>`; }).join("");
   const months = Object.keys(B.var[0].years["0"].months).sort();
-  const mrows = B.var.map(v=>`<tr style="${isPref(v)?"background:color-mix(in srgb,var(--good) 14%,transparent)":""}"><td style="padding:4px;white-space:nowrap">${isPref(v)?"⭐ ":""}${escH(v.name.replace(/\s*\(.*\)/,""))}</td>${months.map(m=>{ const x = v.years["0"].months[m]; return td(x ? `${x.short} z ${x.n}${PR && x.river_wh ? `<br><span class="sub">${nf(x.river_wh/1000*PR,0)} Kč</span>` : ""}` : "–"); }).join("")}</tr>`).join("");
+  const mrows = B.var.map(v=>`<tr style="${isPref(v)?"background:color-mix(in srgb,var(--good) 14%,transparent)":""}"><td style="padding:4px;white-space:nowrap">${isPref(v)?"⭐ ":""}${escH(v.name.replace(/\s*\(.*\)/,""))}</td>${months.map(m=>{ const x = v.years["0"].months[m]; return td(x ? (x.n < 20 ? `<span style="color:var(--muted)">${x.short} z ${x.n}<br><span style="font-size:11px">jen ${x.n} dní dat</span></span>` : `${x.short} z ${x.n}${PR && x.river_wh ? `<br><span class="sub">${nf(x.river_wh/1000*PR,0)} Kč</span>` : ""}`) : "–"); }).join("")}</tr>`).join("");   // 5.162: neúplné měsíce šedě
   const P = B.pred, dY = k => { const x = new Date(k+"T12:00"); return `${x.getDate()}. ${x.getMonth()+1}. ${x.getFullYear()}`; };
   const MO = B.mon || {}, mrow = (lbl, f) => `<tr style="color:var(--text2)"><td style="padding:4px;white-space:nowrap">${lbl}</td>${months.map(m=>td(MO[m] && f(MO[m])!=null ? nf(f(MO[m]),1) : "–")).join("")}</tr>`;
   const kontrola = B.mon ? mrow("výroba podle modelu kWh/den", x=>x.pm) + mrow("výroba skutečná kWh/den", x=>x.pr) + mrow("spotřeba kWh/den", x=>x.c) : "";
@@ -1487,7 +1487,7 @@ function detBsim(body){
     <div class="card"><b>Po měsících – kolik dní by byla potřeba River</b>
     <div class="sub" style="margin-top:4px;line-height:1.45">„23 z 31“ = z 31 dní toho měsíce (za které máme počasí) by s touhle baterií chata 23 dní potřebovala River – baterie by nestačila přes den nebo v noci po něm. Menší první číslo = lepší; 0 = celý měsíc jen ze soláru. Porovnávej po sloupci (stejný měsíc, různé baterie).</div><div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums">
     <tr style="color:var(--muted)"><th></th>${months.map(m=>`<th style="padding:4px">${m.slice(5)}/${m.slice(2,4)}</th>`).join("")}</tr>${mrows}${kontrola}</table></div>
-    <div class="sub" style="margin-top:6px">Šedé řádky = kontrola: kolik by panely podle modelu vyrobily, kolik skutečně vyrobily (v létě je skutečnost nižší – plná baterie přiškrtí výrobu) a s jakou spotřebou se počítá.</div></div>
+    <div class="sub" style="margin-top:6px">Šedý údaj „jen N dní dat“ = za ten měsíc chybí historie počasí a výroby, výsledek je nespolehlivý. Výroba ve výpočtu = vyšší z modelu a skutečnosti; den, kdy regulátor přešel do Float (baterie plná), výroba prokazatelně stačila. Šedé řádky = kontrola: kolik by panely podle modelu vyrobily, kolik skutečně vyrobily (v létě je skutečnost nižší – plná baterie přiškrtí výrobu) a s jakou spotřebou se počítá.</div></div>
     <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se to počítá:</b> každý den historie se skutečným počasím (archiv záření). Výroba = kolik by panely daly bez přiškrcení ve Floatu (model, který se hlídač učí z tvé výroby) × počet zapojených panelů ten den. Spotřeba = obvyklá spotřeba chaty: přes den ~${nf(P.day_w)} W, v noci ~${nf(P.night_w)} W (+ ztráty měniče a ${nf(P.idle_w)} W naprázdno). Den s River = baterie by v ten den nebo následující noc došla. Slunce, které se do plné baterie nevejde (Float), se v přehrání počítá – přebytek přes den se přenese do noci, dokud se vejde – ale samo o sobě rozhodnutí nemění: větší baterie ho v létě uloží víc, jenže pak už stejně není kam ho dát. Rozhoduje jen to, kolik dní by byla potřeba River.
     Předpoklady: AGM hloubka vybití 50 %, účinnost nabíjení 85 %, ztráta ~15 % kapacity ročně; LiFePO4 90 %, 95 %, ~2 % ročně (typické hodnoty, ne měření). Tvoje současná: změřená kapacita, do alarmu 12,0 V. Čím delší historie (zima, jaro), tím přesnější.</div>`);
 }

@@ -49,7 +49,7 @@ def simulate(days, usable_wh, eff):
 
 def update(data, st, now, cfg, sun_times, model_for, label_panels, night_w, day_w, cur_ah=None):
     """Jednou denně: data["bsim"] = {t, od, do, n, var: [{name, years: {0: {...}, 3: {...}}}], pred}."""
-    if st.get("bsim_day") == now.strftime("%Y-%m-%d") and (data.get("bsim") or {}).get("nv") == len(VARIANTS) and (data.get("bsim") or {}).get("mon"):
+    if st.get("bsim_day") == now.strftime("%Y-%m-%d") and (data.get("bsim") or {}).get("nv") == len(VARIANTS) and (data.get("bsim") or {}).get("mon") and (data.get("bsim") or {}).get("v") == 162:
         return
     st["bsim_day"] = now.strftime("%Y-%m-%d")
     wx = data.get("wx") or {}
@@ -75,10 +75,19 @@ def update(data, st, now, cfg, sun_times, model_for, label_panels, night_w, day_
             continue
         day_h = (z - r).total_seconds() / 3600
         night_h = (r2 - z).total_seconds() / 3600
-        days.append((k, prod, (dw / 0.88 + idle) * day_h, (nw / 0.88 + idle) * night_h))
+        du, nu = (dw / 0.88 + idle) * day_h, (nw / 0.88 + idle) * night_h
+        dk = data.get("days", {}).get(k) or {}
+        model_prod = prod
+        # 5.162 (Petr): skutečná výroba je jisté minimum (model v létě podceňuje – učí se jen z nepřiškrcených dnů);
+        # den, kdy regulátor přešel do Float (baterie plná), výroba prokazatelně stačila → aspoň na celý den
+        if dk.get("solar_kwh") is not None:
+            prod = max(prod, dk["solar_kwh"] * 1000)
+        if dk.get("fl"):
+            prod = max(prod, (du + nu) / 0.85)
+        days.append((k, prod, du, nu))
         mo = mon.setdefault(k[:7], {"n": 0, "pm": 0.0, "pr": 0.0, "nr": 0, "c": 0.0})    # 5.134: kontrola modelu po měsících
         mo["n"] += 1
-        mo["pm"] += prod / 1000
+        mo["pm"] += model_prod / 1000
         mo["c"] += ((dw / 0.88 + idle) * day_h + (nw / 0.88 + idle) * night_h) / 1000
         real = (data.get("days", {}).get(k) or {}).get("solar_kwh")
         if real is not None:
@@ -105,6 +114,6 @@ def update(data, st, now, cfg, sun_times, model_for, label_panels, night_w, day_
         mo["pm"] = round(mo["pm"] / mo["n"], 2)
         mo["c"] = round(mo["c"] / mo["n"], 2)
         mo["pr"] = round(mo["pr"] / mo["nr"], 2) if mo["nr"] else None
-    data["bsim"] = {"t": int(now.timestamp()), "nv": len(VARIANTS), "mon": mon, "od": days[0][0], "do": days[-1][0], "n": len(days), "var": var,
+    data["bsim"] = {"t": int(now.timestamp()), "v": 162, "nv": len(VARIANTS), "mon": mon, "od": days[0][0], "do": days[-1][0], "n": len(days), "var": var,
                     "pred": {"night_w": round(nw), "day_w": round(dw), "idle_w": idle,
                              "var": [{"name": n, "dod": d, "eff": e, "loss": l} for n, _, _, d, e, l in vs]}}
