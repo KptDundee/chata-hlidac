@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.166", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.167", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1847,9 +1847,10 @@ function tileFlip(d, h){
     if(n.rt!=null || n.ph!=null) rows.push(["data dnes", `router ${MB(n.rt)} · Flip ${MB(n.ph)}`]);
   } else {
     v = `${nf(ph.b)}<small>%</small>`;
-    rows.push(["nabíjení", ph.c ? `<span style="color:var(--good)">nabíjí se ⚡</span>` : "nenabíjí se"]);
-    if(fc) rows.push(["zásuvka (9)", `${fc.on ? "zapnutá" : "vypnutá"}${fc.why ? ` · ${fc.why}` : ""}`, 1]);
-    else if(ch.ip) rows.push(["řízení", flipCtlMiss(d), 1]);
+    // 5.167: jeden srozumitelný řádek – nabíjí se / kdy se zapne (podrobnosti o zásuvce (9) v detailu Flipu)
+    const fmin = d.cfg?.flip_min_pct ?? 30, lowOnly = fc && !fc.on && /jen pod/.test(fc.why||"");
+    rows.push(["nabíjení", ph.c ? `<span style="color:var(--good)">nabíjí se ⚡</span>` : lowOnly ? `nenabíjí · zapne se pod ${fmin} %` : fc && fc.on ? "nabíječka zapnutá" : "nenabíjí se"]);
+    if(!fc && ch.ip) rows.push(["řízení", flipCtlMiss(d), 1]);
     if(ph.t!=null) rows.push(["teplota baterie", `<span style="color:var(${hot?"--crit":"--text"})">${nf(ph.t,1)} °C</span>`]);
     if(ff && !ph.c) rows.push(["vydrží do", `${relDay(ff.t_empty)} ~${hmT(ff.t_empty)} <span class="sub">(−${nf(ff.rate,1)} %/h)</span>`]);
   }
