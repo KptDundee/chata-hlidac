@@ -6231,7 +6231,11 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
     on_river = cabin_on_river(data, cfg, now, st)
     f = st.get("_forecast") or {}
     rvn = st.get("_rvn")
-    solar_bad = not on_river and bool(f.get("t_crit"))
+    # 5.172: „přepni na River“ jen když chata prokazatelně jede ze soláru (měnič dodává). Když zdroj nejde poznat
+    # (zásuvka měniče neposlala odběr…), nic netvrdit – dřív to chodilo i s chatou na River. Alarm 12,0 V platí dál.
+    inv_ = data.get("inverter") or {}
+    on_solar = bool(inv_) and now.timestamp() - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) == "s" and not on_river
+    solar_bad = on_solar and bool(f.get("t_crit"))
     river_bad = on_river and bool(rvn)
     hm = lambda t: datetime.fromtimestamp(t, TZ).strftime("%H:%M")
     if solar_bad:
@@ -6248,7 +6252,7 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
         st["_night_src"] = "river"
     else:
         title, msg = "", ""
-    active = st.get("ur_done") != win and (solar_bad or river_bad or (e is not None and not on_river and st.get("_night_src") == "solar"))
+    active = st.get("ur_done") != win and (solar_bad or river_bad or (e is not None and on_solar and st.get("_night_src") == "solar"))
     alarm(st, topic, "night", active, title or (e or {}).get("title", "🌙 Před spaním přepni chatu na River"), msg, 4, "crescent_moon,warning", cat=2,
           ok_title="✓ Do rána to už vydrží" if st.get("_night_src") == "river" or not on_river else "✓ Chata jede z River", ok_msg="")
     if e and not active:

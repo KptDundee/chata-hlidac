@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.172 – 31. 10. 2026
+- Večerní „🌙 Před spaním přepni chatu na River“ (solární baterie do rána nevydrží) jen když chata prokazatelně jede ze soláru (měnič dodává). Když zdroj nejde poznat, nechodí – přišlo i s chatou na River. Alarm 12,0 V zůstává.
+
 ## 5.171 – 31. 10. 2026
 - Hlavní obrazovka se záložkami: ⚡ Energie (Teď, Energie dnes, Výhled) · 🌡️ Chata (teploty, lednice, Flip a Wi‑Fi) · 📅 Přehled (Uplynulé, Dlouhodobě). Pruhy upozornění, generátoru a dobití nahoře vždy. Tečka u záložky, kde je něco červeně / oranžově. Pamatuje si poslední záložku. Sekce uvnitř záložek už nejsou sbalovací.
 
