@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.161 – 31. 10. 2026
+- Zpráva „✓ Vyřešeno: …“: místo nesrozumitelného „Už to trvá jen v historii.“ teď „Už neplatí – trvalo 03:10–04:19. Nic dělat nemusíš.“ V nočním klidu (0:00–5:45) se neposílá, jen do večerního souhrnu.
+
 ## 5.160 – 30. 10. 2026
 - Chladnutí: každou noc hlídač porovná ráno skutečnost s předpovědí od nejvyšší teploty (u vybrané noci v grafu „Ráno 06:55: skutečnost 26,3 °C, předpověď 27,3 °C → −1,0 °C“; v kartě „Ráno proti předpovědi: typicky −1,0 °C“). Číslo „🛏️ Ve 0:00 mít aspoň …“ se opraví o medián posledních až 7 nocí (aspoň 3) – vychází-li ráno chladněji, mít večer víc.
 

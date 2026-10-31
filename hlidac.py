@@ -1143,7 +1143,13 @@ def alarm(st, topic, key, active, title="", msg="", prio=5, tags="rotating_light
     if not active:
         if e:
             if not e.get("ack") and ok_title is not False:
-                ntfy(topic, ok_title or f"✓ Vyřešeno: {e.get('title', key)}", ok_msg or "Už to trvá jen v historii.", 2, "white_check_mark")
+                # 5.161: srozumitelně – co skončilo a kdy (dřív obecné „Už to trvá jen v historii.“); v nočním klidu jen do souhrnu
+                hm_ = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M")
+                body = ok_msg or f"Už neplatí – trvalo {hm_(e.get('t0', ts))}–{hm_(ts)}. Nic dělat nemusíš."
+                if in_quiet(ts):
+                    digest(st, ok_title or f"✓ Vyřešeno: {e.get('title', key)}", body)
+                else:
+                    ntfy(topic, ok_title or f"✓ Vyřešeno: {e.get('title', key)}", body, 2, "white_check_mark")
             al.pop(key, None)
         return
     act = lambda lb, b: {"action": "http", "label": lb, "url": f"https://ntfy.sh/{topic}-ack", "method": "POST", "body": f"{b}:{key}", "clear": True}
