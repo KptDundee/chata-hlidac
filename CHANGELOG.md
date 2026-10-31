@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.164 – 31. 10. 2026
+- Plyn – předběžný výpočet podle spotřeby generátoru: na plyn hlásí generátor spotřebu v g/h (pd.remainTime, Petr ověřil na telefonu). Při nabíjení hlídač sčítá gramy a vyrobené Wh → g/kWh. Lahev: spotřebováno kg = kWh × g/kWh, zbývá % z 10 kg, lahev ≈ X kWh, 1 kWh ≈ Y Kč (předběžně, dokud nedojede první celá lahev). Formulář: u částečné lahve „kolik kg plynu“ (5. sloupec v palivo.txt).
+
 ## 5.163 – 31. 10. 2026
 - Generátor → 📊 Data: „Všechny údaje generátoru z EcoFlow“ (všechny, dřív nejvýš 80) – poslední stav při běhu (hlídač si ho uloží, i když se díváš až po nabíjení), hodnoty 300–1000 žlutě jako kandidáti na spotřebu plynu v g/h.
 

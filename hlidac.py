@@ -3181,7 +3181,8 @@ def check_gateway(inv, st, now, topic, cfg):
 
 GEN_KEYS = {"fuel": ("pd.oilVal",), "w": ("pd.acPower", "pd.totalPower", "pd.outputWatts"), "max_w": ("pd.oilMaxOutPower",),
             "type": ("pd.type",), "motor": ("pd.motorState",), "mode": ("pd.sysMode",), "eco": ("pd.ecoMode",),
-            "err": ("pd.errCode",), "hours": ("pd.motorUseTime",), "remain": ("pd.remainTime",), "temp": ("pd.temp",)}
+            "err": ("pd.errCode",), "hours": ("pd.motorUseTime",), "remain": ("pd.remainTime",), "temp": ("pd.temp",),
+            "gph": ("pd.remainTime",)}      # 5.164: na plyn = spotřeba g/h (Petr ověřil na telefonu)
 
 
 def read_ecoflow_app(rivers, data, st, now, force=False):
@@ -3685,7 +3686,8 @@ def fuel_stats(data, st, now, cfg):
                 lit = float(bits[4].lower().replace("l", "").replace(",", ".").strip())
             except ValueError:
                 pass
-        ent.append({"t": t, "f": f, "price": price, "full": full, "l": lit})
+        kg = (lit if f == "lpg" and lit else None) or (10.0 if f == "lpg" and full else None)   # 5.164: u plynu 5. sloupec = kg (plná 10)
+        ent.append({"t": t, "f": f, "price": price, "full": full, "l": lit if f == "benzin" else None, "kg": kg})
     ent.sort(key=lambda e: e["t"])
     fe = st.setdefault("fuel_e", {})
     snap = st.setdefault("fuel_snap", {})
@@ -3725,16 +3727,21 @@ def fuel_stats(data, st, now, cfg):
             a = snap.get(f"{f}:{e['t']}", 0.0)
             closed = i + 1 < len(es)
             b = snap.get(f"{f}:{es[i + 1]['t']}", fe.get(f, 0.0)) if closed else fe.get(f, 0.0)
-            hist.append({"t": e["t"], "price": e["price"], "full": e["full"], "l": e["l"], "wh": round(max(0.0, b - a)), "closed": closed})
+            hist.append({"t": e["t"], "price": e["price"], "full": e["full"], "l": e["l"], "kg": e.get("kg"), "wh": round(max(0.0, b - a)), "closed": closed})
         ok = [x for x in hist if x["closed"] and x["full"] and x["wh"] > 100]
         avg_kwh = sum(x["wh"] for x in ok) / len(ok) / 1000 if ok else None    # jen energie – ceny do průměru nevstupují
         # 5.135: každá lahev má vlastní cenu za kWh (Petr: cena plynu se mění, změna jedné lahve nesmí změnit ostatní).
         # Spotřebovaná plná: její cena / její kWh. Rozpálená nebo částečná: její cena / obvyklé kWh na lahev (odhad).
+        # 5.164: předběžně podle spotřeby generátoru – kolik g plynu stojí 1 kWh (měřeno g/h při nabíjení na plyn)
+        fg = (st.get("fuel_gr") or {}).get(f)
+        gpk = fg[0] / (fg[1] / 1000) if f == "lpg" and fg and fg[1] >= 300 else None
         for x in hist:
             if x["closed"] and x["full"] and x["wh"] > 100:
                 x["czk_kwh"], x["est"] = round(x["price"] / (x["wh"] / 1000), 1), False
             elif avg_kwh and x["full"]:
                 x["czk_kwh"], x["est"] = round(x["price"] / avg_kwh, 1), True
+            elif gpk and x.get("kg") and not x["closed"]:
+                x["czk_kwh"], x["est"] = round(x["price"] / (x["kg"] * 1000 / gpk), 1), True   # 5.164: z kg lahve a g/kWh
             elif x["closed"] and x["wh"] > 100 and not x["full"]:
                 x["czk_kwh"], x["est"] = round(x["price"] / (x["wh"] / 1000), 1), False   # částečná: zaplacená cena / co z ní bylo
             else:
@@ -3743,8 +3750,14 @@ def fuel_stats(data, st, now, cfg):
         if cur and not cur["closed"]:
             cur = dict(cur)
             cur["left_pct"] = round(max(0.0, 100 - cur["wh"] / 1000 / avg_kwh * 100)) if avg_kwh and cur["full"] else None
+            if gpk and cur.get("kg"):                        # 5.164: spotřebováno kg = vyrobené kWh × g/kWh
+                cur["used_kg"] = round(cur["wh"] / 1000 * gpk / 1000, 2)
+                if cur["left_pct"] is None:
+                    cur["left_pct"] = round(max(0.0, 100 - cur["used_kg"] / cur["kg"] * 100))
+                cur["kwh_est"] = round(cur["kg"] * 1000 / gpk, 1)
         now_c = next((x["czk_kwh"] for x in reversed(hist) if x["czk_kwh"]), None)    # dnešní cena = poslední lahev s cenou
         out[f] = {"cur": cur if cur and not cur["closed"] else None, "avg_kwh": round(avg_kwh, 2) if avg_kwh else None,
+                  "gpk": round(gpk) if gpk else None, "g_kwh_n": round(fg[1] / 1000, 2) if gpk else None,
                   "czk_kwh": now_c, "n": len(ok), "hist": hist[-12:], "e": round(fe.get(f, 0.0))}
         fuel_hist_all[f] = hist
     data["fuel"] = out
@@ -5907,6 +5920,12 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             de2 = (gs.get("f_w", 0) + gwe) / 2 * (tnow - gs["f_t"]) / 3600
             fe_[fuel] = round(fe_.get(fuel, 0.0) + de2, 1)
             gs["fwh"] = gs.get("fwh", 0.0) + de2
+            # 5.164 (Petr): na plyn generátor hlásí spotřebu v g/h (pd.remainTime, ověřeno na telefonu) → kolik g stojí 1 kWh
+            gph = gd.get("gph") if fuel == "lpg" else None
+            if gph is not None and 50 <= float(gph) <= 2000 and (gw or 0) > 100:
+                fg_ = st.setdefault("fuel_gr", {}).setdefault("lpg", [0.0, 0.0])
+                fg_[0] = round(fg_[0] + float(gph) * (tnow - gs["f_t"]) / 3600, 1)
+                fg_[1] = round(fg_[1] + de2, 1)
         gs["f_t"], gs["f_w"] = tnow, gwe
         gs["fuel"] = fuel
         # 5.136: průběh počítadel paliva (≥ 2 min od sebe) – výměna lahve se pak přiřadí přesně k času, kdy se stala,
