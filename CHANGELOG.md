@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.163 – 31. 10. 2026
+- Generátor → 📊 Data: „Všechny údaje generátoru z EcoFlow“ (všechny, dřív nejvýš 80) – poslední stav při běhu (hlídač si ho uloží, i když se díváš až po nabíjení), hodnoty 300–1000 žlutě jako kandidáti na spotřebu plynu v g/h.
+
 ## 5.162 – 31. 10. 2026
 - Jaká baterie: výroba dne = vyšší z modelu a skutečnosti (model v létě podceňuje – učí se jen z nepřiškrcených dnů); den, kdy regulátor přešel do Float (baterie plná), se počítá jako pokrytý. Dřív vycházelo v létě skoro celý měsíc na River. Měsíce s méně než 20 dny dat šedě „jen N dní dat“. Přepočet hned (verze výpočtu v cache).
 

@@ -3274,7 +3274,7 @@ def read_ecoflow_app(rivers, data, st, now, force=False):
                     gd[key] = v
             r["gd"] = gd
             # všechny číselné údaje generátoru (zatím neznáme význam všech – na web k dohledání benzín/plyn)
-            r["q"] = dict(list({k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and not isinstance(v, bool)}.items())[:80])
+            r["q"] = {k: v for k, v in sorted(q.items()) if isinstance(v, (int, float)) and not isinstance(v, bool)}   # 5.163: všechny
     out["devs"] = {str(r["sn"])[-4:]: r.get("ak") for r in bad}
     data["eco_app"] = out
 
@@ -5928,6 +5928,9 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             if gs.pop("stop_t", None) and data.get("gen_stop"):
                 data["gen_stop"]["res"] = tnow         # 5.140: zase nabíjí – pruh na webu zmizí, čas zastavení zůstane pro formulář
         gs["e_t"], gs["e_w"] = tnow, tot_in
+        gq_ = next((x.get("q") for x in gens if x.get("q")), None)   # 5.163: všechny údaje generátoru při běhu (hledání g/h)
+        if gq_ and (gw or 0) > 20:
+            data["gen_q_run"] = {"t": tnow, "w": round(gw), "fuel": fuel, "q": gq_}
         gp_ = data.setdefault("gen_pts", [])                # 5.06: výkon generátoru po 30 s (graf i bez Flipu)
         gp_.append([tnow, round(gw) if gw is not None else None, tot_in])
         gp_[:] = [x for x in gp_ if x[0] >= tnow - 7 * 86400][-3000:]

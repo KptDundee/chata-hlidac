@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata – elektřina</title>
-<script>const WEB_VER = "5.162", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.163", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3442,7 +3442,14 @@ function detGen(body){
         ${(()=>{ const r = Object.values(((d.days||{})[tk]||{}).rv||{}).reduce((a,x)=>a+(x.gi ?? x.i ?? 0),0); return r > 0 ? rowI("Do River dnes (EcoFlow)", kWh(r)) : ""; })()}
         ${rowI("Běhů za 7 dní", String((d.gen_log||[]).filter(r=>wk.includes(dkey(r.t0))).length))}
         ${gd.fuel!=null ? rowI("Palivo (generátor hlásí)", `${nf(gd.fuel)} %`) : ""}${gd.hours!=null ? rowI("Motohodiny (generátor hlásí)", escH(String(gd.hours))) : ""}</div>`
-    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Dodáno = energie přes zásuvku generátoru (7), během nabíjení i součet příjmů River z EcoFlow. Nabito = změna % River × kapacita. Účinnost = nabito ÷ dodáno (ztráty nabíječek River).</div></div>`);
+    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Dodáno = energie přes zásuvku generátoru (7), během nabíjení i součet příjmů River z EcoFlow. Nabito = změna % River × kapacita. Účinnost = nabito ÷ dodáno (ztráty nabíječek River).</div>`
+    + (()=>{ const G = d.gen_q_run, cur = ((d.ef_gens||[]).find(g=>g.q)||{}).q;   // 5.163: všechny údaje generátoru (hledání spotřeby g/h)
+        const Q = G ? G.q : cur; if(!Q) return "";
+        const rows = Object.entries(Q).map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px solid var(--line)${v>=300 && v<=1000 ? ";background:color-mix(in srgb,var(--warn) 18%,transparent)" : ""}"><span style="word-break:break-all">${escH(k)}</span><b>${escH(String(v))}</b></div>`).join("");
+        return `<details class="card"><summary style="cursor:pointer;font-weight:600">Všechny údaje generátoru z EcoFlow (${Object.keys(Q).length})</summary>
+          <div class="sub" style="margin:4px 0">${G ? `Při běhu ${relDay(G.t)} ${hmT(G.t)} (${nf(G.w)} W, ${G.fuel==="lpg"?"plyn":"benzín"})` : "Teď – generátor neběží, hodnoty můžou být nulové"} · žlutě hodnoty 300–1000 (kandidáti na spotřebu v g/h)</div>
+          <div style="font-size:12.5px">${rows}</div></details>`; })()
+    + `</div>`);
   tabsWire("gn_tab", ["data","start"]);
   const gsr = pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})).concat((d.gen_pts||[]).map(x=>({t:x[0], w:x[1] ?? x[2]}))).sort((a,b)=>a.t-b.t);
   lineChart($("dg_w"), gsr, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
