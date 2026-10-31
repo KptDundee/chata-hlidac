@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.170 – 31. 10. 2026
+- Chladnutí: výjimečná noc (víc lidí v pokoji…) – tlačítkem u vybrané noci v grafu „🚫 Označit jako výjimečnou“ se uloží do nastavení chladnuti_vyjimky (data večerů); hlídač ji vynechá z učení, z hrubého odhadu i z opravy čísla na spaní (i dodatečně). Znovu ťuknutím zrušit.
+- Název aplikace „🏡 Chata“ (nejen elektřina).
+
 ## 5.169 – 31. 10. 2026
 - Nabíjení z generátoru: co River chybí do plna se počítá z naměřených Wh na 1 % po pásmech (poslední procenta stojí víc) a nikdy méně než 3 %, dokud nabíjí. Skoro plná River (99 %) dřív dostala jen 200 W a dobíjela se o 10 min déle než ostatní. Průběžný přepočet zůstává.
 

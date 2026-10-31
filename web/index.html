@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Chata – elektřina</title>
-<script>const WEB_VER = "5.169", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<title>Chata</title>
+<script>const WEB_VER = "5.170", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -247,7 +247,7 @@ details.sec>.in{margin-top:8px}
 
 <div id="boot" class="hide" style="padding:30vh 16px 0;text-align:center;color:var(--text2)"><div style="font-size:34px">⚡</div><div style="margin-top:8px;font-weight:600">Načítám data z chaty…</div><div class="sub" id="bootsec" style="margin-top:4px">0 s</div></div>
 <section id="login" class="login card hide">
-  <h1>⚡ Chata – elektřina</h1>
+  <h1>🏡 Chata</h1>
   <p class="sub">Data jsou zašifrovaná. Zadej heslo (DATA_KEY).</p>
   <form id="lf">
     <input id="pw" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="current-password" placeholder="Heslo" required>
@@ -258,7 +258,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>⚡ Chata – elektřina<span class="ver" id="ver">v3.6</span></h1>
+    <h1>🏡 Chata<span class="ver" id="ver">v3.6</span></h1>
     <div class="hrow"><div class="sub"><span id="upd">…</span><div id="flipbat"></div></div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="depart" title="Odjíždím – zkontrolovat, jestli zdroj vydrží do návratu">🚗</button><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -2354,9 +2354,18 @@ function coolCard(body, d, h){
     <div class="card chart"><h2>Noc: ${escH(c.room)} a venku</h2>
       <div class="cs"><span style="color:var(--s1)">━</span> ${escH(c.room)} · <span style="color:var(--s4)">┅</span> předpověď (od nejvyšší teploty po ${W[0]} – po přiložení teplota ještě chvíli stoupá; nadcházející noc od spaní z potřebné teploty) · <span style="color:var(--s3)">━</span> venku · šedé = noc bez topení, ze které se učí</div>
       <div class="sub" style="margin-top:2px">K čemu: u minulých nocí porovnáš, jak pokoj skutečně chladl (modře) s předpovědí (oranžově) – když sedí, dá se věřit i číslu „ve 0:00 mít aspoň …“.${c.k && c.n < c.need ? ` Zatím hrubý odhad ze ${c.k_n||0} nocí, přesnější po ${c.need} nocích (teď ${c.n}).` : ""}</div>
-      <div class="sub" style="margin-top:8px;font-weight:600;color:var(--text)">Vyber noc:</div><div class="seg" id="cool_nights" style="margin:4px 0 8px;flex-wrap:wrap;gap:4px"></div><div id="cool_ninfo" style="font-size:14px;margin:2px 0 4px"></div><div id="cool_ch"></div></div>`
+      <div class="sub" style="margin-top:8px;font-weight:600;color:var(--text)">Vyber noc:</div><div class="seg" id="cool_nights" style="margin:4px 0 8px;flex-wrap:wrap;gap:4px"></div><div id="cool_ninfo" style="font-size:14px;margin:2px 0 4px"></div><div id="cool_exc" style="margin:4px 0 6px"></div><div id="cool_ch"></div></div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak to číst:</b> „ztráta na 10 °C rozdílu“ 0,8 °C/h znamená: při 20 °C uvnitř a 10 °C venku klesá ~0,8 °C za hodinu, při rozdílu 20 °C ~1,6 °C/h; jak se teploty přibližují, chladnutí zpomaluje. Čím menší číslo, tím líp chata drží teplo. Předpověď v grafu je jen orientační – nezná vaření, dýchání ani větrání. Učí se jen z noci ${W[0]}–${W[1]} (přes den se topí udržovacím topením), z konce noci (na začátku ještě hřejí kamna) a bez větrání (🪟).</div>`);
   { const b0 = new Date(); b0.setHours(20,0,0,0); coolNight(d, h, new Date().getHours() >= 12 && Date.now()/1000 < b0.getTime()/1000 ? 1 : 0); }   // 5.159: přes den rovnou minulá noc (dnešní ještě nezačala)
+}
+/* 5.170 (Petr): výjimečná noc (víc lidí v pokoji…) – nepoužít k učení chladnutí; uloží se do nastavení chladnuti_vyjimky */
+async function coolExc(nk){
+  const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
+  const cur = String(DATA.cfg?.chladnuti_vyjimky||"").split(/[,;\s]+/).filter(Boolean);
+  const nxt = cur.includes(nk) ? cur.filter(x=>x!==nk) : [...cur, nk].sort().slice(-30);
+  try{ await setCfgKey(tok, "chladnuti_vyjimky", nxt.join(", ")); coolNight(DATA, homeData(DATA), COOL_N);
+    alert(cur.includes(nk) ? "Zrušeno – noc se zase použije k učení." : "Označeno ✓ – hlídač tuhle noc při dalším běhu vynechá z učení i z opravy čísla na spaní."); }
+  catch(e){ alert("Nejde uložit: " + e.message); }
 }
 function coolNight(d, h, n){
   const c = d.cool, el = $("cool_ch"), bar = $("cool_nights"); if(!el || !c) return;
@@ -2376,6 +2385,8 @@ function coolNight(d, h, n){
   bar.onclick = e => { const b = e.target.closest("button"); if(b) coolNight(d, h, +b.dataset.n); };
   const N = nights[n]; if(!N) return empty(el, "Zatím málo dat.");
   { const cn = (c.nights||[]).find(x=>x.tb > N.t0 && x.tb <= N.t1 && x.err!=null), info = $("cool_ninfo");   // 5.160
+    const nk = dkey(N.t0), exc = String(d.cfg?.chladnuti_vyjimky||"").split(/[,;\s]+/).filter(Boolean), isExc = exc.includes(nk);   // 5.170
+    const eb = $("cool_exc"); if(eb) eb.innerHTML = `<button type="button" onclick="coolExc('${nk}')" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:${isExc?"color-mix(in srgb,var(--warn) 25%,transparent)":"transparent"};color:var(--text);cursor:pointer">${isExc ? "✓ Výjimečná noc – nepoužívá se k učení (zrušit)" : "🚫 Označit jako výjimečnou (víc lidí…) – nepoužít k učení"}</button>`;
     if(info) info.innerHTML = cn ? `Ráno ${hmT(cn.tb)}: skutečnost <b>${nf(cn.Tb,1)} °C</b>, předpověď ${nf(cn.pred,1)} °C → <b style="color:var(${cn.err < -0.4 ? "--crit" : cn.err > 0.4 ? "--good" : "--text"})">${cn.err > 0 ? "+" : cn.err < 0 ? "−" : ""}${nf(Math.abs(cn.err),1)} °C</b>` : ""; }
   const R = room.filter(q=>q.t>=N.t0 && q.t<=N.t1), O = out.filter(q=>q.t>=N.t0 && q.t<=N.t1);   // 5.156: jen v okně (dřív svislé čáry na okrajích)
   // předpověď: od začátku okna (0:00) z naměřené teploty; když okno ještě nezačalo nebo běží, od teď
@@ -3857,6 +3868,7 @@ const SETTINGS = [
     ["chladnuti_noc_od","Chladnutí – noc bez topení od","Učí se jen z této části noci","",0,"time"],
     ["chladnuti_noc_do","Chladnutí – noc bez topení do","","",0,"time"],
     ["chladnuti_cil_C","Chladnutí – ráno chci","Kolik má být ráno v místnosti","°C",0.5,"num"],
+    ["chladnuti_vyjimky","Výjimečné noci","Data večerů (2026-10-31, …), které se nepoužijí k učení – nastavíš tlačítkem v grafu nocí","",0,"txt"],
     ["chladnuti_spat","Chodím spát v","Kolik °C mít v pokoji v tuhle dobu, aby ráno bylo „ráno chci“","",0,"time"],
     ["chladnuti_min_C","Přes den nesmí klesnout pod","Kdy zatopit: hranice teploty pokoje","°C",0.5,"num"],
     ["chladnuti_predstih_min","Upozornit předem","Kolik minut před dosažením hranice přijde „zatop“","min",5,"num"],

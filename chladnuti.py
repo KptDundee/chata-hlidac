@@ -216,7 +216,12 @@ def update(data, st, now, cfg, log=print):
             return int(a) * 60 + int(b)
     w0, w1 = _min(cfg.get("chladnuti_noc_od"), "0:00"), _min(cfg.get("chladnuti_noc_do"), "7:00")
 
+    exc = {x.strip() for x in str(cfg.get("chladnuti_vyjimky") or "").replace(";", ",").split(",") if x.strip()}
+    nkey = lambda t: (datetime.fromtimestamp(t, now.tzinfo) - timedelta(hours=12)).strftime("%Y-%m-%d")   # 5.170: noc = datum večera
+
     def inwin(t):                                     # 5.46: jen noc, kdy se netopí (přes den se topí udržovacím topením)
+        if nkey(t) in exc:                            # 5.170 (Petr): výjimečná noc (víc lidí…) – neučit se z ní
+            return False
         lt = datetime.fromtimestamp(t, now.tzinfo)
         m = lt.hour * 60 + lt.minute
         return w0 <= m < w1 if w0 <= w1 else (m >= w0 or m < w1)
@@ -231,6 +236,9 @@ def update(data, st, now, cfg, log=print):
             if f["live"]:
                 seen_live.add(key)
     for k_, x in list(ev.items()):
+        if nkey(x["ta"]) in exc:
+            ev.pop(k_, None)                           # 5.170: dodatečně označená výjimečná noc
+            continue
         if x.get("live") and k_ not in seen_live:
             x["live"] = 0                              # úsek mezitím skončil
     for k_ in sorted(ev, key=lambda z: ev[z]["ta"])[:-40]:
@@ -266,13 +274,14 @@ def update(data, st, now, cfg, log=print):
         os_ = [tout(t) for t, _ in pts[::6] if tout(t) is not None]
         pk = max(pts, key=lambda q: q[1])                # 5.160: nejvyšší teplota v okně (po přiložení) – odtud předpověď
         nights.append({"ta": int(pts[0][0]), "tb": int(pts[-1][0]), "Ta": pts[0][1], "Tb": pts[-1][1], "pk": [int(pk[0]), pk[1]],
+                       "exc": 1 if nkey(pts[0][0]) in exc else 0,
                        "avg": round((pts[0][1] - pts[-1][1]) / hrs, 2) if hrs > 0 else None,
                        "To": round(sum(os_) / len(os_), 1) if os_ else None, "heat": 1 if mx_rise >= 0.5 else 0})
     c["nights"] = nights
     # 5.51: dokud se model nenaučí z úseků, hrubý odhad rychlosti přímo z nocí bez topení: k ≈ pokles/h ÷ (průměr uvnitř − venku)
     if not ks:
         kn = sorted(x["avg"] / ((x["Ta"] + x["Tb"]) / 2 - x["To"]) for x in nights
-                    if not x["heat"] and x.get("avg") and x["avg"] > 0 and x.get("To") is not None and (x["Ta"] + x["Tb"]) / 2 - x["To"] > 3)
+                    if not x["heat"] and not x.get("exc") and x.get("avg") and x["avg"] > 0 and x.get("To") is not None and (x["Ta"] + x["Tb"]) / 2 - x["To"] > 3)
         if kn:
             k = kn[len(kn) // 2]
             c.update(k=round(k, 4), half_h=round(math.log(2) / k, 1), r10=round(k * 10, 2), k_src="noci", k_n=len(kn))
@@ -307,6 +316,8 @@ def update(data, st, now, cfg, log=print):
         # 5.160 (Petr): každá noc – o kolik byla ráno skutečnost jiná než předpověď od nejvyšší teploty (záporné = chladněji)
         errs = []
         for x in nights:
+            if x.get("exc"):
+                continue                                # 5.170: výjimečná noc se do opravy nepočítá
             p_ = _sim(x["pk"][1], x["pk"][0], x["tb"], c["k"], tout) if x["tb"] - x["pk"][0] >= 2 * 3600 else None
             if p_ is not None:
                 x["pred"], x["err"] = round(p_, 1), round(x["Tb"] - p_, 1)
