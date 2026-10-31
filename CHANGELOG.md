@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.171 – 31. 10. 2026
+- Hlavní obrazovka se záložkami: ⚡ Energie (Teď, Energie dnes, Výhled) · 🌡️ Chata (teploty, lednice, Flip a Wi‑Fi) · 📅 Přehled (Uplynulé, Dlouhodobě). Pruhy upozornění, generátoru a dobití nahoře vždy. Tečka u záložky, kde je něco červeně / oranžově. Pamatuje si poslední záložku. Sekce uvnitř záložek už nejsou sbalovací.
+
 ## 5.170 – 31. 10. 2026
 - Chladnutí: výjimečná noc (víc lidí v pokoji…) – tlačítkem u vybrané noci v grafu „🚫 Označit jako výjimečnou“ se uloží do nastavení chladnuti_vyjimky (data večerů); hlídač ji vynechá z učení, z hrubého odhadu i z opravy čísla na spaní (i dodatečně). Znovu ťuknutím zrušit.
 - Název aplikace „🏡 Chata“ (nejen elektřina).

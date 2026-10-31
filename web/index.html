@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.170", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.171", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -178,6 +178,7 @@ details.sec>.in{margin-top:8px}
 .tt .hd{font-size:11px;color:var(--muted);text-align:right}
 .tt .w3{grid-column:2 / span 3;text-align:right;font-size:12.5px}
 .hsec{margin:10px 0 0}
+.htabs{display:flex;width:100%;box-sizing:border-box}.htabs button{position:relative;flex:1}.tdot{display:none;position:absolute;top:5px;right:8px;width:8px;height:8px;border-radius:50%}.tdot.w{display:block;background:var(--warn)}.tdot.b{display:block;background:var(--crit)}
 .hsec>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;padding:10px 4px 8px;border-top:1px solid var(--line)}
 .hsec>summary::-webkit-details-marker{display:none}
 .hsec>summary::after{content:"›";margin-left:auto;color:var(--muted);font-size:18px;transition:transform .15s}
@@ -274,15 +275,26 @@ details.sec>.in{margin-top:8px}
     <div class="abar" id="alerts" data-det="alerts" role="button"></div>
     <div class="abar hide" id="genbar" data-det="gen" role="button" style="--ac:var(--good)"></div>
     <div class="abar hide" id="fullbar" data-det="bat" role="button" style="--ac:var(--s1)"></div>
-    <h2 class="hh">Teď</h2>
-    <div class="hgrid" id="h_src"></div>
-    <!-- 5.15: sekce rozbalovací; s červeným / oranžovým příznakem se rozbalí samy -->
-    <details class="hsec" id="hs_energy"><summary><span class="hst">Energie dnes</span><span class="hss" id="hss_energy"></span></summary>
-      <div class="hsub">Výroba</div><div class="hgrid" id="h_day"></div><div class="hsub">Spotřeba</div><div class="hgrid" id="h_use"></div></details>
-    <details class="hsec" id="hs_chata"><summary><span class="hst">Chata</span><span class="hss" id="hss_chata"></span></summary><div class="hgrid" id="h_dev"></div></details>
-    <details class="hsec" id="hs_out"><summary><span class="hst">Výhled</span><span class="hss" id="hss_out"></span></summary><div class="hgrid" id="h_now"></div></details>
-    <details class="hsec" id="hs_past"><summary><span class="hst">Uplynulé</span><span class="hss" id="hss_past"></span></summary><div class="hgrid" id="h_past"></div></details>
-    <details class="hsec" id="hs_long"><summary><span class="hst">Dlouhodobě</span><span class="hss" id="hss_long"></span></summary><div class="hgrid small" id="h_long"></div></details>
+    <!-- 5.171: záložky – Energie / Chata / Přehled (pruhy nahoře platí pro všechny) -->
+    <div class="seg htabs" id="htab_seg" style="margin:10px 0 4px"><button data-ht="en">⚡ Energie<i class="tdot"></i></button><button data-ht="ch">🌡️ Chata<i class="tdot"></i></button><button data-ht="pr">📅 Přehled<i class="tdot"></i></button></div>
+    <div id="hp_en">
+      <h2 class="hh">Teď</h2>
+      <div class="hgrid" id="h_src"></div>
+      <h2 class="hh">Energie dnes</h2>
+      <div class="hsub">Výroba</div><div class="hgrid" id="h_day"></div><div class="hsub">Spotřeba</div><div class="hgrid" id="h_use"></div>
+      <h2 class="hh">Výhled</h2>
+      <div class="hgrid" id="h_now"></div>
+    </div>
+    <div id="hp_ch" class="hide">
+      <h2 class="hh">Chata</h2>
+      <div class="hgrid" id="h_dev"></div>
+    </div>
+    <div id="hp_pr" class="hide">
+      <h2 class="hh">Uplynulé</h2>
+      <div class="hgrid" id="h_past"></div>
+      <h2 class="hh">Dlouhodobě</h2>
+      <div class="hgrid small" id="h_long"></div>
+    </div>
   </section>
 
   <!-- původní obsah – zobrazuje se v detailu dlaždic -->
@@ -3020,23 +3032,40 @@ function homeSections(G){
       setTimeout(()=>{ try{ localStorage.setItem("hs_"+id, el.open ? "1" : "0"); }catch(_){} }, 0); }); }
   }
 }
+/* 5.171: záložky na hlavní obrazovce; tečka u záložky, kde je něco červeně / oranžově (výměna baterie je známá věc) */
+let HTAB = "en"; try{ HTAB = localStorage.getItem("htab") || "en"; }catch(_){}
+function homeTabs(G){
+  for(const [id, tiles] of Object.entries(G)){
+    const bad = tiles.filter(t=>t && (t.cls==="bad" || t.cls==="warn") && t.k !== "health");
+    const b = document.querySelector(`#htab_seg button[data-ht="${id}"] .tdot`);
+    if(b) b.className = "tdot" + (bad.some(t=>t.cls==="bad") ? " b" : bad.length ? " w" : "");
+  }
+  for(const id of ["en","ch","pr"]){ $("hp_"+id).classList.toggle("hide", id !== HTAB);
+    const b = document.querySelector(`#htab_seg button[data-ht="${id}"]`); if(b) b.setAttribute("aria-pressed", id === HTAB); }
+}
+document.addEventListener("click", e => { const b = e.target.closest("#htab_seg button"); if(!b) return;
+  HTAB = b.dataset.ht; try{ localStorage.setItem("htab", HTAB); }catch(_){}
+  for(const id of ["en","ch","pr"]){ $("hp_"+id).classList.toggle("hide", id !== HTAB);
+    const x = document.querySelector(`#htab_seg button[data-ht="${id}"]`); if(x) x.setAttribute("aria-pressed", id === HTAB); }
+  window.scrollTo({top:0}); });
 function renderHome(d){
   const h = homeData(d);
   // chata jede z River → River první (jde o chatu), po přepojení na solár zase solární baterie první
-  $("h_src").innerHTML = (h.rvOn ? [tileRivers(d, h), tileSolar(d, h)] : [tileSolar(d, h), tileRivers(d, h)]).map(tileHtml).join("");
+  const SRC = h.rvOn ? [tileRivers(d, h), tileSolar(d, h)] : [tileSolar(d, h), tileRivers(d, h)];
+  $("h_src").innerHTML = SRC.map(tileHtml).join("");
   // 5.15: sekce – Chata (teploty, lednice, Flip, spotřebiče), Energie dnes (výroba + spotřeba), Výhled, Uplynulé, Dlouhodobě
   const T = {
     chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h)].filter(Boolean),
     prod: [tileProdSolar(d, h), tileProdGen(d, h)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
     out: [tileNight(d,h), tileTomorrow(d,h), tilePlan(d,h)], past: [tilePastNight(d,h), tileYesterday(d,h)],
-    long: [tileWire(d,h), tileHealth(d,h), tileBsim(d,h), tilePanels(d,h), tileSystem(d,h)] };
+    long: [tileWire(d,h), tileHealth(d,h), tileBsim(d,h), tilePanels(d,h), tileSystem(d,h)], src: SRC };
   $("h_dev").innerHTML = T.chata.map(tileHtml).join("");
   $("h_day").innerHTML = T.prod.map(tileHtml).join("");
   $("h_use").innerHTML = T.use.map(tileHtml).join("");
   $("h_now").innerHTML = T.out.map(tileHtml).join("");
   $("h_past").innerHTML = T.past.map(tileHtml).join("");
   $("h_long").innerHTML = T.long.map(tileHtml).join("");
-  homeSections({chata:T.chata, energy:[...T.prod, ...T.use], out:T.out, past:T.past, long:T.long});
+  homeTabs({en:[...T.src, ...T.prod, ...T.use, ...T.out], ch:T.chata, pr:[...T.past, ...T.long]});   // 5.171
   const A = alertItems(d, h), el = $("alerts"), top = A[0];
   const onlyQ = A.length && A.every(a=>a.q);
   el.className = "abar " + (!A.length || onlyQ ? "ok" : top.s >= 2 ? "bad" : "warn") + (onlyQ ? " quiet" : "");
