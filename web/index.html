@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.173", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.174", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -178,7 +178,7 @@ details.sec>.in{margin-top:8px}
 .tt .hd{font-size:11px;color:var(--muted);text-align:right}
 .tt .w3{grid-column:2 / span 3;text-align:right;font-size:12.5px}
 .hsec{margin:10px 0 0}
-.htabs{display:flex;width:100%;box-sizing:border-box}.htabs button{position:relative;flex:1}.tdot{display:none;position:absolute;top:5px;right:8px;width:8px;height:8px;border-radius:50%}.tdot.w{display:block;background:var(--warn)}.tdot.b{display:block;background:var(--crit)}
+.htabs{display:flex;width:100%;box-sizing:border-box}.htabs button{position:relative;flex:1;padding-left:2px;padding-right:2px;font-size:13px;line-height:1.25}.tdot{display:none;position:absolute;top:5px;right:8px;width:8px;height:8px;border-radius:50%}.tdot.w{display:block;background:var(--warn)}.tdot.b{display:block;background:var(--crit)}
 .hsec>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;padding:10px 4px 8px;border-top:1px solid var(--line)}
 .hsec>summary::-webkit-details-marker{display:none}
 .hsec>summary::after{content:"›";margin-left:auto;color:var(--muted);font-size:18px;transition:transform .15s}
@@ -276,14 +276,20 @@ details.sec>.in{margin-top:8px}
     <div class="abar hide" id="genbar" data-det="gen" role="button" style="--ac:var(--good)"></div>
     <div class="abar hide" id="fullbar" data-det="bat" role="button" style="--ac:var(--s1)"></div>
     <!-- 5.171: záložky – Energie / Chata / Přehled (pruhy nahoře platí pro všechny) -->
-    <div class="seg htabs" id="htab_seg" style="margin:10px 0 4px"><button data-ht="en">⚡ Energie<i class="tdot"></i></button><button data-ht="ch">🌡️ Chata<i class="tdot"></i></button><button data-ht="pr">📅 Přehled<i class="tdot"></i></button></div>
+    <div class="seg htabs" id="htab_seg" style="margin:10px 0 4px"><button data-ht="en">⚡<br>Teď<i class="tdot"></i></button><button data-ht="vy">☀️<br>Výroba<i class="tdot"></i></button><button data-ht="sp">🏠<br>Spotřeba<i class="tdot"></i></button><button data-ht="ch">🌡️<br>Chata<i class="tdot"></i></button><button data-ht="pr">📅<br>Přehled<i class="tdot"></i></button></div>
     <div id="hp_en">
       <h2 class="hh">Teď</h2>
       <div class="hgrid" id="h_src"></div>
-      <h2 class="hh">Energie dnes</h2>
-      <div class="hsub">Výroba</div><div class="hgrid" id="h_day"></div><div class="hsub">Spotřeba</div><div class="hgrid" id="h_use"></div>
       <h2 class="hh">Výhled</h2>
       <div class="hgrid" id="h_now"></div>
+    </div>
+    <div id="hp_vy" class="hide">
+      <h2 class="hh">Výroba dnes</h2>
+      <div class="hgrid" id="h_day"></div>
+    </div>
+    <div id="hp_sp" class="hide">
+      <h2 class="hh">Spotřeba dnes</h2>
+      <div class="hgrid" id="h_use"></div>
     </div>
     <div id="hp_ch" class="hide">
       <h2 class="hh">Chata</h2>
@@ -3040,12 +3046,13 @@ function homeTabs(G){
     const b = document.querySelector(`#htab_seg button[data-ht="${id}"] .tdot`);
     if(b) b.className = "tdot" + (bad.some(t=>t.cls==="bad") ? " b" : bad.length ? " w" : "");
   }
-  for(const id of ["en","ch","pr"]){ $("hp_"+id).classList.toggle("hide", id !== HTAB);
+  if(!["en","vy","sp","ch","pr"].includes(HTAB)) HTAB = "en";
+  for(const id of ["en","vy","sp","ch","pr"]){ $("hp_"+id).classList.toggle("hide", id !== HTAB);
     const b = document.querySelector(`#htab_seg button[data-ht="${id}"]`); if(b) b.setAttribute("aria-pressed", id === HTAB); }
 }
 document.addEventListener("click", e => { const b = e.target.closest("#htab_seg button"); if(!b) return;
   HTAB = b.dataset.ht; try{ localStorage.setItem("htab", HTAB); }catch(_){}
-  for(const id of ["en","ch","pr"]){ $("hp_"+id).classList.toggle("hide", id !== HTAB);
+  for(const id of ["en","vy","sp","ch","pr"]){ $("hp_"+id).classList.toggle("hide", id !== HTAB);
     const x = document.querySelector(`#htab_seg button[data-ht="${id}"]`); if(x) x.setAttribute("aria-pressed", id === HTAB); }
   window.scrollTo({top:0}); });
 function renderHome(d){
@@ -3065,7 +3072,7 @@ function renderHome(d){
   $("h_now").innerHTML = T.out.map(tileHtml).join("");
   $("h_past").innerHTML = T.past.map(tileHtml).join("");
   $("h_long").innerHTML = T.long.map(tileHtml).join("");
-  homeTabs({en:[...T.src, ...T.prod, ...T.use, ...T.out], ch:T.chata, pr:[...T.past, ...T.long]});   // 5.171
+  homeTabs({en:[...T.src, ...T.out], vy:T.prod, sp:T.use, ch:T.chata, pr:[...T.past, ...T.long]});   // 5.171 / 5.174
   const A = alertItems(d, h), el = $("alerts"), top = A[0];
   const onlyQ = A.length && A.every(a=>a.q);
   el.className = "abar " + (!A.length || onlyQ ? "ok" : top.s >= 2 ? "bad" : "warn") + (onlyQ ? " quiet" : "");
