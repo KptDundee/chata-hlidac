@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.176", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.177", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2321,7 +2321,8 @@ let COOL_N = 0;                                       // vybraná noc v grafu (0
    stupnice °C, venkovní předpověď pod grafem. Upozornění jen podle pravidel (na chatě, 6–22, teplota klesá). */
 function heatCard(d){
   const H = d.heat, c = d.cool || {}; if(!H) return "";
-  const lim = H.lim, st = H.state, limT = cfgV("chladnuti_min_C", `${nf(H.lim,0)} °C`), hitT = H.hit ? `${relDay(H.hit)==="dnes" ? "" : relDay(H.hit)+" "}~${hmT(H.hit)}` : null;
+  const nowLim = parseFloat(String(d.cfg?.chladnuti_min_C ?? H.lim).replace(",", ".")), chg = !isNaN(nowLim) && Math.abs(nowLim - H.lim) > 0.01;   // 5.177: změněno, hlídač ještě nepřepočítal
+  const lim = H.lim, st = H.state, limT = cfgV("chladnuti_min_C", `${nf(H.lim,0)} °C`) + (chg ? ` <span class="sub" style="color:var(--warn)">(změněno na ${nf(nowLim,1)} °C – přepočítá se do pár minut)</span>` : ""), hitT = H.hit ? `${relDay(H.hit)==="dnes" ? "" : relDay(H.hit)+" "}~${hmT(H.hit)}` : null;
   const ifStop = hitT ? `kdyby se teď přestalo topit, ${limT} ${hitT}` : `kdyby se teď přestalo topit, ${limT} dalších 10 h nedosáhne`;
   const msg = st==="cool" ? `Teplota klesá – <b>${limT} dosáhne ${hitT}</b> → zatop do <b>~${hmT(H.warn)}</b>.`
     : st==="below" ? `<b style="color:var(--crit)">Už je pod ${limT}</b> – zatop.`
