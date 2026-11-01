@@ -168,6 +168,7 @@ flip_teplota_max_C = 40          # upozornit, když je baterie Flipu teplejší
 gen_rizeni = zapnuto             # řídit nabíjecí výkon velkých River z generátoru (skončí zároveň, generátor naplno)
 gen_palivo = lpg              # benzin / lpg – na plyn dává generátor méně
 gen_max_benzin_W = 1800          # štítek: 1800 W (špička 1900 W)
+gen_nadrz_l = 4.0               # objem nádrže generátoru (l) – benzín: spotřeba = ubylé % nádrže × objem (EcoFlow Smart Generator Dual Fuel: 4,0 l)
 gen_max_lpg_W = 1600             # štítek: 1600 W (špička 1700 W)
 gen_rezerva_W = 100              # tolik W nechat generátoru volných (23. 10.: na 0 W generátor jednou vypadl)
 gen_po_behu_W = 200              # výkon velkých River mimo nabíjení z generátoru (start generátoru nic nepřetíží)

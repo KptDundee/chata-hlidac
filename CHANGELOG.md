@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.181 – 1. 11. 2026
+- Cena nabíjení (Petr): záložka 💰 Cena u generátoru má vnitřní záložky 🔥 Plyn, ⛽ Benzín, 📈 Grafy. U každé ceny je napsáno, pro které palivo a jak se počítá.
+- Benzín stejnou logikou jako plyn, ale podle nádrže: generátor hlásí stav nádrže v %, spotřeba nabíjení = ubylé % × objem nádrže (nové nastavení `gen_nadrz_l`, 4,0 l – EcoFlow Smart Generator Dual Fuel), litr = cena tankování ÷ litry, nabíjení = litry × cena litru z posledního tankování před ním. Doplnění během nabíjení (skok nahoru) se přeskočí. V záložce Benzín i kolik je teď v nádrži (l) a spotřeba l/kWh.
+- Grafy po dnech / týdnech / měsících / letech: cena 1 kWh z generátoru a 1 kWh využitelné (do chaty) – plyn, benzín, celkem; účinnost nabíjení v čase; pod tím tabulka, kolik nabíjení stálo (plyn, benzín, celkem, kWh).
+- Hlídač u každého nabíjení ukládá % River na začátku a konci a co River během nabíjení dodala do chaty → skutečná využitelná energie a účinnost. Ukládá všechna nabíjení (dřív jen posledních 30).
+
 ## 5.180 – 1. 11. 2026
 - Oprava: upozornění „River … má jen X % – přepoj chatu“ zůstalo v horním pruhu, když se ta River vypnula / přestala posílat data (offline) – hlídač ji pak vůbec nekontroloval. Teď se zruší, jakmile je jisté, že chata jede odjinud: jiná velká River online dodává (nad 20 W), nebo chata jede ze soláru. Když jistota není (nic jiného nedodává), upozornění zůstane.
 
