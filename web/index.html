@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.178", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.179", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3834,7 +3834,7 @@ const SETTINGS = [
     ["den_kontrola","Obvyklý rozvrh – odjezd","Kdy obvykle odjíždíš – platí pro dny, které nemáš v plánu „🗓 Kdy jsem pryč“ (vypnutý den = doma)","",0,"week"],
     ["den_navrat","Obvyklý rozvrh – návrat","Kdy se obvykle vracíš – do té doby musí zdroj vydržet (prázdný den = „vydržet do“)","",0,"week"],
     ["den_do","Výhled dne – vydržet do","Do kolika má chata na soláru vydržet ve dny bez času návratu (pak řeší noc jiná upozornění)","",0,"time"],
-    ["ticho","Noční klid upozornění","Od–do (např. 0:00-5:45): chodí jen ohrožení chodu, doporučení počkají na ráno","",0,"txt"],
+    ["ticho","Noční klid upozornění","Od–do (např. 0:00-5:45): chodí jen ohrožení chodu, doporučení počkají na ráno","",0,"str"],
     ["nutne_river_v","Před spaním: přepni na River","Od tohoto času, když zdroj do rána nevydrží; opakuje se po 10 min","",0,"timeopt"],
     ["vecerni_souhrn_hodina","Večerní souhrn (každý večer)","Hodina, kdy každý večer přijde přehled dneška","h",1,"opt"],
   ]],
@@ -3933,7 +3933,7 @@ const SETTINGS = [
     ["chladnuti_noc_od","Chladnutí – noc bez topení od","Učí se jen z této části noci","",0,"time"],
     ["chladnuti_noc_do","Chladnutí – noc bez topení do","","",0,"time"],
     ["chladnuti_cil_C","Chladnutí – ráno chci","Kolik má být ráno v místnosti","°C",0.5,"num"],
-    ["chladnuti_vyjimky","Výjimečné noci","Data večerů (2026-10-31, …), které se nepoužijí k učení – nastavíš tlačítkem v grafu nocí","",0,"txt"],
+    ["chladnuti_vyjimky","Výjimečné noci","Data večerů (2026-10-31, …), které se nepoužijí k učení – nastavíš tlačítkem v grafu nocí","",0,"str"],
     ["chladnuti_spat","Chodím spát v","Kolik °C mít v pokoji v tuhle dobu, aby ráno bylo „ráno chci“","",0,"time"],
     ["chladnuti_min_C","Přes den nesmí klesnout pod","Kdy zatopit: hranice teploty pokoje","°C",0.5,"num"],
     ["chladnuti_predstih_min","Upozornit předem","Kolik minut před dosažením hranice přijde „zatop“","min",5,"num"],
@@ -4082,6 +4082,8 @@ function timeSel(attr, val){
   return `<span style="display:inline-flex;align-items:center;gap:4px" ${attr}><select data-hh style="${SELST}">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===H?"selected":""}>${h}</option>`).join("")}</select>:<select data-mm style="${SELST}">${mins.map(x=>`<option value="${x}" ${x===Mi?"selected":""}>${String(x).padStart(2,"0")}</option>`).join("")}</select></span>`;
 }
 const timeOf = el => `${el.querySelector("[data-hh]").value}:${String(el.querySelector("[data-mm]").value).padStart(2,"0")}`;
+/* 5.179: co znamená prázdné pole (aby prázdné okno nepůsobilo jako chyba) */
+const EMPTY_TXT = {river_sn:"prázdné = páruje se podle jména zásuvky", chladnuti_vyjimky:"žádné – zatím nic neoznačeno", ticho:"prázdné = bez nočního klidu"};
 function renderSettings(){
   const v = SET.vals; let html="";
   const only = SET_OPT.keys ? new Set(SET_OPT.keys) : null;   // 5.176: jen nastavení k jedné kartě
@@ -4095,9 +4097,9 @@ function renderSettings(){
         const opts = unit.map((o,i)=>`<option value="${o}" ${String(val||unit[0])===o?"selected":""}>${step[i]}</option>`).join("");
         html += `<div class="row"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><select data-k="${k}" data-t="sel" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)">${opts}</select></div></div>`;
       } else if(type==="str"){   // 4.61: volný text (jména, SN) – „txt“ nechává jen čísla
-        html += `<div class="row" style="display:block"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><input type="text" data-k="${k}" data-t="str" value="${String(val).replace(/"/g,"&quot;")}" style="width:100%;margin-top:6px"></div>`;
+        html += `<div class="row" style="display:block"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><input type="text" data-k="${k}" data-t="str" value="${String(val).replace(/"/g,"&quot;")}" placeholder="${escH(EMPTY_TXT[k] || "prázdné = nepoužito")}" style="width:100%;margin-top:6px"></div>`;
       } else if(type==="txt"){
-        html += `<div class="row"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="text" data-k="${k}" data-t="txt" value="${String(val)}" style="width:110px"></div></div>`;
+        html += `<div class="row"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><div class="num"><input type="text" data-k="${k}" data-t="txt" value="${String(val)}" placeholder="${escH(EMPTY_TXT[k] || "nic")}" style="width:110px"></div></div>`;
       } else if(type==="time" || type==="timeopt"){
         const on = type==="time" || !isOff(val), tv = /\d{1,2}:\d{2}/.test(String(val)) ? String(val).trim().padStart(5,"0") : "22:00";
         html += `<div class="row ${on?"":"off"}" id="r_${k}"><div class="t"><b>${label}${qh(k)}</b>${help?`<span>${help}</span>`:""}</div><div class="num">${timeSel(`data-k="${k}" data-t="time"`, tv)}</div>${type==="timeopt"?`<label class="sw" title="Zapnout / vypnout"><input type="checkbox" data-opt="${k}" ${on?"checked":""}><i></i></label>`:""}</div>`;

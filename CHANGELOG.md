@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.179 – 1. 11. 2026
+- Oprava: „Noční klid“ (ticho) a „Výjimečné noci“ (chladnuti_vyjimky) se při uložení Nastavení čistily jako čísla – z 0:00-5:45 by zbylo 0:005:45 a z dat večerů by zmizely pomlčky. Teď se ukládají jako text beze změny. (Zatím se to nestalo – od 5.131 se Nastavení z webu neuložilo.)
+- Prázdná textová pole v Nastavení ukazují šedě, co prázdné znamená (River – sériová čísla: páruje se podle jména zásuvky; Výjimečné noci: žádné), aby nevypadala jako chyba.
+
 ## 5.178 – 1. 11. 2026
 - Oprava: Nastavení nešlo uložit, když v souboru chyběla nová položka (chladnuti_min_C, chladnuti_predstih_min – prázdné pole = „Zkontroluj zadaná čísla“ jen v záhlaví, snadno přehlédnutelné). Prázdná nová položka se teď přeskočí (platí výchozí), chyba se ukáže oknem a vadný řádek se orámuje červeně; kontrola pořadí napětí jen když jsou všechna tři napětí ve formuláři. Do nastaveni.txt doplněno chladnuti_min_C = 21 (Petr) a chladnuti_predstih_min = 60.
 
