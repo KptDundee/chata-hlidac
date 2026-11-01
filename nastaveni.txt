@@ -158,7 +158,7 @@ chladnuti_cil_C = 21              # kolik °C chci ráno – z toho „musí bý
 chladnuti_min_C = 21               # kdy zatopit: přes den nesmí pokoj klesnout pod (°C)
 chladnuti_predstih_min = 60         # kdy zatopit: upozornit tolik minut předem
 chladnuti_spat = 0:00                 # kdy chodím spát – kolik °C mít v pokoji v tu dobu, aby ráno bylo chladnuti_cil_C
-chladnuti_vyjimky =                   # výjimečné noci (víc lidí v pokoji…) – data večerů, nepoužijí se k učení chladnutí
+chladnuti_vyjimky =                   2026-10-31# výjimečné noci (víc lidí v pokoji…) – data večerů, nepoužijí se k učení chladnutí
 venku_sirka = 50.095              # venkovní teplota: Praha-Hrdlořezy
 venku_delka = 14.517
 zasuvka_router = 5               # zásuvka, ze které se napájí router M7000 (číslo; prázdné = neřídit)
