@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.175 – 1. 11. 2026
+- Detail Spotřeba: graf „Ostatní (neměřené)“ před grafy světel.
+
 ## 5.174 – 1. 11. 2026
 - Hlavní obrazovka: 5 záložek – ⚡ Teď (solární baterie, EcoFlow, výhled) · ☀️ Výroba · 🏠 Spotřeba · 🌡️ Chata · 📅 Přehled.
 

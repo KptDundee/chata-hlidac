@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.174", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.175", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2610,8 +2610,11 @@ function detUse(body, src="a"){
   let html = UT.html + `<div id="us_tab_g"${UT.cur==="g"?"":' style="display:none"'}>` + segHtml() + pu + ud
     + chartCard("u_sum", `Odběr chaty ${SRCN[src]}`, long ? `kWh za den${srcCap}` : `W${src==="a" ? " · 220 V + River · šedé pozadí = chata na River" : src==="s" ? " · zásuvka 220 V za měničem" : " · zásuvky na výstupu River"}`);
   if(src!=="r") html += chartCard("u_220", "220 V – zásuvka za měničem", long ? `kWh za den · v bublině i se ztrátami měniče` : `W · <span style="color:var(--s2)">━ změřeno na zásuvce</span> · <span style="color:var(--s1)">╍ vzato z baterie (+12 % ztráty měniče, +${nf(U.idle,1)} W měnič a desulfátor)</span>`);
-  for(const x of U.devs) html += chartCard("u_d"+x.id, x.name, `${long ? "kWh za den" + srcCap : "W"}${only}${x.hist ? "" : " · historie od 14. 10."}`);
+  // 5.175 (Petr): graf „Ostatní“ před světly
+  const isLt = x => /sv[eě]tl/i.test(x.name) || ((d.inverter||{}).tp||[]).some(p=>p.ip===x.id && p.lt), devCard = x => chartCard("u_d"+x.id, x.name, `${long ? "kWh za den" + srcCap : "W"}${only}${x.hist ? "" : " · historie od 14. 10."}`);
+  for(const x of U.devs.filter(x=>!isLt(x))) html += devCard(x);
   html += chartCard("u_o", "Ostatní (neměřené)", `${long ? "kWh za den" + srcCap : "W"}${only} · odběr − měřené zásuvky: světla, kamery, TV a telefon z River…`);
+  for(const x of U.devs.filter(isLt)) html += devCard(x);
   html += `</div><div id="us_tab_n"${UT.cur==="n"?"":' style="display:none"'}>`;
   // čísla
   const td = useDay(dkey(h.now), U), yd = useDay(dkey(h.now-86400), U);
