@@ -452,3 +452,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.110**: jeden noční verdikt – když běží `forecast` (`until` > teď), `nightRow`, `tileNight`, banner 🌙, `dayFcBlock` (řádek „Do rána“), `forecast_text` i souhrn/watch berou jen `forecast`; `day_fc.night_ok` jen přes den. `t_crit` (pod `baterie_kriticka_V`) = „nevydrží“ všude (dřív „těsně“), `t_off` = „měnič se vypne“.
 
 **5.109**: web `withHist(pts, U, t0, t1)` – chybějící `tp[id]` v bodě z `tp_hist[id][den][hodina]` (Wh = W průměr), hodiny bez bodu → 3 body (:10, :30, :50), označené `_h`. Použito v `detUse`.
+
+**5.180 Upozornění „přepoj chatu“ u River offline**: `check_river(r, st, topic, cfg, data, rivers)` – když je River offline / bez % a má aktivní upozornění `rv_<sn>`, zruší se jen při jistotě, že chata jede odjinud: jiná velká River online s out_w > 20 a in_w ≤ 20, nebo `inv_src == "s"` (Flip čerstvý do 30 min). Jinak upozornění zůstává.

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.180 – 1. 11. 2026
+- Oprava: upozornění „River … má jen X % – přepoj chatu“ zůstalo v horním pruhu, když se ta River vypnula / přestala posílat data (offline) – hlídač ji pak vůbec nekontroloval. Teď se zruší, jakmile je jisté, že chata jede odjinud: jiná velká River online dodává (nad 20 W), nebo chata jede ze soláru. Když jistota není (nic jiného nedodává), upozornění zůstane.
+
 ## 5.179 – 1. 11. 2026
 - Oprava: „Noční klid“ (ticho) a „Výjimečné noci“ (chladnuti_vyjimky) se při uložení Nastavení čistily jako čísla – z 0:00-5:45 by zbylo 0:005:45 a z dat večerů by zmizely pomlčky. Teď se ukládají jako text beze změny. (Zatím se to nestalo – od 5.131 se Nastavení z webu neuložilo.)
 - Prázdná textová pole v Nastavení ukazují šedě, co prázdné znamená (River – sériová čísla: páruje se podle jména zásuvky; Výjimečné noci: žádné), aby nevypadala jako chyba.

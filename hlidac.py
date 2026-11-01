@@ -3379,7 +3379,7 @@ def read_ecoflow(data, st, now, topic, cfg):
     for r in rivers:
         print(f"EcoFlow {r['name']}: {fmt(r.get('soc'))} %, vstup {fmt(r.get('in_w'))} W, výstup {fmt(r.get('out_w'))} W"
               + ("" if r["online"] else " (offline)"))
-        check_river(r, st, topic, cfg, data)
+        check_river(r, st, topic, cfg, data, rivers)
     return rivers
 
 
@@ -6070,12 +6070,21 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         go = step(int(time.time()))
     data["gen_cont"] = bool(gs.get("active"))
 
-def check_river(r, st, topic, cfg, data=None):
+def check_river(r, st, topic, cfg, data=None, rivers=None):
     """5.95: jedno upozornění na River (kategorie 1): River, ze které něco jede (velká = chata, malá = 12V světla),
     má river_vymenit_pod (15 %) a míň a nenabíjí se → „vyměň / přepoj“, opakuje se do přepojení / nabití / „Řeším“.
     Když přestane dodávat při ≤ 5 %, text se změní na „vypnula se“. Nabitá na 100 % → jen do souhrnu."""
     soc, k = r.get("soc"), "rv_" + str(r["sn"])[-6:]
     if soc is None or not r["online"]:
+        # 5.180: River se vypne / přestane posílat data (offline) → dřív upozornění „přepoj chatu“ viselo navždy.
+        # Zruší se, jen když je jisté, že chata jede odjinud: jiná velká River online dodává, nebo chata jede ze soláru.
+        if k in (st.get("al") or {}) and (r.get("wh") or 768) >= 500:
+            other = next((o for o in rivers or [] if o is not r and o.get("online") and (o.get("wh") or 768) >= 500
+                          and (o.get("out_w") or 0) > 20 and (o.get("in_w") or 0) <= 20), None)
+            inv_ = (data or {}).get("inverter") or {}
+            solar = time.time() - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) == "s"
+            if other or solar:
+                alarm(st, topic, k, False, ok_title=f"✓ {r['name']}: chata už jede z {'River ' + other['name'] if other else 'soláru'}")
         return
     name = r["name"]
     io = f"{name}: {fmt(soc)} %, nabíjení {fmt(r.get('in_w'))} W, odběr {fmt(r.get('out_w'))} W"
