@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.175", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.176", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -86,6 +86,7 @@ summary{cursor:pointer;color:var(--text2);padding:6px 0}
 header button{white-space:nowrap}
 #live[disabled]{opacity:.7}
 .set{position:fixed;inset:0;background:var(--bg);z-index:20;overflow:auto;-webkit-overflow-scrolling:touch}
+#set{z-index:30}
 .set .wrap{padding-bottom:110px}
 .set header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .set h1{text-transform:none;white-space:normal;letter-spacing:-.01em}
@@ -178,6 +179,9 @@ details.sec>.in{margin-top:8px}
 .tt .hd{font-size:11px;color:var(--muted);text-align:right}
 .tt .w3{grid-column:2 / span 3;text-align:right;font-size:12.5px}
 .hsec{margin:10px 0 0}
+.cfgv{display:inline-flex;align-items:center;gap:3px;padding:0 6px;border-radius:7px;background:color-mix(in srgb,var(--s1) 16%,transparent);border:1px solid color-mix(in srgb,var(--s1) 45%,transparent);color:inherit;font-weight:inherit;cursor:pointer;white-space:nowrap;line-height:1.35}
+.cfgv i{font-style:normal;font-size:.8em;opacity:.75}
+.cfghl{animation:cfghl 2.4s ease-out;border-radius:10px}@keyframes cfghl{0%,40%{background:color-mix(in srgb,var(--s1) 28%,transparent)}100%{background:transparent}}
 .htabs{display:flex;width:100%;box-sizing:border-box}.htabs button{position:relative;flex:1;padding-left:2px;padding-right:2px;font-size:13px;line-height:1.25}.tdot{display:none;position:absolute;top:5px;right:8px;width:8px;height:8px;border-radius:50%}.tdot.w{display:block;background:var(--warn)}.tdot.b{display:block;background:var(--crit)}
 .hsec>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;padding:10px 4px 8px;border-top:1px solid var(--line)}
 .hsec>summary::-webkit-details-marker{display:none}
@@ -454,6 +458,26 @@ const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const fmtT = t => { const n = relN(t); const d = new Date(t*1000);      // „dnes 13:30“, „včera 06:40“, jinak „14. 10. 13:30“ (bez dnů v týdnu)
   return `${n>=-1 && n<=1 ? relDay(t) : d.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"})} ${d.toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"})}`; };
 /* stáří bez slova „před“: „teď“, „7 min“, „1 h 5 min“, „2 dny“ */
+/* 5.176 (Petr): nastavitelná hodnota v textu – rámeček s ⚙, ťuknutí otevře Nastavení rovnou na ní */
+const cfgV = (key, txt) => `<span class="cfgv" data-cfg="${key}" role="button" title="Změnit v Nastavení">${txt}<i>⚙</i></span>`;
+document.addEventListener("click", e => { const c = e.target.closest(".cfgv"); if(!c) return; e.preventDefault(); e.stopPropagation(); openSettings({focus: c.dataset.cfg}); }, true);
+/* nastavení, která ovlivňují jednotlivé detaily (řádek „⚙ Nastavení k této kartě“) */
+const DETCFG = {
+  bat: ["baterie_slabne_V","baterie_kriticka_V","odpojeni_V","noc_spotreba_W","menic_vlastni_W","kapacita_Ah","nutne_river_v","plne_nabiti_od_dni","plne_nabiti_dni","odber_hlidat","odber_z_baterie_A"],
+  night: ["nutne_river_v","baterie_kriticka_V","noc_spotreba_W","menic_vlastni_W","ticho"],
+  wx: ["pocasi","rezim","panely_pocet","sezona_upozornit"],
+  gen: ["gen_rizeni","gen_palivo","gen_max_lpg_W","gen_max_benzin_W","gen_rezerva_W","gen_po_behu_W","gen_mala_po_behu_W"],
+  temps: ["chladnuti_min_C","chladnuti_predstih_min","chladnuti_spat","chladnuti_cil_C","chladnuti_rano","chladnuti_teplomer","chladnuti_vyjimky","teplomery","teplomery_ticho_min","mraz_hlidat","mraz_C","vlhkost_hlidat","vlhkost_min"],
+  river: ["river_rezerva_pct","river_vymenit","river_vymenit_pod","river_nabita","river_sn","zasuvky_river","nutne_river_v"],
+  use: ["zasuvka_menic","zasuvky_river","ostatni_hlidat","odber_hlidat","odber_navic_W"],
+  flip: ["zasuvka_flip","flip_nabijeni_rizeni","flip_min_pct","flip_teplota_max_C","zasuvka_router","router_nabijeni_rizeni","brana_hlidat","brana_restart"],
+  fridge: ["lednice_hlidat","lednice_ticho_h","lednice_bezi_h","lednice_max_C","zasuvka_lednice","teplomer_lednice"],
+  health: ["kapacita_Ah","kapacita_odhad_Ah","plne_nabiti_od_dni","plne_nabiti_dni"],
+  pan: ["panely_pocet","panely_doporucit","pojistka_A","panel_Wp","panely_min_W"],
+  plan: ["den_kontrola","den_navrat","den_do","ticho"],
+  sys: ["vecerni_souhrn_hodina","ticho","regulator_offline_min","brana_hlidat"],
+  bsim: ["kapacita_Ah","noc_spotreba_W","menic_vlastni_W"],
+};
 /* 5.151 (Petr): hodiny všude jako hod:min */
 const hmH = h => { if(h==null || isNaN(h)) return "–"; const m = Math.round(Math.abs(h)*60); return `${h<0?"−":""}${Math.floor(m/60)}:${String(m%60).padStart(2,"0")} h`; };
 const valU = (v, dec, unit) => unit==="h" ? hmH(v) : `${nf(v,dec)} ${unit}`;
@@ -1256,7 +1280,7 @@ function tileBat(d, h){
   const mode = {1:"Float",2:"Boost",3:"vyrovnávací"}[h.status];
   const load = h.loadW!=null ? `chata bere ${nf(h.loadW)} W` : "";
   const panels = h.pv!=null && h.pv>=1 ? `panely ${nf(h.pv)} W` : "";
-  if(h.bv < CRIT_V) return {...t, cls:"bad", v, st:`Pod ${nf(CRIT_V,1)} V – baterie trpí`, a:"Odpoj spotřebiče, přepni chatu na River"};
+  if(h.bv < CRIT_V) return {...t, cls:"bad", v, st:`Pod ${cfgV("baterie_kriticka_V", `${nf(CRIT_V,1)} V`)} – baterie trpí`, a:"Odpoj spotřebiče, přepni chatu na River"};
   if(h.bv < WARN_V) return {...t, cls:"warn", v, st:"Baterie slábne", a:"Omez spotřebu"};
   if(h.net!=null && h.net <= -0.3){
     const ex = h.extraW!=null && h.extraW >= (h.cfg.odber_navic_W ?? 40);
@@ -1867,7 +1891,7 @@ function tileFlip(d, h){
     v = `${nf(ph.b)}<small>%</small>`;
     // 5.167: jeden srozumitelný řádek – nabíjí se / kdy se zapne (podrobnosti o zásuvce (9) v detailu Flipu)
     const fmin = d.cfg?.flip_min_pct ?? 30, lowOnly = fc && !fc.on && /jen pod/.test(fc.why||"");
-    rows.push(["nabíjení", ph.c ? `<span style="color:var(--good)">nabíjí se ⚡</span>` : lowOnly ? `nenabíjí · zapne se pod ${fmin} %` : fc && fc.on ? "nabíječka zapnutá" : "nenabíjí se"]);
+    rows.push(["nabíjení", ph.c ? `<span style="color:var(--good)">nabíjí se ⚡</span>` : lowOnly ? `nenabíjí · zapne se pod ${cfgV("flip_min_pct", `${fmin} %`)}` : fc && fc.on ? "nabíječka zapnutá" : "nenabíjí se"]);
     if(!fc && ch.ip) rows.push(["řízení", flipCtlMiss(d), 1]);
     if(ph.t!=null) rows.push(["teplota baterie", `<span style="color:var(${hot?"--crit":"--text"})">${nf(ph.t,1)} °C</span>`]);
     if(ff && !ph.c) rows.push(["vydrží do", `${relDay(ff.t_empty)} ~${hmT(ff.t_empty)} <span class="sub">(−${nf(ff.rate,1)} %/h)</span>`]);
@@ -1955,7 +1979,7 @@ function detFlip(body){
   body.insertAdjacentHTML("beforeend", `<div class="seg" id="df_seg" style="margin-bottom:12px"><button data-t="flip" aria-pressed="${tab==="flip"}">📱 Flip</button><button data-t="wifi" aria-pressed="${tab==="wifi"}">📶 Wi‑Fi a data</button></div>
     <div id="df_flip" style="${tab==="flip"?"":"display:none"}">`
     + chartCard("df_b", "Baterie Flipu", "% · 48 h · šedé pozadí = nabíjí se")
-    + chartCard("df_t", "Teplota baterie Flipu", `°C · 48 h · červeně ${d.cfg?.flip_teplota_max_C ?? 40} °C = upozornění, nad 42 °C Flip nabíjení vypne`)
+    + chartCard("df_t", "Teplota baterie Flipu", `°C · 48 h · červeně ${cfgV("flip_teplota_max_C", `${d.cfg?.flip_teplota_max_C ?? 40} °C`)} = upozornění, nad 42 °C Flip nabíjení vypne`)
     + `<div class="card">
       ${rowI("Baterie", `${nf(ph.b)} %${ph.c?" · nabíjí se ⚡":""}`)}
       ${ph.t!=null ? rowI("Teplota baterie", `${nf(ph.t,1)} °C`) : ""}
@@ -2028,7 +2052,7 @@ function detFridge(body){
   if(fr.state==="off") rec.push("Kompresor neobvykle dlouho stojí – zkontroluj, jestli lednice běží (zapnutá, termostat, proud).");
   if(fr.state==="on") rec.push("Kompresor běží bez přestávky – otevřené dveře, námraza nebo porucha.");
   if(!nm) rec.push("Tip: s teploměrem Xiaomi v lednici (Nastavení → Teploměr v lednici) uvidíš přímo teplotu a přijde upozornění, když se ohřeje.");
-  body.insertAdjacentHTML("beforeend", tempSeg() + (hasT ? chartCard("dl_t", "Teplota v lednici", `°C · ${tempLab()} · červeně ${d.cfg?.lednice_max_C ?? 8} °C = upozornění`) : "")
+  body.insertAdjacentHTML("beforeend", tempSeg() + (hasT ? chartCard("dl_t", "Teplota v lednici", `°C · ${tempLab()} · červeně ${cfgV("lednice_max_C", `${d.cfg?.lednice_max_C ?? 8} °C`)} = upozornění`) : "")
     + chartCard("dl_w", "Kompresor lednice", `W · ${tempLab()} · zásuvka lednice (běží ~55–80 W, stojí ~0 W)`)
     + chartCard("dl_duty", "Jak dlouho kompresor běžel", "% dne · 30 dní · světlejší = den s neúplnými daty (pod 20 h)")
     + chartCard("dl_d", "Spotřeba lednice po dnech", "kWh · 14 dní")
@@ -2039,7 +2063,7 @@ function detFridge(body){
       ${rowI("Hlídání", fr.state==="ok" ? "v pořádku" : fr.state ? "⚠️ " + tileFridge(d, homeData(d)).st : "–")}
     </div>`
     + (rec.length ? `<div class="card"><b>Doporučení</b><div class="sub" style="margin-top:4px;line-height:1.55">${rec.join("<br>")}</div></div>` : "")
-    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Hlídač upozorní, když kompresor stojí déle než ${d.cfg?.lednice_ticho_h ?? 3} h nebo běží déle než ${d.cfg?.lednice_bezi_h ?? 2} h (hranice se přizpůsobí posledním 7 dnům), když zásuvka lednice nejde přečíst${nm?`, nebo když je v lednici tepleji než ${d.cfg?.lednice_max_C ?? 8} °C déle než 30 min`:""}.</div>`);
+    + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Hlídač upozorní, když kompresor stojí déle než ${cfgV("lednice_ticho_h", `${d.cfg?.lednice_ticho_h ?? 3} h`)} nebo běží déle než ${cfgV("lednice_bezi_h", `${d.cfg?.lednice_bezi_h ?? 2} h`)} (hranice se přizpůsobí posledním 7 dnům), když zásuvka lednice nejde přečíst${nm?`, nebo když je v lednici tepleji než ${d.cfg?.lednice_max_C ?? 8} °C déle než 30 min`:""}.</div>`);
   if(hasT) lineChart($("dl_t"), pts.map(p=>({t:p.t, c:p.th && p.th[nm]!=null ? p.th[nm] : null})), "c", css("--s1"), {unit:"°C",dec:1,hours:TEMPH,refs:[[d.cfg?.lednice_max_C ?? 8,"--crit"]]});
   lineChart($("dl_w"), pts.map(p=>({t:p.t, w:p.tp && p.tp[fid]!=null ? p.tp[fid] : null})), "w", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:TEMPH});
   { const dk = Object.keys(D).sort().filter(k=>D[k].fd!=null).slice(-30).map(k=>({k, v:D[k].fd, h:D[k].fh, n:D[k].fn, w:D[k].fw}));   // 4.73
@@ -2089,7 +2113,7 @@ function genPlanHtml(d){
     h += `<div class="sub">Generátor neběží.${P && P.end ? ` Poslední nabíjení ${relDay(P.t_on||P.t)} ${hmT(P.t_on||P.t)}–${hmT(P.end)}.` : ""}</div>`;
   }
   if(P && P.set && P.set.length) h += `<div class="sub" style="margin-top:4px">Naposledy nastaveno: ${escH(P.set.join(", "))}</div>`;
-  h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${nf(c.gen_po_behu_W ?? 200)} W a malá ${nf(c.gen_mala_po_behu_W ?? 100)} W, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${nf(gmax)} W − rezerva ${nf(c.gen_rezerva_W ?? 100)} W − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná (přestane brát), vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
+  h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${cfgV("gen_po_behu_W", `${nf(c.gen_po_behu_W ?? 200)} W`)} a malá ${cfgV("gen_mala_po_behu_W", `${nf(c.gen_mala_po_behu_W ?? 100)} W`)}, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${cfgV(fuel==="lpg" ? "gen_max_lpg_W" : "gen_max_benzin_W", `${nf(gmax)} W`)} − rezerva ${cfgV("gen_rezerva_W", `${nf(c.gen_rezerva_W ?? 100)} W`)} − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná (přestane brát), vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
   return h;
 }
 /* 4.87 / 4.91: tlačítka nabíjení z generátoru. „start:benzin“ / „start:lpg“ = zapsat palivo do nastavení + spustit,
@@ -2297,12 +2321,12 @@ let COOL_N = 0;                                       // vybraná noc v grafu (0
    stupnice °C, venkovní předpověď pod grafem. Upozornění jen podle pravidel (na chatě, 6–22, teplota klesá). */
 function heatCard(d){
   const H = d.heat, c = d.cool || {}; if(!H) return "";
-  const lim = H.lim, st = H.state, hitT = H.hit ? `${relDay(H.hit)==="dnes" ? "" : relDay(H.hit)+" "}~${hmT(H.hit)}` : null;
-  const ifStop = hitT ? `kdyby se teď přestalo topit, ${nf(lim,0)} °C ${hitT}` : `kdyby se teď přestalo topit, ${nf(lim,0)} °C dalších 10 h nedosáhne`;
-  const msg = st==="cool" ? `Teplota klesá – <b>${nf(lim,0)} °C dosáhne ${hitT}</b> → zatop do <b>~${hmT(H.warn)}</b>.`
-    : st==="below" ? `<b style="color:var(--crit)">Už je pod ${nf(lim,0)} °C</b> – zatop.`
+  const lim = H.lim, st = H.state, limT = cfgV("chladnuti_min_C", `${nf(H.lim,0)} °C`), hitT = H.hit ? `${relDay(H.hit)==="dnes" ? "" : relDay(H.hit)+" "}~${hmT(H.hit)}` : null;
+  const ifStop = hitT ? `kdyby se teď přestalo topit, ${limT} ${hitT}` : `kdyby se teď přestalo topit, ${limT} dalších 10 h nedosáhne`;
+  const msg = st==="cool" ? `Teplota klesá – <b>${limT} dosáhne ${hitT}</b> → zatop do <b>~${hmT(H.warn)}</b>.`
+    : st==="below" ? `<b style="color:var(--crit)">Už je pod ${limT}</b> – zatop.`
     : st==="heat" ? `Teplota neklesá – topí se. <span class="sub">(${ifStop})</span>`
-    : st==="ok" ? `Teplota klesá, ale do 22:00 pod ${nf(lim,0)} °C neklesne.${hitT ? ` <span class="sub">(${nf(lim,0)} °C ${hitT})</span>` : ""}`
+    : st==="ok" ? `Teplota klesá, ale do 22:00 pod ${limT} neklesne.${hitT ? ` <span class="sub">(${limT} ${hitT})</span>` : ""}`
     : st==="away" ? `Jsi pryč – upozornění se neposílá. <span class="sub">(${ifStop})</span>`
     : st==="night" ? `V noci (22:00–6:00) se upozornění neposílá. <span class="sub">(${ifStop})</span>`
     : "Zatím se nedá spočítat (chybí teplota pokoje nebo naučené chladnutí).";
@@ -2330,18 +2354,18 @@ function heatCard(d){
       ${H.hit ? `<line x1="${X(H.hit).toFixed(1)}" x2="${X(H.hit).toFixed(1)}" y1="0" y2="${HH}" stroke="var(--crit)" stroke-width="1" vector-effect="non-scaling-stroke"/>` : ""}
       </svg>
       <div style="position:relative;height:30px;font-size:11px;color:var(--text2)">${ticks.map(t=>`<span style="position:absolute;left:${(t-T0)/(T1-T0)*100}%;transform:translateX(-50%);text-align:center;white-space:nowrap">${new Date(t*1000).getHours()}:00${outAt(t)!=null?`<br><span style="color:var(--s3)">${nf(outAt(t),0)}°</span>`:""}</span>`).join("")}</div></div>
-      <div class="sub" style="margin-top:2px">°C · <span style="color:var(--s1)">━</span> naměřeno · <span style="color:var(--s4)">┅</span> odhad, kdyby se od teď netopilo · <span style="color:var(--crit)">┅</span> ${nf(lim,0)} °C · ┆ teď · <span style="color:var(--s3)">pod časem venkovní teplota podle předpovědi</span></div>`;
+      <div class="sub" style="margin-top:2px">°C · <span style="color:var(--s1)">━</span> naměřeno · <span style="color:var(--s4)">┅</span> odhad, kdyby se od teď netopilo · <span style="color:var(--crit)">┅</span> ${limT} · ┆ teď · <span style="color:var(--s3)">pod časem venkovní teplota podle předpovědi</span></div>`;
   }
   // 5.156: dvě výrazná čísla – kdy zatopit a kolik mít při odchodu spát
   const bigL = (ic, main, sub) => `<div style="display:flex;gap:10px;align-items:baseline;margin:2px 0 6px"><span style="font-size:22px">${ic}</span><div><div style="font-size:24px;font-weight:700;line-height:1.15">${main}</div><div class="sub">${sub}</div></div></div>`;
-  const heatBig = st==="cool" ? bigL("🔥", `Zatop do ${hmT(H.warn)}`, `${nf(lim,0)} °C bude ${hitT}`)
-    : st==="below" ? bigL("🔥", `<span style="color:var(--crit)">Zatop teď</span>`, `už je pod ${nf(lim,0)} °C`)
-    : st==="heat" ? bigL("🔥", "Topí se", hitT ? `kdyby se přestalo, ${nf(lim,0)} °C ${hitT}` : "")
-    : st==="ok" ? bigL("🔥", "Do 22:00 netřeba", `teplota klesá, ale pod ${nf(lim,0)} °C neklesne`)
+  const heatBig = st==="cool" ? bigL("🔥", `Zatop do ${hmT(H.warn)}`, `${limT} bude ${hitT}`)
+    : st==="below" ? bigL("🔥", `<span style="color:var(--crit)">Zatop teď</span>`, `už je pod ${limT}`)
+    : st==="heat" ? bigL("🔥", "Topí se", hitT ? `kdyby se přestalo, ${limT} ${hitT}` : "")
+    : st==="ok" ? bigL("🔥", "Do 22:00 netřeba", `teplota klesá, ale pod ${limT} neklesne`)
     : bigL("🔥", st==="away" ? "Jsi pryč" : st==="night" ? "Noc" : "–", st==="away" || st==="night" ? "upozornění se teď neposílá" : "zatím se nedá spočítat");
-  const bedBig = c.need_bed!=null && c.bed ? bigL("🛏️", `Ve ${hmT(c.bed)} mít aspoň ${nf(c.need_bed,1)} °C`, `aby ${relDay(c.bed_mor)} v ${hmT(c.bed_mor)} bylo ${nf(c.target,0)} °C${c.bias!=null && Math.abs(c.bias) >= 0.1 ? ` · podle posledních ${c.bias_n} nocí ${c.bias < 0 ? "o" : "o"} ${nf(Math.abs(c.need_bed - c.need_bed_raw),1)} °C ${c.bias < 0 ? "víc" : "méně"} (ráno bývá ${c.bias < 0 ? "chladněji" : "tepleji"} než předpověď)` : ""} · přiložení před spaním = rezerva navíc`) : "";
+  const bedBig = c.need_bed!=null && c.bed ? bigL("🛏️", `Ve ${cfgV("chladnuti_spat", hmT(c.bed))} mít aspoň ${nf(c.need_bed,1)} °C`, `aby ${relDay(c.bed_mor)} v ${cfgV("chladnuti_rano", hmT(c.bed_mor))} bylo ${cfgV("chladnuti_cil_C", `${nf(c.target,0)} °C`)}${c.bias!=null && Math.abs(c.bias) >= 0.1 ? ` · podle posledních ${c.bias_n} nocí ${c.bias < 0 ? "o" : "o"} ${nf(Math.abs(c.need_bed - c.need_bed_raw),1)} °C ${c.bias < 0 ? "víc" : "méně"} (ráno bývá ${c.bias < 0 ? "chladněji" : "tepleji"} než předpověď)` : ""} · přiložení před spaním = rezerva navíc`) : "";
   return `<div class="card"><h2 style="margin:0 0 6px">🔥 Kdy zatopit – ${escH(c.room||"pokoj")}${H.T!=null ? ` <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--text2)">· teď ${nf(H.T,1)} °C</span>` : ""}</h2>${heatBig}${bedBig}<div class="sub" style="font-size:13.5px">${msg}</div>${svg}
-    <div class="sub" style="margin-top:6px;line-height:1.5">Odhad chladnutí podle naučeného modelu a předpovědi venkovní teploty – když se má ochladit, klesá rychleji, když oteplit, pomaleji. Upozornění (${H.lead} min předem, jednou za jedno chladnutí) jen když jsi na chatě, 6:00–22:00 a teplota za poslední hodinu klesá. Hranici a předstih nastavíš v Nastavení → Chladnutí.</div></div>`;
+    <div class="sub" style="margin-top:6px;line-height:1.5">Odhad chladnutí podle naučeného modelu a předpovědi venkovní teploty – když se má ochladit, klesá rychleji, když oteplit, pomaleji. Upozornění (${cfgV("chladnuti_predstih_min", `${H.lead} min`)} předem, jednou za jedno chladnutí) jen když jsi na chatě, 6:00–22:00 a teplota za poslední hodinu klesá. Hranici a předstih nastavíš v Nastavení → Chladnutí.</div></div>`;
 }
 function coolCard(body, d, h){
   body.insertAdjacentHTML("beforeend", heatCard(d));   // 5.153
@@ -3597,6 +3621,7 @@ function openDet(k){
     moveIn(body, id);
   }
   if(k === "all") for(const x of body.querySelectorAll("details.sec>summary")) x.style.display = "flex";
+  if(DETCFG[k]) body.insertAdjacentHTML("beforeend", `<button type="button" class="card" onclick="openSettings({keys:DETCFG['${k}'], title:'⚙ Nastavení – ${escH(c.t).replace(/'/g,"")}'})" style="display:flex;width:100%;justify-content:space-between;align-items:center;font:inherit;color:var(--text);cursor:pointer;text-align:left"><b>⚙ Nastavení k této kartě</b><span class="sub">${DETCFG[k].length} položek ›</span></button>`);   // 5.176
   $("detm").classList.remove("hide"); $("detm").scrollTop = 0; document.body.style.overflow = "hidden";
 }
 function moveIn(body, id){
@@ -4032,7 +4057,9 @@ function parseCfg(t){const o={};for(let ln of t.split("\n")){ln=ln.split("#")[0]
 const isOn = v => /^(zapnuto|ano|on|true|1)$/i.test(String(v));
 const isOff = v => /^(vypnuto|ne|off|false)$/i.test(String(v));
 
-async function openSettings(){
+let SET_OPT = {};
+async function openSettings(opt){
+  SET_OPT = opt && !(opt instanceof Event) ? opt : {};   // 5.176: {focus: klíč} nebo {keys: [...], title}
   const tok = store.get("ghtok");
   $("set").classList.remove("hide"); document.body.style.overflow="hidden";
   if(!tok){ $("setbody").innerHTML=`<div class="card"><b>Nejdřív GitHub token</b><p class="sub">Aby se nastavení dalo uložit, vlož token (návod ti poslal Claude). Musí mít oprávnění <i>Contents: Read and write</i> a <i>Actions: Read and write</i>.</p><input id="tok2" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_…" style="width:100%;font:inherit;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)"><button id="tok2save" class="primary" style="margin-top:8px;width:100%">Uložit token</button></div>`;
@@ -4056,7 +4083,10 @@ function timeSel(attr, val){
 const timeOf = el => `${el.querySelector("[data-hh]").value}:${String(el.querySelector("[data-mm]").value).padStart(2,"0")}`;
 function renderSettings(){
   const v = SET.vals; let html="";
-  for(const [title, items] of SETTINGS){
+  const only = SET_OPT.keys ? new Set(SET_OPT.keys) : null;   // 5.176: jen nastavení k jedné kartě
+  if(only) html += `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${escH(SET_OPT.title||"Nastavení k této kartě")}</b><button type="button" id="setall" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text)">Všechna nastavení</button></div>`;
+  for(const [title, items0] of SETTINGS){
+    const items = only ? items0.filter(x=>only.has(x[0])) : items0; if(!items.length) continue;
     html += `<h2>${title}</h2><div class="card" style="padding:4px 16px">`;
     for(const [k,label,help,unit,step,type] of items){
       const val = v[k] ?? "";
@@ -4096,6 +4126,10 @@ function renderSettings(){
   for(const q of $("setbody").querySelectorAll(".qh")) q.onclick = e => { e.preventDefault(); e.stopPropagation();
     const bx = $("qb_"+q.dataset.qh); if(bx){ bx.hidden = !bx.hidden; q.classList.toggle("on", !bx.hidden); } };
   for(const cb of $("setbody").querySelectorAll("[data-opt]")) cb.onchange=()=>$("r_"+cb.dataset.opt).classList.toggle("off",!cb.checked);
+  if($("setall")) $("setall").onclick = () => { SET_OPT = {}; renderSettings(); };
+  if(SET_OPT.focus){ const el = $("setbody").querySelector(`[data-k="${SET_OPT.focus}"]`);   // 5.176: rovnou na položku
+    if(el){ const row = el.closest(".row") || el; setTimeout(()=>{ row.scrollIntoView({block:"center"}); row.classList.add("cfghl");
+      const inp = el.matches("input,select") ? el : el.querySelector("input,select"); if(inp) inp.focus({preventScroll:true}); }, 60); } }
 }
 function collectSettings(){
   const out = {}, errs=[];

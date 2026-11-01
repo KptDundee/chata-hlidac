@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.176 – 1. 11. 2026
+- Nastavitelné hodnoty v textu v modrém rámečku s ⚙ (např. 19 °C, 60 min, 0:00, 21 °C, 30 %, 12,0 V, výkon a rezerva generátoru, lednice) – ťuknutí otevře Nastavení rovnou na té položce (zvýrazněná, kurzor v poli); po uložení zpět. Na konci každého detailu „⚙ Nastavení k této kartě“ – jen položky, které tu kartu ovlivňují (+ „Všechna nastavení“). Nastavení se otevře nad detailem.
+
 ## 5.175 – 1. 11. 2026
 - Detail Spotřeba: graf „Ostatní (neměřené)“ před grafy světel.
 

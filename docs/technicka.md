@@ -351,6 +351,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.104 / 1.9.16**: Brána přidá do měření `pdown` = [{ip, n, ow, back}] (zařízení s vypršením spojení před plným hledáním a jestli se vrátila); hlídač `inv_from_msg` → `inv.pdown`, `plug_watch` (nová zpráva) → Deník + `days[d].pdn[jméno]`, `daily_summary` řádek.
 
+**5.176**: web `cfgV(key, text)` (.cfgv, klik v capture fázi → `openSettings({focus})`), `DETCFG[detail]` → `openSettings({keys, title})`; `renderSettings` filtruje / zvýrazní (.cfghl) a zaměří; `#set` z-index 30.
+
 **5.173**: `inv_from_msg` – menic podle názvu jen bez `zasuvka_menic`, bez zásuvek River a generátoru; web `mip` = nastavená zásuvka i když chybí. **5.172**: `urgent_river` solar_bad jen při `inv_src` = s (čerstvé).
 
 **5.170**: `chladnuti.update` – `chladnuti_vyjimky` (datum večera = t − 12 h): inwin False, `cool_ev` z výjimečných nocí smazány, `nights[].exc`, bias a hrubé k bez nich. Web `coolExc(nk)` → setCfgKey.
