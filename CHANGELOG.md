@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.178 – 1. 11. 2026
+- Oprava: Nastavení nešlo uložit, když v souboru chyběla nová položka (chladnuti_min_C, chladnuti_predstih_min – prázdné pole = „Zkontroluj zadaná čísla“ jen v záhlaví, snadno přehlédnutelné). Prázdná nová položka se teď přeskočí (platí výchozí), chyba se ukáže oknem a vadný řádek se orámuje červeně; kontrola pořadí napětí jen když jsou všechna tři napětí ve formuláři. Do nastaveni.txt doplněno chladnuti_min_C = 21 (Petr) a chladnuti_predstih_min = 60.
+
 ## 5.177 – 1. 11. 2026
 - Kdy zatopit: když se hranice v Nastavení změnila a hlídač ještě nepřepočítal, u hodnoty „(změněno na 21 °C – přepočítá se do pár minut)“.
 
