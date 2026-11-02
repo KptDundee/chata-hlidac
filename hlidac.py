@@ -5937,11 +5937,15 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             start_ = 100 - max(100 - soc_(r), 3)
             return sum(max(0.0, min(b_ + 20, 100) - max(b_, start_)) * float(bins_.get(str(b_)) or dflt) for b_ in range(0, 100, 20))
         need = {r["sn"]: need_wh(r) for r in con}
+        # 5.188 (Petr): River, která během nabíjení něco dodává (chatu), dostane navíc tolik W, kolik dodává –
+        # do baterie jí jde jen zbytek, jinak doběhne později než ostatní
+        outw = {r["sn"]: max(0.0, float(r.get("out_w") or 0)) for r in con}
         if con and tnow - gs["first"] >= 30:               # 30 s po začátku nabíjení → vypočítané výkony
             left, todo = avail, dict(need)
             while todo:
                 tot = sum(todo.values())
-                cand = {sn: left * n / tot if tot > 0 else left / len(todo) for sn, n in todo.items()}
+                le_ = max(0.0, left - sum(outw[sn] for sn in todo))
+                cand = {sn: (le_ * n / tot if tot > 0 else le_ / len(todo)) + outw[sn] for sn, n in todo.items()}
                 clamp = {sn: max(rng(byid(sn))[0], min(rng(byid(sn))[1], w)) for sn, w in cand.items()}
                 fixed = [sn for sn in todo if clamp[sn] != cand[sn]]
                 if not fixed:
@@ -5985,7 +5989,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         rv, fins = [], []
         for r in con:
             w = sets.get(r["sn"]) or plan.get(r["sn"])
-            fin = tnow + need[r["sn"]] / (w * 0.9) * 3600 if w and need[r["sn"]] > 0 else tnow
+            fin = tnow + need[r["sn"]] / max(50.0, w * 0.9 - outw.get(r["sn"], 0.0)) * 3600 if w and need[r["sn"]] > 0 else tnow
             fins.append(fin)
             rv.append({"n": r.get("name"), "sn": r["sn"][-4:], "soc": round(soc_(r)), "need": round(need[r["sn"]]),
                        "w": w, "in": round(acw(r)), "fin": int(fin)})

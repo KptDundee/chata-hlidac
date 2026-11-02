@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.188 – 2. 11. 2026
+- Rozdělení výkonu generátoru: River, která během nabíjení něco dodává (napájí chatu), dostane navíc tolik W, kolik právě dodává – do baterie jí jde jen zbytek, takže dřív doběhla později než ostatní (Petr: červená s chatou ~26 W). Odhad „plná ~“ počítá taky jen s tím, co jde do baterie. Limit generátoru a rozsah 200–940 W platí dál.
+
 ## 5.187 – 2. 11. 2026
 - Upozornění „⛽ Nabij <River> – začni nejpozději …“ zmizí, jakmile se ta River nabíjí (bere víc než 20 W). Dřív svítilo dál, i když už nabíjení z generátoru běželo (Petr). Když nabíjení skončí dřív, než River má dost, upozornění se vrátí.
 
