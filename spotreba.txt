@@ -3,3 +3,4 @@
 #   voda = odečet vodoměru, číslo = stav v m³
 #   cena_vody = cena vody v Kč/m³ pro rok podle data (jen rok se počítá)
 2026-01-01 00:00 | cena_vody | 11
+2026-10-01 12:00 | varic | 460
