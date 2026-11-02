@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.182 – 2. 11. 2026
+- Jiný spotřebič na generátoru (Petr): v Generátor → ▶️ Start během nabíjení „🔌 Jiný spotřebič na generátoru“ – zadáš W a „➖ Ubrat“. River pak dostanou dohromady o tolik W méně (rozdělení se hned přepočítá), jen do konce tohoto nabíjení; „Zrušit“ vrátí plný výkon. Nastavení `gen_jine` (W:čas, zapisuje web).
+- Dokud je ubráno, hlídač měří spotřebič = výkon generátoru − co berou River (`x` Wh u nabíjení). Palivo (kWh na lahev, g/kWh, l/kWh, cena 1 kWh z generátoru) se dál počítá z celé výroby; cena nabíjení, kWh do nabíjení, využitelné kWh a účinnost jen z toho, co šlo do River. Spotřebič se ukáže zvlášť (kWh a Kč, „nezapočteno“) v seznamu nabíjení, tabulce nákladů a v souhrnu po nabíjení.
+
 ## 5.181 – 1. 11. 2026
 - Cena nabíjení (Petr): záložka 💰 Cena u generátoru má vnitřní záložky 🔥 Plyn, ⛽ Benzín, 📈 Grafy. U každé ceny je napsáno, pro které palivo a jak se počítá.
 - Benzín stejnou logikou jako plyn, ale podle nádrže: generátor hlásí stav nádrže v %, spotřeba nabíjení = ubylé % × objem nádrže (nové nastavení `gen_nadrz_l`, 4,0 l – EcoFlow Smart Generator Dual Fuel), litr = cena tankování ÷ litry, nabíjení = litry × cena litru z posledního tankování před ním. Doplnění během nabíjení (skok nahoru) se přeskočí. V záložce Benzín i kolik je teď v nádrži (l) a spotřeba l/kWh.

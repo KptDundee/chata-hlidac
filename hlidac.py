@@ -38,7 +38,7 @@ DEFAULTS = {
     "vlhkost_hlidat": "", "vlhkost_min": 35,
     "river_sn": "",
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_nadrz_l": 4.0, "gen_rezerva_W": 100,
-    "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "",
+    "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00", "den_navrat": "", "ticho": "0:00-5:45",
@@ -3818,8 +3818,11 @@ def fuel_stats(data, st, now, cfg):
                     miss = True
                 czf[f] = None if miss else tot - t_before
                 miss = miss or m_before
-            r["czk"] = None if miss else round(tot)
-            r["czk_f"] = {f_: (round(v_, 1) if v_ is not None else None) for f_, v_ in czf.items()}
+            # 5.182: jiný spotřebič na generátoru – jeho podíl paliva zvlášť (czk_x), nabíjení jen zbytek
+            kx = min(1.0, (r.get("x") or 0) / r["wh"]) if r.get("wh") else 0.0
+            r["czk_x"] = round(tot * kx) if kx and not miss else None
+            r["czk"] = None if miss else round(tot * (1 - kx))
+            r["czk_f"] = {f_: (round(v_ * (1 - kx), 1) if v_ is not None else None) for f_, v_ in czf.items()}
             continue
         # starší záznamy (bez počítadel): podle lahve, ze které se pálilo na začátku (5.135)
         hs = [x for x in fuel_hist_all.get(r.get("fuel")) or [] if x["t"] <= (r.get("t0") or 0)]
@@ -5667,6 +5670,10 @@ def gen_sum_msg(gs, tnow, topic):
     t_on = gs.get("t_on") or tnow
     fu = {"lpg": "plyn", "benzin": "benzín"}.get(gs.get("fuel"), gs.get("fuel") or "")
     lines = [f"Generátor dodal {fmt(gwh / 1000, 2)} kWh · běželo ~{fmt((tnow - t_on) / 3600, 1)} h{(' · ' + fu) if fu else ''}."]
+    xwh = gs.get("xwh") or 0.0                         # 5.182: jiný spotřebič přímo na generátoru – do nabíjení se nepočítá
+    if xwh >= 10:
+        lines.append(f"Z toho jiný spotřebič na generátoru {fmt(xwh / 1000, 2)} kWh (do nabíjení se nepočítá).")
+        gwh = max(0.0, gwh - xwh)
     tot = 0.0
     for k6, e in rs.items():
         if not e.get("c") and not rwh.get(k6):
@@ -5705,6 +5712,22 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             log("ev", f"Nabíjení z generátoru: povel z webu „{pv_[0]}{(' ' + pv_[1]) if pv_[1] else ''}“")
         elif cmd and cmd.startswith(pv_[0]) and now.timestamp() - pt_ < 600:
             cmd = ""                                       # stejné zmáčknutí už převzal dřívější běh – nespouštět znovu
+    def jine_cmd():
+        """5.182 (Petr): „Ubrat pro jiný spotřebič“ – gen_jine = „W:čas“ z webu. River dohromady dostanou o W méně,
+        jen do konce tohoto nabíjení (0 = zrušit). Co spotřebič vzal z generátoru, se do ceny nabíjení nepočítá."""
+        jv_ = str(cfg.get("gen_jine") or "").strip().split(":")
+        if len(jv_) == 2 and jv_[1].isdigit() and int(jv_[1]) > (gs.get("jine_t") or 0) and now.timestamp() - int(jv_[1]) < 6 * 3600:
+            gs["jine_t"] = int(jv_[1])
+            try:
+                w_ = max(0, min(1500, int(float(jv_[0] or 0))))
+            except ValueError:
+                w_ = 0
+            if w_:
+                gs["jine"] = w_
+                log("ev", f"Nabíjení z generátoru: ubráno {w_} W pro jiný spotřebič (do konce nabíjení)")
+            elif gs.pop("jine", None):
+                log("ev", "Nabíjení z generátoru: ubrání pro jiný spotřebič zrušeno – River zase plný výkon")
+    jine_cmd()
     if ":" in cmd:                                       # 4.91: „start:lpg“ – palivo rovnou z tlačítka
         cmd, f_ = cmd.split(":", 1)
         if f_ in ("lpg", "plyn", "benzin"):
@@ -5868,7 +5891,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         except (TypeError, ValueError):
             gm = None
         gmax_eff = min(gmax, gm) if gm and 1400 <= gm <= 2500 else gmax     # 4.94: jen věrohodná hodnota
-        budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0)
+        budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0) - (gs.get("jine") or 0)   # 5.182: ubráno pro jiný spotřebič
         avail = max(0.0, budget_eff - small_w)
         # 5.169 (Petr): co chybí do plna podle naměřených Wh na 1 % v pásmech (rv_cap.chg.bins; poslední procenta stojí víc)
         # a nikdy méně než 3 % – skoro plná River jinak spadla na 200 W a dobíjela se o 10 min déle než ostatní
@@ -5995,6 +6018,12 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 fg_ = st.setdefault("fuel_gr", {}).setdefault("lpg", [0.0, 0.0])
                 fg_[0] = round(fg_[0] + float(gph) * (tnow - gs["f_t"]) / 3600, 1)
                 fg_[1] = round(fg_[1] + de2, 1)
+        # 5.182: jiný spotřebič přímo na generátoru (jen když je ubráno) = výkon generátoru − co berou River; palivo se dál
+        # počítá z celé výroby (opravdu ho spálil), cena nabíjení / účinnost jen z toho, co šlo do River
+        xw_ = max(0.0, (gw or 0) - tot_in) if gs.get("jine") and gw is not None else 0.0
+        if gs.get("f_t") and 0 < tnow - gs["f_t"] <= 300:
+            gs["xwh"] = round(gs.get("xwh", 0.0) + (gs.get("x_w", 0.0) + xw_) / 2 * (tnow - gs["f_t"]) / 3600, 1)
+        gs["x_w"] = xw_
         gs["f_t"], gs["f_w"] = tnow, gwe
         gs["fuel"] = fuel
         # 5.136: průběh počítadel paliva (≥ 2 min od sebe) – výměna lahve se pak přiřadí přesně k času, kdy se stala,
@@ -6023,6 +6052,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gp_.append([tnow, round(gw) if gw is not None else None, tot_in])
         gp_[:] = [x for x in gp_ if x[0] >= tnow - 7 * 86400][-3000:]
         data["gen_plan"] = {"t": tnow, "fuel": fuel, "tot_in": tot_in, "wh": round(gs.get("wh", 0.0)), "gmax": gmax_eff, "gmax_set": gmax, "gmax_gen": gm, "budget": budget_eff, "gw": round(gw) if gw is not None else None,
+                            "jine": gs.get("jine") or 0, "xwh": round(gs.get("xwh") or 0), "x_w": round(gs.get("x_w") or 0),
                             "small": round(small_w), "small_soc": round(small["soc"]) if small and small.get("soc") is not None else None,
                             "avail": round(avail), "rv": rv, "fin": int(max(fins)) if fins else None, "t_on": gs.get("t_on"),
                             "btn": bool(gs.get("btn")), "wait": bool(con) and tnow - gs["first"] < 30,
@@ -6053,6 +6083,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 run_["s"] = {k6_: [round(v_["s0"], 1), round(v_["s1"], 1)] for k6_, v_ in (gs.get("rs") or {}).items()
                              if v_.get("s0") is not None and v_.get("s1") is not None}
                 run_["o"] = {k6_: round(v_) for k6_, v_ in (gs.get("ro") or {}).items() if v_ >= 1}
+                if (gs.get("xwh") or 0) >= 10:
+                    run_["x"] = round(min(gs["xwh"], gs["fwh"]))   # 5.182: Wh pro jiný spotřebič (z wh) – do nabíjení se nepočítá
                 if gs.get("tk"):                            # 5.181: benzín – litry podle ubylých % nádrže
                     used_ = gs.get("tk_u", 0.0) + max(0.0, gs["tk"][0] - gs["tk"][1])
                     run_["tk"] = gs["tk"]
@@ -6076,7 +6108,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w"):
                 gs.pop(k, None)
             return False
         return True
@@ -6110,10 +6142,11 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 tmp = os.path.join(tempfile.gettempdir(), "nastaveni_nove.txt")
                 open(tmp, "w", encoding="utf-8").write(txt)
                 c2 = load_config(tmp)
-                for k in ("gen_palivo", "gen_max_benzin_W", "gen_max_lpg_W", "gen_rezerva_W", "gen_rizeni"):
+                for k in ("gen_palivo", "gen_max_benzin_W", "gen_max_lpg_W", "gen_rezerva_W", "gen_rizeni", "gen_jine"):
                     if c2.get(k) != cfg.get(k):
                         log("ev", f"Nastavení během nabíjení: {k} = {c2.get(k)}")
                         cfg[k] = c2.get(k)
+                jine_cmd()
                 fuel = "lpg" if str(cfg.get("gen_palivo") or "").lower().startswith(("lpg", "plyn")) else "benzin"
                 gmax = cfg.get("gen_max_lpg_W" if fuel == "lpg" else "gen_max_benzin_W") or (1600 if fuel == "lpg" else 1800)
                 budget = gmax - (cfg.get("gen_rezerva_W") or 0)
