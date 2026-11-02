@@ -5034,7 +5034,11 @@ def away_plan(data, st, now, topic, cfg):
     out["chg"], out["short"] = chg, short
     data["away_plan"] = out
     home_now = not is_away(cfg, PLAN, now)
-    if chg and home_now:
+    # 5.187 (Petr): ta River se právě nabíjí (bere > 20 W) → „Nabij…“ neplatí; vrátí se, jen když nabíjení skončí dřív, než stačí
+    chg_now = bool(chg) and any(str(r.get("sn", ""))[-6:] == chg["k"] and r.get("online")
+                                and ((r.get("ac_in_w") if r.get("ac_in_w") is not None else r.get("in_w")) or 0) > 20
+                                for r in data.get("rivers") or [])
+    if chg and home_now and not chg_now:
         title = f"⛽ Nabij {pn_(chg['name'])} – začni nejpozději {rd(chg['late'])} v {hm(chg['late'])}"
         msg = (f"{rd(chg['a']).capitalize()} {hm(chg['a'])}–{hm(chg['b'])} jsi pryč a solár ani River to bez nabití neutáhnou. "
                f"Nabij aspoň na ~{chg['need']} % (~{fmt_h(chg['dur'] / 3600)}). Generátor jen 6:00–22:00.")
