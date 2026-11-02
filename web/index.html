@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.183", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.184", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1338,13 +1338,13 @@ function dayFcBlock(f){
       ${f.load_n_w!=null ? L(`Do rána: noc ~${f.load_n_w} W (medián minulých nocí) → spotřebuje`, `−${nf(f.night_ah,1)} Ah`, "color:var(--crit)") : ""}
       ${f.cf!=null && f.cf < 1 ? L(`Kapacita v chladu (${nf((DATA.cold||{}).T,1)} °C)`, `×${nf(f.cf,2)}`) : ""}
       ${(()=>{ const D = DATA.dfl; if(!D) return ""; const lg = (D.log||[]).slice(-5).reverse();
-        return L(`Oprava noční spotřeby podle minulých nocí`, D.n>=2 ? `×${nf(D.f,2)} <span class="sub">(${D.n} nocí)</span>` : `zatím ne <span class="sub">(${D.n} z 2 nocí)</span>`)
+        return L(`Oprava noční spotřeby podle minulých nocí <span class="sub">(jen noci, kdy chata jela ze soláru)</span>`, D.n>=2 ? `×${nf(D.f,2)} <span class="sub">(${D.n} nocí)</span>` : `zatím ne <span class="sub">(${D.n} z 2 nocí)</span>`)
           + (lg.length ? `<div class="sub" style="font-size:12.5px;margin:2px 0 4px">${lg.map(x=>`${dTxt(x.d)} → ráno: čekal −${nf(x.predc ?? x.pred,1)} Ah, bylo −${nf(x.act,1)} Ah`).join("<br>")}</div>` : ""); })()}
       ${(()=>{ const N = DATA.forecast;   // 5.110: po západu rozhoduje jen noční předpověď – stejná jako dlaždice a řádek „do rána“
         if(N && N.until && Date.now()/1000 < N.until)
           return L("Do rána (noční předpověď)", N.t_off ? `<b style="color:var(--crit)">nevydrží – měnič se vypne ~${hmT(N.t_off)}</b>`
             : N.t_crit ? `<b style="color:var(--crit)">nevydrží – pod ${nf(CRIT_V,1)} V ~${hmT(N.t_crit)}</b>` : `<b style="color:var(--good)">vydrží ✓</b>`);
-        return f.load_n_w!=null ? L("Ráno nad alarmem zbude", f.night_ok ? `<b style="color:var(--good)">${nf(f.lvl_end,1)} Ah</b>` : `<b style="color:var(--crit)">nevydrží – pod alarm ~${hmT(f.t_empty_n)}</b>`) : ""; })()}
+        return f.load_n_w!=null ? L(f.night_ok ? "Ráno nad alarmem zbude" : f.t_empty_n < f.end ? `Do ${e}` : "Do rána", f.night_ok ? `<b style="color:var(--good)">${nf(f.lvl_end,1)} Ah</b>` : `<b style="color:var(--crit)">nevydrží – pod alarm ~${hmT(f.t_empty_n)}</b>`) : ""; })()}
     </div>` : ""}</div>`;
 }
 /* do rána (4.19): přes den z výhledu dne (stejný výpočet, pokračuje přes noc), v noci z noční předpovědi */
