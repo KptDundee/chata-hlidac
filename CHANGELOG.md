@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.185 – 2. 11. 2026
+- „🔌 Jiný spotřebič na generátoru“ je v Generátor → ▶️ Start vidět i když se zrovna nenabíjí (dřív jen během nabíjení, Petr ho nenašel). Ubrat jde předem – platí od startu nabíjení do jeho konce; ukáže se „Připraveno: … o 300 W méně“. Ubrání starší než 6 h se při startu nepoužije.
+
 ## 5.184 – 2. 11. 2026
 - Výhled dne (solární baterie): když baterie dojde ještě před večerem / návratem, řádek se jmenuje „Do 22:00: nevydrží – pod alarm ~13:47“ (dřív matoucí „Ráno nad alarmem zbude“). „Ráno nad alarmem zbude“ jen když vydrží; dojde-li až v noci, „Do rána“.
 - U „Oprava noční spotřeby podle minulých nocí“ vysvětlení: počítají se jen noci, kdy chata jela ze soláru (proto v zimě dlouho „zatím ne“).

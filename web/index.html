@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.184", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.185", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2109,6 +2109,9 @@ function genPlanHtml(d){
       + `<div class="sub" style="margin-top:4px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s</div>`;
   } else {
     h += `<div class="sub">Generátor neběží.${P && P.end ? ` Poslední nabíjení ${relDay(P.t_on||P.t)} ${hmT(P.t_on||P.t)}–${hmT(P.end)}.` : ""}</div>`;
+    // 5.185 (Petr): ubrat jde i předem – platí od startu nabíjení do jeho konce
+    const jv = String(c.gen_jine||"").split(":"), jw = +jv[0]||0, jt = +jv[1]||0;
+    h += jineHtml({jine: jw && Date.now()/1000 - jt < 6*3600 ? jw : 0, pre:true});
   }
   if(P && P.set && P.set.length) h += `<div class="sub" style="margin-top:4px">Naposledy nastaveno: ${escH(P.set.join(", "))}</div>`;
   h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${cfgV("gen_po_behu_W", `${nf(c.gen_po_behu_W ?? 200)} W`)} a malá ${cfgV("gen_mala_po_behu_W", `${nf(c.gen_mala_po_behu_W ?? 100)} W`)}, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${cfgV(fuel==="lpg" ? "gen_max_lpg_W" : "gen_max_benzin_W", `${nf(gmax)} W`)} − rezerva ${cfgV("gen_rezerva_W", `${nf(c.gen_rezerva_W ?? 100)} W`)} − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná (přestane brát), vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
@@ -2122,7 +2125,7 @@ function jineHtml(P){
   const on = P.jine > 0, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
   return `<div style="margin:8px 0 4px;padding:10px;border-radius:12px;background:var(--bg)">
     <div style="font-weight:600">🔌 Jiný spotřebič na generátoru</div>
-    ${on ? `<div style="font-size:14px;margin:4px 0">River mají o <b>${nf(P.jine)} W</b> méně${P.x_w ? ` · spotřebič teď ~${nf(P.x_w)} W` : ""}${P.xwh ? ` · zatím ${kWh(P.xwh)}` : ""}</div>` : `<div class="sub" style="margin:4px 0">Zapojuješ něco přímo do generátoru? Nejdřív uber River výkon, pak spotřebič zapoj. Platí do konce tohoto nabíjení.</div>`}
+    ${on && P.pre ? `<div style="font-size:14px;margin:4px 0">Připraveno: River budou mít při nabíjení o <b>${nf(P.jine)} W</b> méně (platí do konce nabíjení)</div>` : on ? `<div style="font-size:14px;margin:4px 0">River mají o <b>${nf(P.jine)} W</b> méně${P.x_w ? ` · spotřebič teď ~${nf(P.x_w)} W` : ""}${P.xwh ? ` · zatím ${kWh(P.xwh)}` : ""}</div>` : `<div class="sub" style="margin:4px 0">Zapojuješ něco přímo do generátoru? Nejdřív uber River výkon, pak spotřebič zapoj. ${P.pre ? "Jde to i předem – platí od startu nabíjení do jeho konce." : "Platí do konce tohoto nabíjení."}</div>`}
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="jine_w" type="number" inputmode="numeric" min="50" max="1500" step="50" value="${on ? P.jine : w0}" style="width:90px;font:inherit;padding:9px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)"> W
       <button onclick="genJine(+$('jine_w').value, this)" style="${bs}">${on ? "Změnit" : "➖ Ubrat"}</button>${on ? `<button onclick="genJine(0, this)" style="${bs}">Zrušit</button>` : ""}</div>
     <div class="sub" style="margin-top:4px">Co spotřebič vezme z generátoru, se do ceny nabíjení ani účinnosti nepočítá (palivo dál podle celé výroby).</div></div>`;

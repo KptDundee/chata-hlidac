@@ -5734,6 +5734,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             cfg["gen_palivo"] = f_
     ts0 = int(now.timestamp())
     if cmd == "start":                                   # i během nabíjení = nový start (např. po přepnutí na plyn)
+        if gs.get("jine") and ts0 - (gs.get("jine_t") or 0) > 6 * 3600:
+            gs.pop("jine", None)                          # 5.185: staré ubrání (bez nabíjení) se nepřenáší
         gs.update({"btn": ts0, "first": None, "idle": None, "t_on": ts0, "active": True, "idle_warned": False, "ever": False,
                    "restart": True})
         gs.pop("stop", None)
