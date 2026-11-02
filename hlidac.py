@@ -1896,6 +1896,7 @@ def main():
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
                          ("Palivo a cena", lambda: fuel_stats(data, st, now, cfg)),
+                         ("Plyn a voda v chatě", lambda: util_entries(data)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Upozornění pro web", lambda: data.__setitem__("alarms", [{"k": k_, "title": e_.get("title", k_), "t0": e_.get("t0"),
@@ -3659,6 +3660,33 @@ def cons_compare(data, st, now, topic, cfg):
 
 
 FUEL_FILE = "palivo.txt"
+
+
+UTIL_FILE = "spotreba.txt"
+UTIL_KINDS = ("varic", "primotop", "sprcha", "voda", "cena_vody")
+
+
+def util_entries(data):
+    """5.186 (Petr): lahve PB v chatě (vaření, primotop, sprcha), odečty vodoměru a cena vody – ručně z webu
+    (spotreba.txt: „čas | druh | číslo“; lahev = cena Kč, voda = stav m³, cena_vody = Kč/m³ pro rok podle času).
+    Hlídač jen předá záznamy, přehled po měsících a letech počítá web."""
+    try:
+        lines = open(UTIL_FILE, encoding="utf-8").read().splitlines()
+    except OSError:
+        lines = []
+    out = []
+    for ln in lines:
+        b = [x.strip() for x in ln.split("#", 1)[0].split("|")]
+        if len(b) < 3 or b[1].lower() not in UTIL_KINDS:
+            continue
+        try:
+            t = int(datetime.strptime(b[0], "%Y-%m-%d %H:%M").replace(tzinfo=TZ).timestamp())
+            v = float(b[2].replace(",", ".").replace(" ", ""))
+        except ValueError:
+            continue
+        out.append([t, b[1].lower(), v])
+    out.sort(key=lambda x: x[0])
+    data["util"] = out
 
 
 def fuel_stats(data, st, now, cfg):

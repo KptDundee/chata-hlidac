@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.186 – 2. 11. 2026
+- Nová karta 🧾 Plyn a voda v chatě (📅 Přehled): ručně zapisované výměny lahví PB – vaření (10 kg), primotop (2 kg), sprcha (10 kg) – a odečty vodoměru (m³). Tlačítka v detailu (datum, cena / stav), zápisy jde opravit a smazat; soubor spotreba.txt.
+- Lahev = od výměny do další; cena a kg rozpočítané rovnoměrně na dny, které vydržela (i přes víc měsíců). Aktuální lahev odhadem podle toho, jak dlouho lahev obvykle vydrží (medián), nikdy víc než její cena; „výměna asi …“. Voda = rozdíl odečtů rozpočítaný na dny × cena vody v daném roce.
+- Cena vody pro každý rok zvlášť (2026: 11 Kč/m³), jde zadat a změnit zpětně i dopředu – změna roku přepočítá jen vodu v tom roce; rok bez ceny převezme nejbližší (odhad, *).
+- Přehled Měsíce / Roky: sloupcový graf Kč (vaření, primotop, sprcha, voda), tabulka Kč a kg / m³, nahoře průměr Kč/měsíc a součet za posledních 12 měsíců.
+
 ## 5.185 – 2. 11. 2026
 - „🔌 Jiný spotřebič na generátoru“ je v Generátor → ▶️ Start vidět i když se zrovna nenabíjí (dřív jen během nabíjení, Petr ho nenašel). Ubrat jde předem – platí od startu nabíjení do jeho konce; ukáže se „Připraveno: … o 300 W méně“. Ubrání starší než 6 h se při startu nepoužije.
 

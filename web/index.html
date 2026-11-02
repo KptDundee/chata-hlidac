@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.185", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.186", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1776,6 +1776,189 @@ function tilePanels(d, h){
   if(pn.rec==="wait") return {...t, cls:"ok", v, st:"Jeden nestačí, druhý ještě ne", a:""};
   return {...t, cls:"ok", v, st:"Pojistka v pořádku", a:""};
 }
+/* ---------- 5.186 (Petr): plyn a voda v chatě – lahve PB (vaření, primotop, sprcha) a vodoměr, ručně zapisované (spotreba.txt) ---------- */
+const UK = {varic:{n:"Vaření", ic:"🍳", kg:10, c:"var(--s4)"}, primotop:{n:"Primotop", ic:"🔥", kg:2, c:"var(--s7)"}, sprcha:{n:"Sprcha", ic:"🚿", kg:10, c:"var(--s3)"}, voda:{n:"Voda", ic:"💧", c:"var(--s1)"}};
+const UGAS = ["varic","primotop","sprcha"];
+let UPER = "m"; try{ UPER = localStorage.getItem("uper") || "m"; }catch(_){}
+const uMonth = t => { const x = new Date(t*1000); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`; };
+const uMonthStart = k => new Date(+k.slice(0,4), +k.slice(5,7)-1, 1).getTime()/1000;
+/* rozpočítá množství a Kč rovnoměrně na čas [t0, t1) po měsících; priceOf(rok) volitelně (voda) */
+function uSpread(M, kind, t0, t1, qty, kc, est, priceOf){
+  if(!(t1 > t0)) return;
+  let a = t0;
+  while(a < t1){
+    const k = uMonth(a), x = new Date(a*1000), nx = new Date(x.getFullYear(), x.getMonth()+1, 1).getTime()/1000, b = Math.min(t1, nx), f = (b-a)/(t1-t0);
+    const R = (M[k] ||= {k}), E = (R[kind] ||= {q:0, kc:0, est:false, pest:false});
+    E.q += qty*f;
+    if(priceOf){ const P = priceOf(x.getFullYear()); if(P){ E.kc += qty*f*P.v; if(P.est) E.pest = true; } else E.pest = true; }
+    else if(kc!=null) E.kc += kc*f;
+    if(est) E.est = true;
+    a = b;
+  }
+}
+function utilCalc(d){
+  const U = d.util || [], now = Date.now()/1000, M = {}, info = {};
+  for(const kind of UGAS){
+    const L = U.filter(e=>e[1]===kind);
+    const closed = L.slice(0,-1).map((e,i)=>({t0:e[0], t1:L[i+1][0], kc:e[2], days:(L[i+1][0]-e[0])/86400}));
+    const ds = closed.map(x=>x.days).sort((a,b)=>a-b), typ = ds.length ? (ds[Math.floor((ds.length-1)/2)] + ds[Math.floor(ds.length/2)])/2 : null;   // medián, kolik lahev vydrží
+    for(const x of closed) uSpread(M, kind, x.t0, x.t1, UK[kind].kg, x.kc, false);
+    const last = L[L.length-1];
+    if(last && typ){   // aktuální lahev: odhad podle toho, jak dlouho lahev obvykle vydrží (nikdy víc než její cena)
+      const el = (now - last[0])/86400, span = Math.max(typ, el);
+      uSpread(M, kind, last[0], now, UK[kind].kg*el/span, last[2]*el/span, true);
+    }
+    info[kind] = {n:L.length, last, typ, next: last && typ ? last[0] + typ*86400 : null, days: closed.length};
+  }
+  // voda: odečty, cena podle roku (každý rok svá; chybí-li, nejbližší starší / novější rok = odhad)
+  const PR = U.filter(e=>e[1]==="cena_vody").map(e=>({y:new Date(e[0]*1000).getFullYear(), v:e[2], t:e[0]})).sort((a,b)=>a.y-b.y);
+  const priceOf = y => { const ex = PR.filter(p=>p.y===y).pop(); if(ex) return {v:ex.v, est:false};
+    const prev = PR.filter(p=>p.y<y).pop(), nxt = PR.find(p=>p.y>y), p = prev || nxt; return p ? {v:p.v, est:true} : null; };
+  const W = U.filter(e=>e[1]==="voda");
+  for(let i=1;i<W.length;i++){ const q = W[i][2]-W[i-1][2]; if(q >= 0) uSpread(M, "voda", W[i-1][0], W[i][0], q, null, false, priceOf); }
+  info.voda = {n:W.length, last:W[W.length-1]};
+  return {M, info, PR, priceOf};
+}
+function utilRows(d, per){
+  const {M} = utilCalc(d), R = {};
+  for(const m of Object.values(M)){
+    const k = per==="y" ? m.k.slice(0,4) : m.k, A = (R[k] ||= {k});
+    for(const kind of Object.keys(UK)) if(m[kind]){ const E = (A[kind] ||= {q:0, kc:0, est:false, pest:false}); E.q += m[kind].q; E.kc += m[kind].kc; E.est ||= m[kind].est; E.pest ||= m[kind].pest; }
+  }
+  const rows = Object.values(R).sort((a,b)=>a.k<b.k?-1:1);
+  for(const r of rows) r.tot = Object.keys(UK).reduce((s,k)=>s+((r[k]||{}).kc||0),0);
+  return rows;
+}
+function utilSummary(d){   // posledních 12 měsíců (bez rozběhnutého měsíce, když je k dispozici víc)
+  const {M} = utilCalc(d), cur = uMonth(Date.now()/1000), ks = Object.keys(M).sort().filter(k=>k<cur).slice(-12);
+  const S = {}; for(const kind of Object.keys(UK)){ const v = ks.map(k=>(M[k][kind]||{}).kc||0); S[kind] = ks.length ? v.reduce((a,b)=>a+b,0) : null; }
+  return {S, n:ks.length, tot: ks.length ? Object.values(S).reduce((a,b)=>a+(b||0),0) : null};
+}
+function tileUtil(d, h){
+  const t = {k:"util", icon:"🧾", label:"Plyn a voda"}, U = d.util || [];
+  if(!U.some(e=>e[1]!=="cena_vody")) return {...t, cls:"na", v:"–", st:"Zatím nic nezapsáno", a:"Výměny lahví a odečty vody"};
+  const Sm = utilSummary(d), I = utilCalc(d).info;
+  const soon = UGAS.filter(k=>I[k].next && I[k].next - h.now < 7*86400).map(k=>`${UK[k].n} ~${relDay(I[k].next)}`);
+  return {...t, cls:"ok", v: Sm.n ? `${nf(Sm.tot/Sm.n,0)}<small>Kč/měsíc</small>` : "–", st: Sm.n ? `průměr za ${Sm.n} ${Sm.n===1?"měsíc":Sm.n<5?"měsíce":"měsíců"}` : "Přehled po prvních měsících",
+    a: soon.length ? `Výměna lahve: ${soon.join(" · ")}` : ""};
+}
+function utilBars(el, rows, kinds, per){
+  const p = rows.filter(r=>r.tot>0); if(!p.length) return empty(el, "Zatím málo zápisů – přehled se ukáže po druhé výměně lahve nebo druhém odečtu vody.");
+  const hi = Math.max(...p.map(r=>r.tot))*1.15 || 1, {svg,y} = frame(el, 0, hi, 0);
+  const n = Math.max(rows.length, 6), bw = (W-M.l-M.r)/n, w = Math.max(3, Math.min(30, bw-3));
+  let s = "";
+  rows.forEach((r,i)=>{ const cx = M.l + bw*i + bw/2; let base = 0;
+    for(const k of kinds){ const v = (r[k]||{}).kc||0; if(v<=0) continue; const y0 = y(base), y1 = y(base+v);
+      s += `<rect x="${cx-w/2}" y="${y1}" width="${w}" height="${Math.max(0, y0-y1-(base>0?0:0))}" fill="${UK[k].c}"${(r[k]||{}).est ? ` fill-opacity=".45"` : ""} stroke="var(--card)" stroke-width="1"/>`; base += v; }
+    s += `<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    if(i%Math.ceil(rows.length/6)===0 || i===rows.length-1) s += `<text x="${cx}" y="${H-6}" text-anchor="middle">${uLab(r.k, per)}</text>`; });
+  svg.insertAdjacentHTML("beforeend", s);
+  hover(svg, rows, r=>`${uLab(r.k, per, true)}<br>${kinds.filter(k=>r[k]).map(k=>`<span style="color:${UK[k].c}">■</span> ${UK[k].n}: <b>${nf(r[k].kc,0)} Kč</b>${r[k].est?" (odhad)":""}`).join("<br>")}<br><b>Celkem ${nf(r.tot,0)} Kč</b>`);
+}
+const uLab = (k, per, long) => per==="y" ? k : new Date(uMonthStart(k)*1000).toLocaleDateString("cs-CZ", long ? {month:"long", year:"numeric"} : {month:"short"}) + (long ? "" : " " + k.slice(2,4));
+function detUtil(body){
+  const d = DATA, U = d.util || [], {info, PR, priceOf} = utilCalc(d), Sm = utilSummary(d), now = Date.now()/1000;
+  const bs = `font:inherit;font-weight:600;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent;flex:1;min-width:30%`;
+  const btns = `<div style="display:flex;gap:6px;flex-wrap:wrap">${UGAS.map(k=>`<button onclick="utilAdd('${k}')" style="${bs}">🔄 ${UK[k].n}</button>`).join("")}<button onclick="utilAdd('voda')" style="${bs}">💧 Odečet vody</button></div>`;
+  const kRow = k => { const I = info[k];
+    if(k==="voda"){ const L = I.last; return rowI(`${UK.voda.ic} Voda`, L ? `poslední odečet ${dTxt(dkey(L[0]))}: <b>${nf(L[2],1)} m³</b>` : `<span class="sub">zatím žádný odečet</span>`); }
+    const L = I.last; if(!L) return rowI(`${UK[k].ic} ${UK[k].n} <span class="sub">(${UK[k].kg} kg)</span>`, `<span class="sub">zatím nic</span>`);
+    return rowI(`${UK[k].ic} ${UK[k].n} <span class="sub">(${UK[k].kg} kg)</span>`, `od ${dTxt(dkey(L[0]))} · ${nf(L[2],0)} Kč${I.typ ? ` · obvykle vydrží ~${nf(I.typ,0)} dní → výměna asi ${relDay(I.next)}` : ` · <span class="sub">jak dlouho vydrží, se ukáže po další výměně</span>`}`); };
+  const sumT = Sm.n ? `<div style="display:grid;grid-template-columns:1fr auto auto;gap:3px 14px;font-size:14px;font-variant-numeric:tabular-nums">
+      <span class="sub"></span><span class="sub" style="text-align:right">Kč/měsíc</span><span class="sub" style="text-align:right">za ${Sm.n} měs.</span>
+      ${Object.keys(UK).filter(k=>Sm.S[k]).map(k=>`<span><span style="color:${UK[k].c}">■</span> ${UK[k].n}</span><span style="text-align:right">${nf(Sm.S[k]/Sm.n,0)}</span><span style="text-align:right">${nf(Sm.S[k],0)}</span>`).join("")}
+      <b style="border-top:1px solid var(--line);padding-top:4px">Celkem</b><b style="text-align:right;border-top:1px solid var(--line);padding-top:4px">${nf(Sm.tot/Sm.n,0)}</b><b style="text-align:right;border-top:1px solid var(--line);padding-top:4px">${nf(Sm.tot,0)} Kč</b></div>
+      <div class="sub" style="margin-top:4px">Průměr za posledních ${Sm.n} celých měsíců se zápisy${Sm.n<12 ? " (rok se doplní, jak přibudou data)" : ""}.</div>` : `<span class="sub">Průměr se ukáže po prvním celém měsíci se zápisy.</span>`;
+  const yrs = [...new Set([...PR.map(p=>p.y), new Date().getFullYear(), new Date().getFullYear()+1])].sort();
+  const priceT = yrs.map(y=>{ const P = PR.filter(p=>p.y===y).pop(), E = priceOf(y);
+    return `<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0"><span>${y}</span><span>${P ? `<b>${nf(P.v,1)} Kč/m³</b>` : E ? `<span class="sub">${nf(E.v,1)} Kč/m³ (převezme ${E.v===((PR.filter(p=>p.y<y).pop()||{}).v) ? "z minulého roku" : "z dalšího roku"})</span>` : `<span class="sub">nezadáno</span>`} · <a href="#" onclick="event.preventDefault();utilPrice(${y})">${P ? "✎" : "zadat"}</a></span></div>`; }).join("");
+  const ent = U.filter(e=>e[1]!=="cena_vody").slice(-30).reverse();
+  const entT = ent.length ? ent.map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--line);font-size:13.5px"><span>${dTxt(dkey(e[0]))} · ${UK[e[1]].ic} ${UK[e[1]].n}</span><span>${e[1]==="voda" ? `${nf(e[2],1)} m³` : `${nf(e[2],0)} Kč`} · <a href="#" onclick="event.preventDefault();utilEdit(${e[0]},'${e[1]}')">✎</a> <a href="#" onclick="event.preventDefault();utilEdit(${e[0]},'${e[1]}',true)">🗑</a></span></div>`).join("") : `<span class="sub">Zatím nic. Klidně doplň i starší výměny a odečty (datum se zadává).</span>`;
+  const leg = Object.keys(UK).map(k=>`<span style="color:${UK[k].c}">■</span> ${UK[k].n}`).join(" · ");
+  body.insertAdjacentHTML("beforeend", `<div class="card"><h2 style="margin:0 0 8px">Zapsat</h2>${btns}<div style="margin-top:8px">${[...UGAS,"voda"].map(kRow).join("")}</div></div>
+    <div class="card"><h2 style="margin:0 0 6px">Kolik to stojí</h2>${sumT}</div>
+    <div class="seg" id="uper_seg" style="margin-bottom:12px"><button data-p="m" aria-pressed="${UPER==="m"}">Měsíce</button><button data-p="y" aria-pressed="${UPER==="y"}">Roky</button></div>
+    ${chartCard("ut_bars", "Kč za období", `${leg} · světlejší = odhad (lahev, která ještě nedošla)`)}
+    <div class="card"><h2 style="margin:0 0 6px">Po obdobích</h2><div id="ut_tab"></div></div>
+    <div class="card"><h2 style="margin:0 0 6px">Cena vody</h2><div style="font-size:14px">${priceT}</div><div class="sub" style="margin-top:4px">Každý rok má svou cenu – změna jednoho roku přepočítá jen vodu v tom roce. Rok bez ceny převezme cenu z nejbližšího roku (odhad).</div></div>
+    <div class="card"><h2 style="margin:0 0 6px">Zápisy</h2>${entT}</div>
+    <div class="sub" style="margin:0 4px 12px;line-height:1.5">Lahev = od výměny do další výměny; její cena a kg se rozpočítají rovnoměrně na dny, které vydržela (lahev na 3 měsíce dá každému měsíci jeho díl). Lahev, která ještě nedošla, se počítá podle toho, jak dlouho lahev obvykle vydrží (medián) – odhad, nikdy víc než její cena. Voda = rozdíl dvou odečtů rozpočítaný na dny mezi nimi × cena vody v daném roce; počítá se jen do posledního odečtu.</div>`);
+  const draw = () => {
+    const rows = utilRows(d, UPER).slice(UPER==="m" ? -24 : -10);
+    utilBars($("ut_bars"), rows, Object.keys(UK), UPER);
+    const cell = (r,k) => { const E = r[k]; if(!E) return `<span style="text-align:right">–</span>`; return `<span style="text-align:right${E.est?";color:var(--text2)":""}">${nf(E.kc,0)}${E.est||E.pest?"*":""}<br><span class="sub" style="font-size:11.5px">${k==="voda" ? `${nf(E.q,1)} m³` : `${nf(E.q,1)} kg`}</span></span>`; };
+    $("ut_tab").innerHTML = rows.length ? `<div style="display:grid;grid-template-columns:1.2fr repeat(5,auto);gap:4px 8px;font-size:13.5px;font-variant-numeric:tabular-nums;align-items:start">
+      <span class="sub"></span>${Object.keys(UK).map(k=>`<span class="sub" style="text-align:right">${UK[k].ic}</span>`).join("")}<span class="sub" style="text-align:right">Kč</span>
+      ${rows.slice().reverse().map(r=>`<b>${uLab(r.k, UPER, true)}</b>${Object.keys(UK).map(k=>cell(r,k)).join("")}<b style="text-align:right">${nf(r.tot,0)}</b>`).join("")}</div>
+      <div class="sub" style="margin-top:4px">Kč, pod tím kg plynu / m³ vody · * = odhad (lahev ještě nedošla, nebo cena vody převzatá z jiného roku)</div>` : `<span class="sub">Zatím nic.</span>`;
+  };
+  draw();
+  const seg = $("uper_seg"); seg.onclick = e => { const b = e.target.closest("button"); if(!b) return; UPER = b.dataset.p; try{ localStorage.setItem("uper", UPER); }catch(_){}
+    for(const x of seg.children) x.setAttribute("aria-pressed", x===b); draw(); };
+}
+/* zápis do spotreba.txt (GitHub) – stejně jako palivo */
+const GHU_ = () => "https://api.github.com/repos/"+REPO+"/contents/spotreba.txt";
+async function utilWrite(fn, msg){
+  const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); throw new Error("Chybí token"); }
+  const r = await fetch(GHU_()+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+  let txt = "# Plyn a voda v chatě (zapisuje web): čas | druh | číslo\n", sha;
+  if(r.ok){ const j = await r.json(); txt = utf8b64.dec(j.content); sha = j.sha; }
+  const nt = fn(txt);
+  const w = await fetch(GHU_(),{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
+    body:JSON.stringify({message:`Spotřeba: ${msg}`, content:utf8b64.enc(nt), ...(sha?{sha}:{}), branch:"main"})});
+  if(!w.ok) throw new Error("GitHub odpověděl "+w.status);
+  try{ await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{method:"POST",
+    headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"}, body:JSON.stringify({ref:"main",inputs:{test:false,wake:false}})}); }catch(_){}
+}
+function utilAdd(kind){
+  const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
+  const old = $("utilDlg"); if(old) old.remove();
+  const pad = n => String(n).padStart(2,"0"), today = dkey(Date.now()/1000);
+  const L = (DATA.util||[]).filter(e=>e[1]===kind).pop(), isW = kind==="voda";
+  const inp = "font:inherit;font-size:17px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box";
+  const d = document.createElement("div"); d.id = "utilDlg";
+  d.style.cssText = "position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center";
+  d.innerHTML = `<form style="background:var(--surface);color:var(--text);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:18px">${UK[kind].ic} ${isW ? "Odečet vody" : `${UK[kind].n} – nová lahev (${UK[kind].kg} kg)`}</b><button type="button" data-x style="font:inherit;font-size:22px;background:none;border:0;color:var(--text);cursor:pointer">✕</button></div>
+    <label>Datum<input type="date" name="dt" value="${today}" max="${today}" style="${inp}"></label>
+    <label>${isW ? "Stav vodoměru v m³" : "Cena lahve v Kč"}<input name="v" inputmode="decimal" value="${!isW && L ? L[2] : ""}" style="${inp}"></label>
+    ${isW && L ? `<div class="sub">Minulý odečet ${dTxt(dkey(L[0]))}: ${nf(L[2],1)} m³</div>` : ""}
+    <button type="submit" style="font:inherit;font-weight:700;font-size:17px;padding:14px;border-radius:12px;border:0;background:var(--good);color:#fff;cursor:pointer">Zapsat</button>
+    <div data-msg class="sub"></div></form>`;
+  document.body.appendChild(d);
+  const fm = d.querySelector("form"); d.querySelector("[data-x]").onclick = () => d.remove(); d.onclick = e => { if(e.target === d) d.remove(); };
+  fm.onsubmit = async e => { e.preventDefault(); const msg = d.querySelector("[data-msg]");
+    const v = parseFloat(fm.v.value.replace(",",".").replace(/\s/g,"")); if(!(v >= 0)) { msg.innerHTML = `<b style="color:var(--crit)">Zadej číslo.</b>`; return; }
+    if(isW && L && fm.dt.value > dkey(L[0]) && v < L[2]) { msg.innerHTML = `<b style="color:var(--crit)">Menší než minulý odečet (${nf(L[2],1)} m³).</b>`; return; }
+    const now_ = new Date(), tm = fm.dt.value === today ? `${pad(now_.getHours())}:${pad(now_.getMinutes())}` : "12:00";
+    const line = `${fm.dt.value} ${tm} | ${kind} | ${v}`;
+    msg.textContent = "Zapisuji…";
+    try{ await utilWrite(t => t.replace(/\n?$/,"\n") + line + "\n", line);
+      fm.innerHTML = `<b style="font-size:18px">Zapsáno ✓</b><div>Do přehledu se dostane za minutu (po běhu hlídače).</div><button type="button" onclick="this.closest('#utilDlg').remove()" style="font:inherit;font-weight:700;padding:12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text)">Zavřít</button>`;
+    }catch(err){ msg.innerHTML = `<b style="color:var(--crit)">Nejde zapsat: ${escH(err.message)}</b>`; }
+  };
+}
+async function utilEdit(ts, kind, del){
+  const key = fuelTs(ts), isW = kind==="voda";
+  const e = (DATA.util||[]).find(x=>x[0]===ts && x[1]===kind); if(!e) return;
+  let nv = null;
+  if(del){ if(!confirm(`Smazat zápis ${dTxt(dkey(ts))} · ${UK[kind].n}?`)) return; }
+  else { nv = prompt(`${UK[kind].n} ${dTxt(dkey(ts))} – ${isW ? "stav v m³" : "cena v Kč"}:`, String(e[2])); if(nv===null || !nv.trim()) return; nv = parseFloat(nv.replace(",",".")); if(!(nv>=0)) return alert("Zadej číslo."); }
+  try{ await utilWrite(t => t.split("\n").map(l => { const b = l.split("#")[0].split("|").map(x=>x.trim());
+      if(b.length>=3 && b[0]===key && b[1].toLowerCase()===kind) return del ? null : `${b[0]} | ${b[1]} | ${nv}`; return l; }).filter(l=>l!==null).join("\n"), `${del?"smazáno":"upraveno"} ${key} ${kind}`);
+    alert(del ? "Smazáno ✓ (přehled se obnoví za minutu)" : "Upraveno ✓ (přehled se obnoví za minutu)");
+  }catch(err){ alert("Nejde uložit: "+err.message); }
+}
+async function utilPrice(y){
+  const P = ((DATA.util||[]).filter(e=>e[1]==="cena_vody" && new Date(e[0]*1000).getFullYear()===y).pop());
+  let v = prompt(`Cena vody v roce ${y} (Kč/m³):`, P ? String(P[2]) : ""); if(v===null || !v.trim()) return; v = parseFloat(v.replace(",",".")); if(!(v>=0)) return alert("Zadej číslo.");
+  const key = `${y}-01-01 00:00`;
+  try{ await utilWrite(t => { const L = t.split("\n"); let hit = false;
+      const out = L.map(l => { const b = l.split("#")[0].split("|").map(x=>x.trim()); if(b.length>=3 && b[1].toLowerCase()==="cena_vody" && b[0].slice(0,4)===String(y)){ if(hit) return null; hit = true; return `${key} | cena_vody | ${v}`; } return l; }).filter(l=>l!==null);
+      return hit ? out.join("\n") : out.join("\n").replace(/\n?$/,"\n") + `${key} | cena_vody | ${v}\n`; }, `cena vody ${y} = ${v}`);
+    alert(`Cena vody ${y}: ${v} Kč/m³ ✓ (přehled se obnoví za minutu)`);
+  }catch(err){ alert("Nejde uložit: "+err.message); }
+}
 function tileSystem(d, h){
   const t = {k:"sys", icon:"📡", label:"Systém"};
   const probs = [], warns = [];
@@ -3221,7 +3404,7 @@ function renderHome(d){
     chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h)].filter(Boolean),
     prod: [tileProdSolar(d, h), tileProdGen(d, h)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
     out: [tileNight(d,h), tileTomorrow(d,h), tilePlan(d,h)], past: [tilePastNight(d,h), tileYesterday(d,h)],
-    long: [tileWire(d,h), tileHealth(d,h), tileBsim(d,h), tilePanels(d,h), tileSystem(d,h)], src: SRC };
+    long: [tileUtil(d,h), tileWire(d,h), tileHealth(d,h), tileBsim(d,h), tilePanels(d,h), tileSystem(d,h)], src: SRC };
   $("h_dev").innerHTML = T.chata.map(tileHtml).join("");
   $("h_day").innerHTML = T.prod.map(tileHtml).join("");
   $("h_use").innerHTML = T.use.map(tileHtml).join("");
@@ -3273,6 +3456,7 @@ function detAlerts(body){
 /* ---------- detail dlaždice: vlastní obsah pro každou dlaždici; delší části se přesunou sem z původní stránky ---------- */
 const DET = {
   bat:   {t:"🔆 Solární baterie", s:"Údaje · grafy · výklad", build:detBat},
+  util: {t:"🧾 Plyn a voda v chatě", s:"Lahve PB (vaření, primotop, sprcha) a voda – kolik to stojí za měsíc a rok", build:detUtil},
   night: {t:"🌙 Příští noc", s:"Vydrží baterie do příštího rána?", build:detNight, title:()=>`🌙 ${tileNight(DATA, homeData(DATA)).label}`},
   pastnight:{t:"🌘 Minulá noc", s:"Jak dopadla a jak sedí předpověď", build:detPastNight, title:()=>`🌘 ${tilePastNight(DATA, homeData(DATA)).label}`},
   yday:  {t:"📅 Včera", s:"Včerejší výroba a spotřeba, předpověď vs skutečnost", build:detYesterday},
