@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.183 – 2. 11. 2026
+- Karta 🌙 Noc (výhled solární baterie) je jen o solární baterii (Petr): když chata jede z River, ukáže „Chata jede z River … (21 %) – solární baterie se jen nabíjí / odpočívá“ místo „River se vybije ~12:15“ a rady „Dnes večer omez odběr / připrav druhou River“. Výdrž River a kdy přepnout dál v kartě EcoFlow a v upozorněních.
+- Zmizel mrtvý řádek „Oprava z minulých nocí – zatím ne (0 z 3 nocí)“ (oprava je vypnutá od 5.101, hlídač se učí přímo noční odběr) a rozbitý text „(zítra ráno ~12:15 River vybitá dnes V)“.
+
 ## 5.182 – 2. 11. 2026
 - Jiný spotřebič na generátoru (Petr): v Generátor → ▶️ Start během nabíjení „🔌 Jiný spotřebič na generátoru“ – zadáš W a „➖ Ubrat“. River pak dostanou dohromady o tolik W méně (rozdělení se hned přepočítá), jen do konce tohoto nabíjení; „Zrušit“ vrátí plný výkon. Nastavení `gen_jine` (W:čas, zapisuje web).
 - Dokud je ubráno, hlídač měří spotřebič = výkon generátoru − co berou River (`x` Wh u nabíjení). Palivo (kWh na lahev, g/kWh, l/kWh, cena 1 kWh z generátoru) se dál počítá z celé výroby; cena nabíjení, kWh do nabíjení, využitelné kWh a účinnost jen z toho, co šlo do River. Spotřebič se ukáže zvlášť (kWh a Kč, „nezapočteno“) v seznamu nabíjení, tabulce nákladů a v souhrnu po nabíjení.
