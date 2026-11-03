@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.191 – 3. 11. 2026
+- Karta Chladnutí (Petr): když pokoj právě chladne, prostřední dlaždice ukazuje skutečnost i model zvlášť – „−0,9 °C/h teď skutečně (za poslední hodinu) · model −1,1 °C/h“; „kdyby se teď netopilo“ jen když nechladne. Řádek „Právě teď chladne“ zrušen (je v dlaždici).
+- Jedno znaménko všude: rychlost = změna teploty za hodinu, − chladne, + otepluje se (dlaždice, „Jak chata drží teplo“, tabulka nocí, vysvětlení).
+
 ## 5.190 – 3. 11. 2026
 - Vráceno 5.189: velké River přes rozhraní, které hlídač používá, čas do nabití neposílají (jen do vybití) – úprava by se nikdy neuplatnila. „plná ~“ zase jen výpočtem hlídače (Petr: čas nechat).
 
