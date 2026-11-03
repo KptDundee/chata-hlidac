@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.192 – 3. 11. 2026
+- Dva rozvrhy, ať se nepletou (Petr): v Nastavení i v 🗓 Kdy jsem pryč vysvětlení „① Kdy jsem pryč = plán na konkrétní dny, má přednost; ② Obvyklý rozvrh = šablona pro dny mimo plán“, z Nastavení odkaz na plán. Obvyklý rozvrh odjezd i návrat má v popisku „platí jen pro dny mimo plán“; prázdný návrat místo „vypnuto“ ukazuje „nevyplněno – dny mimo plán vydrží do „Výhled dne – vydržet do““.
+
 ## 5.191 – 3. 11. 2026
 - Karta Chladnutí (Petr): když pokoj právě chladne, prostřední dlaždice ukazuje skutečnost i model zvlášť – „−0,9 °C/h teď skutečně (za poslední hodinu) · model −1,1 °C/h“; „kdyby se teď netopilo“ jen když nechladne. Řádek „Právě teď chladne“ zrušen (je v dlaždici).
 - Jedno znaménko všude: rychlost = změna teploty za hodinu, − chladne, + otepluje se (dlaždice, „Jak chata drží teplo“, tabulka nocí, vysvětlení).

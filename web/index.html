@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.191", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.192", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1587,7 +1587,8 @@ function detPlan(body){
         const res = iv.src==="solar" ? "pojede solár" : iv.src==="river" ? `pojede ${escH(pn((R[iv.k]||{}).name||""))}` : `<b style="color:var(--crit)">nic nestačí</b>`;
         return `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px"><b>${relDay(iv.a)} ${hmT(iv.a)}–${hmT(iv.b)}</b> → ${res}<br>Solár: na začátku ~${W.sol?Math.max(0,W.sol.pct0):"?"} # → ${W.sol&&W.sol.ok?"vydrží ✓":"nevydrží"}<br>${rv}</div>`; }).join("")}
       <div class="sub" style="margin-top:4px">Spočítáno ${relDay(AP.t)} ${hmT(AP.t)}.</div></div>`;
-    box.innerHTML = `<div class="sub" style="margin-bottom:6px">Kdy budeš pryč (od – do). „Do“ dřív než „od“ = přes půlnoc. Den bez úprav jede podle obvyklého rozvrhu v Nastavení.</div>
+    box.innerHTML = `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45"><b>Rozvrhy jsou dva:</b> ① <b>🗓 Kdy jsem pryč</b> – plán na konkrétní dny (tento a příští týden), má vždy přednost; ② <b>Obvyklý rozvrh</b> v Nastavení – šablona pro dny, které v plánu nemáš. Tady zadáváš ①. Den označený „(obvyklý rozvrh)“ jsi tu neupravil – jede podle ②.</div>
+      <div class="sub" style="margin-bottom:6px">Kdy budeš pryč (od – do). „Do“ dřív než „od“ = přes půlnoc.</div>
       ${days.map(row).join("")}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="pl_save" style="font:inherit;padding:8px 14px;font-weight:600">Uložit plán</button>
       <button type="button" id="pl_copy" style="font:inherit;padding:8px 14px">Jako minulý týden</button></div><div class="sub" id="pl_msg" style="margin-top:6px"></div>${calc}`;
@@ -4145,8 +4146,8 @@ const SETTINGS = [
   ["Upozornění", [
     ["nabito","Baterie nabitá na 100 %","V souhrnu ve 22:00","","", "sw"],
     ["panely_nevyrabi","Panely nevyrábí přes den","Sníh, stín nebo vypadlý kabel","","", "sw"],
-    ["den_kontrola","Obvyklý rozvrh – odjezd","Kdy obvykle odjíždíš – platí pro dny, které nemáš v plánu „🗓 Kdy jsem pryč“ (vypnutý den = doma)","",0,"week"],
-    ["den_navrat","Obvyklý rozvrh – návrat","Kdy se obvykle vracíš – do té doby musí zdroj vydržet (prázdný den = „vydržet do“)","",0,"week"],
+    ["den_kontrola","Obvyklý rozvrh – odjezd","Šablona: kdy obvykle odjíždíš – platí jen pro dny, které nemáš v plánu „🗓 Kdy jsem pryč“ (vypnutý den = doma)","",0,"week"],
+    ["den_navrat","Obvyklý rozvrh – návrat","Šablona: kdy se obvykle vracíš – platí jen pro dny, které nemáš v plánu „🗓 Kdy jsem pryč“ (prázdný den = „vydržet do“)","",0,"week"],
     ["den_do","Výhled dne – vydržet do","Do kolika má chata na soláru vydržet ve dny bez času návratu (pak řeší noc jiná upozornění)","",0,"time"],
     ["ticho","Noční klid upozornění","Od–do (např. 0:00-5:45): chodí jen ohrožení chodu, doporučení počkají na ráno","",0,"str"],
     ["nutne_river_v","Před spaním: přepni na River","Od tohoto času, když zdroj do rána nevydrží; opakuje se po 10 min","",0,"timeopt"],
@@ -4422,7 +4423,9 @@ function renderSettings(){
       } else if(type==="week"){
         const DN = [["po","pondělí"],["út","úterý"],["st","středa"],["čt","čtvrtek"],["pá","pátek"],["so","sobota"],["ne","neděle"]], cur = {};
         for(const part of String(val).split(",")){ const b = part.trim().split(/\s+/); if(b.length===2 && /\d{1,2}:\d{2}/.test(b[1])) cur[b[0].toLowerCase().slice(0,2)] = b[1].padStart(5,"0"); }
-        const sum = DN.filter(([d])=>cur[d]).map(([d])=>`${d} ${cur[d].replace(/^0/,"")}`).join(" · ") || "vypnuto";
+        const sum = DN.filter(([d])=>cur[d]).map(([d])=>`${d} ${cur[d].replace(/^0/,"")}`).join(" · ") || (k==="den_navrat" ? "nevyplněno – dny mimo plán „🗓 Kdy jsem pryč“ vydrží do „Výhled dne – vydržet do“" : k==="den_kontrola" ? "nevyplněno – dny mimo plán „🗓 Kdy jsem pryč“ = doma" : "vypnuto");
+        // 5.192 (Petr): dva rozvrhy – ať se nepletou
+        if(k==="den_kontrola") html += `<div style="margin:6px 0;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45"><b>Rozvrhy jsou dva:</b> ① <b>🗓 Kdy jsem pryč</b> – plán na konkrétní dny (tento a příští týden), má vždy přednost; ② <b>Obvyklý rozvrh</b> v Nastavení – šablona pro dny, které v plánu nemáš. Konkrétní časy na tento týden zadávej v ① – <a href="#" onclick="event.preventDefault();closeSettings();openDet('plan')">otevřít Kdy jsem pryč</a>.</div>`;
         html += `<details class="row" data-k="${k}" data-t="week" style="display:block"><summary style="cursor:pointer;list-style:none"><div class="t"><b>${label}${qh(k)} ›</b><span>${help}</span><span style="color:var(--text);margin-top:4px">${sum}</span></div></summary>
           <div style="padding:6px 0 4px">${DN.map(([d,n])=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-top:1px solid var(--line)">
             <label class="sw"><input type="checkbox" data-wd="${d}" ${cur[d]?"checked":""}><i></i></label>
