@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.203 – 4. 11. 2026
+- Vypnuto „🔋 Nabij River – dnes je budeš potřebovat“ (radilo nabíjet i plné River, protože plán neuměl kombinaci noc na River + den na solár). Nahradí ho plán podle okna generátoru.
+
 ## 5.202 – 4. 11. 2026
 - Z čeho jede chata: když zásuvka měniče zmizí ze sítě (Flip hlásí „gone“ – přepínač ji odpojil, nemá proud) a zásuvka na výstupu River bere, je to „chata na River“. Dřív „nevíme“, protože Victron dál hlásí INVERTING (běží naprázdno) – a výhled dne se pak nepočítal. Do záznamu běhu řádek „Výhled dne: …“.
 

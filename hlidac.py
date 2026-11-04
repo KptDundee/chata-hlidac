@@ -5038,7 +5038,7 @@ def river_charge_hint(data, st, now, topic, cfg):
                    for r in data.get("rivers") or [] if r.get("online") and not r.get("gen"))
     home = not is_away(cfg, PLAN, now)
     full = bool(RV) and all(v["soc"] >= 95 for v in RV.values())
-    act = bool(why) and home and not charging and 6 <= hr < 22
+    act = False and bool(why) and home and not charging and 6 <= hr < 22     # 5.203: vypnuto – nahradí plán podle okna generátoru
     rvt = ", ".join(f"{pn_(v['name'])} {fmt(v['soc'])} %" for v in RV.values())
     b0 = " · ".join(why) + "."
     body = b0[:1].upper() + b0[1:] + (f" River teď: {rvt}." if rvt else "")
