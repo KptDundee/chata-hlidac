@@ -3352,6 +3352,10 @@ def read_ecoflow(data, st, now, topic, cfg):
     rivers = [r for r in rivers if not r.get("gen")]
     data["ef_gens"] = gens
     data["rivers"] = rivers
+    for g_ in gens:                                   # 5.196: do záznamu běhu – přišla data z generátoru? (není citlivé)
+        gd_ = g_.get("gd") or {}
+        print(f"EcoFlow generátor {g_.get('name') or ''}: {'online' if g_.get('online') else 'offline'}, zdroj {g_.get('src') or '?'}"
+              + (f", výkon {fmt(gd_.get('w'))} W, palivo {fmt(gd_.get('fuel'))} %, g/h {fmt(gd_.get('gph'))}, motor {gd_.get('motor')}" if gd_ else ", bez údajů"))
     rl = data.setdefault("rv_last", {})                   # 5.85: poslední známé % (web ho ukáže šedě, když River teď nevidíme)
     for r in rivers:
         if r.get("online") and r.get("soc") is not None:
