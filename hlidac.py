@@ -27,7 +27,7 @@ DEFAULTS = {
     "nabito": True,
     "panely_nevyrabi": True, "panely_min_W": 5, "panely_rezerva_min": 45, "panely_po_dobu_min": 30,
     "baterie_slabne_V": 12.2, "baterie_slabne_reset_V": 12.5,
-    "baterie_kriticka_V": 12.0, "baterie_kriticka_reset_V": 12.2,
+    "baterie_kriticka_V": 12.0, "baterie_kriticka_reset_V": 12.2, "baterie_setrna_pct": 50,
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
@@ -4685,6 +4685,27 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
           f"Chata jede ze solární baterie a ta je pod hranicí alarmu (odpovídá ~{fmt((cfg.get('baterie_kriticka_V') or 12.0), 1)} V v klidu). "
           f"Vyšší napětí při nabíjení na tom nic nemění.\n{todo}",
           5, "rotating_light,battery", ok_title="✓ Solární baterie už není pod alarmem" if hq["pct"] >= alarm_soc else "✓ Chata jede z River", cat=1)
+    # 5.209 (Petr): šetrná hranice (baterie_setrna_pct, 50 #) a využití výroby přes den – jen když jsem doma
+    home_ = not is_away(cfg, PLAN, now)
+    pvs_ = [p["pv_w"] for p in data.get("points", []) if p.get("pv_w") is not None and p["t"] >= ts - 1800]
+    pv_ = sum(pvs_) / len(pvs_) if len(pvs_) >= 2 else None
+    cab_w = ((data.get("river_sup") or {}).get("w") if on_river else now_w) or use_w
+    need_w = cab_w / 0.88 + idle                                  # kolik musí panely dávat, aby se baterie nevybíjela
+    covers = pv_ is not None and pv_ >= need_w * 1.1
+    setr = cfg.get("baterie_setrna_pct") or 50
+    bk2_ = pick_river(RVl, river_usage(data, now))
+    rvt_ = f"River {pn_(RVl[bk2_]['name'])} ({fmt(RVl[bk2_]['soc'])} %)" if bk2_ else "River"
+    if on_river and home_ and covers and hq["pct"] >= alarm_soc and rise and set_ and rise <= now < set_ - timedelta(hours=1) \
+            and st.get("sol_use_d") != now.strftime("%Y-%m-%d") and st.get("do_conn") != (str(int(AW[0].timestamp())) if AW else now.strftime("%Y-%m-%d")):
+        ntfy(topic, "☀️ Přepni chatu na solár – vyrábí víc, než chata bere",
+             f"Panely teď dávají ~{fmt(pv_)} W, chata bere ~{fmt(cab_w)} W (z baterie by šlo ~{fmt(need_w)} W). Spotřeba pojede rovnou z panelů "
+             f"– šetří River (plyn) a baterie se při tom nevybíjí. Solární baterie {hq['pct']} #.\nAž výroba klesne, napíšu, kdy zpátky na River.", 3, "sunny")
+        st["sol_use_d"] = now.strftime("%Y-%m-%d")
+    was_soft = "sol_soft" in (st.get("al") or {})
+    soft = on_solar and home_ and not in_quiet() and alarm_soc <= hq["pct"] < setr + (5 if was_soft else 0) and not covers
+    alarm(st, topic, "sol_soft", soft, f"🔋 Solární baterie {hq['pct']} # – šetři ji, přepni na River",
+          f"Chata jede ze solární baterie a ta je pod šetrnou hranicí {setr} # (alarm je {round(alarm_soc)} #). Hlubší vybíjení AGM baterii "
+          f"zkracuje život.\nPřepni chatu na {rvt_}.", 3, "battery", ok_title=False, cat=2)
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu) – 5.117: stejná funkce jako večerní plán
     tchk = AW[0] if AW else None                      # 5.118: odjezd (úsek nepřítomnosti) – kontrola při každém odjezdu
@@ -4708,6 +4729,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
             st["do_conn"] = akey
         alarm(st, topic, "day", False, ok_title="✓ Chata jede z River")
         alarm(st, topic, "sol_low", False, ok_title="✓ Chata jede z River")
+        alarm(st, topic, "sol_soft", False, ok_title=False)
         return
     if due and not res["ok"]:
         st["do_sent"] = day
@@ -5122,14 +5144,17 @@ def window_plan(data, st, now, topic, cfg):
     conn = (data.get("river_sup") or {}).get("sn")
     cur = "s" if cs_ == "s" else conn if cs_ == "r" and conn in RV else None
 
-    def search(soc0):
+    # 5.209: solár přednostně jen do šetrné hranice (baterie_setrna_pct, 50 #); když to jinak nejde, až k alarmu
+    floor_s = max(0.0, ((cfg.get("baterie_setrna_pct") or 50) - M["alarm_soc"]) / 100 * M["cap"])
+
+    def search(soc0, floor=0.0):
         best = [None]
 
         def rec(i, L, soc, plan, used_wh):
             if i == len(segs):
                 sw = sum(1 for j in range(1, len(plan)) if plan[j] != plan[j - 1]) + (1 if cur and plan and plan[0] != cur else 0)
                 bal = sum(use.get(k, 0.0) * u for k, u in used_wh.items())
-                key = (sw, round(sum(used_wh.values()) / 50), bal)
+                key = (round(sum(used_wh.values()) / 50), sw, bal)    # 5.209: nejdřív co nejméně z River (plyn), pak přepnutí
                 if best[0] is None or key < best[0][0]:
                     best[0] = (key, list(plan), L, dict(soc))
                 return
@@ -5139,7 +5164,7 @@ def window_plan(data, st, now, topic, cfg):
                 for pr, la, ia, lw in steps[i]:
                     if c == "s":
                         L2 = min(L2 + pr, top) - la
-                        if L2 < 0:
+                        if L2 < floor:
                             ok = False
                             break
                     else:
@@ -5158,7 +5183,7 @@ def window_plan(data, st, now, topic, cfg):
         return best[0]
 
     soc0 = {k: v["soc"] for k, v in RV.items()}
-    found = search(soc0)
+    found = search(soc0, floor_s) or search(soc0)
     need = None
     if not found and RV:
         order = sorted(RV, key=lambda k: (use.get(k, 0.0), -RV[k]["soc"]))
@@ -5166,7 +5191,7 @@ def window_plan(data, st, now, topic, cfg):
             for tgt in range(int(math.ceil(RV[k]["soc"] / 5.0) * 5), 101, 5):
                 if tgt <= RV[k]["soc"]:
                     continue
-                f2 = search({**soc0, k: tgt})
+                f2 = search({**soc0, k: tgt}, floor_s) or search({**soc0, k: tgt})
                 if f2:
                     dur = (tgt - RV[k]["soc"]) / 100 * RV[k]["per100"] / max(100.0, RV[k]["chg_w"]) * 3600
                     need = {"k": k, "name": RV[k]["name"], "target": tgt, "dur": int(dur), "latest": int(w0_end - dur), "plan": f2}

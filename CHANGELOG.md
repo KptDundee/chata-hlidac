@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.209 – 4. 11. 2026
+- Šetrná hranice solární baterie `baterie_setrna_pct` = 50 # (Petr; AGM vydrží víc cyklů bez hlubokého vybíjení). Čára „50 # šetrná“ v grafu #.
+- Přes den, když jsem doma a chata jede z River, ale panely dávají víc, než chata bere (průměr 30 min ≥ odběr × 1,1): „☀️ Přepni chatu na solár – vyrábí víc, než chata bere“ (jednou za den). Spotřeba jede rovnou z panelů – šetří River (plyn) a baterii.
+- Lehké upozornění: chata jede ze soláru, jsem doma, mimo noční klid, panely nekryjí odběr a baterie je pod šetrnou hranicí → „🔋 Solární baterie 48 # – šetři ji, přepni na River …“ (méně používaná). Důrazné pod alarmem zůstává (kdykoli).
+- Plán podle okna generátoru: nejdřív co nejméně energie z River (plyn), pak počet přepnutí; solár přednostně jen do šetrné hranice, k alarmu až když to jinak nejde.
+
 ## 5.208 – 4. 11. 2026
 - „☀️ Dnes můžeš chatu přepnout na solární baterii“ jen když solár ještě vyrábí – od východu do 2 h před západem. Dřív mohla přijít i po západu (Petr: 17:15, výroba 0 kWh) – baterie by se jen vybíjela.
 
