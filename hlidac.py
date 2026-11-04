@@ -544,6 +544,54 @@ def backfill_points(token, data, now, hours=3):
         print(f"Doplněno {added} bodů z historie Solar Guardianu")
 
 
+DEV_ALIAS = {}
+
+
+def _dev_norm(n):
+    import re as _re
+    return _re.sub(r"\s+", " ", str(n or "")).strip().lower()
+
+
+def dev_alias_fix(data):
+    """5.198 (Petr: grafy světel 2×): zařízení bez čísla v názvu (žárovky Tapo) Flip pozná podle adresy v síti. Po restartu
+    routeru dostala jinou adresu → nové zařízení se stejným jménem. Teď: stejné jméno = stejné zařízení, drží se první adresa
+    (data.dev_alias); záznamy pod novou adresou se k ní jednou přesunou (dny, body) a jméno pod novou adresou zmizí."""
+    import re as _re
+    global DEV_ALIAS
+    names = data.setdefault("plug_names", {})
+    al = data.setdefault("dev_alias", {})
+    groups = {}
+    for ip, n in list(names.items()):                  # pořadí = kdy se zařízení poprvé objevilo
+        if n and not _re.match(r"\s*\(\d{1,3}\)", str(n)):
+            groups.setdefault(_dev_norm(n), []).append(str(ip))
+    for k, ips_ in groups.items():
+        c = al.setdefault(k, ips_[0])
+        for o in ips_:
+            if o == c:
+                continue
+            for day in (data.get("days") or {}).values():
+                for key in ("tp", "tps"):
+                    dt = day.get(key)
+                    if not dt or o not in dt:
+                        continue
+                    v = dt.pop(o)
+                    if key == "tp":
+                        dt[c] = round((dt.get(c) or 0) + (v or 0), 1)
+                    elif isinstance(v, dict):
+                        cur = dt.setdefault(c, {})
+                        for kk, vv in v.items():
+                            cur[kk] = round((cur.get(kk) or 0) + (vv or 0), 1)
+            for p in data.get("points", []):
+                tp = p.get("tp")
+                if tp and o in tp:
+                    v = tp.pop(o)
+                    if c not in tp:
+                        tp[c] = v
+            names.pop(o, None)
+            print(f"Zařízení „{names.get(c) or k}“: adresa .{o} sloučena do .{c} (stejné jméno)")
+    DEV_ALIAS = al
+
+
 def migrate_plug_ids(data, st, cfg):
     """Jednorázově: do 14. 10. 2026 se zásuvky ukládaly pod koncovkou IP adresy, od té doby pod číslem ze jména „(N) …“.
     Zásuvky, které měří pořád totéž – 220 V za měničem, lednice, Wi‑Fi – se ve staré historii přejmenují na nová čísla
@@ -605,8 +653,12 @@ def backfill_flip(data, now, cfg):
         plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
         i = bisect.bisect_left(times, t)
         near = [j for j in (i - 1, i) if 0 <= j < len(pts) and abs(pts[j]["t"] - t) <= 300]
+        ths = {x["n"]: x["t"] for x in inv.get("th", []) if x.get("t") is not None and t - x["tm"] < 1800}
         if near:
             pt = min((pts[j] for j in near), key=lambda q: abs(q["t"] - t))
+            if ths and not pt.get("th"):
+                pt["th"] = ths                 # 5.198: teploty i ze zpráv, které Flip poslal opožděně (výpadek Wi‑Fi)
+                filled += 1
             if "tp" in pt or "mw" in pt:
                 continue                       # už má data z Flipu
             filled += 1
@@ -615,6 +667,8 @@ def backfill_flip(data, now, cfg):
             pts.insert(i, pt)
             times.insert(i, t)
             added += 1
+        if ths and not pt.get("th"):
+            pt["th"] = ths
         if inv.get("w") is not None:
             pt["ac_w"] = inv["w"]
         if inv.get("mw") is not None:
@@ -1748,6 +1802,10 @@ def main():
     if os.environ.get("WAKE") == "1":
         # Flip 1.4+ posílá data přes GitHub (sám spustí další běh) → nečekat na ntfy, jen ho probudit
         wake_flip(topic, 0 if now.timestamp() - (st.get("flip_gh") or 0) < 3600 else 110)
+    try:
+        dev_alias_fix(data)                              # 5.198: stejné jméno = stejné zařízení (žárovky po změně adresy)
+    except Exception as e:
+        print("Sloučení zařízení:", e)
     inv = read_inverter(data, topic, now, cfg)
     read_plug_history(data, topic)
     try:
@@ -1802,6 +1860,18 @@ def main():
         backfill_flip(data, now, cfg)
     except Exception as e:
         print("Doplnění z Flipu:", e)
+    try:                                       # 5.198: jednorázově zprávy Flipu z výpadku Wi‑Fi (flip_import.json)
+        if os.path.exists("flip_import.json"):
+            raw_ = open("flip_import.json", encoding="utf-8").read()
+            key_ = str(len(raw_)) + ":" + raw_[:40]
+            if st.get("flip_imp") != key_:
+                im_ = [{"event": "message", "message": m_} for m_ in json.loads(raw_)]
+                data["_inv_msgs"] = im_ + [{"event": "message", "message": "{}"}]   # poslední se v backfill přeskakuje
+                backfill_flip(data, now, cfg)
+                st["flip_imp"] = key_
+                log("ev", f"Doplněno {len(im_)} zpráv Flipu z výpadku Wi‑Fi (teploty, zásuvky)")
+    except Exception as e:
+        print("Import zpráv Flipu:", e)
     data.pop("_inv_msgs", None)
     try:
         import_history(token, data, st, now, cfg)
@@ -2863,6 +2933,13 @@ def inv_from_msg(last, now, cfg=None):
             if m and str(p.get("ip")) != str(int(m.group(1))):
                 p["a"] = p.get("a") or p.get("ip")
                 p["ip"] = str(int(m.group(1)))
+            elif not m and p.get("n"):                    # 5.198: bez čísla (žárovky) – stejné jméno = stejné zařízení
+                c_ = DEV_ALIAS.setdefault(_dev_norm(p["n"]), str(p.get("ip")))
+                if c_ != str(p.get("ip")):
+                    p["a"] = p.get("a") or p.get("ip")
+                    p["ip"] = c_
+        named_ = {str(p.get("ip")) for p in inv["tp"] if p.get("n")}
+        inv["tp"] = [p for p in inv["tp"] if p.get("n") or str(p.get("ip")) not in named_]   # stará nedostupná adresa téhož
     if body.get("wifi") is not None:
         inv["wifi"] = int(body["wifi"])
     if body.get("av"):

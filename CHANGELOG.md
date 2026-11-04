@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.198 – 4. 11. 2026
+- Grafy světel 2× (Petr): žárovky bez čísla v názvu Flip pozná podle adresy v síti; po restartu routeru dostaly jinou → hlídač je bral jako nová zařízení. Teď stejné jméno = stejné zařízení (drží se první adresa, data.dev_alias); záznamy pod novou adresou se jednou přesunou k původní (dny, body) a stará nedostupná adresa téhož zařízení se vynechá.
+- Chladnutí: graf „Kdy zatopit“ i noční graf jsou standardní grafy – zvětšení prsty, hodnoty po ťuknutí, celá obrazovka (⤢).
+- Teploty z výpadku Wi‑Fi: Flip zprávy z výpadku poslal opožděně, ale doplnění mezer (backfill) z nich bralo jen zásuvky, ne teploty. Teď i teploty. Jednorázově doplněno 3. 11. 14:17–16:11 ze záznamů běhů hlídače (flip_import.json).
+
 ## 5.197 – 4. 11. 2026
 - „Generátor se zastavil – došla lahev?“ jen když se zastaví a některá River má méně než 99 %. Všechny ≥ 99 % = běžný konec (vypnul jsem, nabito) – bez hlášky (Petr).
 - ▶️ Start: tlačítka „Vyměnil jsem lahev / Natankoval jsem“ obyčejná a menší, nepřebíjí Start; výrazná jen když se generátor zastavil uprostřed nabíjení.

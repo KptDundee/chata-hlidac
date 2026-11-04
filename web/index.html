@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.197", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.198", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2650,6 +2650,7 @@ function tileTemps(d, h){
 let COOL_N = 0;                                       // vybraná noc v grafu (0 = poslední)
 /* 5.153 / 5.154: kdy zatopit – graf vždy: posledních 6 h naměřeno + 10 h odhad (kdyby se od teď netopilo, podle předpovědi venku),
    stupnice °C, venkovní předpověď pod grafem. Upozornění jen podle pravidel (na chatě, 6–22, teplota klesá). */
+let HEATCH = null;
 function heatCard(d){
   const H = d.heat, c = d.cool || {}; if(!H) return "";
   const nowLim = parseFloat(String(d.cfg?.chladnuti_min_C ?? H.lim).replace(",", ".")), chg = !isNaN(nowLim) && Math.abs(nowLim - H.lim) > 0.01;   // 5.177: změněno, hlídač ještě nepřepočítal
@@ -2666,28 +2667,9 @@ function heatCard(d){
   const clean = x => String(x).replace(/^[\s,;:.]+|[\s,;:.]+$/g, "");
   const real = (d.points||[]).filter(p=>p.t >= T0 && p.th).map(p=>{ let v=null; for(const k in p.th) if(clean(k)===c.room) v=p.th[k]; return [p.t, v]; }).filter(q=>q[1]!=null);
   const cv = H.curve || [];
-  let svg = "";
-  if(real.length || cv.length){
-    const all = [...real, ...cv].map(q=>q[1]).concat([lim]);
-    let lo = Math.floor(Math.min(...all) - 0.5), hi = Math.ceil(Math.max(...all) + 0.5); if(hi - lo < 4) hi = lo + 4;
-    const stp = hi - lo > 8 ? 2 : 1, W = 1000, HH = 150, X = t => (t - T0)/(T1 - T0)*W, Y = v => HH - (v - lo)/(hi - lo)*HH;
-    const path = a => a.map((q,i)=>`${i?"L":"M"}${X(q[0]).toFixed(1)} ${Y(q[1]).toFixed(1)}`).join(" ");
-    const ys = []; for(let v = Math.ceil(lo/stp)*stp; v <= hi; v += stp) ys.push(v);
-    const ticks = []; { const z = new Date(T0*1000); z.setMinutes(0,0,0); let t = z.getTime()/1000 + 3600; while(t < T1){ if(new Date(t*1000).getHours() % 3 === 0 && (t-T0)/(T1-T0) > .04 && (t-T0)/(T1-T0) < .96) ticks.push(t); t += 3600; } }
-    const outAt = t => { const o = (H.out||[]).reduce((b,q)=>!b || Math.abs(q[0]-t) < Math.abs(b[0]-t) ? q : b, null); return o && Math.abs(o[0]-t) <= 5400 ? o[1] : null; };
-    svg = `<div style="position:relative;margin-top:8px;padding-left:30px">
-      ${ys.map(v=>`<span style="position:absolute;left:0;top:${Y(v)/HH*150-7}px;font-size:11px;color:var(--text2)">${v}°</span>`).join("")}
-      <svg viewBox="0 0 ${W} ${HH}" preserveAspectRatio="none" style="width:100%;height:150px;display:block">
-      ${ys.map(v=>`<line x1="0" x2="${W}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join("")}
-      <line x1="${X(now).toFixed(1)}" x2="${X(now).toFixed(1)}" y1="0" y2="${HH}" stroke="var(--text2)" stroke-width="1" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"/>
-      <line x1="0" x2="${W}" y1="${Y(lim).toFixed(1)}" y2="${Y(lim).toFixed(1)}" stroke="var(--crit)" stroke-dasharray="6 5" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
-      ${real.length > 1 ? `<path d="${path(real)}" fill="none" stroke="var(--s1)" stroke-width="2.5" vector-effect="non-scaling-stroke"/>` : ""}
-      ${cv.length > 1 ? `<path d="${path(cv)}" fill="none" stroke="var(--s4)" stroke-width="2.5" stroke-dasharray="7 6" vector-effect="non-scaling-stroke"/>` : ""}
-      ${H.hit ? `<line x1="${X(H.hit).toFixed(1)}" x2="${X(H.hit).toFixed(1)}" y1="0" y2="${HH}" stroke="var(--crit)" stroke-width="1" vector-effect="non-scaling-stroke"/>` : ""}
-      </svg>
-      <div style="position:relative;height:30px;font-size:11px;color:var(--text2)">${ticks.map(t=>`<span style="position:absolute;left:${(t-T0)/(T1-T0)*100}%;transform:translateX(-50%);text-align:center;white-space:nowrap">${new Date(t*1000).getHours()}:00${outAt(t)!=null?`<br><span style="color:var(--s3)">${nf(outAt(t),0)}°</span>`:""}</span>`).join("")}</div></div>
-      <div class="sub" style="margin-top:2px">°C · <span style="color:var(--s1)">━</span> naměřeno · <span style="color:var(--s4)">┅</span> odhad, kdyby se od teď netopilo · <span style="color:var(--crit)">┅</span> ${limT} · ┆ teď · <span style="color:var(--s3)">pod časem venkovní teplota podle předpovědi</span></div>`;
-  }
+  // 5.198 (Petr): standardní graf – zvětšení prsty, hodnoty po ťuknutí, celá obrazovka (⤢)
+  HEATCH = (real.length || cv.length) ? {real, cv, lim, T0, T1, now} : null;
+  const svg = HEATCH ? `<div class="card chart" style="margin:10px -2px 0;padding:8px 6px;border:0;box-shadow:none"><h2>Teplota – ${escH(c.room||"pokoj")}</h2><div class="cs"><span style="color:var(--s1)">━</span> naměřeno, dál odhad · <span style="color:var(--s4)">┅</span> odhad, kdyby se od teď netopilo · <span style="color:var(--crit)">┅</span> ${limT}</div><div id="heat_ch"></div></div>` : "";
   // 5.156: dvě výrazná čísla – kdy zatopit a kolik mít při odchodu spát
   const bigL = (ic, main, sub) => `<div style="display:flex;gap:10px;align-items:baseline;margin:2px 0 6px"><span style="font-size:22px">${ic}</span><div><div style="font-size:24px;font-weight:700;line-height:1.15">${main}</div><div class="sub">${sub}</div></div></div>`;
   const heatBig = st==="cool" ? bigL("🔥", `Zatop do ${hmT(H.warn)}`, `${limT} bude ${hitT}`)
@@ -2701,6 +2683,11 @@ function heatCard(d){
 }
 function coolCard(body, d, h){
   body.insertAdjacentHTML("beforeend", heatCard(d));   // 5.153
+  if(HEATCH && $("heat_ch")){ const X = HEATCH, m = new Map();
+    for(const [t,v] of X.real) m.set(Math.round(t), {t:Math.round(t), v});
+    for(const [t,v] of X.cv){ const k = Math.round(t), e = m.get(k) || {t:k}; e.p = v; if(t > X.now && e.v==null) e.v = v; m.set(k, e); }
+    lineChart($("heat_ch"), [...m.values()].sort((a,b)=>a.t-b.t), "v", css("--s1"), {unit:"°C", dec:1, t0:X.T0, t1:X.T1, gap:4200,
+      refs:[[X.lim,"--crit"]], k2:{key:"p", color:css("--s4"), name:"odhad bez topení"}}); }
   const c = d.cool; if(!c) return;
   const ev = (c.ev||[]).slice().reverse(), learn = c.n < c.need, W = c.win || ["0:00","7:00"];
   const ln = (c.nights||[]).slice(-1)[0], last = ln && ln.avg!=null ? ln : ev.find(x=>!x.live && x.avg!=null);   // 5.50: noc přímo z teplot
@@ -2783,29 +2770,14 @@ function coolNight(d, h, n){
   }
   const all = [...R.map(q=>q.v), ...O.map(q=>q.v), ...P.map(q=>q.v)]; if(R.length < 2 && O.length < 2) return empty(el, "Pro tuhle noc nejsou data.");
   let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi-lo)*.08 || 1; lo -= pad; hi += pad;
-  const {svg, y} = frame(el, lo, hi, 0), t0 = N.t0, t1 = N.t1, x = t => M.l + (W-M.l-M.r)*(Math.min(Math.max(t,t0),t1)-t0)/(t1-t0);
-  xLabels(svg, t0, t1, x);
-  const path = (pts, gap) => { let s="", pr=null; for(const q of pts){ s += (pr && q.t-pr.t < gap ? "L" : "M") + x(q.t).toFixed(1) + "," + y(q.v).toFixed(1); pr=q; } return s; };
-  // vybarvený rozdíl teplot (pokoj – venku)
-  let band = ""; const RR = R.filter(q=>tOut(q.t)!=null);
-  if(false && RR.length > 1) band = `<path d="M${RR.map(q=>`${x(q.t).toFixed(1)},${y(q.v).toFixed(1)}`).join("L")}L${RR.slice().reverse().map(q=>`${x(q.t).toFixed(1)},${y(tOut(q.t)).toFixed(1)}`).join("L")}Z" fill="var(--s1)" opacity=".10"/>`;
-  // okno, ze kterého se učí
+  // 5.198 (Petr): standardní graf – zvětšení prsty, hodnoty po ťuknutí, celá obrazovka (⤢)
+  const t0 = N.t0, t1 = N.t1, m = new Map(), put = (t, k, v) => { const kk = Math.round(t/60)*60, e = m.get(kk) || {t:kk}; e[k] = v; m.set(kk, e); };
+  for(const q of R) put(q.t, "v", q.v); for(const q of P) put(q.t, "p", q.v); for(const q of O) put(q.t, "o", q.v);
   const [a0, b0] = (c.win||["0:00","7:00"]).map(z=>{ const [H_,M_]=z.split(":").map(Number), dd = new Date(t1*1000); dd.setHours(H_||0, M_||0, 0, 0); return dd.getTime()/1000; });
-  const win = a0 < b0 && a0 >= t0 ? `<rect x="${x(a0)}" y="${M.t}" width="${x(Math.min(b0,t1))-x(a0)}" height="${H-M.t-M.b}" fill="var(--muted)" opacity=".07"/>` : "";
-  const nowL = now > t0 && now < t1 ? `<line x1="${x(now)}" x2="${x(now)}" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" stroke-dasharray="3 3"/>` : "";
-  svg.insertAdjacentHTML("beforeend", win + band + nowL
-    + `<path d="${path(O, 7300)}" fill="none" stroke="var(--s3)" stroke-width="2"/>`
-    + (P.length > 1 ? `<path d="${path(P, 1e9)}" fill="none" stroke="var(--s4)" stroke-width="2" stroke-dasharray="6 4"/>` : "")
-    + `<path d="${path(R, 4200)}" fill="none" stroke="var(--s1)" stroke-width="2.6" stroke-linejoin="round"/>`
-    + `<line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
-  const ch = svg.querySelector(".ch");
-  const near = (arr, t) => arr.length ? arr.reduce((b,q)=>Math.abs(q.t-t)<Math.abs(b.t-t)?q:b) : null;
-  const move = ev => { const r = svg.getBoundingClientRect(), tx = t0 + (t1-t0)*((ev.clientX-r.left)*W/r.width - M.l)/(W-M.l-M.r);
-    const a = near(R, tx), p = near(P, tx), o = tOut(tx); const X = x(tx); ch.setAttribute("x1", X); ch.setAttribute("x2", X); ch.setAttribute("opacity", .5);
-    const ra = a && Math.abs(a.t-tx) < 1800 ? a.v : null, pp = p && Math.abs(p.t-tx) < 900 ? p.v : null;
-    showTip(ev, `${hmT(tx)}${ra!=null ? `<br><span style="color:var(--s1)">■</span> ${escH(c.room)} <b>${nf(ra,1)} °C</b>` : ""}${pp!=null ? `<br><span style="color:var(--s4)">■</span> předpověď ${nf(pp,1)} °C` : ""}${o!=null ? `<br><span style="color:var(--s3)">■</span> venku ${nf(o,1)} °C` : ""}${ra!=null && o!=null ? `<br>rozdíl ${nf(ra-o,1)} °C` : ""}`); };
-  svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move);
-  svg.addEventListener("pointerleave", ev=>{ if(ev.pointerType==="mouse"){ ch.setAttribute("opacity",0); hideTip(); } });
+  const own = R.length >= 2;            // noc ještě nezačala: hlavní čára = předpověď
+  lineChart(el, [...m.values()].sort((a,b)=>a.t-b.t), own ? "v" : "p", css(own ? "--s1" : "--s4"), {unit:"°C", dec:1, t0, t1, gap:own ? 4200 : 1e9,
+    bands: a0 < b0 && a0 >= t0 ? [[a0, Math.min(b0, t1)]] : [],
+    k2: own ? {key:"p", color:css("--s4"), name:"předpověď"} : null, lines:[{key:"o", color:css("--s3"), name:"venku"}]});
 }
 /* 5.155: přepínač období pro grafy teplot a lednice (body se drží 14 dní) */
 let TEMPH = 48; try{ TEMPH = +localStorage.getItem("temph") || 48; }catch(_){}
