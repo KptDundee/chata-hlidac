@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.207 – 4. 11. 2026
+- Zjednodušeno (Petr: „nebylo zapnuto = 0“): zrušena dodatečná kontrola mazání energie nedostupných zásuvek (jednou opravila dnešek a tím splnila účel). Platí jen pravidlo z 5.206: energie se počítá jen ze živých údajů zásuvky.
+
 ## 5.206 – 4. 11. 2026
 - Oprava (Petr: malá River 0,07 kWh v koláči, i když byla celý den nedostupná): nedostupná zásuvka posílá jen poslední zapamatované počítadlo – to se do denní energie započítávalo. Teď se energie počítá jen ze živých údajů. Navíc kontrola (jen zásuvky, které posílají výkon – žárovky ne): denní energie zásuvky, která ten den ani jednou nebyla dostupná (a nemá vlastní historii), se smaže – opraví i dnešek.
 
