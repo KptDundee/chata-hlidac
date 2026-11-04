@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.193 – 4. 11. 2026
+- EcoFlow: „?“ u River v záložkách jen když je to opravdu divné – River dodává (> 20 W), ale zásuvku na jejím výstupu Flip nevidí („⚠ zásuvka (2) na výstupu není vidět“). Vypnutý / vybitý výstup River = zásuvka bez proudu, to je normální: bez „?“, v kartě jen „výstup vypnutý – zásuvka (2) bez proudu, v pořádku“ (Petr).
+
 ## 5.192 – 3. 11. 2026
 - Dva rozvrhy, ať se nepletou (Petr): v Nastavení i v 🗓 Kdy jsem pryč vysvětlení „① Kdy jsem pryč = plán na konkrétní dny, má přednost; ② Obvyklý rozvrh = šablona pro dny mimo plán“, z Nastavení odkaz na plán. Obvyklý rozvrh odjezd i návrat má v popisku „platí jen pro dny mimo plán“; prázdný návrat místo „vypnuto“ ukazuje „nevyplněno – dny mimo plán vydrží do „Výhled dne – vydržet do““.
 
