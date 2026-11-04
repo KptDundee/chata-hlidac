@@ -758,7 +758,8 @@ def attach_flip(data, st, inv, now, cfg, topic):
     for p in inv.get("tp", []):
         if p.get("ip") and p.get("n"):
             names[p["ip"]] = p["n"]
-        if p.get("ip") and p.get("wh") is not None:
+        if p.get("ip") and p.get("wh") is not None and not p.get("off") and not p.get("gone"):
+            # 5.206: nedostupná zásuvka posílá jen poslední zapamatované počítadlo – do energie se nepočítá
             ip, wh = p["ip"], float(p["wh"])
             dt = day.setdefault("tp", {})
             if first_v2:                          # přechod na nový výpočet: dnešek nejvýš to, co ukazuje počítadlo
@@ -785,6 +786,29 @@ def attach_flip(data, st, inv, now, cfg, topic):
             raw[ip] = wh
             raw_t[ip] = int(inv["t"])
     st["tp_v2"] = True
+
+
+def tp_ghost_fix(data, now):
+    """5.206 (Petr: malá River 0,07 kWh, i když byla celý den nedostupná): denní energie zásuvky, která ten den ani
+    jednou nepřišla živá (žádný bod s jejím výkonem) a nemá ani vlastní historii, se smaže. Jen dny s podrobnými body."""
+    pts = data.get("points") or []
+    if not pts:
+        return
+    seen, th = {}, data.get("tp_hist") or {}
+    for p in pts:
+        if p.get("tp"):
+            k = datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d")
+            seen.setdefault(k, set()).update(p["tp"].keys())
+    first = datetime.fromtimestamp(pts[0]["t"], TZ).strftime("%Y-%m-%d")
+    for k, day in (data.get("days") or {}).items():
+        if k <= first or k not in seen:
+            continue
+        for key in ("tp", "tps", "tpl"):
+            dt = day.get(key) or {}
+            for ip in [i for i in dt if i not in seen[k] and not ((th.get(i) or {}).get(k))]:
+                v = dt.pop(ip)
+                if key == "tp" and v:
+                    print(f"Zásuvka ({ip}) {k}: {fmt(v / 1000, 2)} kWh smazáno – ten den nebyla ani jednou dostupná")
 
 
 def flip_point(data, t):
@@ -1802,6 +1826,10 @@ def main():
     if os.environ.get("WAKE") == "1":
         # Flip 1.4+ posílá data přes GitHub (sám spustí další běh) → nečekat na ntfy, jen ho probudit
         wake_flip(topic, 0 if now.timestamp() - (st.get("flip_gh") or 0) < 3600 else 110)
+    try:
+        tp_ghost_fix(data, now)
+    except Exception as e:
+        print("Kontrola energie zásuvek:", e)
     try:
         dev_alias_fix(data)                              # 5.198: stejné jméno = stejné zařízení (žárovky po změně adresy)
     except Exception as e:
