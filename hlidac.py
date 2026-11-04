@@ -2851,7 +2851,7 @@ def inv_from_msg(last, now, cfg=None):
     tp = body.get("tp")
     if isinstance(tp, list):
         inv["tp"] = [{k: p.get(k) for k in ("n", "w", "wh", "on", "err", "ip", "off", "nm", "a", "since", "gone", "d", "lt", "ow") if p.get(k) is not None}
-                     for p in tp if isinstance(p, dict)][:16]
+                     for p in tp if isinstance(p, dict)][:48]   # 5.195: dřív [:16] – 17. zásuvka (9 Flip) se ztrácela
         for p in inv["tp"]:                               # 5.115: W a počítadlo zásuvky mimo rozsah = nevíme
             for k, rk in (("w", "plug_w"), ("wh", "plug_wh")):
                 if k in p and ok_val(rk, p[k]) is None:
