@@ -4570,6 +4570,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     hq = data.get("hq") or {}
     if not (on_solar or on_river) or now >= end or hq.get("pct") is None or (rise and now < rise - timedelta(hours=3)):
         data.pop("day_fc", None)
+        alarm(st, topic, "sol_low", False, ok_title=False)   # 5.201: mimo výhled dne řeší baterii noční upozornění
         if now >= end:
             alarm(st, topic, "day", False, ok_title=False)      # večer: ranní doporučení tiše končí
         return
@@ -4648,6 +4649,21 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "load_n_w": round(load_n * 12.4), "night_ah": round(load_n * max(0.0, end2 - max(ts, set_ts)) / 3600, 1),
            "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_, "cf": round(cf, 2)}
     data["day_fc"] = res
+    # 5.201 (Petr): chata jede ze soláru a solární baterie je už pod alarmem (v #) → akutně, kdykoli (i doma, i když
+    # napětí při nabíjení vypadá dobře). Konec, až chata jede z River nebo # stoupne aspoň 5 # nad alarm.
+    k_low = "sol_low"
+    was_low = k_low in (st.get("al") or {})
+    low = on_solar and hq["pct"] < alarm_soc + (5 if was_low else 0)
+    RVl = river_models(data, cfg, now)
+    best = max(RVl.values(), key=lambda v: v["soc"], default=None)
+    if best and best["soc"] >= 20:
+        todo = f"Přepni chatu na River {pn_(best['name'])} ({fmt(best['soc'])} %) – solár ji pak jen nabíjí."
+    else:
+        todo = "River jsou skoro prázdné – nabij je (generátor 6:00–22:00), nebo omez spotřebu."
+    alarm(st, topic, k_low, low, f"🔋 Solární baterie je pod alarmem ({hq['pct']} # z {round(alarm_soc)} #)",
+          f"Chata jede ze solární baterie a ta je pod hranicí alarmu (odpovídá ~{fmt((cfg.get('baterie_kriticka_V') or 12.0), 1)} V v klidu). "
+          f"Vyšší napětí při nabíjení na tom nic nemění.\n{todo}",
+          5, "rotating_light,battery", ok_title="✓ Solární baterie už není pod alarmem" if hq["pct"] >= alarm_soc else "✓ Chata jede z River", cat=1)
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu) – 5.117: stejná funkce jako večerní plán
     tchk = AW[0] if AW else None                      # 5.118: odjezd (úsek nepřítomnosti) – kontrola při každém odjezdu
@@ -4668,6 +4684,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
                  f"vydrží chatu (~{res['load_w']} W) do {hh}:{mm:02d}.\nVečer ti napíšu, do kdy přepnout zpátky na River.", 3, "sunny,battery")
             st["do_conn"] = akey
         alarm(st, topic, "day", False, ok_title="✓ Chata jede z River")
+        alarm(st, topic, "sol_low", False, ok_title="✓ Chata jede z River")
         return
     if due and not res["ok"]:
         st["do_sent"] = day
