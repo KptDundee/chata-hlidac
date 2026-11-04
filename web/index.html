@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.204", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.205", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2952,8 +2952,8 @@ function detUse(body, src="a"){
   const ud = src==="a" ? chartCard("u_days", "Spotřeba chaty po dnech", "kWh za den (měřeno na zásuvkách) · čárkovaně obvyklá = medián předchozích 14 dní (velké výkyvy se neprojeví)") : "";
   const UT = tabsHead("us_tab", [["g","📊 Grafy"],["n","🔢 Čísla"]]);
   // 5.199 (Petr): kolik hodin chata jela z čeho – skládané sloupce po dnech (vedle výroby a spotřeby)
-  const phc = src==="a" ? chartCard("u_ph", "Kolik hodin chata jela z čeho", `h za den · <span style="color:var(--s6)">■</span> solár · ${rivModel(d, homeData(d)).R.map(r=>`<span style="color:${r.color}">■</span> ${escH(r.short)}`).join(" · ")} · <span style="color:var(--muted)">■</span> nezjištěno · ťukni na den`) : "";
-  let html = UT.html + `<div id="us_tab_g"${UT.cur==="g"?"":' style="display:none"'}>` + segHtml() + pu + phc + ud
+  const phc = src==="a" ? chartCard("u_ph", "Kolik hodin chata jela z čeho", `h za den · <span style="color:var(--s6)">■</span> solár · ${rivModel(d, homeData(d)).R.filter(r=>!rvSmall(r)).map(r=>`<span style="color:${r.color}">■</span> ${escH(r.short)}`).join(" · ")} · <span style="color:var(--muted)">■</span> nezjištěno · ťukni na den`) : "";
+  let html = UT.html + `<div id="us_tab_g"${UT.cur==="g"?"":' style="display:none"'}>` + segHtml() + pu + phc + (src==="a" ? srcPiesHtml(d, homeData(d)) : "") + ud
     + chartCard("u_sum", `Odběr chaty ${SRCN[src]}`, long ? `kWh za den${srcCap}` : `W${src==="a" ? " · 220 V + River · šedé pozadí = chata na River" : src==="s" ? " · zásuvka 220 V za měničem" : " · zásuvky na výstupu River"}`);
   if(src!=="r") html += chartCard("u_220", "220 V – zásuvka za měničem", long ? `kWh za den · v bublině i se ztrátami měniče` : `W · <span style="color:var(--s2)">━ změřeno na zásuvce</span> · <span style="color:var(--s1)">╍ vzato z baterie (+12 % ztráty měniče, +${nf(U.idle,1)} W měnič a desulfátor)</span>`);
   // 5.175 (Petr): graf „Ostatní“ před světly
@@ -2985,7 +2985,7 @@ function detUse(body, src="a"){
   body.insertAdjacentHTML("beforeend", html);
   tabsWire("us_tab", ["g","n"]);
   if(src==="a") prodUse($("u_pu"), long ? "m" : "d");
-  if(src==="a" && $("u_ph")){ const R_ = rivModel(d, homeData(d)).R, D_ = d.days || {};
+  if(src==="a" && $("u_ph")){ const R_ = rivModel(d, homeData(d)).R.filter(r=>!rvSmall(r)), D_ = d.days || {};
     const ks = Object.keys(D_).sort().filter(k=>D_[k].sh != null).slice(-30);
     const layers = [{id:"s", name:"solár", color:css("--s6")}, ...R_.map(r=>({id:"r"+r.id, name:r.short, color:r.color})), {id:"u", name:"nezjištěno", color:css("--muted")}];
     stackBars($("u_ph"), ks.map(k=>{ const x = D_[k], v = {s:(x.sh||0)*1000}; let kn = x.sh||0;
@@ -3186,7 +3186,7 @@ function srcSegs(d, h, t0, now){
   const col = {s:css("--s6"), q:css("--muted"), qr:css("--muted"), z:css("--crit")};
   // 5.151: nezjištěno s důvodem – q = měnič neodpověděl a Victron mlčí (nejde poznat, jestli solár), qr = podle pravidla River, ale žádná zásuvka River neukázala odběr
   const name = {s:"Solár", q:"nezjištěno – zásuvka měniče (1) neposlala odběr", qr:"nezjištěno – River, ale zásuvky River bez odběru", z:"bez napájení"};
-  const who = p => { const c = ptSrc(p, U.rids); if(c==="s") return "s"; if(c==="r"){ let best=null, bw=3; for(const r of R){ const w = (p.tp||{})[r.id]||0; if(w > bw){ bw=w; best=r; } } return best ? "r:"+best.id : "qr"; } return c==="0" ? "z" : "q"; };
+  const who = p => { const c = ptSrc(p, U.rids); if(c==="s") return "s"; if(c==="r"){ let best=null, bw=3; for(const r of R.filter(r=>!rvSmall(r))){ const w = (p.tp||{})[r.id]||0; if(w > bw){ bw=w; best=r; } } return best ? "r:"+best.id : "qr"; } return c==="0" ? "z" : "q"; };
   const segs = [];
   for(let i=0;i<pts.length;i++){ const p = pts[i], a = Math.max(t0, p.t), b = Math.min(now, i+1<pts.length ? Math.min(pts[i+1].t, p.t+900) : Math.min(now, p.t+900));
     if(b <= a) continue; const k = who(p), L = segs[segs.length-1];
@@ -3238,6 +3238,8 @@ function pieHtml(items, fmtV){
   const leg = it.map(x=>`<div style="display:flex;gap:6px;align-items:baseline"><span style="width:10px;height:10px;border-radius:3px;background:${x.color};flex:none;transform:translateY(1px)"></span><span style="flex:1">${escH(x.name)}</span><b>${nf(x.v/tot*100,0)} %</b><span class="sub" style="min-width:58px;text-align:right">${fmtV(x.v)}</span></div>`).join("");
   return `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><svg viewBox="0 0 120 120" width="120" height="120" style="flex:none">${paths}</svg><div style="flex:1;min-width:170px;display:flex;flex-direction:column;gap:4px;font-size:14px">${leg}</div></div>`;
 }
+/* 5.205 (Petr): malá River chatu nenapájí (12 V světla, případně spotřebič na 230 V) – do „na co jela chata“ podle času nepatří */
+const rvSmall = r => /mal[áa]|small|mini/i.test(String(r.name||"")) || !!(r.ef && (r.ef.wh||768) < 500);
 function srcPiesHtml(d, h){
   const U = useModel(d), MM = rivModel(d, h), R = MM.R, now = Date.now()/1000;
   const keys = Object.keys(d.days||{}).sort().filter(k=>k >= USE_FROM && k <= dkey(now));
@@ -3252,12 +3254,12 @@ function srcPiesHtml(d, h){
     tItems = Object.keys(S.tot).map(k=>({name:S.nOf(k), color:S.cOf(k), v:S.tot[k]/3600})); tk = tItems.length ? ["x"] : [];
   } else {
     tItems = [{name:"Solár", color:solC, v:tk.reduce((a,k)=>a+(D(k).sh||0),0)},
-      ...R.map(r=>({name:r.short, color:r.color, v:tk.reduce((a,k)=>a+((D(k).rh||{})[r.id]||0),0)}))];
+      ...R.filter(r=>!rvSmall(r)).map(r=>({name:r.short, color:r.color, v:tk.reduce((a,k)=>a+((D(k).rh||{})[r.id]||0),0)}))];   // 5.205: malá chatu nenapájí
     const known = tItems.reduce((a,x)=>a+x.v,0), cov = tk.reduce((a,k)=>a+(D(k).rhh||0),0);
     if(cov - known > 0.5) tItems.push({name:"nezjištěno", color:css("--muted"), v:cov-known});
   }
   const eItems = [{name:"Solár", color:solC, v:span.reduce((a,k)=>a+((D(k).tp||{})[U.mip]||0),0)},
-    ...R.map(r=>({name:r.short, color:r.color, v:span.reduce((a,k)=>a+((D(k).tp||{})[r.id]||0),0)}))];
+    ...R.map(r=>({name: rvSmall(r) ? `${r.short} (jen spotřebič)` : r.short, color:r.color, v:span.reduce((a,k)=>a+((D(k).tp||{})[r.id]||0),0)}))];
   const hT = v => hmH(v), kT = v => `${nf(v/1000, v < 10000 ? 2 : 1)} kWh`;
   return `<div class="card"><h2 style="margin:0 0 6px">Na co jela chata <span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500">· ${per}</span></h2>
     <div style="font-weight:600;margin:4px 0">Podle času</div>${tk.length ? pieHtml(tItems, hT) : `<div class="sub">Počítá se od 29. 10. (z měření za posledních 14 dní).</div>`}

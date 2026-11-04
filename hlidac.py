@@ -3637,6 +3637,8 @@ def river_days(data, now, cfg):
     rids = ips(cfg.get("zasuvky_river"))
     mip = str(cfg.get("zasuvka_menic") or (data.get("inverter") or {}).get("mip") or "1")
     pts = [p for p in data.get("points", []) if p.get("tp")]
+    import re as _re
+    small_ = {rid for rid in rids if _re.search(r"mal[áa]|small|mini", str((data.get("plug_names") or {}).get(rid) or ""), _re.I)}
     agg = {}
     for p, q in zip(pts, pts[1:] + [{"t": now.timestamp()}]):
         dt = q["t"] - p["t"]
@@ -3658,10 +3660,14 @@ def river_days(data, now, cfg):
         sol = cs_ == "s"
         if sol:
             a["sol"] += dt
-        for rid in rids:
-            if (p["tp"].get(rid) or 0) > 3:
-                b = a["s" if sol else "c"]
-                b[rid] = b.get(rid, 0.0) + dt
+        # 5.205 (Petr): chatu napájí jen jedna velká River – ta, jejíž zásuvka bere nejvíc; malá (12 V světla, případně
+        # spotřebič na 230 V) chatu nikdy – její zásuvka i další velké se počítají jako „jen spotřebič“
+        on_ = [rid for rid in rids if (p["tp"].get(rid) or 0) > 3]
+        big_ = [rid for rid in on_ if rid not in small_]
+        cab_ = max(big_, key=lambda r_: p["tp"].get(r_) or 0) if big_ and not sol else None
+        for rid in on_:
+            b = a["c" if rid == cab_ else "s"]
+            b[rid] = b.get(rid, 0.0) + dt
     days = data.setdefault("days", {})
     for k, a in agg.items():
         if k not in days and k != now.strftime("%Y-%m-%d"):
