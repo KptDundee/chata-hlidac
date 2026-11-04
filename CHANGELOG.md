@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.208 – 4. 11. 2026
+- „☀️ Dnes můžeš chatu přepnout na solární baterii“ jen když solár ještě vyrábí – od východu do 2 h před západem. Dřív mohla přijít i po západu (Petr: 17:15, výroba 0 kWh) – baterie by se jen vybíjela.
+
 ## 5.207 – 4. 11. 2026
 - Zjednodušeno (Petr: „nebylo zapnuto = 0“): zrušena dodatečná kontrola mazání energie nedostupných zásuvek (jednou opravila dnešek a tím splnila účel). Platí jen pravidlo z 5.206: energie se počítá jen ze živých údajů zásuvky.
 

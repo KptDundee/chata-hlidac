@@ -4698,7 +4698,9 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     if on_river:
         # 5.116: den s odjezdem (čas v rozvrhu) → jen v ten čas (pak už přepnout nejde); den bez odjezdu → jednou,
         # jakmile to poprvé vyjde (po východu slunce)
-        free_ok = not tk and rise and now >= rise and st.get("do_conn") != akey
+        # 5.208 (Petr): nabídka „můžeš na solár“ jen když solár ještě vyrábí – od východu do 2 h před západem
+        # (po západu by se baterie jen vybíjela a večer by se stejně přepínalo zpátky na River)
+        free_ok = not tk and rise and now >= rise and set_ and now < set_ - timedelta(hours=2) and st.get("do_conn") != akey
         if (due or free_ok) and res["ok"] and now.timestamp() < res["end"]:
             ntfy(topic, "☀️ Dnes můžeš chatu přepnout na solární baterii",
                  f"Solární baterie ({hq['pct']} #) s dnešní výrobou podle předpovědi (~{fmt(rem_kwh, 1)} kWh, s rezervou) "
