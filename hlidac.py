@@ -2846,7 +2846,11 @@ def inv_src(inv, cfg):
     mw = inv.get("mw")
     if mw is None and (by.get(mip) or {}).get("w") is not None:
         mw = by[mip]["w"]
-    return cabin_src(mw, river_w({k: v.get("w") for k, v in by.items()}, ips(cfg.get("zasuvky_river"))), vic_state(inv))
+    rw_ = river_w({k: v.get("w") for k, v in by.items()}, ips(cfg.get("zasuvky_river")))
+    # 5.201: zásuvka měniče zmizela ze sítě (Flip hlásí „gone“ = bez proudu – přepínač ji odpojil) a River dodává → chata na River
+    if mw is None and (by.get(mip) or {}).get("gone") and rw_ is not None and rw_ > 3:
+        return "r"
+    return cabin_src(mw, rw_, vic_state(inv))
 
 
 def pt_src(p, cfg):

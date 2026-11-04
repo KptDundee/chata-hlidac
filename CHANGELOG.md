@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.202 – 4. 11. 2026
+- Z čeho jede chata: když zásuvka měniče zmizí ze sítě (Flip hlásí „gone“ – přepínač ji odpojil, nemá proud) a zásuvka na výstupu River bere, je to „chata na River“. Dřív „nevíme“, protože Victron dál hlásí INVERTING (běží naprázdno) – a výhled dne se pak nepočítal. Do záznamu běhu řádek „Výhled dne: …“.
+
 ## 5.201 – 4. 11. 2026
 - Nové akutní upozornění (Petr): chata jede ze solární baterie a ta je pod alarmem v # (hranice ~12,0 V v klidu) → „🔋 Solární baterie je pod alarmem (18 # z 22 #)“ s radou „Přepni chatu na River … (100 %)“, nebo „nabij River“, když jsou prázdné. Kdykoli přes den, i doma a i když napětí při nabíjení vypadá dobře (dřív varování přes den jen v čas odjezdu a podle napětí). Konec, až chata jede z River, nebo # stoupne aspoň 5 # nad alarm.
 
