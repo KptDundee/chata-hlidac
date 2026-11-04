@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.194 – 4. 11. 2026
+- Nabíjení River jednoduše (Petr): místo „⛽ Nabij … začni nejpozději“ a „⚠️ do návratu nic nevydrží“ (strašilo ráno zítřkem) jedno pravidlo. Jsem doma a River budou potřeba (solár do rána nevydrží a žádná River na noc nestačí, nebo do 24 h odjíždím a s tím, co River mají, to nevydrží) → přes den zpráva „🔋 Nabij River – dnes je budeš potřebovat“ (doporučení), od 20:00 do 22:00 akutně „⛽ Nabij River teď – poslední chvíle“. Když se River nabíjí, nic. Když nepomůže ani nabití (River plné), ve 20:00 „Ani plné River to nevydrží – omez spotřebu“.
+
 ## 5.193 – 4. 11. 2026
 - EcoFlow: „?“ u River v záložkách jen když je to opravdu divné – River dodává (> 20 W), ale zásuvku na jejím výstupu Flip nevidí („⚠ zásuvka (2) na výstupu není vidět“). Vypnutý / vybitý výstup River = zásuvka bez proudu, to je normální: bez „?“, v kartě jen „výstup vypnutý – zásuvka (2) bez proudu, v pořádku“ (Petr).
 

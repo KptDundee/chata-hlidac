@@ -1892,6 +1892,7 @@ def main():
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Kdy na River", lambda: eve_plan(data, st, now, topic, cfg)),
                          ("Plán nepřítomnosti", lambda: away_plan(data, st, now, topic, cfg)),
+                         ("Nabij River", lambda: river_charge_hint(data, st, now, topic, cfg)),
                          ("Připomínka plánu", lambda: plan_reminder(data, st, now, topic, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
@@ -4906,6 +4907,44 @@ def gen_windows(t0, t1):
             return out
 
 
+def river_charge_hint(data, st, now, topic, cfg):
+    """5.194 (Petr): jednoduše – jsem doma a River budou potřeba (solár do rána nevydrží a žádná River na noc nestačí,
+    nebo do 24 h odjíždím a s tím, co River mají, to nevydrží) → přes den zpráva „nabij River dnes“ (kategorie 2),
+    od 20:00 do 22:00 akutně (kategorie 1, poslední chvíle pro generátor). Když se River nabíjí, nic.
+    Když nepomůže ani nabití (River plné), jen ve 20:00 „ani plné River nevydrží – omez spotřebu“."""
+    ts = now.timestamp()
+    hr = now.hour + now.minute / 60
+    RV = river_models(data, cfg, now)
+    res = cfg.get("river_rezerva_pct") or 5
+    rd = lambda x: rel_day(x, now)
+    hm = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M")
+    why = []
+    ap = data.get("away_plan") or {}
+    seen = set()
+    for x in (ap.get("chg"), ap.get("short")):
+        if x and x["a"] - ts <= 24 * 3600 and (x["a"], x["b"]) not in seen:
+            seen.add((x["a"], x["b"]))
+            why.append(f"{rd(x['a'])} {hm(x['a'])}–{hm(x['b'])} jsi pryč a s tím, co River teď mají, to nevydrží")
+    df = data.get("day_fc") or {}
+    if df and ts - df.get("t", 0) <= 1800 and df.get("night_ok") is False:
+        night_wh = (df.get("night_ah") or 0) * 12.4 * 0.88          # co by chata vzala přes noc (bez ztrát měniče)
+        if not any(v["soc"] - night_wh / max(1.0, v["cap"]) * 100 >= res for v in RV.values()):
+            why.append("solár do rána nevydrží a žádná River na noc nestačí")
+    charging = any(((r.get("ac_in_w") if r.get("ac_in_w") is not None else r.get("in_w")) or 0) > 20
+                   for r in data.get("rivers") or [] if r.get("online") and not r.get("gen"))
+    home = not is_away(cfg, PLAN, now)
+    full = bool(RV) and all(v["soc"] >= 95 for v in RV.values())
+    act = bool(why) and home and not charging and 6 <= hr < 22
+    rvt = ", ".join(f"{pn_(v['name'])} {fmt(v['soc'])} %" for v in RV.values())
+    b0 = " · ".join(why) + "."
+    body = b0[:1].upper() + b0[1:] + (f" River teď: {rvt}." if rvt else "")
+    alarm(st, topic, "rvchg", act and not full and hr < 20, "🔋 Nabij River – dnes je budeš potřebovat",
+          body + " Generátor jde 6:00–22:00.", 3, "battery", ok_title=False, cat=2)
+    alarm(st, topic, "rvchg20", act and hr >= 20,
+          "⚠️ Ani plné River to nevydrží – omez spotřebu" if full else "⛽ Nabij River teď – poslední chvíle (generátor do 22:00)",
+          body, 5, "rotating_light,battery", ok_title=False, cat=1)
+
+
 def away_plan(data, st, now, topic, cfg):
     """5.118: čím chata pojede, až budu pryč (plán nepřítomnosti, 30 h dopředu).
     Pro každý úsek nepřítomnosti postupně: solár (vydrží s předpovědí?) → zapojená River → druhá velká River.
@@ -5038,14 +5077,14 @@ def away_plan(data, st, now, topic, cfg):
     chg_now = bool(chg) and any(str(r.get("sn", ""))[-6:] == chg["k"] and r.get("online")
                                 and ((r.get("ac_in_w") if r.get("ac_in_w") is not None else r.get("in_w")) or 0) > 20
                                 for r in data.get("rivers") or [])
-    if chg and home_now and not chg_now:
+    if False and chg and home_now and not chg_now:     # 5.194: nahrazeno river_charge_hint (ráno zpráva, ve 20:00 akutně)
         title = f"⛽ Nabij {pn_(chg['name'])} – začni nejpozději {rd(chg['late'])} v {hm(chg['late'])}"
         msg = (f"{rd(chg['a']).capitalize()} {hm(chg['a'])}–{hm(chg['b'])} jsi pryč a solár ani River to bez nabití neutáhnou. "
                f"Nabij aspoň na ~{chg['need']} % (~{fmt_h(chg['dur'] / 3600)}). Generátor jen 6:00–22:00.")
         alarm(st, topic, "chg", ts >= chg["late"] - 2 * 3600, title, msg, 4, "fuelpump", ok_title=False, cat=2)
     else:
         alarm(st, topic, "chg", False, ok_title=False)
-    if short and home_now:
+    if False and short and home_now:                   # 5.194: nahrazeno river_charge_hint
         title = f"⚠️ {rd(short['a']).capitalize()} {hm(short['a'])}–{hm(short['b'])}: do návratu nic nevydrží"
         msg = ((", ".join(short["outs"]) + f" – vracíš se v {hm(short['b'])}. " if short["outs"] else "")
                + "Nabít se to do té doby nestihne (generátor jen 6:00–22:00). Omez spotřebu, nebo se vrať dřív.")
