@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.196", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.197", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2277,7 +2277,9 @@ function genPlanHtml(d){
     + (run ? `<button onclick="genCmd('stop', this)" style="${sty(false)};width:100%;flex:none;font-weight:600">⏹ Ukončit nabíjení</button>` : "");
   /* 5.139: palivo hned u nabíjení – výrazně, ať se nemusí hledat */
   const GS = d.gen_stop, stopNew = GS && !GS.res && Date.now()/1000 - GS.t < 3*3600 && !(((d.fuel||{})[GS.fuel]||{}).cur && d.fuel[GS.fuel].cur.t > GS.t);
-  const fb2 = `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:2px dashed var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)`;
+  // 5.197 (Petr): lahev / tankování po ruce, ale nepřebíjí Start – výrazné jen když se generátor zastavil uprostřed nabíjení
+  const fb2 = stopNew ? `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:2px dashed var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)`
+    : `font:inherit;font-size:13px;flex:1;padding:7px 8px;border-radius:10px;cursor:pointer;color:var(--text2);border:1px solid var(--line);background:transparent`;
   const fuelBtns = (stopNew ? `<div style="margin:8px 0 4px;padding:10px;border-radius:12px;background:color-mix(in srgb,var(--warn) 25%,transparent);font-weight:600">⚠️ Generátor se zastavil ${relDay(GS.t)} v ${hmT(GS.t)}. Došla ${GS.fuel==="lpg" ? "lahev" : "nádrž"}? Po výměně zapiš →<div style="font-weight:400;font-size:13px;margin-top:3px">Zastavil se z jiného důvodu? Stačí ho nastartovat – nabíjení pokračuje samo (pruh pak zmizí).</div></div>` : "")
     + `<div style="display:flex;gap:8px;margin:6px 0 4px"><button onclick="fuelAdd('lpg')" style="${fb2}">🔄 Vyměnil jsem lahev</button><button onclick="fuelAdd('benzin')" style="${fb2}">⛽ Natankoval jsem</button></div>`;
   let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}${fuelBtns}`;
@@ -2287,7 +2289,7 @@ function genPlanHtml(d){
       + (P.small ? rowI("Malá River (neovládaná)", `bere ~${nf(P.small)} W${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}`) : "")
       + P.rv.map(r=>rowI(`<b>${escH(r.n||"River")}</b>`, `${nf(r.soc)} % · ${r.w?`nastaveno ${nf(r.w)} W`:"200 W"} (bere ${nf(r.in)} W) · plná ${relDay(r.fin)} ~${hmT(r.fin)}`)).join("")
       + rowI("Celkem do River", `${nf(P.tot_in)} W · za toto nabíjení ${kWh(P.wh)} (od ${hmT(P.t_on)})`)
-      + jineHtml(P)
+      + jineHtml(P) + manHtml(P)
       + (P.fin ? rowI("Generátor můžeš vypnout", `${relDay(P.fin)} ~${hmT(P.fin)}`) : "")
       + (P.rv.length ? "" : `<div class="sub">Velké River se zatím nenabíjejí – zapoj je do generátoru.</div>`)
       + `<div class="sub" style="margin-top:4px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s</div>`;
@@ -2303,6 +2305,23 @@ function genPlanHtml(d){
 }
 /* 4.87 / 4.91: tlačítka nabíjení z generátoru. „start:benzin“ / „start:lpg“ = zapsat palivo do nastavení + spustit,
    „fuel:…“ = jen změnit palivo (hlídač ho načte do 30 s i během nabíjení), „stop“ = ukončit. */
+/* 5.197 (Petr): ruční výkon – když dochází lahev, hlídač River nenastavuje výkon (nastavíš v aplikaci EcoFlow), měří dál */
+function manHtml(P){
+  const on = !!P.manual, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
+  return `<div style="margin:8px 0 4px;padding:10px;border-radius:12px;background:var(--bg)">
+    <div style="font-weight:600">✋ Ruční výkon${on ? ` <span style="color:var(--warn)">· zapnutý</span>` : ""}</div>
+    <div class="sub" style="margin:4px 0">${on ? "Hlídač teď River výkon nenastavuje – nastav ho v aplikaci EcoFlow. Měření, spotřeba i cena běží dál. Platí do konce nabíjení, pak River dostanou klidový výkon jako vždy."
+      : "Dochází lahev a generátor nedá plný výkon? Vypni automatiku a nastav River výkon sám v aplikaci EcoFlow. Měření běží dál, platí do konce tohoto nabíjení."}</div>
+    <button onclick="genManual(${on ? 0 : 1}, this)" style="${bs}">${on ? "↩︎ Zpět na automatiku" : "✋ Ruční výkon"}</button></div>`;
+}
+async function genManual(v, el){
+  const tok = store.get("ghtok");
+  if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
+  el.disabled = true; el.textContent = "Ukládám…";
+  try{ await setCfgKey(tok, "gen_rucne", `${v}:${Math.floor(Date.now()/1000)}`);
+    el.textContent = v ? "✓ ruční výkon – do půl minuty" : "✓ zpět na automatiku – do půl minuty";
+  }catch(e){ el.disabled = false; el.textContent = e.message; }
+}
 /* 5.182 (Petr): ubrat výkon River pro jiný spotřebič zapojený přímo do generátoru – jen pro toto nabíjení */
 function jineHtml(P){
   let w0 = 300; try{ w0 = +localStorage.getItem("jineW") || 300; }catch(_){}

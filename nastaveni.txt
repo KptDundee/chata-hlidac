@@ -182,3 +182,4 @@ vlhkost_hlidat = Pokoj, Loznice, Kuchyne   # obytné místnosti – upozornit na
 vlhkost_min = 40                 # upozornit na suchý vzduch pod tolik % (dobré je 40–60 %; Petr 24. 10.: 40 s rezervou)
 gen_povel =                      start:lpg:1793779250# povel z tlačítka nabíjení z generátoru (zapisuje web – neměnit)
 gen_jine =                       80:1793612926# ubrat výkon River pro jiný spotřebič na generátoru „W:čas“ (zapisuje web – neměnit)
+gen_rucne =                      # ruční výkon River při nabíjení z generátoru „1/0:čas“ (zapisuje web – neměnit)

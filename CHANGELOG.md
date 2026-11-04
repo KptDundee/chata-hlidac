@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.197 – 4. 11. 2026
+- „Generátor se zastavil – došla lahev?“ jen když se zastaví a některá River má méně než 99 %. Všechny ≥ 99 % = běžný konec (vypnul jsem, nabito) – bez hlášky (Petr).
+- ▶️ Start: tlačítka „Vyměnil jsem lahev / Natankoval jsem“ obyčejná a menší, nepřebíjí Start; výrazná jen když se generátor zastavil uprostřed nabíjení.
+- „✋ Ruční výkon“ během nabíjení (Petr: dochází lahev, generátor nedá plný výkon): hlídač River nenastavuje výkon (nastavíš v aplikaci EcoFlow), měření, spotřeba, cena i souhrn běží dál; „plná ~“ podle skutečného příkonu. Jen do konce tohoto nabíjení („Zpět na automatiku“ i dřív), na konci klidový výkon jako vždy. Nastavení `gen_rucne` (zapisuje web).
+
 ## 5.196 – 4. 11. 2026
 - Do záznamu každého běhu hlídače řádek „EcoFlow generátor: online/offline, zdroj, výkon, palivo %, g/h, motor“ (nebo „bez údajů“) – dá se ověřit, jestli z generátoru přišla data.
 
