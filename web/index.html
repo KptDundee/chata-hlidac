@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.208", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.209", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -449,6 +449,7 @@ details.sec>.in{margin-top:8px}
 <script>
 "use strict";
 let WARN_V = 12.2, CRIT_V = 12.0, OFF_V = 11.6;
+const SETR = () => (DATA && DATA.cfg && DATA.cfg.baterie_setrna_pct) || 50;   // 5.209: šetrná hranice v #
 const STATUS = {0:"nenabíjí",1:"udržovací (Float)",2:"nabíjí (Boost)",3:"vyrovnávací (Equalize)"};
 const $ = id => document.getElementById(id);
 const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
@@ -463,7 +464,7 @@ const cfgV = (key, txt) => `<span class="cfgv" data-cfg="${key}" role="button" t
 document.addEventListener("click", e => { const c = e.target.closest(".cfgv"); if(!c) return; e.preventDefault(); e.stopPropagation(); openSettings({focus: c.dataset.cfg}); }, true);
 /* nastavení, která ovlivňují jednotlivé detaily (řádek „⚙ Nastavení k této kartě“) */
 const DETCFG = {
-  bat: ["baterie_slabne_V","baterie_kriticka_V","odpojeni_V","noc_spotreba_W","menic_vlastni_W","kapacita_Ah","nutne_river_v","plne_nabiti_od_dni","plne_nabiti_dni","odber_hlidat","odber_z_baterie_A"],
+  bat: ["baterie_slabne_V","baterie_kriticka_V","baterie_setrna_pct","odpojeni_V","noc_spotreba_W","menic_vlastni_W","kapacita_Ah","nutne_river_v","plne_nabiti_od_dni","plne_nabiti_dni","odber_hlidat","odber_z_baterie_A"],
   night: ["nutne_river_v","baterie_kriticka_V","noc_spotreba_W","menic_vlastni_W","ticho"],
   wx: ["pocasi","rezim","panely_pocet","sezona_upozornit"],
   gen: ["gen_rizeni","gen_palivo","gen_max_lpg_W","gen_max_benzin_W","gen_nadrz_l","gen_rezerva_W","gen_po_behu_W","gen_mala_po_behu_W"],
@@ -1045,7 +1046,7 @@ function renderTile(){
     lineChart($("c_tile1"), bp, "b", css("--s3"), {unit:"W",dec:0,hours:hrs,modes:true,refs:[[0,"--muted"]],neg:css("--crit"),
       lines:[{key:"rg", color:css("--s2"), name:"panely do baterie"}, {key:"ld", color:css("--s1"), name:"odběr chaty", neg:true}]});
     $("tile2h").textContent = "Nabití # – kam to vede"; $("tile2c").textContent = "# · stejná časová osa jako graf nad tím: stoupá = baterie se nabíjí, klesá = vybíjí · čárkovaně 50 #";
-    hp.length>1 ? lineChart($("c_tile2"), hp, "h", css("--s3"), {unit:"#",dec:0,hours:hrs,zero:true,refs:[[50,"--serious","50 #"],[100,"--muted"]]}) : empty($("c_tile2"), "Nabití # zatím není spočítané.");
+    hp.length>1 ? lineChart($("c_tile2"), hp, "h", css("--s3"), {unit:"#",dec:0,hours:hrs,zero:true,refs:[[SETR(),"--serious",`${SETR()} # šetrná`],[100,"--muted"]]}) : empty($("c_tile2"), "Nabití # zatím není spočítané.");
   } else if(TILE==="soc"){
     $("tilet").textContent = "Nabití a napětí"; $("tiles2").textContent = `teď ${nf(last.bat_soc)} % podle regulátoru · ${nf(last.bat_v,2)} V`;
     $("tile1h").textContent = "Nabití podle regulátoru"; $("tile1c").textContent = "% · orientačně (počítá z napětí, i při nabíjení)";
@@ -3620,7 +3621,7 @@ function detBat(body){
   const hrs = detHours(), dhrs = Math.max(hrs, 30*24);
   dotChart($("dc_min"), dailyPts(dhrs).map(p=>({...p, k: dkey(p.t)})), "min_v", css("--s1"), {unit:"V",dec:2,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]]});
   if(detLong()){ const hd = Object.keys(d.days||{}).sort().filter(k=>d.days[k].hq_min!=null && k >= dkey(Date.now()/1000 - hrs*3600)).map(k=>({t:new Date(k+"T12:00").getTime()/1000, h:d.days[k].hq_min}));
-    hd.length >= 2 ? lineChart($("dc_hmin"), hd, "h", css("--s3"), {unit:"#",dec:0,hours:hrs,gap:4*86400,zero:true,refs:[[50,"--serious","50 #"]]}) : empty($("dc_hmin"), "Zatím málo dní – počítá se od 16. 10. 2026."); }
+    hd.length >= 2 ? lineChart($("dc_hmin"), hd, "h", css("--s3"), {unit:"#",dec:0,hours:hrs,gap:4*86400,zero:true,refs:[[SETR(),"--serious",`${SETR()} # šetrná`]]}) : empty($("dc_hmin"), "Zatím málo dní – počítá se od 16. 10. 2026."); }
   if(detLong()) monthlyBars($("dc_prod"), hrs);
   else barChart($("dc_prod"), Object.keys(d.days||{}).sort().filter(k=>k>=dkey(Date.now()/1000-29*86400)).map(k=>({k, v:d.days[k].solar_kwh??0})), "v", css("--s2"), {unit:"kWh",dec:1,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
   if(detLong()) return;
@@ -3642,7 +3643,7 @@ function detBat(body){
   lineChart($("dc_v"), pts.map(p=>({...p, ivx: p.ivs!=null ? p.iv : null})), "bat_v", css("--s1"), {unit:"V",dec:2,hours:hrs,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands,dayMin:true,modes:true,k2:{key:"ivx",color:css("--s2"),name:"měnič"}});
   const WR = wiring(d), off = WR ? WR.off : 0, lim = cfg.kabely_ubytek_V ?? 0.35;
   lineChart($("dc_vd"), pts.map(p=>({t:p.t, dv: p.ivs!=null && p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv-off).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:hrs,gap:3*3600,refs:[[0,"--muted"],[lim,"--crit"]],modes:true});
-  if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands,modes:true,refs:[[50,"--serious","50 #"],[100,"--muted"]]});
+  if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands,modes:true,refs:[[SETR(),"--serious",`${SETR()} # šetrná`],[100,"--muted"]]});
   else empty($("dc_hash"), "Spočítá se po prvních hodinách dat.");
   lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,modes:true});
   body.insertAdjacentHTML("beforeend", srcStripHtml(d, h) + srcPiesHtml(d, h));      // 5.142 / 5.143: na co jela chata
@@ -4178,6 +4179,7 @@ const SETTINGS = [
   ["Napětí baterie", [
     ["baterie_slabne_V","Baterie slábne","Jen do souhrnu ve 22:00","V",0.05,"num"],
     ["baterie_kriticka_V","Přepni na River","Jediné upozornění na solární baterii","V",0.05,"num"],
+    ["baterie_setrna_pct","Šetrná hranice baterie","Pod ní (když jsi doma a chata jede ze soláru) rada přepnout na River; plán se ji snaží držet","#",5,"num"],
     ["odpojeni_V","Měnič se vypíná","Ochrana baterie v měniči Victron","V",0.05,"num"],
   ]],
   ["Panely", [
@@ -4301,6 +4303,7 @@ const SET_HELP = {
   nutne_river_v: "Od tohoto času do rána: když zdroj, ze kterého chata jede (solární baterie nebo River), do rána nevydrží, přijde „🌙 Před spaním přepni chatu na River“ s tlačítky Řeším / Za 30 min / Za 1 h a opakuje se po 10 min, dokud nepřepneš. Vypnuto = nikdy.",
   vecerni_souhrn_hodina: "V tuto hodinu přijde každý večer přehled dneška (výroba, spotřeba, baterie, River, chyby). Vypínačem se souhrn vypne úplně.",
   baterie_slabne_V: "Když solární baterie klesne pod tuto hranici, objeví se to v souhrnu ve 22:00 (žádná zvláštní zpráva).",
+  baterie_setrna_pct: "Šetrná hranice v # (naše nabití: 100 = plná). AGM baterie vydrží výrazně víc cyklů, když se nevybíjí pod polovinu. Když chata jede ze soláru, jsi doma a baterie klesne pod tuto hranici (a panely nekryjí odběr), přijde rada přepnout na River. Plán podle okna generátoru se snaží baterii držet nad ní, pod ni jde až když to jinak nevyjde. Alarm (12,0 V) zůstává.",
   baterie_kriticka_V: "Jediné upozornění na solární baterii: pod touto hranicí přijde „🛑 přepni chatu na River“ a opakuje se po 10 min, dokud nepřepneš, neťukneš Řeším / Za 30 min / Za 1 h nebo napětí nevystoupí nad „reset“.",
   odpojeni_V: "Napětí, při kterém měnič Victron sám vypne 230 V (ochrana baterie). Musí odpovídat nastavení v měniči – hlídač podle toho jen hlásí a počítá předpověď „vydrží do“. Změna tady nic v měniči nepřenastaví.",
   panely_min_W: "Pod tímhle výkonem se panely berou jako „nevyrábí“ (pro upozornění Panely nevyrábí). Vyšší číslo = upozornění i při slabém zatažení, nižší = jen při úplné tmě / sněhu.",
