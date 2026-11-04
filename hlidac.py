@@ -3158,6 +3158,12 @@ def read_tp_history(data, topic, cfg):
             tp[pid] = round(new, 1)
             if cur is not None and dk != today:
                 log("ev", f"Zásuvka ({pid}) {dk}: opraveno {fmt(cur / 1000, 2)} → {fmt(new / 1000, 2)} kWh podle historie zásuvky")
+    try:                                                   # 5.206: kontrola – odkud je denní energie zásuvek River
+        tpd_ = (data["days"].get(today) or {}).get("tp") or {}
+        print("Zásuvky River dnes: " + ", ".join(f"({i}) {fmt((tpd_.get(i) or 0) / 1000, 2)} kWh, historie zásuvky "
+              f"{fmt(sum(x for x in ((th.get(i) or {}).get(today) or []) if x) / 1000, 2)} kWh" for i in ips(cfg.get("zasuvky_river"))))
+    except Exception as e:
+        print("Zásuvky River dnes:", e)
     gip = str(cfg.get("zasuvka_generator") or "").strip()
     if gip and gip in th:
         gen_from_history(data, th[gip])
