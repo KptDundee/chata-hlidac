@@ -4569,6 +4569,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     on_solar, on_river = cs_ == "s", cs_ == "r"
     hq = data.get("hq") or {}
     if not (on_solar or on_river) or now >= end or hq.get("pct") is None or (rise and now < rise - timedelta(hours=3)):
+        print(f"Výhled dne: nepočítá se (zdroj {cs_}, # {hq.get('pct')}, Flip {'čerstvý' if fresh else 'starý'})")
         data.pop("day_fc", None)
         alarm(st, topic, "sol_low", False, ok_title=False)   # 5.201: mimo výhled dne řeší baterii noční upozornění
         if now >= end:
@@ -4651,6 +4652,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     data["day_fc"] = res
     # 5.201 (Petr): chata jede ze soláru a solární baterie je už pod alarmem (v #) → akutně, kdykoli (i doma, i když
     # napětí při nabíjení vypadá dobře). Konec, až chata jede z River nebo # stoupne aspoň 5 # nad alarm.
+    print(f"Výhled dne: zdroj {cs_}, {hq['pct']} # (alarm {round(alarm_soc)} #), do {hh}:{mm:02d} {'vydrží' if res['ok'] else 'nevydrží'}")
     k_low = "sol_low"
     was_low = k_low in (st.get("al") or {})
     low = on_solar and hq["pct"] < alarm_soc + (5 if was_low else 0)
