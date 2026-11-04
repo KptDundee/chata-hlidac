@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.200 – 4. 11. 2026
+- Výhled dne solární baterie: když je baterie už teď pod alarmem (v #), dlaždice i rozpis píšou „pod alarmem už teď (18 # z 22 #)“ místo nesmyslného „dojde ~12:44“ s časem v minulosti (Petr).
+
 ## 5.199 – 4. 11. 2026
 - Karta ⚡ Dnes: dole koláče „Na co jela chata“ (čas a energie – solár / každá River), podle přepínače období (Petr).
 - Spotřeba: nový skládaný sloupcový graf „Kolik hodin chata jela z čeho“ po dnech (solár, každá River, nezjištěno), hned pod „Výroba a spotřeba po dnech“.
