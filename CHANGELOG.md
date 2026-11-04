@@ -4,7 +4,7 @@
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
 ## 5.206 – 4. 11. 2026
-- Oprava (Petr: malá River 0,07 kWh v koláči, i když byla celý den nedostupná): nedostupná zásuvka posílá jen poslední zapamatované počítadlo – to se do denní energie započítávalo. Teď se energie počítá jen ze živých údajů. Navíc kontrola: denní energie zásuvky, která ten den ani jednou nebyla dostupná (a nemá vlastní historii), se smaže – opraví i dnešek.
+- Oprava (Petr: malá River 0,07 kWh v koláči, i když byla celý den nedostupná): nedostupná zásuvka posílá jen poslední zapamatované počítadlo – to se do denní energie započítávalo. Teď se energie počítá jen ze živých údajů. Navíc kontrola (jen zásuvky, které posílají výkon – žárovky ne): denní energie zásuvky, která ten den ani jednou nebyla dostupná (a nemá vlastní historii), se smaže – opraví i dnešek.
 
 ## 5.205 – 4. 11. 2026
 - „Na co jela chata“ (Petr: ukazovalo malou River): malá River chatu nenapájí – do času se nepočítá; v energii je jako „… (jen spotřebič)“. Hlídač teď počítá hodiny „chata na River“ jen pro jednu velkou River (ta, jejíž zásuvka bere nejvíc); ostatní zásuvky River i malá = jen spotřebič. Stejně pás „Co kdy napájelo“ a sloupce hodin.

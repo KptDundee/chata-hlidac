@@ -800,12 +800,13 @@ def tp_ghost_fix(data, now):
             k = datetime.fromtimestamp(p["t"], TZ).strftime("%Y-%m-%d")
             seen.setdefault(k, set()).update(p["tp"].keys())
     first = datetime.fromtimestamp(pts[0]["t"], TZ).strftime("%Y-%m-%d")
+    meas = set().union(*seen.values()) if seen else set()   # jen zásuvky, které výkon posílají (žárovky ne)
     for k, day in (data.get("days") or {}).items():
         if k <= first or k not in seen:
             continue
         for key in ("tp", "tps", "tpl"):
             dt = day.get(key) or {}
-            for ip in [i for i in dt if i not in seen[k] and not ((th.get(i) or {}).get(k))]:
+            for ip in [i for i in dt if i in meas and i not in seen[k] and not ((th.get(i) or {}).get(k))]:
                 v = dt.pop(ip)
                 if key == "tp" and v:
                     print(f"Zásuvka ({ip}) {k}: {fmt(v / 1000, 2)} kWh smazáno – ten den nebyla ani jednou dostupná")
