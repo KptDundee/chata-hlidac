@@ -1963,6 +1963,7 @@ def main():
                          ("Kdy na River", lambda: eve_plan(data, st, now, topic, cfg)),
                          ("Plán nepřítomnosti", lambda: away_plan(data, st, now, topic, cfg)),
                          ("Nabij River", lambda: river_charge_hint(data, st, now, topic, cfg)),
+                         ("Plán podle okna generátoru", lambda: window_plan(data, st, now, topic, cfg)),
                          ("Připomínka plánu", lambda: plan_reminder(data, st, now, topic, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
@@ -4661,7 +4662,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     was_low = k_low in (st.get("al") or {})
     low = on_solar and hq["pct"] < alarm_soc + (5 if was_low else 0)
     RVl = river_models(data, cfg, now)
-    best = max(RVl.values(), key=lambda v: v["soc"], default=None)
+    bk_ = pick_river(RVl, river_usage(data, now))      # 5.203: méně používaná (s aspoň 50 %), jinak nejplnější
+    best = RVl.get(bk_) if bk_ else None
     if best and best["soc"] >= 20:
         todo = f"Přepni chatu na River {pn_(best['name'])} ({fmt(best['soc'])} %) – solár ji pak jen nabíjí."
     else:
@@ -5011,6 +5013,192 @@ def gen_windows(t0, t1):
             return out
 
 
+def river_usage(data, now, days=30):
+    """5.203 (Petr): kolik která velká River za posledních `days` dní dodala (Wh výstupu podle EcoFlow) – méně používaná
+    má přednost, ať se opotřebovávají rovnoměrně."""
+    out = {}
+    d0 = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+    for k, day in (data.get("days") or {}).items():
+        if k < d0:
+            continue
+        for k6, e in (day.get("rv") or {}).items():
+            out[k6] = out.get(k6, 0.0) + (e.get("o") or 0)
+    return out
+
+
+def pick_river(RV, use, min_soc=50):
+    """Kterou River doporučit: mezi těmi s aspoň min_soc % méně používanou; jinak tu nejplnější."""
+    ok = [k for k, v in RV.items() if v["soc"] >= min_soc]
+    if ok:
+        return min(ok, key=lambda k: (use.get(k, 0.0), -RV[k]["soc"]))
+    return max(RV, key=lambda k: RV[k]["soc"]) if RV else None
+
+
+def window_plan(data, st, now, topic, cfg):
+    """5.203 (Petr): jedno pravidlo pro nabíjení River podle okna generátoru.
+    Okno = jsem doma a je 6:00–22:00. Hlídač vezme dobu do začátku příštího okna (přes noc, odjezd, návrat) a zkusí,
+    jestli ji utáhne to, co je teď v solární baterii a v River – se střídáním zdrojů tam, kde jsem doma (teď, odjezd,
+    návrat, západ / východ slunce). Když nějaké rozdělení vyjde → žádný poplach (rozpis pro web). Když ne → kterou River
+    a na kolik % nabít a do kdy nejpozději začít, aby nabíjení skončilo v okně: zpráva 2 h předem, v nejpozdější čas
+    (nejpozději ve 20:00) akutně. Mimo okno a při nabíjení nic. data["wplan"] pro web."""
+    import math
+    ts = now.timestamp()
+    M = energy_model(data, cfg, now)
+    RV = river_models(data, cfg, now)
+    data.pop("wplan", None)
+    keys = ("wp_chg", "wp_chg1", "wp_none")
+    if M["ah_now"] is None:
+        for k in keys:
+            alarm(st, topic, k, False, ok_title=False)
+        return
+    res = cfg.get("river_rezerva_pct") or 5
+    AW = [(a.timestamp(), b.timestamp()) for a, b, f in away_list(cfg, PLAN, now, days=3) if b > now]
+    home = lambda t: not any(a <= t < b for a, b in AW)
+    gen_ok = lambda t: 6 <= datetime.fromtimestamp(t, TZ).hour < 22
+    in_win = home(ts) and gen_ok(ts)
+    t22 = now.replace(hour=22, minute=0, second=0, microsecond=0).timestamp()
+    w0_end = min([t22] + [a for a, b in AW if a > ts]) if in_win else ts
+    # začátek příštího okna (aspoň hodinu doma a 6–22)
+    t, w1 = w0_end, None
+    while t < ts + 72 * 3600:
+        if home(t) and gen_ok(t) and all(home(t + x) and gen_ok(t + x) for x in (1800, 3600)):
+            w1 = t
+            break
+        t += 600
+    if w1 is None:
+        w1 = ts + 72 * 3600
+    # body, kdy jde zdroj přepnout (jen doma): teď, odjezdy, návraty, západ a východ slunce
+    pts_ = {ts}
+    for a, b in AW:
+        if ts < a < w1:
+            pts_.add(a)
+        if ts < b < w1:
+            pts_.add(b)
+    d_ = now.date()
+    while datetime(d_.year, d_.month, d_.day, tzinfo=TZ).timestamp() < w1:
+        r_, z_ = sun_times(cfg["sirka"], cfg["delka"], d_)
+        ev_ = []                                         # 5.203: i večer a před spaním (doma jde přepnout)
+        for key_, dflt in (("den_do", "22:00"), ("chladnuti_spat", "0:00")):
+            try:
+                h_, m_ = (int(x) for x in str(cfg.get(key_) or dflt).split(":")[:2])
+                ev_.append(datetime(d_.year, d_.month, d_.day, h_, m_, tzinfo=TZ) + (timedelta(days=1) if h_ < 6 else timedelta()))
+            except ValueError:
+                pass
+        for x in (r_, z_, *ev_):
+            if x and ts < x.timestamp() < w1 and home(x.timestamp()):
+                pts_.add(x.timestamp())
+        d_ += timedelta(days=1)
+    bounds = sorted(pts_) + [w1]
+    segs = [(bounds[i], bounds[i + 1]) for i in range(len(bounds) - 1) if bounds[i + 1] - bounds[i] >= 300]
+    # průběh po 10 min (stejný pro všechny varianty)
+    steps = []
+    for a, b in segs:
+        t, row = a, []
+        while t < b:
+            dt = min(600, b - t)
+            row.append((M["prod_ah"](t, dt), M["load_a"](t) * dt / 3600, M["idle_a"] * dt / 3600, M["load_w"](t) * dt / 3600))
+            t += dt
+        steps.append(row)
+    top = M["ah_now"] + M["room"]
+    use = river_usage(data, now)
+    srcs = ["s"] + list(RV)
+    inv = data.get("inverter") or {}
+    cs_ = inv_src(inv, cfg) if inv and ts - inv.get("t", 0) < 1800 else None
+    conn = (data.get("river_sup") or {}).get("sn")
+    cur = "s" if cs_ == "s" else conn if cs_ == "r" and conn in RV else None
+
+    def search(soc0):
+        best = [None]
+
+        def rec(i, L, soc, plan, used_wh):
+            if i == len(segs):
+                sw = sum(1 for j in range(1, len(plan)) if plan[j] != plan[j - 1]) + (1 if cur and plan and plan[0] != cur else 0)
+                bal = sum(use.get(k, 0.0) * u for k, u in used_wh.items())
+                key = (sw, round(sum(used_wh.values()) / 50), bal)
+                if best[0] is None or key < best[0][0]:
+                    best[0] = (key, list(plan), L, dict(soc))
+                return
+            choices = srcs if home(segs[i][0]) or home(segs[i][0] - 60) or i == 0 else [plan[-1]]   # při odjezdu ještě přepnout jde
+            for c in choices:
+                L2, s2, ok, wh = L, dict(soc), True, 0.0
+                for pr, la, ia, lw in steps[i]:
+                    if c == "s":
+                        L2 = min(L2 + pr, top) - la
+                        if L2 < 0:
+                            ok = False
+                            break
+                    else:
+                        L2 = max(-1e9, min(L2 + pr, top) - ia)
+                        s2[c] -= lw / max(1.0, RV[c]["cap"]) * 100
+                        wh += lw
+                        if s2[c] < res:
+                            ok = False
+                            break
+                if ok:
+                    uw = dict(used_wh)
+                    if c != "s":
+                        uw[c] = uw.get(c, 0.0) + wh
+                    rec(i + 1, L2, s2, plan + [c], uw)
+        rec(0, M["ah_now"], dict(soc0), [], {})
+        return best[0]
+
+    soc0 = {k: v["soc"] for k, v in RV.items()}
+    found = search(soc0)
+    need = None
+    if not found and RV:
+        order = sorted(RV, key=lambda k: (use.get(k, 0.0), -RV[k]["soc"]))
+        for k in order:
+            for tgt in range(int(math.ceil(RV[k]["soc"] / 5.0) * 5), 101, 5):
+                if tgt <= RV[k]["soc"]:
+                    continue
+                f2 = search({**soc0, k: tgt})
+                if f2:
+                    dur = (tgt - RV[k]["soc"]) / 100 * RV[k]["per100"] / max(100.0, RV[k]["chg_w"]) * 3600
+                    need = {"k": k, "name": RV[k]["name"], "target": tgt, "dur": int(dur), "latest": int(w0_end - dur), "plan": f2}
+                    break
+            if need and need["latest"] >= ts:
+                break
+        if not need and len(RV) >= 2:
+            f2 = search({k: 100.0 for k in RV})
+            if f2:
+                dur = max((100 - RV[k]["soc"]) / 100 * RV[k]["per100"] / max(100.0, RV[k]["chg_w"]) * 3600 for k in RV)
+                need = {"k": "all", "name": "obě River", "target": 100, "dur": int(dur), "latest": int(w0_end - dur), "plan": f2}
+    hm = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M")
+    rd = lambda x: rel_day(x, now)
+    nm = lambda c: "solár" if c == "s" else pn_(RV[c]["name"])
+    pl = (found or (need or {}).get("plan"))
+    data["wplan"] = {"t": int(ts), "win": bool(in_win), "w0_end": int(w0_end), "w1": int(w1), "ok": bool(found),
+                     "segs": [{"a": int(a), "b": int(b), "home": home(a), "src": pl[1][i], "name": nm(pl[1][i])} for i, (a, b) in enumerate(segs)
+                              if i == 0 or pl[1][i] != pl[1][i - 1]] if pl else [],
+                     "need": {k_: v_ for k_, v_ in (need or {}).items() if k_ != "plan"} or None}
+    charging = any(((r.get("ac_in_w") if r.get("ac_in_w") is not None else r.get("in_w")) or 0) > 20
+                   for r in data.get("rivers") or [] if r.get("online") and not r.get("gen"))
+    act = in_win and not found and not charging
+    why = f"Do {rd(w1)} {hm(w1)} (další možnost pustit generátor) to s tím, co je teď v solární baterii a River, nevydrží."
+    if act and need:
+        late = need["latest"]
+        late_u = min(late, now.replace(hour=20, minute=0, second=0, microsecond=0).timestamp()) if w0_end >= t22 else late
+        msg = (why + f" Nabij {pn_(need['name'])} na ~{need['target']} % (~{fmt_h(need['dur'] / 3600)}) – nabíjení musí skončit do "
+               f"{hm(w0_end)}{' (odjezd)' if w0_end < t22 else ' (generátor jen do 22:00)'}.")
+        plan_t = " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data["wplan"]["segs"])
+        if plan_t:
+            msg += f"\nPak: {plan_t}."
+        alarm(st, topic, "wp_chg", late - 2 * 3600 <= ts < late_u,
+              f"🔋 Nabij {pn_(need['name'])} na ~{need['target']} % – začni nejpozději v {hm(late_u)}", msg, 3, "battery", ok_title=False, cat=2)
+        alarm(st, topic, "wp_chg1", ts >= late_u, f"⛽ Nabij {pn_(need['name'])} teď – poslední chvíle", msg, 5, "rotating_light,battery",
+              ok_title=False, cat=1)
+        alarm(st, topic, "wp_none", False, ok_title=False)
+    else:
+        alarm(st, topic, "wp_chg", False, ok_title=False)
+        alarm(st, topic, "wp_chg1", False, ok_title=False)
+        late_n = min(w0_end - 2 * 3600, now.replace(hour=20, minute=0, second=0, microsecond=0).timestamp())
+        alarm(st, topic, "wp_none", act and not need and ts >= late_n, f"⚠️ Do {rd(w1)} {hm(w1)} to nevydrží ani s nabitím River",
+              why + " Nepomůže ani nabití River do plna – omez spotřebu, nebo uprav plán (návrat dřív).", 5, "warning", ok_title=False, cat=1)
+    print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, "
+          + ("vyjde: " + " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data['wplan']['segs']) if found
+             else f"nevyjde – nabít {need['name']} na {need['target']} % do {hm(need['latest'])}" if need else "nevyjde ani s nabitím"))
+
+
 def river_charge_hint(data, st, now, topic, cfg):
     """5.194 (Petr): jednoduše – jsem doma a River budou potřeba (solár do rána nevydrží a žádná River na noc nestačí,
     nebo do 24 h odjíždím a s tím, co River mají, to nevydrží) → přes den zpráva „nabij River dnes“ (kategorie 2),
@@ -5116,7 +5304,8 @@ def away_plan(data, st, now, topic, cfg):
         cand = []
         if lo_s > 0:
             cand.append(("solar", None))
-        for k in sorted(RV, key=lambda k: (k != conn, -soc[k])):
+        use_ = river_usage(data, now)                   # 5.203: po zapojené méně používaná
+        for k in sorted(RV, key=lambda k: (k != conn, use_.get(k, 0.0), -soc[k])):
             if soc[k] - drop(k, a, b) >= res_pct:
                 cand.append(("river", k))
         if cand:
@@ -5206,7 +5395,8 @@ def away_plan(data, st, now, topic, cfg):
                 left = RV[conn0]["soc"]
                 ok = left - drop(conn0, now, b) >= res_pct
                 if not ok:
-                    alt = [k for k in RV if k != conn0 and RV[k]["soc"] - drop(k, now, b) >= res_pct]
+                    use_ = river_usage(data, now)
+                    alt = sorted([k for k in RV if k != conn0 and RV[k]["soc"] - drop(k, now, b) >= res_pct], key=lambda k: use_.get(k, 0.0))
                     sol_ok = (data.get("day_fc") or {}).get("ok") and (data.get("day_fc") or {}).get("end") == int(b.timestamp())
                     if not sol_ok:                              # solár nabízí ranní „můžeš na solár“ zvlášť
                         tip = (f"Přepoj na „{pn_(RV[alt[0]]['name'])}“ ({round(RV[alt[0]]['soc'])} %)." if alt else

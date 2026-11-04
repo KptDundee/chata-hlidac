@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.204 – 4. 11. 2026
+- Plán podle okna generátoru (Petr): okno = doma a 6:00–22:00. Hlídač průběžně vezme dobu do začátku příštího okna (přes noc, odjezd, návrat) a zkusí všechna rozdělení solár / River, která jdou udělat – zdroj jde přepnout jen doma (teď, při odjezdu, po návratu, při západu / východu slunce, ve 22:00 a před spaním). Vybere to s nejmenším počtem přepnutí a nejmenší spotřebou River. Když nic nevyjde → kterou River nabít (méně používanou) na kolik % a do kdy začít, aby nabíjení skončilo v okně (do 22:00 / do odjezdu): zpráva 2 h před nejpozdějším začátkem, akutně v nejpozdější čas (nejpozději ve 20:00). Když nepomůže ani nabití obou do plna, ve 20:00 „nevydrží ani s nabitím“. Mimo okno a při nabíjení nic. Rozpis „⛽ Do příští možnosti pustit generátor“ v 🗓 Kdy jsem pryč a na dlaždici.
+- Doporučení River všude podle použití: méně používaná za 30 dní (s aspoň 50 %) – upozornění „pod alarmem“, plán nepřítomnosti, kontrola při odjezdu.
+
 ## 5.203 – 4. 11. 2026
 - Vypnuto „🔋 Nabij River – dnes je budeš potřebovat“ (radilo nabíjet i plné River, protože plán neuměl kombinaci noc na River + den na solár). Nahradí ho plán podle okna generátoru.
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.203", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.204", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1564,14 +1564,27 @@ function tilePlan(d, h){
   const iv = A && (A.ivs||[]).find(x=>x.b > h.now), rv = (A && A.rv) || {};
   const src = !iv ? "" : iv.src==="solar" ? "solár" : iv.src==="river" ? `River ${pn((rv[iv.k]||{}).name||"")}` : "nic nevydrží";
   const away = nxt[0] <= h.now;
-  const ch = A && A.chg;
-  return {...t, cls: ch ? (ch.none ? "bad" : "warn") : "ok", v: `${hmT(away ? nxt[1] : nxt[0])}<small>${away ? "návrat" : relDay(nxt[0])}</small>`,
+  const WP = d.wplan && h.now - d.wplan.t < 3600 ? d.wplan : null;   // 5.203: plán podle okna generátoru
+  return {...t, cls: WP ? (WP.ok ? "ok" : WP.need ? "warn" : "bad") : "ok", v: `${hmT(away ? nxt[1] : nxt[0])}<small>${away ? "návrat" : relDay(nxt[0])}</small>`,
     st: away ? `Pryč do ${relDay(nxt[1])} ${hmT(nxt[1])}` : `Odjezd ${relDay(nxt[0])} ${hmT(nxt[0])}–${hmT(nxt[1])}`,
-    a: ch ? (ch.none ? "Nic to neutáhne – omez spotřebu" : `Nabij ${pn(ch.name)} – začni do ${relDay(ch.late)} ${hmT(ch.late)}`) : src ? `Pojede: ${src}` : ""};
+    a: WP ? wplanShort(WP) : src ? `Pojede: ${src}` : ""};
+}
+/* 5.203 (Petr): co pojede do příští možnosti pustit generátor – rozpis z hlídače (window_plan) */
+const wpSeq = W => (W.segs||[]).map((g,i)=>`${i===0 && g.a <= W.t + 600 ? "teď" : (relDay(g.a)==="dnes" ? "" : relDay(g.a)+" ") + hmT(g.a)} ${escH(pn(g.name))}`).join(" → ");
+const wplanShort = W => W.ok ? `Vyjde: ${wpSeq(W)}` : W.need ? `Nabij ${escH(pn(W.need.name))} na ~${W.need.target} % – začni do ${hmT(W.need.latest)}` : "Ani s nabitím to nevydrží – omez spotřebu";
+function wplanHtml(d){
+  const W = d.wplan; if(!W || Date.now()/1000 - W.t > 3600) return "";
+  const nx = `${relDay(W.w1)} ${hmT(W.w1)}`;
+  const head = W.ok ? `<b style="color:var(--good)">Vyjde bez nabíjení</b>` : W.need ? `<b style="color:var(--warn)">Nabij ${escH(pn(W.need.name))} na ~${W.need.target} %</b> – trvá ~${hmH(W.need.dur/3600)}, začni nejpozději v <b>${hmT(W.need.latest)}</b>` : `<b style="color:var(--crit)">Nevyjde ani s nabitím River</b> – omez spotřebu nebo uprav plán`;
+  return `<div class="card"><h2 style="margin:0 0 6px">⛽ Do příští možnosti pustit generátor</h2>
+    <div style="font-size:14px">Další okno (doma a 6:00–22:00): <b>${nx}</b></div>
+    <div style="font-size:15px;margin:6px 0">${head}</div>
+    ${(W.segs||[]).length ? `<div style="font-size:14px;line-height:1.6">${W.ok ? "Čím pojede chata" : "Pak pojede"}: ${wpSeq(W)}</div>` : ""}
+    <div class="sub" style="margin-top:6px;line-height:1.45">Hlídač zkouší všechna rozdělení solár / River, která jdou udělat – zdroj přepneš jen doma (teď, při odjezdu, po návratu, při západu a východu slunce, ve 22:00 a před spaním). Když nic nevyjde, poradí, kterou River nabít (méně používanou) a do kdy, aby nabíjení skončilo v okně. Upozornění: 2 h před nejpozdějším začátkem, v nejpozdější čas (nejpozději ve 20:00) akutně. Mimo okno a při nabíjení nic.</div></div>`;
 }
 function detPlan(body){
   const d = DATA, tok = store.get("ghtok");
-  body.insertAdjacentHTML("beforeend", `<div class="card" id="plan_box"><div class="sub">Načítám plán…</div></div>`);
+  body.insertAdjacentHTML("beforeend", wplanHtml(d) + `<div class="card" id="plan_box"><div class="sub">Načítám plán…</div></div>`);
   const box = $("plan_box");
   if(!tok){ box.innerHTML = `<div>Pro úpravu plánu je potřeba přihlášení ke GitHubu (stejné jako u Nastavení).</div>`; $("tokbox").classList.remove("hide"); return; }
   planLoad(tok).then(({P, sha})=>{
