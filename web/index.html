@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.198", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.199", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2936,7 +2936,9 @@ function detUse(body, src="a"){
     `kWh · <span style="color:var(--s2)">■</span> výroba · spotřeba celkem: <span style="color:var(--s3)">■</span> ze soláru (i se ztrátami měniče) <span style="color:var(--s1)">■</span> z River · ťukni na den`) : "";
   const ud = src==="a" ? chartCard("u_days", "Spotřeba chaty po dnech", "kWh za den (měřeno na zásuvkách) · čárkovaně obvyklá = medián předchozích 14 dní (velké výkyvy se neprojeví)") : "";
   const UT = tabsHead("us_tab", [["g","📊 Grafy"],["n","🔢 Čísla"]]);
-  let html = UT.html + `<div id="us_tab_g"${UT.cur==="g"?"":' style="display:none"'}>` + segHtml() + pu + ud
+  // 5.199 (Petr): kolik hodin chata jela z čeho – skládané sloupce po dnech (vedle výroby a spotřeby)
+  const phc = src==="a" ? chartCard("u_ph", "Kolik hodin chata jela z čeho", `h za den · <span style="color:var(--s6)">■</span> solár · ${rivModel(d, homeData(d)).R.map(r=>`<span style="color:${r.color}">■</span> ${escH(r.short)}`).join(" · ")} · <span style="color:var(--muted)">■</span> nezjištěno · ťukni na den`) : "";
+  let html = UT.html + `<div id="us_tab_g"${UT.cur==="g"?"":' style="display:none"'}>` + segHtml() + pu + phc + ud
     + chartCard("u_sum", `Odběr chaty ${SRCN[src]}`, long ? `kWh za den${srcCap}` : `W${src==="a" ? " · 220 V + River · šedé pozadí = chata na River" : src==="s" ? " · zásuvka 220 V za měničem" : " · zásuvky na výstupu River"}`);
   if(src!=="r") html += chartCard("u_220", "220 V – zásuvka za měničem", long ? `kWh za den · v bublině i se ztrátami měniče` : `W · <span style="color:var(--s2)">━ změřeno na zásuvce</span> · <span style="color:var(--s1)">╍ vzato z baterie (+12 % ztráty měniče, +${nf(U.idle,1)} W měnič a desulfátor)</span>`);
   // 5.175 (Petr): graf „Ostatní“ před světly
@@ -2968,6 +2970,13 @@ function detUse(body, src="a"){
   body.insertAdjacentHTML("beforeend", html);
   tabsWire("us_tab", ["g","n"]);
   if(src==="a") prodUse($("u_pu"), long ? "m" : "d");
+  if(src==="a" && $("u_ph")){ const R_ = rivModel(d, homeData(d)).R, D_ = d.days || {};
+    const ks = Object.keys(D_).sort().filter(k=>D_[k].sh != null).slice(-30);
+    const layers = [{id:"s", name:"solár", color:css("--s6")}, ...R_.map(r=>({id:"r"+r.id, name:r.short, color:r.color})), {id:"u", name:"nezjištěno", color:css("--muted")}];
+    stackBars($("u_ph"), ks.map(k=>{ const x = D_[k], v = {s:(x.sh||0)*1000}; let kn = x.sh||0;
+      for(const r of R_){ const hh = (x.rh||{})[r.id]||0; v["r"+r.id] = hh*1000; kn += hh; }
+      if(x.rhh != null && x.rhh - kn > 0.25) v.u = (x.rhh - kn)*1000;
+      return {k, v}; }), layers, {unit:"h", dec:1}); }
   if(src==="a"){ const all = Object.keys(d.days||{}).sort().map(k=>useDay(k, U)).filter(Boolean).map(q=>({k:q.k, v:q.a._sum/1000}));
     const med = a => { const x = a.slice().sort((p,q)=>p-q); return x.length >= 3 ? x[Math.floor(x.length/2)] : null; };
     const ser = all.map((q,i)=>({...q, m: med(all.slice(Math.max(0,i-14), i).map(r=>r.v))})).slice(-30);
@@ -3676,6 +3685,7 @@ function detToday(body){
   else if(detLong()) monthlyBars($("dt_prod"), hrs);
   else barChart($("dt_prod"), Object.keys(D).sort().slice(-Math.round(hrs/24)-1).map(k=>({k, v:D[k].solar_kwh})), "v", css("--s2"), {unit:"kWh",dec:2});
   lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
+  body.insertAdjacentHTML("beforeend", srcPiesHtml(d, h));      // 5.199 (Petr): na co jela chata – i v kartě Dnes
 }
 /* výroba a spotřeba chaty celkem po dnech / měsících (4.37): sloupec výroba + vedle něj spotřeba složená
    ze soláru (zásuvka za měničem + ztráty měniče) a z River (zásuvky River). Bublina: pokryla / chybělo. */
