@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.211", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.212", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1373,8 +1373,11 @@ function nightRows2(d, h){ const r = nightRow(d, h); return !r ? [] : Array.isAr
 function eveRow(d, h){
   const e = d.eve; if(!e || h.now - e.t > 1800 || h.cs!=="s" || e.ok) return null;
   // 5.158: rada, ne stav – kdy nejpozději přepnout chatu na River, aby solární baterii zbylo na ráno / odjezd
-  const sw = e.sw && e.sw > h.now + 300 ? (e.bed ? `před spaním (do ~${hmT(e.sw)})` : `nejpozději ${relDay(e.sw)} ~${hmT(e.sw)}`) : "teď";   // 5.211
-  return ["přepnout na River", `<b style="color:var(${sw==="teď"?"--crit":"--warn"})">${sw}</b>${e.D ? ` <span class="sub">(aby ráno zbylo ${nf(e.need_pct)} #)</span>` : ""}`];
+  // 5.212 (Petr): v hodnotě i CO udělat, ne jen čas (popisek se na dlaždici může zkrátit)
+  const sw = e.sw && e.sw > h.now + 300 ? (e.bed ? `před spaním (do ~${hmT(e.sw)})` : `do ${relDay(e.sw)} ~${hmT(e.sw)}`) : "teď";
+  const away = (d.away||[]).find(x=>x[0] <= h.now && h.now < x[1]);
+  const what = away ? `po návratu (${hmT(away[1])}) přepni chatu na River${e.bed && sw!=="teď" ? " před spaním" : ""}` : `přepni chatu na River ${sw}`;
+  return ["co udělat", `<b style="color:var(${sw==="teď" && !away?"--crit":"--warn"});white-space:normal">${what}</b>${e.D ? ` <span class="sub">(aby ráno zbylo ${nf(e.need_pct)} #)</span>` : ""}`, 1];
 }
 /* 4.78: barva dlaždice Solární baterie podle výhledu – stejné zdroje jako řádky „do 22:00“ a „do rána“ */
 function batOutlook(d, h){
