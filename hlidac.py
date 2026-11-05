@@ -6074,7 +6074,7 @@ def gen_sum_msg(gs, tnow, topic):
     gwh, rwh, rs = gs.get("fwh") or 0.0, gs.get("rwh") or {}, gs.get("rs") or {}
     t_on = gs.get("t_on") or tnow
     fu = {"lpg": "plyn", "benzin": "benzín"}.get(gs.get("fuel"), gs.get("fuel") or "")
-    lines = [f"Generátor dodal {fmt(gwh / 1000, 2)} kWh · běželo ~{fmt((tnow - t_on) / 3600, 1)} h{(' · ' + fu) if fu else ''}."]
+    lines = [f"Generátor dodal {fmt(gwh / 1000, 2)} kWh · běželo {fmt_h((tnow - t_on) / 3600)}{(' · ' + fu) if fu else ''}."]
     xwh = gs.get("xwh") or 0.0                         # 5.182: jiný spotřebič přímo na generátoru – do nabíjení se nepočítá
     if xwh >= 10:
         lines.append(f"Z toho jiný spotřebič na generátoru {fmt(xwh / 1000, 2)} kWh (do nabíjení se nepočítá).")
