@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.211 – 5. 11. 2026
+- „Přepnout na River nejpozději zítra ~03:00“ (Petr: v noci spím): když by přepnutí vyšlo až po čase spaní (`chladnuti_spat`, 0:00), radí se „před spaním (do ~0:00)“ – dlaždice i upozornění.
+- Dlaždice Solární baterie: řádek „🔋 z baterie 80 W (chata 62 W)“ místo „🏠 odběr 80 W“ – z baterie jde i ztráta měniče (~12 %) a měnič s desulfátorem naprázdno, proto víc než na zásuvce.
+
 ## 5.210 – 5. 11. 2026
 - Souhrn nabíjení z generátoru: „běželo 1:12 h“ místo „běželo ~1,2 h“ (Petr: hodiny vždy h:mm). Prošlo celé hlídač i web – jinde už desetinné hodiny nejsou.
 - Do záznamu běhu i max. výkon, který hlásí generátor.

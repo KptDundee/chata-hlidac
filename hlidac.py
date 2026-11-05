@@ -4993,14 +4993,28 @@ def eve_plan(data, st, now, topic, cfg):
         return
     if not D:
         t_sw = latest_switch(target, 0.0)
+    # 5.211 (Petr: „nejpozději zítra ~03:00“ – v noci spím): vyjde-li přepnutí až po čase spaní, radí se před spaním
+    bed_ = None
+    try:
+        bh_, bm_ = (int(x) for x in str(cfg.get("chladnuti_spat") or "0:00").split(":")[:2])
+        bed_ = now.replace(hour=bh_, minute=bm_, second=0, microsecond=0)
+        if bh_ < 12 and now.hour >= 12:
+            bed_ += timedelta(days=1)
+        if bed_ <= now and bh_ >= 12:
+            bed_ = None
+    except ValueError:
+        bed_ = None
+    sw_bed = bool(t_sw and bed_ and t_sw > bed_.timestamp() and (not rise_t or t_sw < rise_t.timestamp() + 86400))
+    if sw_bed:
+        t_sw = bed_.timestamp()
     need_pct = round(M["alarm_soc"] + need / M["cap"] * 100)
     res = {"t": int(ts), "D": int(D.timestamp()) if D else None, "target": int(target.timestamp()), "need_pct": need_pct,
-           "sw": int(t_sw) if t_sw else None, "late": t_sw is None, "ok": t_sw is not None and t_sw >= target.timestamp() - 600}
+           "sw": int(t_sw) if t_sw else None, "bed": sw_bed, "late": t_sw is None, "ok": t_sw is not None and t_sw >= target.timestamp() - 600}
     data["eve"] = res
     # jen od západu slunce (dřív je člověk typicky ještě pryč) do rána, jen když chata jede ze soláru
     evening = set_t and now >= set_t or (rise_t and now < rise_t)
     due = cs_ == "s" and evening and not res["ok"] and (t_sw is None or ts >= t_sw - 1800) and not is_away(cfg, PLAN, now)
-    when = "hned" if t_sw is None or t_sw <= ts + 300 else "do ~" + datetime.fromtimestamp(t_sw, TZ).strftime("%H:%M")
+    when = "hned" if t_sw is None or t_sw <= ts + 300 else ("před spaním (do ~" if sw_bed else "do ~") + datetime.fromtimestamp(t_sw, TZ).strftime("%H:%M") + (")" if sw_bed else "")
     why = (f"ráno v {D.strftime('%H:%M')} (odjezd podle rozvrhu) musí v solární baterii zbýt aspoň ~{need_pct} #, "
            f"aby solár s předpovědí výroby utáhl chatu do {dend.strftime('%H:%M')}" if D else
            f"solární baterie musí vydržet do rána ({rel_day(target.timestamp(), now)} ~{target.strftime('%H:%M')}) nad alarmem 12,0 V")
