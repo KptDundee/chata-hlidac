@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.213 – 5. 11. 2026
+- Krátké texty na dlaždicích (Petr: to podstatné, bez omáčky): „➜ po 22:00 přepni na River“ / „➜ do 0:00 přepni na River“ / „➜ přepni na River teď“; „pod alarmem“; „~04:02 vypne – přepni na River“; „solár se nabíjí“; „večer připrav River“; EcoFlow „výstup vypnutý“ / „⚠ zásuvka (2) nevidět“; plán „teď ŽLUT → 0:00 ČERV → 5:45 solár“, „nabij ČERV na 80 % do 20:24“ (krátká jména River).
+
 ## 5.212 – 5. 11. 2026
 - Dlaždice Solární baterie: řádek „co udělat – přepni chatu na River před spaním (do ~0:00)“ – v hodnotě je i co udělat, ne jen čas (Petr). Když jsem pryč: „po návratu (22:00) přepni chatu na River před spaním“.
 

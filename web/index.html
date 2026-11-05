@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.212", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.213", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1326,7 +1326,7 @@ function dayFcRow(d, h){
   return [`do ${e}`, f.ok ? `<span style="color:var(--good)">vydrží ✓</span>` : `<b style="color:var(--crit)">${fcEmptyT(f)}</b>`];
 }
 /* 5.200 (Petr): baterie už teď pod alarmem (v #) → ne „dojde ~12:44“ (čas v minulosti), ale „pod alarmem už teď“ */
-const fcEmptyT = (f, would) => (f.ah!=null && f.ah <= 0) || (f.t_empty && f.t_empty - f.t < 900) ? `pod alarmem už teď <span class="sub" style="font-weight:400">(${nf(f.pct)} # z ${nf(f.alarm)} #)</span>` : `${would ? "došla by" : "dojde"} ~${hmT(f.t_empty)}`;
+const fcEmptyT = (f, would) => (f.ah!=null && f.ah <= 0) || (f.t_empty && f.t_empty - f.t < 900) ? "pod alarmem" : `${would ? "došla by" : "dojde"} ~${hmT(f.t_empty)}`;
 /* rozpis výhledu dne – co je v baterii, co přibude, co se spotřebuje */
 function dayFcBlock(f){
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}), L = (a,b,c="") => `<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0"><span style="color:var(--text2)">${a}</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap;${c}">${b}</span></div>`;
@@ -1373,11 +1373,11 @@ function nightRows2(d, h){ const r = nightRow(d, h); return !r ? [] : Array.isAr
 function eveRow(d, h){
   const e = d.eve; if(!e || h.now - e.t > 1800 || h.cs!=="s" || e.ok) return null;
   // 5.158: rada, ne stav – kdy nejpozději přepnout chatu na River, aby solární baterii zbylo na ráno / odjezd
-  // 5.212 (Petr): v hodnotě i CO udělat, ne jen čas (popisek se na dlaždici může zkrátit)
-  const sw = e.sw && e.sw > h.now + 300 ? (e.bed ? `před spaním (do ~${hmT(e.sw)})` : `do ${relDay(e.sw)} ~${hmT(e.sw)}`) : "teď";
+  // 5.213 (Petr): krátce a s tím, CO udělat – „po 22:00 přepni na River“
   const away = (d.away||[]).find(x=>x[0] <= h.now && h.now < x[1]);
-  const what = away ? `po návratu (${hmT(away[1])}) přepni chatu na River${e.bed && sw!=="teď" ? " před spaním" : ""}` : `přepni chatu na River ${sw}`;
-  return ["co udělat", `<b style="color:var(${sw==="teď" && !away?"--crit":"--warn"});white-space:normal">${what}</b>${e.D ? ` <span class="sub">(aby ráno zbylo ${nf(e.need_pct)} #)</span>` : ""}`, 1];
+  const t = !e.sw || e.sw <= h.now + 300 ? null : e.sw;
+  const what = away ? `po ${hmT(away[1])} přepni na River` : t ? `do ${hmT(t)} přepni na River` : "přepni na River teď";
+  return ["➜", `<b style="color:var(${!t && !away?"--crit":"--warn"})">${what}</b>`];
 }
 /* 4.78: barva dlaždice Solární baterie podle výhledu – stejné zdroje jako řádky „do 22:00“ a „do rána“ */
 function batOutlook(d, h){
@@ -1466,21 +1466,21 @@ function tileNight(d, h){
   const unit = `<small>V ${rano(morT)}</small>`;
   const t = {k:"night", icon:"🌙", label};
   if(f && f.until && h.now < f.until && !(f.riv || h.rvOn)){       // noc běží (nebo začala večer) – přesná předpověď; 5.124: ne když chata jede z River
-    if(f.t_off) return {...t, cls:"bad", v:`${hmT(f.t_off)}<small>${relDay(f.t_off)}</small>`, st:cap1(`${doRana(morT)} nevydrží`), a:`Měnič se vypne ${relDay(f.t_off)} ~${hmT(f.t_off)} – přepni na River`};
-    if(f.t_crit) return {...t, cls:"bad", v:`${hmT(f.t_crit)}<small>${relDay(f.t_crit)}</small>`, st:cap1(`${doRana(morT)} nevydrží – pod ${nf(CRIT_V,1)} V`), a:`Od ${relDay(f.t_crit)} ~${hmT(f.t_crit)} – omez odběr`};
+    if(f.t_off) return {...t, cls:"bad", v:`${hmT(f.t_off)}<small>${relDay(f.t_off)}</small>`, st:cap1(`${doRana(morT)} nevydrží`), a:`~${hmT(f.t_off)} vypne – přepni na River`};
+    if(f.t_crit) return {...t, cls:"bad", v:`${hmT(f.t_crit)}<small>${relDay(f.t_crit)}</small>`, st:cap1(`${doRana(morT)} nevydrží – pod ${nf(CRIT_V,1)} V`), a:`~${hmT(f.t_crit)} pod 12 V – přepni na River`};
     return {...t, cls:"ok", v:`${nf(f.v_until,2)}${unit}`, st:cap1(`${doRana(morT)} vydrží`), a: f.corr ? `S opravou ${f.corr>0?"+":"−"}${nf(Math.abs(f.corr),2)} V z minulých nocí` : "Nic nedělej"};
   }
   const ol = d.wxo && d.wxo.ol;
   if(d.river_sup){ const rs = d.river_sup;   // 5.183 (Petr): karta je o solární baterii – River (výdrž, kdy přepnout) jen v kartě EcoFlow
     return {...t, cls:"ok", v:"River", st:`Chata jede z River ${rs.name}${rs.soc!=null ? ` (${nf(rs.soc)} %)` : ""}`,
-      a:`Solární baterie ${dayPhase(d).ph==="day" ? "se jen nabíjí" : "odpočívá"} · výdrž River v kartě EcoFlow`}; }
+      a:`solár ${dayPhase(d).ph==="day" ? "se nabíjí" : "odpočívá"}`}; }
   { const F = d.day_fc;   // 4.74: přes den stejný výpočet jako dlaždice Solární baterie (výhled dne), ať si neodporují
     if(F && h.now - F.t <= 1800 && F.src !== "river" && F.night_ok != null){
       if(!F.night_ok) return {...t, cls:"bad", v: F.t_empty_n ? `${hmT(F.t_empty_n)}<small>došla by ${relDay(F.t_empty_n)}</small>` : "ne",
-        st: cap1(`${doRana(morT)} nevydrží`), a:"Podle výhledu dne – dnes večer omez odběr / připrav River"};
+        st: cap1(`${doRana(morT)} nevydrží`), a:"večer připrav River"};
       const r0 = ol && (ol.days||[]).find(x=>x.d===dkey(morT - 86400));
       return {...t, cls:"ok", v: r0 && r0.mv!=null ? `${nf(r0.mv + C.c,2)}${unit}` : F.cap && F.lvl_end!=null ? `~${Math.round(F.alarm + F.lvl_end/F.cap*100)}<small># ${rano(morT)}</small>` : "ano",
-        st: cap1(`${doRana(morT)} vydrží`), a:"Odhad podle výhledu dne – přesně dnes po západu"};
+        st: cap1(`${doRana(morT)} vydrží`), a:"odhad, přesně po západu"};
     } }
   const dayBefore = dkey(morT - 86400), r = ol && (ol.days||[]).find(x=>x.d===dayBefore);   // days[i].mv = ráno PO dni i
   if(r && r.mv!=null){
@@ -1575,8 +1575,9 @@ function tilePlan(d, h){
     a: WP ? wplanShort(WP) : src ? `Pojede: ${src}` : ""};
 }
 /* 5.203 (Petr): co pojede do příští možnosti pustit generátor – rozpis z hlídače (window_plan) */
-const wpSeq = W => (W.segs||[]).map((g,i)=>`${i===0 && g.a <= W.t + 600 ? "teď" : (relDay(g.a)==="dnes" ? "" : relDay(g.a)+" ") + hmT(g.a)} ${escH(pn(g.name))}`).join(" → ");
-const wplanShort = W => W.ok ? `Vyjde: ${wpSeq(W)}` : W.need ? `Nabij ${escH(pn(W.need.name))} na ~${W.need.target} % – začni do ${hmT(W.need.latest)}` : "Ani s nabitím to nevydrží – omez spotřebu";
+const rvN = n => { const x = pn(n||""); return x==="solár" ? x : (x.split(/\s+/)[0]||x).replace(/\.$/,""); };   // 5.213: „ŽLUT. VELKÁ ECFLW new“ → „ŽLUT“
+const wpSeq = (W, short) => (W.segs||[]).map((g,i)=>`${i===0 && g.a <= W.t + 600 ? "teď" : (short || relDay(g.a)==="dnes" ? "" : relDay(g.a)+" ") + hmT(g.a)} ${escH(short ? rvN(g.name) : pn(g.name))}`).join(" → ");
+const wplanShort = W => W.ok ? wpSeq(W, true) : W.need ? `nabij ${escH(rvN(W.need.name))} na ${W.need.target} % do ${hmT(W.need.latest)}` : "nevydrží – omez spotřebu";
 function wplanHtml(d){
   const W = d.wplan; if(!W || Date.now()/1000 - W.t > 3600) return "";
   const nx = `${relDay(W.w1)} ${hmT(W.w1)}`;
@@ -3090,7 +3091,7 @@ function rivState(x, h, M){
   if(x.miss || x.off){
     if(x.ef && x.ef.online){ const iw0 = x.ef.in_w||0, ow0 = x.ef.out_w||0;
       // 5.193 (Petr): výstup River nic nedává → zásuvka na něm je bez proudu, to je v pořádku (bez varování)
-      const nz = ow0 > 20 ? `⚠ zásuvka (${x.id}) na výstupu není vidět` : `výstup vypnutý – zásuvka (${x.id}) bez proudu, v pořádku`;
+      const nz = ow0 > 20 ? `⚠ zásuvka (${x.id}) nevidět` : `výstup vypnutý`;
       return iw0 > 20 ? `nabíjí se · ${nf(iw0)} W · ${nz}` : ow0 > 20 ? `dodává ${nf(ow0)} W · ${nz}` : `zapnutá · ${nz}`; }
     return "vypnutá";
   }
