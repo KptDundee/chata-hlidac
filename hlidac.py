@@ -5224,6 +5224,7 @@ def window_plan(data, st, now, topic, cfg):
         if ts < b < w1:
             pts_.add(b)
     d_ = now.date()
+    bed_ts = set()                                       # 5.221: od spaní do rána přepnout nejde
     while datetime(d_.year, d_.month, d_.day, tzinfo=TZ).timestamp() < w1:
         r_, z_ = sun_times(cfg["sirka"], cfg["delka"], d_)
         ev_ = []                                         # 5.203: i večer a před spaním (doma jde přepnout)
@@ -5231,6 +5232,8 @@ def window_plan(data, st, now, topic, cfg):
             try:
                 h_, m_ = (int(x) for x in str(cfg.get(key_) or dflt).split(":")[:2])
                 ev_.append(datetime(d_.year, d_.month, d_.day, h_, m_, tzinfo=TZ) + (timedelta(days=1) if h_ < 6 else timedelta()))
+                if key_ == "chladnuti_spat":
+                    bed_ts.add(ev_[-1].timestamp())
             except ValueError:
                 pass
         for x in (r_, z_, *ev_):
@@ -5289,10 +5292,13 @@ def window_plan(data, st, now, topic, cfg):
             t_ += 600
     floor_x = max(floor_s, top_full - sur_) if (top_full := M["ah_now"] + M["room"]) else floor_s
 
+    # 5.221 (Petr): úseky, kdy přepnout nejde (noc od spaní, pryč) – River na ně ať má co největší rezervu
+    fixed = [(not home(a)) or a in bed_ts for a, b in segs]
+
     def search(soc0, floor=0.0, sun=False, minrun=True, dis=None):
         best = [None]
 
-        def rec(i, L, soc, plan, used_wh):
+        def rec(i, L, soc, plan, used_wh, mg=100.0):
             if i == len(segs):
                 sw = sum(1 for j in range(1, len(plan)) if plan[j] != plan[j - 1]) + (1 if cur and plan and plan[0] != cur else 0)
                 # 5.217 (Petr): jedna River ať zůstane co nejplnější (na noc / odjezd, kdy přepnout nejde) – nejdřív se bere ta načatá
@@ -5309,7 +5315,8 @@ def window_plan(data, st, now, topic, cfg):
                 bal = sum(use.get(k, 0.0) * u for k, u in used_wh.items())
                 # 5.218 (Petr): nejdřív co nejméně z River (plyn), pak ať jedna River zůstane co nejplnější (vydrží noc / odjezd),
                 # pak co nejméně přepnutí, při rovnosti víc z méně používané
-                key = (round(sum(used_wh.values()) / 50), keep, sw, bal)
+                # 5.221 (Petr): River na noc / odjezd (kdy přepnout nejde) ať má co největší rezervu – načatá jede, dokud jde přepínat
+                key = (round(sum(used_wh.values()) / 50), -round(mg / 5), sw, keep, bal)
                 if best[0] is None or key < best[0][0]:
                     best[0] = (key, list(plan), L, dict(soc))
                 return
@@ -5339,7 +5346,7 @@ def window_plan(data, st, now, topic, cfg):
                     uw = dict(used_wh)
                     if c != "s":
                         uw[c] = uw.get(c, 0.0) + wh
-                    rec(i + 1, L2, s2, plan + [c], uw)
+                    rec(i + 1, L2, s2, plan + [c], uw, min(mg, s2[c]) if c != "s" and fixed[i] else mg)
         rec(0, M["ah_now"], dict(soc0), [], {})
         return best[0]
 

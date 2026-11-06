@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.221 – 6. 11. 2026
+- Plán podle okna generátoru (Petr: žlutá 47 %, červená 100 % a plán „ŽLUT → ČERV → ŽLUT“ na noc): River na úsek, kdy přepnout nejde (noc od spaní do rána, odjezd), má mít co největší rezervu – dokud jde přepínat, jede načatá. Pořadí: co nejméně z River, největší rezerva River na noc / odjezd, co nejméně přepnutí, jedna River co nejplnější, méně používaná. Teď: „solár · 16:31 ŽLUT · 22:00 ČERV“.
+
 ## 5.220 – 6. 11. 2026
 - Plán podle okna generátoru (Petr): solár jede, dokud panely kryjí aspoň polovinu průměrné spotřeby chaty (i s lednicí) – většina výroby jde rovnou do chaty a baterie doplácí málo (nejníž šetrná hranice). Až výroba klesne pod polovinu spotřeby, platí „vybíjet jen o zítřejší přebytek“. Bod přepnutí = chvíle, kdy výroba klesne pod polovinu spotřeby.
 - Dlaždice Teploty: teploměry ve stejném pořadí jako v kartě (pokoj, ložnice, baterie, kuchyně, koupelna, lednice); i seznam „Teď“ v kartě v tomto pořadí.
