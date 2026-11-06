@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.218 – 6. 11. 2026
+- Plán podle okna generátoru – pořadí (Petr): nejdřív co nejméně z River (plyn), pak ať jedna River zůstane co nejplnější (vydrží noc / odjezd), až pak co nejméně přepnutí; při rovnosti víc z méně používané River.
+- Žádné přepnutí na méně než hodinu: každý úsek se stejným zdrojem aspoň 1 h (kromě posledního). Jen když jinak nic nevyjde, plán to pravidlo pustí.
+- Rada „přepni na River“ bez plánu: načatá s aspoň 50 %, při podobném nabití (do 5 %) méně používaná.
+
 ## 5.217 – 6. 11. 2026
 - Plán podle okna generátoru: doma jde přepnout i ve chvíli, kdy solár přestane stačit (výroba podle předpovědi klesne pod spotřebu) – „jeď na solár, dokud nabíjí, pak na River“. Dřív musel solár vydržet až do západu slunce, a tak plán radil River hned (Petr). Dokud solár stačí, plán počítá se solárem (když to jinak vyjde).
 - Kterou River (Petr): jedna River zůstává co nejplnější na noc a odjezd (kdy přepnout nejde), mezitím jede chata z té načaté. Rady „přepni na River“ jmenují načatou (s aspoň 50 %), nebo tu z plánu. Opotřebení vyrovnává nabíjení (nabij méně používanou).

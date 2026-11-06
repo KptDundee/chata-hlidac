@@ -5129,7 +5129,7 @@ def pick_river(RV, use, min_soc=50):
     odjezd); jinak tu nejplnější. Když plán podle okna generátoru River vybral, platí ta z plánu."""
     ok = [k for k, v in RV.items() if v["soc"] >= min_soc]
     if ok:
-        return min(ok, key=lambda k: (RV[k]["soc"], use.get(k, 0.0)))
+        return min(ok, key=lambda k: (round(RV[k]["soc"] / 5), use.get(k, 0.0)))   # 5.218: při rovnosti méně používaná
     return max(RV, key=lambda k: RV[k]["soc"]) if RV else None
 
 
@@ -5277,15 +5277,27 @@ def window_plan(data, st, now, topic, cfg):
     # 5.209: solár přednostně jen do šetrné hranice (baterie_setrna_pct, 50 #); když to jinak nejde, až k alarmu
     floor_s = max(0.0, ((cfg.get("baterie_setrna_pct") or 50) - M["alarm_soc"]) / 100 * M["cap"])
 
-    def search(soc0, floor=0.0, sun=False):
+    def search(soc0, floor=0.0, sun=False, minrun=True):
         best = [None]
 
         def rec(i, L, soc, plan, used_wh):
             if i == len(segs):
                 sw = sum(1 for j in range(1, len(plan)) if plan[j] != plan[j - 1]) + (1 if cur and plan and plan[0] != cur else 0)
                 # 5.217 (Petr): jedna River ať zůstane co nejplnější (na noc / odjezd, kdy přepnout nejde) – nejdřív se bere ta načatá
+                # 5.218 (Petr): přepínat na méně než hodinu nemá smysl – každý úsek se stejným zdrojem aspoň 1 h (kromě posledního)
+                if minrun:
+                    a0_ = segs[0][0]
+                    for j in range(1, len(plan) + 1):
+                        if j == len(plan) or plan[j] != plan[j - 1]:
+                            if j < len(plan) and segs[j][0] - a0_ < 3600:
+                                return
+                            if j < len(plan):
+                                a0_ = segs[j][0]
                 keep = -round(max(soc.values()) / 5) if soc else 0
-                key = (round(sum(used_wh.values()) / 50), sw, keep)    # 5.209: nejdřív co nejméně z River (plyn), pak přepnutí, pak plnou nechat
+                bal = sum(use.get(k, 0.0) * u for k, u in used_wh.items())
+                # 5.218 (Petr): nejdřív co nejméně z River (plyn), pak ať jedna River zůstane co nejplnější (vydrží noc / odjezd),
+                # pak co nejméně přepnutí, při rovnosti víc z méně používané
+                key = (round(sum(used_wh.values()) / 50), keep, sw, bal)
                 if best[0] is None or key < best[0][0]:
                     best[0] = (key, list(plan), L, dict(soc))
                 return
@@ -5317,7 +5329,7 @@ def window_plan(data, st, now, topic, cfg):
         return best[0]
 
     soc0 = {k: v["soc"] for k, v in RV.items()}
-    found = (sun0 and search(soc0, floor_s, True)) or search(soc0, floor_s) or search(soc0)
+    found = (sun0 and search(soc0, floor_s, True)) or search(soc0, floor_s) or search(soc0) or search(soc0, minrun=False)
     need = None
     if not found and RV:
         order = sorted(RV, key=lambda k: (use.get(k, 0.0), -RV[k]["soc"]))

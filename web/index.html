@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.217", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.218", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1593,7 +1593,7 @@ function wplanHtml(d){
     <div style="font-size:14px">Další okno (doma a 6:00–22:00): <b>${nx}</b></div>
     <div style="font-size:15px;margin:6px 0">${head}</div>
     ${(W.segs||[]).length ? `<div style="font-size:14px;line-height:1.6">${W.ok ? "Čím pojede chata" : "Pak pojede"}: ${wpSeq(W)}</div>` : ""}
-    <div class="sub" style="margin-top:6px;line-height:1.45">Hlídač zkouší všechna rozdělení solár / River, která jdou udělat – zdroj přepneš jen doma (teď, když solár přestane stačit, při odjezdu, po návratu, při západu a východu slunce, ve 22:00 a před spaním). Jednu River drží co nejplnější na noc a odjezd (kdy přepnout nejde) – mezitím jede z té načaté. Když nic nevyjde, poradí, kterou River nabít (méně používanou) a do kdy, aby nabíjení skončilo v okně. Upozornění: 2 h před nejpozdějším začátkem, v nejpozdější čas (nejpozději ve 20:00) akutně. Mimo okno a při nabíjení nic.</div></div>`;
+    <div class="sub" style="margin-top:6px;line-height:1.45">Hlídač zkouší všechna rozdělení solár / River, která jdou udělat – zdroj přepneš jen doma (teď, když solár přestane stačit, při odjezdu, po návratu, při západu a východu slunce, ve 22:00 a před spaním). Jednu River drží co nejplnější na noc a odjezd (kdy přepnout nejde) – mezitím jede z té načaté. Nepřepíná na méně než hodinu. Když nic nevyjde, poradí, kterou River nabít (méně používanou) a do kdy, aby nabíjení skončilo v okně. Upozornění: 2 h před nejpozdějším začátkem, v nejpozdější čas (nejpozději ve 20:00) akutně. Mimo okno a při nabíjení nic.</div></div>`;
 }
 function detPlan(body){
   const d = DATA, tok = store.get("ghtok");
