@@ -4715,7 +4715,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     # 5.217 (Petr: dlaždice a rady musí sedět s plánem): plán říká teď jiný zdroj, než na kterém chata jede → přepni
     conn_ = (data.get("river_sup") or {}).get("sn")
     if home_ and W2_ and W2_["cur"] != "s" and W2_["cur"] in RVl and (on_solar or (on_river and conn_ and conn_ != W2_["cur"])):
-        todo_add(data, 5, f"přepni na River {rv_short(RVl[W2_['cur']]['name'])} ({fmt(RVl[W2_['cur']]['soc'])} %)", "warn")
+        todo_add(data, 5, (f"šetrně přepni na River {rv_short(RVl[W2_['cur']]['name'])}" if res.get("ok") and on_solar else      # 5.225: solár vydrží – jen šetření
+                           f"přepni na River {rv_short(RVl[W2_['cur']]['name'])} ({fmt(RVl[W2_['cur']]['soc'])} %)"), "warn")
     elif home_ and W2_ and W2_["cur"] == "s" and on_river and not covers:
         todo_add(data, 3, "můžeš přepnout na solár", "ok")
     if on_river and home_ and covers and (W2_ is None or W2_["cur"] == "s") and hq["pct"] >= alarm_soc and rise and set_ and rise <= now < set_ - timedelta(hours=1) \
@@ -5041,7 +5042,15 @@ def eve_plan(data, st, now, topic, cfg):
     # řekne on (počítá i odjezd, šetrnou hranici a další okno generátoru)
     W = wp_now(data, now)
     rv_nm = ""
-    if W and cs_ == "s":
+    # 5.225 (Petr: „do 22:00 vydrží“ a zároveň důrazné „přepni hned“ je protichůdné): když solární baterie vydrží bezpečně
+    # (do rána / odjezdu nad alarmem), je přepnutí podle plánu jen šetření – žádné důrazné upozornění, jen zpráva
+    safe0 = res["ok"]
+    if W and cs_ == "s" and safe0:
+        if W["cur"] != "s":
+            res.update({"rv": W["cur_name"], "src": "plan", "eco": int(ts)})
+        elif W["nxt"] and W["nxt"]["src"] != "s" and W["nxt"]["a"] < ts + 18 * 3600:
+            res.update({"rv": W["nxt"]["name"], "src": "plan", "eco": int(W["nxt"]["a"])})
+    elif W and cs_ == "s":
         if W["cur"] != "s":
             t_sw, sw_bed, rv_nm = ts, False, W["cur_name"]
         elif W["nxt"] and W["nxt"]["src"] != "s" and W["nxt"]["a"] < ts + 18 * 3600:
@@ -5051,14 +5060,13 @@ def eve_plan(data, st, now, topic, cfg):
         res.update({"sw": int(t_sw), "bed": sw_bed, "late": False, "ok": not rv_nm, "rv": rv_nm or None, "src": "plan"})
     # jen od západu slunce (dřív je člověk typicky ještě pryč) do rána, jen když chata jede ze soláru
     evening = set_t and now >= set_t or (rise_t and now < rise_t)
-    # 5.223 (Petr): přes den, když podle plánu nastal čas přejít na River – zpráva (ne alarm), jednou za den a River
-    if W and cs_ == "s" and W["cur"] != "s" and not evening and not is_away(cfg, PLAN, now) and not in_quiet():
+    # 5.223 (Petr): když podle plánu nastal čas přejít na River (šetření, solár by vydržel) – zpráva (ne alarm), jednou za den a River
+    if W and cs_ == "s" and W["cur"] != "s" and safe0 and not is_away(cfg, PLAN, now) and not in_quiet():
         k_ = now.strftime("%Y-%m-%d") + ":" + str(W["cur"])
         if st.get("wp_sw") != k_:
             ntfy(topic, f"🔌 Přepni chatu na River {rv_short(W['cur_name'])}",
                  f"Podle plánu je teď šetrnější jet z River – panely už nekryjí spotřebu chaty a solární baterie ({data['hq'].get('pct')} #) "
-                 f"se šetří." + (" Když nepřepneš, solár chatu i tak utáhne, jen víc vybije baterii." if (data.get("day_fc") or {}).get("ok") else ""),
-                 3, "electric_plug")
+                 f"se šetří. Když nepřepneš, nic se nestane – solární baterie vydrží do rána, jen se víc vybije.", 3, "electric_plug")
             st["wp_sw"] = k_
     res["ev"] = bool(evening)                      # 5.214: web ukazuje radu „přepni na River“ jen večer (jako upozornění)
     data["eve"] = res
