@@ -5010,9 +5010,10 @@ def eve_plan(data, st, now, topic, cfg):
     need_pct = round(M["alarm_soc"] + need / M["cap"] * 100)
     res = {"t": int(ts), "D": int(D.timestamp()) if D else None, "target": int(target.timestamp()), "need_pct": need_pct,
            "sw": int(t_sw) if t_sw else None, "bed": sw_bed, "late": t_sw is None, "ok": t_sw is not None and t_sw >= target.timestamp() - 600}
-    data["eve"] = res
     # jen od západu slunce (dřív je člověk typicky ještě pryč) do rána, jen když chata jede ze soláru
     evening = set_t and now >= set_t or (rise_t and now < rise_t)
+    res["ev"] = bool(evening)                      # 5.214: web ukazuje radu „přepni na River“ jen večer (jako upozornění)
+    data["eve"] = res
     due = cs_ == "s" and evening and not res["ok"] and (t_sw is None or ts >= t_sw - 1800) and not is_away(cfg, PLAN, now)
     when = "hned" if t_sw is None or t_sw <= ts + 300 else ("před spaním (do ~" if sw_bed else "do ~") + datetime.fromtimestamp(t_sw, TZ).strftime("%H:%M") + (")" if sw_bed else "")
     why = (f"ráno v {D.strftime('%H:%M')} (odjezd podle rozvrhu) musí v solární baterii zbýt aspoň ~{need_pct} #, "
