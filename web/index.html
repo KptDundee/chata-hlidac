@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.221", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.222", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -27,6 +27,8 @@ header{margin:4px 0 16px}
 header .hrow{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:nowrap;margin-top:6px}
 header .hrow>.sub{min-width:0;font-size:13px}
 h1{font-size:clamp(17px,5.2vw,22px);margin:0;font-weight:700;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+#sunhd{font-size:12.5px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text2);margin-left:10px;vertical-align:middle;white-space:nowrap}
+#sunhd svg{width:18px;height:14px;vertical-align:-2px;margin-right:2px}
 h1 .ver{font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 .htop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .hleft{flex:1 1 150px;min-width:150px}
@@ -263,7 +265,7 @@ details.sec>.in{margin-top:8px}
 
 <main id="app" class="hide">
   <header>
-    <h1>🏡 Chata<span class="ver" id="ver">v3.6</span></h1>
+    <h1>🏡 Chata<span class="ver" id="ver">v3.6</span><span id="sunhd"></span></h1>
     <div class="hrow"><div class="sub"><span id="upd">…</span><div id="flipbat"></div></div>
     <div style="display:flex;gap:8px;margin-left:auto"><button id="depart" title="Odjíždím – zkontrolovat, jestli zdroj vydrží do návratu">🚗</button><button id="live" title="Načíst čerstvá data z chaty">⚡ Načíst</button><button id="refresh" title="Obnovit stránku">↻</button><button id="openset2" title="Nastavení">⚙</button></div></div>
   </header>
@@ -882,6 +884,7 @@ function renderVers(d){
   const hl = d.ver ? (d.ver !== WEB_VER ? `<span class="vbad">hlídač ${d.ver}</span>` : `hlídač ${d.ver}`) : "hlídač ?";
   $("vers").innerHTML = `Verze: web ${WEB_VER} · ${hl} · ${flip}`;
   $("ver").textContent = "v" + WEB_VER;
+  try{ $("sunhd").innerHTML = sunNextHtml(d); }catch(e){}         // 5.222: nejbližší západ / východ slunce v záhlaví
 }
 
 function renderPan(d, pn){
@@ -2651,7 +2654,9 @@ function sunNext(d){
     if(r){ ev.push({t:r[0], k:"r"}, {t:r[1], k:"s"}); } }
   return ev.filter(e=>e.t > now).sort((a,b)=>a.t-b.t).slice(0,2);
 }
-const sunNextHtml = d => sunNext(d).map(e=>`<span style="white-space:nowrap"><span title="${e.k==="r" ? "východ slunce" : "západ slunce"}">${e.k==="r" ? "🌅" : "🌇"}</span> ${relDay(e.t)==="dnes" ? "" : relDay(e.t)+" "}${hmT(e.t)}</span>`).join(" · ");
+/* 5.222: piktogram – horizont, půlka slunce, šipka nahoru (východ) / dolů (západ) */
+const sunIco = up => `<svg viewBox="0 0 24 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="${up ? "východ slunce" : "západ slunce"}"><title>${up ? "východ slunce" : "západ slunce"}</title><path d="M2 16h20"/><path d="M6.5 16a5.5 5.5 0 0 1 11 0"/>${up ? '<path d="M12 7V1M9.5 3.5 12 1l2.5 2.5"/>' : '<path d="M12 1v6M9.5 4.5 12 7l2.5-2.5"/>'}</svg>`;
+const sunNextHtml = d => sunNext(d).map(e=>`<span style="white-space:nowrap">${sunIco(e.k==="r")}${relDay(e.t)==="dnes" ? "" : relDay(e.t)+" "}${hmT(e.t)}</span>`).join(" ");
 function tileTemps(d, h){
   const th0 = (d.inverter && d.inverter.th) || [], tw = d.th_watch || [];
   const kk = n => String(n||"").replace(/^[\s,;:.]+|[\s,;:.]+$/g,"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -2662,7 +2667,7 @@ function tileTemps(d, h){
   const cfg = d.cfg || {}, lim = cfg.lednice_max_C ?? 8;
   // 5.20: tabulka – jméno | °C | vlhkost | baterie teploměru (sloupce pod sebou, ať se dá rychle porovnat)
   const hmin = cfg.vlhkost_min ?? 35, hrooms = String(cfg.vlhkost_hlidat || "").split(",").map(kk).filter(Boolean);
-  let html = `<div class="tt"><span class="sub" style="font-size:12.5px">${sunNextHtml(d)}</span><span class="hd">°C</span><span class="hd">💧</span><span class="hd">🔋</span>`;
+  let html = `<div class="tt"><span></span><span class="hd">°C</span><span class="hd">💧</span><span class="hd">🔋</span>`;
   for(const x of th){
     const old = h.now - x.tm > 1800, fr = x.n === cfg.teplomer_lednice;
     const col = old ? "--muted" : fr && x.t > lim ? "--crit" : x.t!=null && x.t <= 0 ? "--s1" : "--text";
