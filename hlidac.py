@@ -4699,6 +4699,13 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     cab_w = ((data.get("river_sup") or {}).get("w") if on_river else now_w) or use_w
     need_w = cab_w / 0.88 + idle                                  # kolik musí panely dávat, aby se baterie nevybíjela
     covers = pv_ is not None and pv_ >= need_w * 1.1
+    # 5.216 (Petr: „šetři baterii“ chodilo, i když se baterie zrovna nabíjela): na soláru rozhoduje skutečnost –
+    # baterie za posledních 30 min přibývá (proud z regulátoru víc, než bere měnič) → panely odběr kryjí
+    if on_solar:
+        nets_ = [p["bat_a"] - ((p.get("mw") or now_w or use_w) / 0.88 + idle) / max(11.0, p.get("bat_v") or 12.5)
+                 for p in data.get("points", []) if p["t"] >= ts - 1800 and p.get("bat_a") is not None]
+        if len(nets_) >= 2:
+            covers = sum(nets_) / len(nets_) > 0
     setr = cfg.get("baterie_setrna_pct") or 50
     bk2_ = bk_
     rvt_ = f"River {rv_short(RVl[bk2_]['name'])} ({fmt(RVl[bk2_]['soc'])} %)" if bk2_ else "River"
@@ -4733,7 +4740,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         # (po západu by se baterie jen vybíjela a večer by se stejně přepínalo zpátky na River)
         free_ok = not tk and rise and now >= rise and set_ and now < set_ - timedelta(hours=2) and st.get("do_conn") != akey
         W_ = wp_now(data, now)
-        plan_sol = W_ is None or W_["cur"] == "s"          # 5.215: radí na solár, jen když to sedí s plánem
+        plan_sol = (W_ is None or W_["cur"] == "s") and (hq["pct"] >= (cfg.get("baterie_setrna_pct") or 50) or covers)   # 5.215/5.216
         if res["ok"] and plan_sol and now.timestamp() < res["end"] and rise and set_ and rise <= now < set_ - timedelta(hours=2):
             todo_add(data, 3, f"můžeš přepnout na solár – vydrží do {hh}:{mm:02d}", "ok")
         if (due or free_ok) and res["ok"] and plan_sol and now.timestamp() < res["end"]:
@@ -5251,8 +5258,9 @@ def window_plan(data, st, now, topic, cfg):
                 L2, s2, ok, wh = L, dict(soc), True, 0.0
                 for pr, la, ia, lw in steps[i]:
                     if c == "s":
+                        Lp_ = L2
                         L2 = min(L2 + pr, top) - la
-                        if L2 < floor:
+                        if L2 < 0 or (L2 < floor and L2 < Lp_):   # 5.216: pod šetrnou hranicí jen když se nabíjí
                             ok = False
                             break
                     else:
