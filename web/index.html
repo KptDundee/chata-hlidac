@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.225", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.226", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2893,12 +2893,13 @@ function useModel(d){
   const rids = ids(cfg.zasuvky_river), gen = String(cfg.zasuvka_generator ?? "7"), auto = String(cfg.river_auto_ip ?? "8");
   const fr = String(cfg.zasuvka_lednice ?? "4");
   const named = Object.keys(names).filter(k=>/^\s*\(\d{1,3}\)/.test(names[k]||""));
-  const live = (d.inverter && d.inverter.tp || []).map(p=>p.ip).filter(Boolean);
+  const live = (d.inverter && d.inverter.tp || []).filter(p=>p.n || names[p.ip]).map(p=>p.ip).filter(Boolean);   // 5.226: bez jména (neznámá adresa) ne
+  const lname = id => { const p = ((d.inverter && d.inverter.tp) || []).find(x=>x.ip===id); return p && p.n; };
   const skip = new Set([mip, ...rids, gen, auto]);
   const wifi = named.find(k=>/wi.?fi|router/i.test(names[k])) || null;
   const devIds = [...new Set([...named, ...live])].filter(k=>!skip.has(k) && /^\d{1,3}$/.test(k))
     .sort((a,b)=>(a===fr?-1:b===fr?1:a===wifi?-1:b===wifi?1:(+a)-(+b)));
-  const devs = devIds.map((id,i)=>({id, name: pn(names[id]) || `zásuvka ${id}`, color: css(DEVC[i % DEVC.length]), hist: id===fr || id===wifi}));
+  const devs = devIds.map((id,i)=>({id, name: pn(names[id]) || pn(lname(id)) || `zásuvka ${id}`, color: css(DEVC[i % DEVC.length]), hist: id===fr || id===wifi}));
   const idle = (cfg.menic_vlastni_W ?? 6) + (cfg.desulfator_W ?? 0.25);
   return {mip, rids, gen, auto, fr, wifi, devs, idle, od: cfg.river_noci_od || "2026-10-15"};
 }

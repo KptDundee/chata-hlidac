@@ -677,6 +677,7 @@ def backfill_flip(data, now, cfg):
             pt["gw"] = inv["gen"]["w"]
         if plugs:
             pt["tp"] = plugs
+        lt_est(data, pt, inv)                  # 5.226: příkon žárovek z počítadla Wh
         cs_ = inv_src(inv, cfg)
         if cs_:
             pt["cs"] = cs_                     # 5.113: z čeho chata jela (i se stavem Victronu z té zprávy)
@@ -713,6 +714,7 @@ def attach_flip(data, st, inv, now, cfg, topic):
     plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
     if plugs:
         pt["tp"] = plugs
+    lt_est(data, pt, inv)              # 5.226: příkon žárovek z počítadla Wh
     cs_ = inv_src(inv, cfg)
     if cs_:
         pt["cs"] = cs_                 # 5.113: z čeho chata jede (jeden výpočet, i se stavem Victronu)
@@ -786,6 +788,37 @@ def attach_flip(data, st, inv, now, cfg, topic):
             raw[ip] = wh
             raw_t[ip] = int(inv["t"])
     st["tp_v2"] = True
+
+
+def lt_est(data, pt, inv):
+    """5.226 (Petr: svítí světlo v pokoji a nejsou vidět data odběru): žárovky Tapo neměří W, jen počítadlo Wh za den.
+    Příkon = přírůstek počítadla za posledních ~30 min až 3 h (stejný den) / čas; zhasnuto = 0. Počítadlo se ukládá
+    k bodu (tw), příkon do tp jako u zásuvek – graf i „ostatní“ pak světlo vidí."""
+    lts = [p for p in inv.get("tp", []) if p.get("lt") and p.get("ip") and not p.get("off") and p.get("wh") is not None]
+    if not lts:
+        return
+    t = pt["t"]
+    day = datetime.fromtimestamp(t, TZ).date()
+    tw = pt.setdefault("tw", {})
+    for p in lts:
+        ip = str(p["ip"])
+        tw[ip] = p["wh"]
+        w = None
+        if p.get("on") != 1:
+            w = 0.0
+        else:
+            for q in reversed(data.get("points", [])):
+                if q["t"] > t - 1800:
+                    continue
+                if q["t"] < t - 3 * 3600 or datetime.fromtimestamp(q["t"], TZ).date() != day:
+                    break
+                w0 = (q.get("tw") or {}).get(ip)
+                if w0 is not None:
+                    if p["wh"] >= w0:
+                        w = round((p["wh"] - w0) / ((t - q["t"]) / 3600), 1)
+                    break
+        if w is not None:
+            pt.setdefault("tp", {})[ip] = w
 
 
 def flip_point(data, t):

@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.226 – 6. 11. 2026
+- Spotřeba chaty → Grafy: pryč grafy „zásuvka 105 / 109 / 151“ – to byly neznámé adresy v síti, které Flip nenašel (bez jména); grafy jen pro pojmenovaná zařízení. Jména žárovek z Flipu (i když nejsou v seznamu jmen).
+- Žárovky Tapo (světla) neměří W, jen počítadlo Wh za den → hlídač příkon odhadne z přírůstku počítadla za posledních ~30 min (zhasnuto = 0) a uloží ho k bodu jako u zásuvek. Graf světla pak ukazuje, kdy a kolik svítilo; o tolik je menší „Ostatní (neměřené)“. Platí od teď (zpětně data nejsou).
+
 ## 5.225 – 6. 11. 2026
 - Sjednocení „vydrží do 22:00“ × důrazné „Přepni na River hned“ (Petr): když solární baterie vydrží bezpečně (do rána / odjezdu nad alarmem), je přepnutí podle plánu jen šetření – žádné důrazné upozornění, jen jedna zpráva „🔌 Přepni chatu na River ŽLUT … Když nepřepneš, nic se nestane – vydrží do rána, jen se víc vybije“ (i večer). Na dlaždici „➜ šetrně přepni na River ŽLUT“ (předem „šetrně na River v …“). Důrazné upozornění zůstává, jen když by solár bezpečně nevydržel.
 
