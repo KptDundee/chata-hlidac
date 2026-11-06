@@ -4714,7 +4714,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     was_soft = "sol_soft" in (st.get("al") or {})
     soft = on_solar and home_ and not in_quiet() and alarm_soc <= hq["pct"] < setr + (5 if was_soft else 0) and not covers
     alarm(st, topic, "sol_soft", soft, f"🔋 Solární baterie {hq['pct']} # – šetři ji, přepni na River",
-          f"Chata jede ze solární baterie a ta je pod šetrnou hranicí {setr} # (alarm je {round(alarm_soc)} #). Hlubší vybíjení AGM baterii "
+          f"Chata jede ze solární baterie a ta je pod šetrnou hranicí {fmt(setr)} # (alarm je {round(alarm_soc)} #). Hlubší vybíjení AGM baterii "
           f"zkracuje život.\nPřepni chatu na {rvt_}.", 3, "battery", ok_title=False, cat=2)
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu) – 5.117: stejná funkce jako večerní plán
