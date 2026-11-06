@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.224 – 6. 11. 2026
+- Dlaždice „🗓 Kdy jsem pryč“ i v záložce Přehled (nahoře, sekce Pobyt) – Petr ji hledal tam; v záložce Teď zůstává.
+
 ## 5.223 – 6. 11. 2026
 - Dlaždice Solární baterie: když plán počítá s přechodem na River později, krátce „➜ šetrně na River v 15:31“ (bez jména River; „vydrží do …“ zůstává – to je bezpečnost, tohle šetření baterie).
 - Zpráva (ne alarm, priorita 3) „🔌 Přepni chatu na River ŽLUT“, když podle plánu přes den nastane čas přejít na River – jednou za den a River, jen doma a mimo noční klid. Večer platí dál „Přepni chatu na River … do ~…“.

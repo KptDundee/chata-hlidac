@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.223", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.224", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -302,6 +302,8 @@ details.sec>.in{margin-top:8px}
       <div class="hgrid" id="h_dev"></div>
     </div>
     <div id="hp_pr" class="hide">
+      <h2 class="hh">Pobyt</h2>
+      <div class="hgrid" id="h_plan2"></div>
       <h2 class="hh">Uplynulé</h2>
       <div class="hgrid" id="h_past"></div>
       <h2 class="hh">Dlouhodobě</h2>
@@ -3474,6 +3476,7 @@ function renderHome(d){
   $("h_use").innerHTML = T.use.map(tileHtml).join("");
   $("h_now").innerHTML = T.out.map(tileHtml).join("");
   $("h_past").innerHTML = T.past.map(tileHtml).join("");
+  $("h_plan2").innerHTML = tileHtml(tilePlan(d, h));          // 5.224 (Petr): „Kdy jsem pryč“ i v Přehledu
   $("h_long").innerHTML = T.long.map(tileHtml).join("");
   homeTabs({en:[...T.src, ...T.out], vy:T.prod, sp:T.use, ch:T.chata, pr:[...T.past, ...T.long]});   // 5.171 / 5.174
   const A = alertItems(d, h), el = $("alerts"), top = A[0];
