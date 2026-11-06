@@ -4676,7 +4676,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     was_low = k_low in (st.get("al") or {})
     low = on_solar and hq["pct"] < alarm_soc + (5 if was_low else 0)
     RVl = river_models(data, cfg, now)
-    bk_ = pick_river(RVl, river_usage(data, now))      # 5.203: méně používaná (s aspoň 50 %), jinak nejplnější
+    bk_ = pick_river(RVl, river_usage(data, now))      # 5.217: načatá (s aspoň 50 %), jinak nejplnější
     W0_ = wp_now(data, now)                            # 5.215: když plán říká River, tu z plánu
     if W0_:
         for src_ in (W0_["cur"], (W0_["nxt"] or {}).get("src")):
@@ -4712,6 +4712,12 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     W2_ = wp_now(data, now)
     if on_river and home_ and covers and (W2_ is None or W2_["cur"] == "s"):
         todo_add(data, 4, "přepni na solár – vyrábí víc, než chata bere", "ok")
+    # 5.217 (Petr: dlaždice a rady musí sedět s plánem): plán říká teď jiný zdroj, než na kterém chata jede → přepni
+    conn_ = (data.get("river_sup") or {}).get("sn")
+    if home_ and W2_ and W2_["cur"] != "s" and W2_["cur"] in RVl and (on_solar or (on_river and conn_ and conn_ != W2_["cur"])):
+        todo_add(data, 5, f"přepni na River {rv_short(RVl[W2_['cur']]['name'])} ({fmt(RVl[W2_['cur']]['soc'])} %)", "warn")
+    elif home_ and W2_ and W2_["cur"] == "s" and on_river and not covers:
+        todo_add(data, 3, "můžeš přepnout na solár", "ok")
     if on_river and home_ and covers and (W2_ is None or W2_["cur"] == "s") and hq["pct"] >= alarm_soc and rise and set_ and rise <= now < set_ - timedelta(hours=1) \
             and st.get("sol_use_d") != now.strftime("%Y-%m-%d") and st.get("do_conn") != (str(int(AW[0].timestamp())) if AW else now.strftime("%Y-%m-%d")):
         ntfy(topic, "☀️ Přepni chatu na solár – vyrábí víc, než chata bere",
@@ -5119,10 +5125,11 @@ def river_usage(data, now, days=30):
 
 
 def pick_river(RV, use, min_soc=50):
-    """Kterou River doporučit: mezi těmi s aspoň min_soc % méně používanou; jinak tu nejplnější."""
+    """Kterou River doporučit: 5.217 (Petr) načatou – mezi těmi s aspoň min_soc % tu prázdnější (plnější zůstane na noc /
+    odjezd); jinak tu nejplnější. Když plán podle okna generátoru River vybral, platí ta z plánu."""
     ok = [k for k, v in RV.items() if v["soc"] >= min_soc]
     if ok:
-        return min(ok, key=lambda k: (use.get(k, 0.0), -RV[k]["soc"]))
+        return min(ok, key=lambda k: (RV[k]["soc"], use.get(k, 0.0)))
     return max(RV, key=lambda k: RV[k]["soc"]) if RV else None
 
 
@@ -5161,6 +5168,13 @@ def build_todo(data, st, now):
             t_ = _re.sub(r"^[^\wÁ-ž]+", "", str(e.get("title") or "")).strip()
             L.append({"p": 8 if k == "wp_chg1" else 7 if k.startswith("rv_") else 6, "txt": t_[:1].lower() + t_[1:], "lvl": "crit" if k != "wp_chg" else "warn"})
     L.sort(key=lambda x: -x["p"])
+    seen_, L2_ = set(), []                               # 5.217: stejná rada jen jednou (ta důležitější)
+    for x in L:
+        k_ = " ".join(x["txt"].lower().split()[:3])
+        if k_ not in seen_:
+            seen_.add(k_)
+            L2_.append(x)
+    L = L2_
     data["todo"] = {"t": int(now.timestamp()), "list": L[:3]}
     print("Co teď udělat: " + (" | ".join(x["txt"] for x in L[:3]) or "nic"))
 
@@ -5199,6 +5213,9 @@ def window_plan(data, st, now, topic, cfg):
         t += 600
     if w1 is None:
         w1 = ts + 72 * 3600
+    # 5.216: první hodinu výroba aspoň taková, jaká teď opravdu je (proud z regulátoru za 30 min) – předpověď bývá opatrnější
+    ba_ = [p["bat_a"] for p in data.get("points", []) if p["t"] >= ts - 1800 and p.get("bat_a") is not None]
+    ba_now = sum(ba_) / len(ba_) if len(ba_) >= 2 else 0.0
     # body, kdy jde zdroj přepnout (jen doma): teď, odjezdy, návraty, západ a východ slunce
     pts_ = {ts}
     for a, b in AW:
@@ -5220,13 +5237,25 @@ def window_plan(data, st, now, topic, cfg):
             if x and ts < x.timestamp() < w1 and home(x.timestamp()):
                 pts_.add(x.timestamp())
         d_ += timedelta(days=1)
+    # 5.217 (Petr: doma jde přepnout kdykoli): i chvíle, kdy solár přestane stačit (výroba podle předpovědi klesne pod
+    # spotřebu chaty) – „jeď na solár, dokud nabíjí, pak na River“
+    sun0 = False                                         # teď solár stačí (do bodu, kdy přestane)
+    if home(ts):
+        t_ = ts
+        while t_ < min(w1, ts + 16 * 3600):
+            pr_ = M["prod_ah"](t_, 600)
+            if t_ < ts + 3600:
+                pr_ = max(pr_, ba_now * 600 / 3600)
+            if pr_ < M["load_a"](t_) * 600 / 3600:
+                if t_ >= ts + 600 and home(t_):
+                    pts_.add(t_)
+                    sun0 = True
+                break
+            t_ += 600
     bounds = sorted(pts_) + [w1]
     segs = [(bounds[i], bounds[i + 1]) for i in range(len(bounds) - 1) if bounds[i + 1] - bounds[i] >= 300]
     # průběh po 10 min (stejný pro všechny varianty)
     steps = []
-    # 5.216: první hodinu výroba aspoň taková, jaká teď opravdu je (proud z regulátoru za 30 min) – předpověď bývá opatrnější
-    ba_ = [p["bat_a"] for p in data.get("points", []) if p["t"] >= ts - 1800 and p.get("bat_a") is not None]
-    ba_now = sum(ba_) / len(ba_) if len(ba_) >= 2 else 0.0
     for a, b in segs:
         t, row = a, []
         while t < b:
@@ -5248,18 +5277,21 @@ def window_plan(data, st, now, topic, cfg):
     # 5.209: solár přednostně jen do šetrné hranice (baterie_setrna_pct, 50 #); když to jinak nejde, až k alarmu
     floor_s = max(0.0, ((cfg.get("baterie_setrna_pct") or 50) - M["alarm_soc"]) / 100 * M["cap"])
 
-    def search(soc0, floor=0.0):
+    def search(soc0, floor=0.0, sun=False):
         best = [None]
 
         def rec(i, L, soc, plan, used_wh):
             if i == len(segs):
                 sw = sum(1 for j in range(1, len(plan)) if plan[j] != plan[j - 1]) + (1 if cur and plan and plan[0] != cur else 0)
-                bal = sum(use.get(k, 0.0) * u for k, u in used_wh.items())
-                key = (round(sum(used_wh.values()) / 50), sw, bal)    # 5.209: nejdřív co nejméně z River (plyn), pak přepnutí
+                # 5.217 (Petr): jedna River ať zůstane co nejplnější (na noc / odjezd, kdy přepnout nejde) – nejdřív se bere ta načatá
+                keep = -round(max(soc.values()) / 5) if soc else 0
+                key = (round(sum(used_wh.values()) / 50), sw, keep)    # 5.209: nejdřív co nejméně z River (plyn), pak přepnutí, pak plnou nechat
                 if best[0] is None or key < best[0][0]:
                     best[0] = (key, list(plan), L, dict(soc))
                 return
             choices = srcs if home(segs[i][0]) or home(segs[i][0] - 60) or i == 0 else [plan[-1]]   # při odjezdu ještě přepnout jde
+            if sun and i == 0:
+                choices = ["s"]                          # 5.217: dokud solár stačí, jede solár
             for c in choices:
                 L2, s2, ok, wh = L, dict(soc), True, 0.0
                 for pr, la, ia, lw in steps[i]:
@@ -5285,7 +5317,7 @@ def window_plan(data, st, now, topic, cfg):
         return best[0]
 
     soc0 = {k: v["soc"] for k, v in RV.items()}
-    found = search(soc0, floor_s) or search(soc0)
+    found = (sun0 and search(soc0, floor_s, True)) or search(soc0, floor_s) or search(soc0)
     need = None
     if not found and RV:
         order = sorted(RV, key=lambda k: (use.get(k, 0.0), -RV[k]["soc"]))
