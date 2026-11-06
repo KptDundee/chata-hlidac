@@ -5276,8 +5276,20 @@ def window_plan(data, st, now, topic, cfg):
 
     # 5.209: solár přednostně jen do šetrné hranice (baterie_setrna_pct, 50 #); když to jinak nejde, až k alarmu
     floor_s = max(0.0, ((cfg.get("baterie_setrna_pct") or 50) - M["alarm_soc"]) / 100 * M["cap"])
+    # 5.219 (Petr): baterii vybíjet (výroba < spotřeba – odpoledne, večer, v noci) jen tolik, kolik zítra panely doplní
+    # navíc nad spotřebu chaty. Jinak je lepší jet z River a výrobu brát rovnou (bez ztrát nabíjení a vybíjení baterie).
+    r0_, _z0 = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    dn_ = now.date() if r0_ and ts < r0_.timestamp() else now.date() + timedelta(days=1)
+    rn_, zn_ = sun_times(cfg["sirka"], cfg["delka"], dn_)
+    sur_ = 0.0
+    if rn_ and zn_:
+        t_ = rn_.timestamp()
+        while t_ < zn_.timestamp():
+            sur_ += max(0.0, M["prod_ah"](t_, 600) - M["load_a"](t_) * 600 / 3600)
+            t_ += 600
+    floor_x = max(floor_s, top_full - sur_) if (top_full := M["ah_now"] + M["room"]) else floor_s
 
-    def search(soc0, floor=0.0, sun=False, minrun=True):
+    def search(soc0, floor=0.0, sun=False, minrun=True, dis=None):
         best = [None]
 
         def rec(i, L, soc, plan, used_wh):
@@ -5310,7 +5322,7 @@ def window_plan(data, st, now, topic, cfg):
                     if c == "s":
                         Lp_ = L2
                         L2 = min(L2 + pr, top) - la
-                        if L2 < 0 or (L2 < floor and L2 < Lp_):   # 5.216: pod šetrnou hranicí jen když se nabíjí
+                        if L2 < 0 or (L2 < (dis if dis is not None else floor) and L2 < Lp_):   # 5.216/5.219: pod hranicí jen když se nabíjí
                             ok = False
                             break
                     else:
@@ -5329,7 +5341,8 @@ def window_plan(data, st, now, topic, cfg):
         return best[0]
 
     soc0 = {k: v["soc"] for k, v in RV.items()}
-    found = (sun0 and search(soc0, floor_s, True)) or search(soc0, floor_s) or search(soc0) or search(soc0, minrun=False)
+    found = ((sun0 and search(soc0, floor_s, True, dis=floor_x)) or search(soc0, floor_s, dis=floor_x)
+             or search(soc0, floor_s) or search(soc0) or search(soc0, minrun=False))
     need = None
     if not found and RV:
         order = sorted(RV, key=lambda k: (use.get(k, 0.0), -RV[k]["soc"]))
@@ -5337,7 +5350,7 @@ def window_plan(data, st, now, topic, cfg):
             for tgt in range(int(math.ceil(RV[k]["soc"] / 5.0) * 5), 101, 5):
                 if tgt <= RV[k]["soc"]:
                     continue
-                f2 = search({**soc0, k: tgt}, floor_s) or search({**soc0, k: tgt})
+                f2 = search({**soc0, k: tgt}, floor_s, dis=floor_x) or search({**soc0, k: tgt}, floor_s) or search({**soc0, k: tgt})
                 if f2:
                     dur = (tgt - RV[k]["soc"]) / 100 * RV[k]["per100"] / max(100.0, RV[k]["chg_w"]) * 3600
                     need = {"k": k, "name": RV[k]["name"], "target": tgt, "dur": int(dur), "latest": int(w0_end - dur), "plan": f2}
@@ -5380,7 +5393,8 @@ def window_plan(data, st, now, topic, cfg):
         late_n = min(w0_end - 2 * 3600, now.replace(hour=20, minute=0, second=0, microsecond=0).timestamp())
         alarm(st, topic, "wp_none", act and not need and ts >= late_n, f"⚠️ Do {rd(w1)} {hm(w1)} to nevydrží ani s nabitím River",
               why + " Nepomůže ani nabití River do plna – omez spotřebu, nebo uprav plán (návrat dřív).", 5, "warning", ok_title=False, cat=1)
-    print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, "
+    print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, zítra přebytek ~{sur_:.0f} Ah → vybíjet nejníž "
+          f"na ~{M['alarm_soc'] + floor_x / max(1.0, M['cap']) * 100:.0f} #, "
           + ("vyjde: " + " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data['wplan']['segs']) if found
              else f"nevyjde – nabít {need['name']} na {need['target']} % do {hm(need['latest'])}" if need else "nevyjde ani s nabitím"))
 

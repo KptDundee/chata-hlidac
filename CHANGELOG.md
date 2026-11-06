@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.219 – 6. 11. 2026
+- Plán podle okna generátoru (Petr): když se solární baterie vybíjí (výroba menší než spotřeba – odpoledne, večer, v noci), smí jít jen na hranici „plná − zítřejší přebytek“ (co panely zítra podle předpovědi vyrobí navíc nad spotřebu chaty přes den), nejníž na šetrnou hranici. Jinak je lepší jet z River a výrobu brát rovnou do chaty – bez ztrát nabíjení a vybíjení baterie a s menším opotřebením. Když jinak nic nevyjde, platí jako dřív šetrná hranice, pak alarm.
+- Log „Plán okna“ ukazuje zítřejší přebytek a hranici vybíjení v #.
+
 ## 5.218 – 6. 11. 2026
 - Plán podle okna generátoru – pořadí (Petr): nejdřív co nejméně z River (plyn), pak ať jedna River zůstane co nejplnější (vydrží noc / odjezd), až pak co nejméně přepnutí; při rovnosti víc z méně používané River.
 - Žádné přepnutí na méně než hodinu: každý úsek se stejným zdrojem aspoň 1 h (kromě posledního). Jen když jinak nic nevyjde, plán to pravidlo pustí.
