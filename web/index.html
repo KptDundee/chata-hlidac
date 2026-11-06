@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.219", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.220", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1593,7 +1593,7 @@ function wplanHtml(d){
     <div style="font-size:14px">Další okno (doma a 6:00–22:00): <b>${nx}</b></div>
     <div style="font-size:15px;margin:6px 0">${head}</div>
     ${(W.segs||[]).length ? `<div style="font-size:14px;line-height:1.6">${W.ok ? "Čím pojede chata" : "Pak pojede"}: ${wpSeq(W)}</div>` : ""}
-    <div class="sub" style="margin-top:6px;line-height:1.45">Hlídač zkouší všechna rozdělení solár / River, která jdou udělat – zdroj přepneš jen doma (teď, když solár přestane stačit, při odjezdu, po návratu, při západu a východu slunce, ve 22:00 a před spaním). Jednu River drží co nejplnější na noc a odjezd (kdy přepnout nejde) – mezitím jede z té načaté. Nepřepíná na méně než hodinu. Solární baterii vybíjí (večer, v noci) jen tolik, kolik zítra panely doplní navíc nad spotřebu. Když nic nevyjde, poradí, kterou River nabít (méně používanou) a do kdy, aby nabíjení skončilo v okně. Upozornění: 2 h před nejpozdějším začátkem, v nejpozdější čas (nejpozději ve 20:00) akutně. Mimo okno a při nabíjení nic.</div></div>`;
+    <div class="sub" style="margin-top:6px;line-height:1.45">Hlídač zkouší všechna rozdělení solár / River, která jdou udělat – zdroj přepneš jen doma (teď, když solár přestane stačit, při odjezdu, po návratu, při západu a východu slunce, ve 22:00 a před spaním). Jednu River drží co nejplnější na noc a odjezd (kdy přepnout nejde) – mezitím jede z té načaté. Nepřepíná na méně než hodinu. Solár jede, dokud panely kryjí aspoň polovinu spotřeby; pak baterii vybíjí jen tolik, kolik zítra panely doplní navíc nad spotřebu. Když nic nevyjde, poradí, kterou River nabít (méně používanou) a do kdy, aby nabíjení skončilo v okně. Upozornění: 2 h před nejpozdějším začátkem, v nejpozdější čas (nejpozději ve 20:00) akutně. Mimo okno a při nabíjení nic.</div></div>`;
 }
 function detPlan(body){
   const d = DATA, tok = store.get("ghtok");
@@ -2639,16 +2639,30 @@ function thWhy(x){
   if(!x.ok) return `Flip ho slyší (${x.sn}×), ale nejde přečíst – zkontroluj klíč (BLE KEY) a MAC`;
   return "zatím bez hodnot";
 }
+/* 5.220: pevné pořadí teploměrů – stejné na dlaždici i v kartě */
+const TH_ORD = ["pokoj","loznice","baterie","kuchyne","koupelna","lednice"];
+const thOrdOf = n => { const k = String(n||"").replace(/^[\s,;:.]+/,"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); const i = TH_ORD.findIndex(o=>k.startsWith(o)); return i < 0 ? 99 : i; };
+/* 5.220 (Petr): nejbližší dva sluneční okamžiky – teď první to, co přijde (přes den západ, po západu východ) */
+function sunNext(d){
+  const lat = +(d.cfg && d.cfg.sirka) || 49.8, lon = +(d.cfg && d.cfg.delka) || 15.0, now = Date.now()/1000, ev = [];
+  for(let i = 0; i < 3; i++){ const day = new Date(); day.setHours(12,0,0,0); day.setDate(day.getDate()+i);
+    let r = sunRS(day, lat, lon);
+    if(i === 0 && d.sun && d.sun[0] && dkey(d.sun[0]) === dkey(now)) r = d.sun;   // dnes stejné časy jako hlídač (plán)
+    if(r){ ev.push({t:r[0], k:"r"}, {t:r[1], k:"s"}); } }
+  return ev.filter(e=>e.t > now).sort((a,b)=>a.t-b.t).slice(0,2);
+}
+const sunNextHtml = d => sunNext(d).map(e=>`<span style="white-space:nowrap"><span title="${e.k==="r" ? "východ slunce" : "západ slunce"}">${e.k==="r" ? "🌅" : "🌇"}</span> ${relDay(e.t)==="dnes" ? "" : relDay(e.t)+" "}${hmT(e.t)}</span>`).join(" · ");
 function tileTemps(d, h){
   const th0 = (d.inverter && d.inverter.th) || [], tw = d.th_watch || [];
   const kk = n => String(n||"").replace(/^[\s,;:.]+|[\s,;:.]+$/g,"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   // 5.13: i teploměry ze seznamu, které v posledním měření chybí
-  const th = th0.concat(tw.filter(w=>!th0.some(x=>kk(x.n)===kk(w.n))).map(w=>({n:w.n, sn:null, miss:true, why:w.why, tm:w.last})));
+  const th = th0.concat(tw.filter(w=>!th0.some(x=>kk(x.n)===kk(w.n))).map(w=>({n:w.n, sn:null, miss:true, why:w.why, tm:w.last})))
+    .sort((a,b)=>thOrdOf(a.n)-thOrdOf(b.n) || String(a.n).localeCompare(String(b.n)));   // 5.220: pořadí jako v kartě
   if(!th.length) return null;
   const cfg = d.cfg || {}, lim = cfg.lednice_max_C ?? 8;
   // 5.20: tabulka – jméno | °C | vlhkost | baterie teploměru (sloupce pod sebou, ať se dá rychle porovnat)
   const hmin = cfg.vlhkost_min ?? 35, hrooms = String(cfg.vlhkost_hlidat || "").split(",").map(kk).filter(Boolean);
-  let html = `<div class="tt"><span></span><span class="hd">°C</span><span class="hd">💧</span><span class="hd">🔋</span>`;
+  let html = `<div class="tt"><span class="sub" style="font-size:12.5px">${sunNextHtml(d)}</span><span class="hd">°C</span><span class="hd">💧</span><span class="hd">🔋</span>`;
   for(const x of th){
     const old = h.now - x.tm > 1800, fr = x.n === cfg.teplomer_lednice;
     const col = old ? "--muted" : fr && x.t > lim ? "--crit" : x.t!=null && x.t <= 0 ? "--s1" : "--text";
@@ -2813,11 +2827,11 @@ const tempSeg = () => `<div class="seg" id="tempseg" style="margin-bottom:12px">
 const tempLab = () => TEMPH===168 ? "týden" : TEMPH+" h";
 document.addEventListener("click", e => { const b = e.target.closest("#tempseg button"); if(!b) return; TEMPH = +b.dataset.hh; try{ localStorage.setItem("temph", TEMPH); }catch(_){} openDet(DET_K); });
 function detTemps(body){
-  const d = DATA, h = homeData(d), cfg = d.cfg || {}, th = (d.inverter && d.inverter.th) || [], lim = cfg.lednice_max_C ?? 8;
+  const d = DATA, h = homeData(d), cfg = d.cfg || {}, th = ((d.inverter && d.inverter.th) || []).slice().sort((a,b)=>thOrdOf(a.n)-thOrdOf(b.n) || String(a.n).localeCompare(String(b.n))), lim = cfg.lednice_max_C ?? 8;
   const pts = (d.points||[]).filter(p=>p.t >= h.now - TEMPH*3600 && p.th);
   // 5.10: jen teploměry, které Flip posílá teď (staré / přejmenované zmizí); starší body podle očištěného jména
   const clean = n => String(n).replace(/^[\s,;:.]+|[\s,;:.]+$/g, "");
-  const ORD = ["pokoj","loznice","baterie","kuchyne","koupelna","lednice"], ordOf = n => { const k = String(n).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); const i = ORD.findIndex(o=>k.startsWith(o)); return i < 0 ? 99 : i; };   // 5.156: pevné pořadí
+  const ordOf = thOrdOf;   // 5.156: pevné pořadí (5.220: společné s dlaždicí)
   const names = [...new Set([...th.map(x=>clean(x.n)), ...pts.flatMap(p=>Object.keys(p.th||{}).map(clean))])].filter(Boolean).sort((a,b)=>ordOf(a)-ordOf(b) || a.localeCompare(b));   // 5.12: i ty, co teď chvíli mlčí
   const val = (p, n) => { for(const k in (p.th||{})) if(clean(k) === n) return p.th[k]; return null; };
   const role = n => n === cfg.teplomer_baterie && !/bater/i.test(n) ? " – u solární baterie" : n === cfg.teplomer_lednice && !/lednic/i.test(n) ? " – v lednici" : "";

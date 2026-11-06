@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.220 – 6. 11. 2026
+- Plán podle okna generátoru (Petr): solár jede, dokud panely kryjí aspoň polovinu průměrné spotřeby chaty (i s lednicí) – většina výroby jde rovnou do chaty a baterie doplácí málo (nejníž šetrná hranice). Až výroba klesne pod polovinu spotřeby, platí „vybíjet jen o zítřejší přebytek“. Bod přepnutí = chvíle, kdy výroba klesne pod polovinu spotřeby.
+- Dlaždice Teploty: teploměry ve stejném pořadí jako v kartě (pokoj, ložnice, baterie, kuchyně, koupelna, lednice); i seznam „Teď“ v kartě v tomto pořadí.
+- Dlaždice Teploty nahoře: nejbližší západ a východ slunce (🌇 / 🌅) – vždy první to, co přijde teď (přes den západ, po západu východ zítra).
+
 ## 5.219 – 6. 11. 2026
 - Plán podle okna generátoru (Petr): když se solární baterie vybíjí (výroba menší než spotřeba – odpoledne, večer, v noci), smí jít jen na hranici „plná − zítřejší přebytek“ (co panely zítra podle předpovědi vyrobí navíc nad spotřebu chaty přes den), nejníž na šetrnou hranici. Jinak je lepší jet z River a výrobu brát rovnou do chaty – bez ztrát nabíjení a vybíjení baterie a s menším opotřebením. Když jinak nic nevyjde, platí jako dřív šetrná hranice, pak alarm.
 - Log „Plán okna“ ukazuje zítřejší přebytek a hranici vybíjení v #.

@@ -5246,7 +5246,7 @@ def window_plan(data, st, now, topic, cfg):
             pr_ = M["prod_ah"](t_, 600)
             if t_ < ts + 3600:
                 pr_ = max(pr_, ba_now * 600 / 3600)
-            if pr_ < M["load_a"](t_) * 600 / 3600:
+            if pr_ < 0.5 * M["load_a"](t_) * 600 / 3600:     # 5.220: panely kryjí míň než polovinu průměrné spotřeby (i s lednicí)
                 if t_ >= ts + 600 and home(t_):
                     pts_.add(t_)
                     sun0 = True
@@ -5322,7 +5322,10 @@ def window_plan(data, st, now, topic, cfg):
                     if c == "s":
                         Lp_ = L2
                         L2 = min(L2 + pr, top) - la
-                        if L2 < 0 or (L2 < (dis if dis is not None else floor) and L2 < Lp_):   # 5.216/5.219: pod hranicí jen když se nabíjí
+                        # 5.216/5.219/5.220: pod hranicí jen když se nabíjí; „zítřejší přebytek“ (dis) jen když panely kryjí míň
+                        # než polovinu spotřeby – jinak jde většina výroby rovnou do chaty a baterie doplácí málo (šetrná hranice)
+                        fl_ = dis if dis is not None and pr < 0.5 * la else floor
+                        if L2 < 0 or (L2 < fl_ and L2 < Lp_):
                             ok = False
                             break
                     else:
