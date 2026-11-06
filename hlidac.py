@@ -714,7 +714,9 @@ def attach_flip(data, st, inv, now, cfg, topic):
     plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
     if plugs:
         pt["tp"] = plugs
+    data["_lt_log"] = True
     lt_est(data, pt, inv)              # 5.226: příkon žárovek z počítadla Wh
+    data.pop("_lt_log", None)
     cs_ = inv_src(inv, cfg)
     if cs_:
         pt["cs"] = cs_                 # 5.113: z čeho chata jede (jeden výpočet, i se stavem Victronu)
@@ -819,6 +821,9 @@ def lt_est(data, pt, inv):
                     break
         if w is not None:
             pt.setdefault("tp", {})[ip] = w
+        if data.get("_lt_log"):
+            print(f"Světlo {p.get('n') or ip}: {'svítí' if p.get('on') == 1 else 'nesvítí'}, počítadlo {p['wh']} Wh, příkon "
+                  f"{'–' if w is None else f'{w:.1f} W'}")
 
 
 def flip_point(data, t):
