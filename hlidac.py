@@ -5051,6 +5051,15 @@ def eve_plan(data, st, now, topic, cfg):
         res.update({"sw": int(t_sw), "bed": sw_bed, "late": False, "ok": not rv_nm, "rv": rv_nm or None, "src": "plan"})
     # jen od západu slunce (dřív je člověk typicky ještě pryč) do rána, jen když chata jede ze soláru
     evening = set_t and now >= set_t or (rise_t and now < rise_t)
+    # 5.223 (Petr): přes den, když podle plánu nastal čas přejít na River – zpráva (ne alarm), jednou za den a River
+    if W and cs_ == "s" and W["cur"] != "s" and not evening and not is_away(cfg, PLAN, now) and not in_quiet():
+        k_ = now.strftime("%Y-%m-%d") + ":" + str(W["cur"])
+        if st.get("wp_sw") != k_:
+            ntfy(topic, f"🔌 Přepni chatu na River {rv_short(W['cur_name'])}",
+                 f"Podle plánu je teď šetrnější jet z River – panely už nekryjí spotřebu chaty a solární baterie ({data['hq'].get('pct')} #) "
+                 f"se šetří." + (" Když nepřepneš, solár chatu i tak utáhne, jen víc vybije baterii." if (data.get("day_fc") or {}).get("ok") else ""),
+                 3, "electric_plug")
+            st["wp_sw"] = k_
     res["ev"] = bool(evening)                      # 5.214: web ukazuje radu „přepni na River“ jen večer (jako upozornění)
     data["eve"] = res
     due = cs_ == "s" and evening and not res["ok"] and (t_sw is None or ts >= t_sw - 1800) and not is_away(cfg, PLAN, now)

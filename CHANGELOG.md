@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.223 – 6. 11. 2026
+- Dlaždice Solární baterie: když plán počítá s přechodem na River později, krátce „➜ šetrně na River v 15:31“ (bez jména River; „vydrží do …“ zůstává – to je bezpečnost, tohle šetření baterie).
+- Zpráva (ne alarm, priorita 3) „🔌 Přepni chatu na River ŽLUT“, když podle plánu přes den nastane čas přejít na River – jednou za den a River, jen doma a mimo noční klid. Večer platí dál „Přepni chatu na River … do ~…“.
+- Záhlaví: piktogram slunce s paprsky nad horizontem a svislou šipkou vlevo (dolů západ, nahoru východ), větší; bez slova „zítra“, větší mezera mezi údaji.
+
 ## 5.222 – 6. 11. 2026
 - Západ a východ slunce přesunuty do záhlaví hlavní stránky vedle „CHATA“ a verze (Petr), z dlaždice Teploty pryč. Vlastní piktogram: horizont, půlka slunce a šipka dolů (západ) / nahoru (východ). Vždy první to, co přijde teď.
 
