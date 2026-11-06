@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.215 – 6. 11. 2026
+- Upozornění a dlaždice v souladu (Petr): jedno místo „co teď udělat“ (data.todo) – sestaví ho hlídač z aktivních upozornění a rad (pod alarmem, před odjezdem, kdy na River, šetři baterii, nabij River, přepoj River, přepni na solár, můžeš na solár). Dlaždice Solární baterie ukazuje to nejdůležitější („➜ …“) stejnými slovy jako upozornění.
+- Plán podle okna generátoru se počítá dřív a ostatní rady se podle něj řídí: večerní „přepni na River“ bere čas a River z plánu (počítá odjezd, šetrnou hranici, další okno), „můžeš / přepni na solár“ jen když plán teď počítá se solárem, rady „přepni na River“ (pod alarmem, šetři) jmenují River z plánu.
+- Krátká jména River v nadpisech upozornění („ŽLUT“, „ČERV“).
+
 ## 5.214 – 6. 11. 2026
 - Dlaždice Solární baterie ráno ukazovala „➜ přepni na River teď“, i když přišlo „vydrží do 22:00“ (Petr). Ta rada je večerní (aby solár vydržel do rána) – teď se ukazuje jen od západu slunce do rána, stejně jako upozornění. Přes den platí výhled dne.
 
