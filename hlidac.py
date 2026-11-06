@@ -5224,11 +5224,17 @@ def window_plan(data, st, now, topic, cfg):
     segs = [(bounds[i], bounds[i + 1]) for i in range(len(bounds) - 1) if bounds[i + 1] - bounds[i] >= 300]
     # průběh po 10 min (stejný pro všechny varianty)
     steps = []
+    # 5.216: první hodinu výroba aspoň taková, jaká teď opravdu je (proud z regulátoru za 30 min) – předpověď bývá opatrnější
+    ba_ = [p["bat_a"] for p in data.get("points", []) if p["t"] >= ts - 1800 and p.get("bat_a") is not None]
+    ba_now = sum(ba_) / len(ba_) if len(ba_) >= 2 else 0.0
     for a, b in segs:
         t, row = a, []
         while t < b:
             dt = min(600, b - t)
-            row.append((M["prod_ah"](t, dt), M["load_a"](t) * dt / 3600, M["idle_a"] * dt / 3600, M["load_w"](t) * dt / 3600))
+            pr_ = M["prod_ah"](t, dt)
+            if t < ts + 3600:
+                pr_ = max(pr_, ba_now * dt / 3600)
+            row.append((pr_, M["load_a"](t) * dt / 3600, M["idle_a"] * dt / 3600, M["load_w"](t) * dt / 3600))
             t += dt
         steps.append(row)
     top = M["ah_now"] + M["room"]
