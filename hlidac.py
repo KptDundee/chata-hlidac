@@ -5507,8 +5507,8 @@ def away_surplus(data, st, now, topic, cfg):
     """5.228 (Petr: baterie byla plná, nabíjení River ze soláru nebylo zapojené a já pryč): odjezd do 24 h → spočítat,
     kolik výroby by během nepřítomnosti propadlo (baterie plná). Aspoň ~0,2 kWh → poznámka (dlaždice, co teď udělat)
     a jedna zpráva (ne alarm) večer před odjezdem, nebo hned, když je odjezd blíž než 12 h. Zapojení nejde poznat
-    (zásuvka je vidět, i když je River fyzicky na generátoru) → hlásí se vždy. Odhad: chata celou dobu ze solární
-    baterie (opatrně – na River by propadlo ještě víc)."""
+    (zásuvka je vidět, i když je River fyzicky na generátoru) → hlásí se vždy. 5.229: radši upozornit – během
+    nepřítomnosti počítá s chatou na River (z baterie jen měnič), hranice ~0,1 kWh."""
     data.pop("away_sur", None)
     ts = now.timestamp()
     ivs = [(a.timestamp(), b.timestamp()) for a, b, f in away_list(cfg, PLAN, now, days=3)
@@ -5520,7 +5520,8 @@ def away_surplus(data, st, now, topic, cfg):
     top = M["ah_now"] + M["room"]
     L, lost, t = M["ah_now"], 0.0, ts
     while t < min(b, ts + 72 * 3600):
-        L += M["prod_ah"](t, 600) - M["load_a"](t) * 600 / 3600
+        # 5.229 (Petr: radši upozornit – když to nevyjde, nic se neděje): během nepřítomnosti chata z River (baterie jen měnič)
+        L += M["prod_ah"](t, 600) - (M["idle_a"] if a <= t < b else M["load_a"](t)) * 600 / 3600
         if L > top:
             if t >= a:
                 lost += L - top
@@ -5530,7 +5531,7 @@ def away_surplus(data, st, now, topic, cfg):
     kwh = lost * 12.4 / 1000
     hm = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M")
     print(f"Přebytek při odjezdu {rel_day(a, now)} {hm(a)}–{rel_day(b, now)} {hm(b)}: propadne ~{kwh:.2f} kWh (podle předpovědi)")
-    if kwh < 0.2:
+    if kwh < 0.1:
         return
     data["away_sur"] = {"t": int(ts), "dep": int(a), "ret": int(b), "kwh": round(kwh, 2)}
     todo_add(data, 4, f"před odjezdem zapoj nabíjení River ze soláru (~{fmt(kwh, 1)} kWh)", "warn")

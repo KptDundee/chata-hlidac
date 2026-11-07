@@ -469,4 +469,4 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.226**: `lt_est(data, pt, inv)` – žárovky (`lt`): `pt.tw[ip]` = počítadlo Wh, `pt.tp[ip]` = (Wh − Wh bodu ≥ 30 min staršího, stejný den, max 3 h) / h, zhasnuto 0. Web `useModel`: živá zařízení jen se jménem; jméno i z `inverter.tp[].n`.
 
-**5.228**: `away_surplus` – první úsek pryč se začátkem do 24 h; simulace L po 10 min od teď do návratu (max 72 h) s `prod_ah` − `load_a` (chata celou dobu ze soláru), přetečení nad plnou během nepřítomnosti = propadne; ≥ 0,2 kWh → `data.away_sur`, todo (4), ntfy jednou za odjezd (`st.sur_dep`) od 18:00 nebo < 12 h před odjezdem.
+**5.228**: `away_surplus` – první úsek pryč se začátkem do 24 h; simulace L po 10 min od teď do návratu (max 72 h) s `prod_ah` − `load_a` (5.229: během nepřítomnosti jen `idle_a`, jinak `load_a`), přetečení nad plnou během nepřítomnosti = propadne; ≥ 0,1 kWh (5.229) → `data.away_sur`, todo (4), ntfy jednou za odjezd (`st.sur_dep`) od 18:00 nebo < 12 h před odjezdem.

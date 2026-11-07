@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.229 – 7. 11. 2026
+- Přebytek při odjezdu – radši upozornit (Petr: když to nevyjde, nic se neděje): během nepřítomnosti počítá s chatou na River (z baterie jen vlastní spotřeba měniče) a hranice ~0,1 kWh.
+
 ## 5.228 – 7. 11. 2026
 - Přebytek při odjezdu (Petr: baterie plná, nabíjení River ze soláru nezapojené a já pryč): odjezd do 24 h → hlídač podle předpovědi spočítá, kolik výroby během nepřítomnosti propadne (plná baterie). Aspoň ~0,2 kWh → na dlaždici „Kdy jsem pryč“ „☀️ před odjezdem zapoj nabíjení River ze soláru“, v „Co teď udělat“ s množstvím a jedna zpráva (ne alarm) večer před odjezdem (od 18:00) nebo hned, když je odjezd blíž než 12 h. Zapojení nejde poznat (zásuvka je vidět i s River na generátoru) → hlásí se vždy. Log „Přebytek při odjezdu …“.
 
