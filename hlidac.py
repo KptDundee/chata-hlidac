@@ -3271,12 +3271,15 @@ def check_gateway(inv, st, now, topic, cfg):
     if rs and rs.get("t") and st.get("rst_rep") != rs["t"]:
         st["rst_rep"] = rs["t"]
         bad = []
-        if not rs.get("ble_ok"):
+        # 5.230 (Petr: „Bluetooth nejde, nevidí zásuvku (1)“ – vždyť chata jede na River): měnič vypnutý → nevysílá
+        # Bluetooth a zásuvka za ním nemá proud; to je v pořádku
+        on_river = inv_src(inv, cfg) == "r"
+        if not rs.get("ble_ok") and not on_river:
             bad.append(f"Bluetooth (měnič Victron) nejde – {rs.get('ble_err') or 'žádná data'}")
         need = ips(cfg.get("zasuvky_stale"))
         mip = str(cfg.get("zasuvka_menic") or "1")
         by = {str(p.get("ip")): p for p in inv.get("tp", [])}
-        inv_off = str(inv.get("st") or "").upper() not in ("", "INVERTING")
+        inv_off = on_river or str(inv.get("st") or "").upper() not in ("", "INVERTING")
         miss = [f"({i})" for i in need if not (i == mip and inv_off)
                 and (i not in by or by[i].get("off") or by[i].get("err") is not None)]
         if miss:
