@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.231 – 7. 11. 2026
+- Grafy (Petr: „tahle noc“ se zastavovala na jedné hodnotě): kurzor / ťuknutí jde po všech bodech grafu – i tam, kde je jen předpověď nebo jiná vrstva (venku), ne jen po hlavní čáře. Platí pro všechny čárové grafy.
+
 ## 5.230 – 7. 11. 2026
 - Zpráva po restartu Brány (Petr: „Bluetooth nejde, nevidí zásuvku (1)“ – vždyť chata jede na River): když chata jede z River, měnič je vypnutý, nevysílá Bluetooth a zásuvka za ním nemá proud – to je v pořádku a nehlásí se. Ostatní zásuvky a Bluetooth na soláru se hlídají dál.
 

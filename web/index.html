@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.230", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.231", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -865,14 +865,18 @@ function lineChart(el, pts, key, color, o){
   }
   svg.insertAdjacentHTML("beforeend",`<path d="${dPath}" fill="none" stroke="${color}" stroke-width="${k2&&k2.top?3:2}" stroke-linejoin="round" stroke-linecap="round"/>${k2&&k2.top?`<path d="${k2.top}" fill="none" stroke="${k2.color}" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round"/>`:""}${o._marks||""}<line class="ch" y1="${M.t}" y2="${H-M.b}" stroke="var(--muted)" stroke-width="1" opacity="0"/><circle class="cd" r="4.5" fill="${o.neg?"var(--text2)":color}" stroke="var(--surface)" stroke-width="2" opacity="0"/><rect x="${M.l}" y="0" width="${W-M.l-M.r}" height="${H}" fill="transparent"/>`);
   const ch=svg.querySelector(".ch"), cd=svg.querySelector(".cd");
-  const move=ev=>{const r=svg.getBoundingClientRect();const tx=t0+(t1-t0)*((ev.clientX-r.left)*W/r.width-M.l)/(W-M.l-M.r);let best=p[0];for(const q of p)if(Math.abs(q.t-tx)<Math.abs(best.t-tx))best=q;const X=x(best.t),Y=y(best[key]);ch.setAttribute("x1",X);ch.setAttribute("x2",X);ch.setAttribute("opacity",.5);cd.setAttribute("cx",X);cd.setAttribute("cy",Y);cd.setAttribute("opacity",1);
+  // 5.231 (Petr: graf „tahle noc“ se zastavoval na poslední naměřené hodnotě): kurzor jde po všech bodech, kde je
+  // hlavní čára, druhá čára (předpověď) nebo další vrstva – ne jen hlavní
+  const pH=pts.filter(q=>q[key]!=null||(k2&&q[k2.key]!=null)||LX.some(l=>q[l.key]!=null));
+  const move=ev=>{const r=svg.getBoundingClientRect();const tx=t0+(t1-t0)*((ev.clientX-r.left)*W/r.width-M.l)/(W-M.l-M.r);let best=pH[0]||p[0];for(const q of pH)if(Math.abs(q.t-tx)<Math.abs(best.t-tx))best=q;
+    const lY=LX.find(l=>best[l.key]!=null);const X=x(best.t),Y=best[key]!=null?y(best[key]):k2&&best[k2.key]!=null?y(best[k2.key]):lY?y(lv(lY,best)):y(lo);ch.setAttribute("x1",X);ch.setAttribute("x2",X);ch.setAttribute("opacity",.5);cd.setAttribute("cx",X);cd.setAttribute("cy",Y);cd.setAttribute("opacity",1);
     let extra=k2&&best[k2.key]!=null?`<br>${k2.name} ${valU(best[k2.key],o.dec,o.unit)}${key==="bat_v"?` (rozdíl ${nf(best[key]-best[k2.key],2)} V)`:""}`:"";
     if(key==="bat_v"&&best.bat_soc!=null)extra+=`<br>SOC ${nf(best.bat_soc)} %`;
     if(key==="bat_v"&&best.iv!=null)extra+=`<br>odběr ${nf(best.lw??best.ac_w)} W`;
     else if(key==="bat_v"&&best.ac_w!=null)extra+=`<br>odběr ${nf(best.ac_w)} W`;if(key==="bat_v"&&best.bat_a!=null)extra+=` · ${nf(best.bat_a,1)} A`;
     for(const l of LX) if(best[l.key]!=null) extra+=`<br><span style="color:${l.color}">■</span> ${l.name} ${valU(best[l.key],o.dec,o.unit)}`;
     if(o.modes && best.status!=null) extra+=`<br>${({1:"Float – nabito, panely škrtí",2:"Boost – nabíjí",3:"vyrovnávací nabíjení",0:"nenabíjí"})[best.status]||""}`;
-    showTip(ev,`${fmtT(best.t)}<br><b>${valU(best[key],o.dec,o.unit)}</b>${extra}`);};
+    showTip(ev,`${fmtT(best.t)}${best[key]!=null?`<br><b>${valU(best[key],o.dec,o.unit)}</b>`:""}${extra}`);};
   const leave=()=>{ch.setAttribute("opacity",0);cd.setAttribute("opacity",0);hideTip();};
   svg.addEventListener("pointermove",move);svg.addEventListener("pointerdown",move);svg.addEventListener("pointerleave",ev=>{ if(ev.pointerType==="mouse") leave(); });   // na dotyku hodnota zůstane
   if(!el._pzOn) pinch(el);                           // zvětšení prsty – v každém grafu, i bez celé obrazovky (4.25)
