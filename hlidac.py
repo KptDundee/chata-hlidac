@@ -2002,6 +2002,7 @@ def main():
                          ("Výhled dne", lambda: day_outlook(data, st, now, topic, cfg, rise, set_)),
                          ("Kdy na River", lambda: eve_plan(data, st, now, topic, cfg)),
                          ("Plán nepřítomnosti", lambda: away_plan(data, st, now, topic, cfg)),
+                         ("Přebytek při odjezdu", lambda: away_surplus(data, st, now, topic, cfg)),
                          ("Nabij River", lambda: river_charge_hint(data, st, now, topic, cfg)),
                          ("Připomínka plánu", lambda: plan_reminder(data, st, now, topic, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
@@ -5500,6 +5501,45 @@ def river_charge_hint(data, st, now, topic, cfg):
     alarm(st, topic, "rvchg20", act and hr >= 20,
           "⚠️ Ani plné River to nevydrží – omez spotřebu" if full else "⛽ Nabij River teď – poslední chvíle (generátor do 22:00)",
           body, 5, "rotating_light,battery", ok_title=False, cat=1)
+
+
+def away_surplus(data, st, now, topic, cfg):
+    """5.228 (Petr: baterie byla plná, nabíjení River ze soláru nebylo zapojené a já pryč): odjezd do 24 h → spočítat,
+    kolik výroby by během nepřítomnosti propadlo (baterie plná). Aspoň ~0,2 kWh → poznámka (dlaždice, co teď udělat)
+    a jedna zpráva (ne alarm) večer před odjezdem, nebo hned, když je odjezd blíž než 12 h. Zapojení nejde poznat
+    (zásuvka je vidět, i když je River fyzicky na generátoru) → hlásí se vždy. Odhad: chata celou dobu ze solární
+    baterie (opatrně – na River by propadlo ještě víc)."""
+    data.pop("away_sur", None)
+    ts = now.timestamp()
+    ivs = [(a.timestamp(), b.timestamp()) for a, b, f in away_list(cfg, PLAN, now, days=3)
+           if a.timestamp() > ts and a.timestamp() - ts <= 24 * 3600]
+    M = energy_model(data, cfg, now)
+    if not ivs or M["ah_now"] is None or M["room"] is None:
+        return
+    a, b = ivs[0]
+    top = M["ah_now"] + M["room"]
+    L, lost, t = M["ah_now"], 0.0, ts
+    while t < min(b, ts + 72 * 3600):
+        L += M["prod_ah"](t, 600) - M["load_a"](t) * 600 / 3600
+        if L > top:
+            if t >= a:
+                lost += L - top
+            L = top
+        L = max(L, 0.0)
+        t += 600
+    kwh = lost * 12.4 / 1000
+    hm = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M")
+    print(f"Přebytek při odjezdu {rel_day(a, now)} {hm(a)}–{rel_day(b, now)} {hm(b)}: propadne ~{kwh:.2f} kWh (podle předpovědi)")
+    if kwh < 0.2:
+        return
+    data["away_sur"] = {"t": int(ts), "dep": int(a), "ret": int(b), "kwh": round(kwh, 2)}
+    todo_add(data, 4, f"před odjezdem zapoj nabíjení River ze soláru (~{fmt(kwh, 1)} kWh)", "warn")
+    hr = now.hour + now.minute / 60
+    if st.get("sur_dep") != int(a) and (hr >= 18 or a - ts <= 12 * 3600) and not in_quiet():
+        ntfy(topic, "☀️ Před odjezdem zapoj nabíjení River ze soláru",
+             f"Podle předpovědi bude během nepřítomnosti ({rel_day(a, now)} {hm(a)} – {rel_day(b, now)} {hm(b)}) solární baterie "
+             f"plná a propadne ~{fmt(kwh, 1)} kWh výroby. S nabíjením ze soláru ji dostane River.", 3, "sunny")
+        st["sur_dep"] = int(a)
 
 
 def away_plan(data, st, now, topic, cfg):

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.227", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.228", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1589,9 +1589,10 @@ function tilePlan(d, h){
   const src = !iv ? "" : iv.src==="solar" ? "solár" : iv.src==="river" ? `River ${pn((rv[iv.k]||{}).name||"")}` : "nic nevydrží";
   const away = nxt[0] <= h.now;
   const WP = d.wplan && h.now - d.wplan.t < 3600 ? d.wplan : null;   // 5.203: plán podle okna generátoru
+  const SU = !away && d.away_sur && h.now - d.away_sur.t < 3600 && d.away_sur.dep === nxt[0] ? d.away_sur : null;   // 5.228: propadne výroba
   return {...t, cls: WP ? (WP.ok ? "ok" : WP.need ? "warn" : "bad") : "ok", v: `${hmT(away ? nxt[1] : nxt[0])}<small>${away ? "návrat" : relDay(nxt[0])}</small>`,
     st: away ? `Pryč do ${relDay(nxt[1])} ${hmT(nxt[1])}` : `Odjezd ${relDay(nxt[0])} ${hmT(nxt[0])}–${hmT(nxt[1])}`,
-    a: WP ? wplanShort(WP) : src ? `Pojede: ${src}` : ""};
+    a: SU ? `☀️ před odjezdem zapoj nabíjení River ze soláru` : WP ? wplanShort(WP) : src ? `Pojede: ${src}` : ""};
 }
 /* 5.203 (Petr): co pojede do příští možnosti pustit generátor – rozpis z hlídače (window_plan) */
 const rvN = n => { const x = pn(n||""); return x==="solár" ? x : (x.split(/\s+/)[0]||x).replace(/\.$/,""); };   // 5.213: „ŽLUT. VELKÁ ECFLW new“ → „ŽLUT“
