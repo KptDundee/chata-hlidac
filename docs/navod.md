@@ -383,3 +383,5 @@ Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River
 **Kapacita a předpovědi (5.101)**: kapacitu solární baterie hlídač měří jen z doby, kdy byla baterie aspoň 2 h v klidu. Než má 2 takové testy, počítá se 150 Ah (Nastavení → Kapacita pro výpočty). Předpověď noci i výhled dne vychází z # a obvyklého odběru, takže si navzájem neodporují.
 
 **Přebytek při odjezdu (5.228):** když do 24 h odjíždíš a podle předpovědi bude baterie během nepřítomnosti plná (propadne aspoň ~0,1 kWh výroby; radši upozorní dřív), dlaždice Kdy jsem pryč a zpráva večer před odjezdem připomenou zapojit nabíjení River ze soláru.
+
+**Jiný spotřebič na generátoru (5.232):** v kartě Generátor → Start vyber spotřebič ze seznamu – River se uberou o jeho výkon do konce nabíjení. Seznam (název a výkon) upravíš přes ✏️ Upravit seznam.

@@ -38,7 +38,7 @@ DEFAULTS = {
     "vlhkost_hlidat": "", "vlhkost_min": 35,
     "river_sn": "",
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_nadrz_l": 4.0, "gen_rezerva_W": 100,
-    "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "", "gen_rucne": "",
+    "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "", "gen_rucne": "", "gen_spotrebice": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00", "den_navrat": "", "ticho": "0:00-5:45",
@@ -6390,7 +6390,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         """5.182 (Petr): „Ubrat pro jiný spotřebič“ – gen_jine = „W:čas“ z webu. River dohromady dostanou o W méně,
         jen do konce tohoto nabíjení (0 = zrušit). Co spotřebič vzal z generátoru, se do ceny nabíjení nepočítá."""
         jv_ = str(cfg.get("gen_jine") or "").strip().split(":")
-        if len(jv_) == 2 and jv_[1].isdigit() and int(jv_[1]) > (gs.get("jine_t") or 0) and now.timestamp() - int(jv_[1]) < 6 * 3600:
+        if len(jv_) >= 2 and jv_[1].isdigit() and int(jv_[1]) > (gs.get("jine_t") or 0) and now.timestamp() - int(jv_[1]) < 6 * 3600:
             gs["jine_t"] = int(jv_[1])
             try:
                 w_ = max(0, min(1500, int(float(jv_[0] or 0))))
@@ -6398,7 +6398,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 w_ = 0
             if w_:
                 gs["jine"] = w_
-                log("ev", f"Nabíjení z generátoru: ubráno {w_} W pro jiný spotřebič (do konce nabíjení)")
+                nm_ = ":".join(jv_[2:]).strip()            # 5.232: název spotřebiče ze seznamu
+                log("ev", f"Nabíjení z generátoru: ubráno {w_} W pro {nm_ or 'jiný spotřebič'} (do konce nabíjení)")
             elif gs.pop("jine", None):
                 log("ev", "Nabíjení z generátoru: ubrání pro jiný spotřebič zrušeno – River zase plný výkon")
     jine_cmd()

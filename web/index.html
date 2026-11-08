@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.231", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.232", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2368,24 +2368,52 @@ async function genManual(v, el){
   }catch(e){ el.disabled = false; el.textContent = e.message; }
 }
 /* 5.182 (Petr): ubrat výkon River pro jiný spotřebič zapojený přímo do generátoru – jen pro toto nabíjení */
+/* 5.232 (Petr): pojmenované spotřebiče – vybrat ze seznamu, ke každému výkon, o který se River ubere; seznam se dá upravit
+   (gen_spotrebice = „Název=W; Název=W“ v nastavení). Zadávání čísla zvlášť už není. */
+let SPOT_LOC = null, SPOT_ED = false, SPOT_DRAFT = null;
+const spotParse = v => String(v||"").split(";").map(x=>x.trim()).filter(Boolean).map(x=>{ const i = x.lastIndexOf("="); return i < 0 ? null : {n:x.slice(0,i).trim(), w:Math.round(+x.slice(i+1))}; }).filter(x=>x && x.n && x.w >= 50 && x.w <= 1500);
+const spotList = () => SPOT_LOC || spotParse(DATA && DATA.cfg && DATA.cfg.gen_spotrebice);
+const spotName = n => String(n||"").replace(/[=;:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 30);
+let JINE_P = null;
 function jineHtml(P){
-  let w0 = 300; try{ w0 = +localStorage.getItem("jineW") || 300; }catch(_){}
-  const on = P.jine > 0, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
-  return `<div style="margin:8px 0 4px;padding:10px;border-radius:12px;background:var(--bg)">
+  JINE_P = P;
+  const on = P.jine > 0, L = spotList(), bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
+  const jv = String((DATA && DATA.cfg && DATA.cfg.gen_jine)||"").split(":"), nm = on && +jv[0] === P.jine ? (jv.slice(2).join(":") || "") : "";
+  const ins = `font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)`;
+  const ed = SPOT_ED ? `<div style="margin-top:8px">${(SPOT_DRAFT||[]).map((x,i)=>`<div style="display:flex;gap:6px;align-items:center;margin:4px 0">
+        <input value="${escH(x.n)}" placeholder="název" oninput="SPOT_DRAFT[${i}].n=this.value" style="${ins};flex:1;min-width:0">
+        <input type="number" inputmode="numeric" min="50" max="1500" step="50" value="${x.w||""}" oninput="SPOT_DRAFT[${i}].w=+this.value" style="${ins};width:80px"> W
+        <button onclick="SPOT_DRAFT.splice(${i},1);rerenderGen()" style="${bs};padding:8px 10px" aria-label="smazat">🗑</button></div>`).join("")}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button onclick="SPOT_DRAFT.push({n:'',w:500});rerenderGen()" style="${bs}">➕ Přidat</button>
+        <button onclick="spotSave(this)" style="${bs}">Uložit</button><button onclick="SPOT_ED=false;rerenderGen()" style="${bs}">Zpět</button></div>
+      <div class="sub" style="margin-top:4px">Výkon = o kolik River při nabíjení ubrat (50–1500 W).</div></div>` : "";
+  const pick = L.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${L.map(x=>{ const sel = on && (nm ? nm===x.n : x.w===P.jine);
+        return `<button onclick="genJine(${x.w}, this, '${escH(x.n).replace(/'/g,"&#39;")}')" aria-pressed="${sel}" style="${bs};${sel?"background:color-mix(in srgb,var(--good) 22%,transparent)":""}">${escH(x.n)} <span style="font-weight:500;color:var(--text2)">${nf(x.w)} W</span></button>`; }).join("")}</div>`
+    : `<div class="sub" style="margin-top:6px">Zatím žádný spotřebič – přidej ho přes ✏️ Upravit seznam.</div>`;
+  return `<div id="jine_box" style="margin:8px 0 4px;padding:10px;border-radius:12px;background:var(--bg)">
     <div style="font-weight:600">🔌 Jiný spotřebič na generátoru</div>
-    ${on && P.pre ? `<div style="font-size:14px;margin:4px 0">Připraveno: River budou mít při nabíjení o <b>${nf(P.jine)} W</b> méně (platí do konce nabíjení)</div>` : on ? `<div style="font-size:14px;margin:4px 0">River mají o <b>${nf(P.jine)} W</b> méně${P.x_w ? ` · spotřebič teď ~${nf(P.x_w)} W` : ""}${P.xwh ? ` · zatím ${kWh(P.xwh)}` : ""}</div>` : `<div class="sub" style="margin:4px 0">Zapojuješ něco přímo do generátoru? Nejdřív uber River výkon, pak spotřebič zapoj. ${P.pre ? "Jde to i předem – platí od startu nabíjení do jeho konce." : "Platí do konce tohoto nabíjení."}</div>`}
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="jine_w" type="number" inputmode="numeric" min="50" max="1500" step="50" value="${on ? P.jine : w0}" style="width:90px;font:inherit;padding:9px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)"> W
-      <button onclick="genJine(+$('jine_w').value, this)" style="${bs}">${on ? "Změnit" : "➖ Ubrat"}</button>${on ? `<button onclick="genJine(0, this)" style="${bs}">Zrušit</button>` : ""}</div>
+    ${on && P.pre ? `<div style="font-size:14px;margin:4px 0">Připraveno${nm ? ` (${escH(nm)})` : ""}: River budou mít při nabíjení o <b>${nf(P.jine)} W</b> méně (platí do konce nabíjení)</div>` : on ? `<div style="font-size:14px;margin:4px 0">${nm ? `${escH(nm)}: ` : ""}River mají o <b>${nf(P.jine)} W</b> méně${P.x_w ? ` · spotřebič teď ~${nf(P.x_w)} W` : ""}${P.xwh ? ` · zatím ${kWh(P.xwh)}` : ""}</div>` : `<div class="sub" style="margin:4px 0">Zapojuješ něco přímo do generátoru? Nejdřív ho vyber (River se ubere), pak zapoj. ${P.pre ? "Jde to i předem – platí od startu nabíjení do jeho konce." : "Platí do konce tohoto nabíjení."}</div>`}
+    ${SPOT_ED ? ed : pick + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${on ? `<button onclick="genJine(0, this)" style="${bs}">Zrušit</button>` : ""}<button onclick="SPOT_ED=true;SPOT_DRAFT=spotList().map(x=>({...x}));rerenderGen()" style="${bs}">✏️ Upravit seznam</button></div>`}
     <div class="sub" style="margin-top:4px">Co spotřebič vezme z generátoru, se do ceny nabíjení ani účinnosti nepočítá (palivo dál podle celé výroby).</div></div>`;
 }
-async function genJine(w, el){
+function rerenderGen(){ const b = $("jine_box"); if(b && JINE_P) b.outerHTML = jineHtml(JINE_P); }   // jen tenhle rámeček (záložka zůstane)
+async function spotSave(el){
+  const tok = store.get("ghtok");
+  if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
+  const L = (SPOT_DRAFT||[]).map(x=>({n:spotName(x.n), w:Math.round(+x.w)})).filter(x=>x.n || x.w);
+  const bad = L.find(x=>!x.n || !(x.w >= 50 && x.w <= 1500)); if(bad){ el.textContent = !bad.n ? "Chybí název" : "Výkon 50–1500 W"; return; }
+  el.disabled = true; el.textContent = "Ukládám…";
+  try{ await setCfgKey(tok, "gen_spotrebice", L.map(x=>`${x.n}=${x.w}`).join("; "));
+    SPOT_LOC = L; SPOT_ED = false; rerenderGen();
+  }catch(e){ el.disabled = false; el.textContent = e.message; }
+}
+async function genJine(w, el, name){
   const tok = store.get("ghtok");
   if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
   if(w && !(w >= 50 && w <= 1500)){ el.textContent = "50–1500 W"; return; }
   el.disabled = true; el.textContent = "Ukládám…";
-  try{ if(w) try{ localStorage.setItem("jineW", String(w)); }catch(_){}
-    await setCfgKey(tok, "gen_jine", `${w||0}:${Math.floor(Date.now()/1000)}`);
-    el.textContent = w ? `✓ ubráno ${w} W – do půl minuty` : "✓ zrušeno – do půl minuty";
+  try{ await setCfgKey(tok, "gen_jine", `${w||0}:${Math.floor(Date.now()/1000)}${w && name ? ":"+spotName(name) : ""}`);
+    el.textContent = w ? `✓ ${name ? spotName(name)+" – " : ""}ubráno ${w} W – do půl minuty` : "✓ zrušeno – do půl minuty";
   }catch(e){ el.disabled = false; el.textContent = e.message; }
 }
 async function setCfgKey(tok, key, val){

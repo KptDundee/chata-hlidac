@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.232 – 8. 11. 2026
+- Jiný spotřebič na generátoru (Petr): místo zadávání čísla seznam pojmenovaných spotřebičů – ťukneš na spotřebič a River se ubere o jeho výkon. Seznam jde upravit (✏️ Upravit seznam: název, výkon 50–1500 W, 🗑 smazat, ➕ přidat, Uložit); ukládá se do nastavení `gen_spotrebice` („Název=W; Název=W“). Vybraný spotřebič je zvýrazněný a jeho jméno je v textu i v deníku.
+
 ## 5.231 – 7. 11. 2026
 - Grafy (Petr: „tahle noc“ se zastavovala na jedné hodnotě): kurzor / ťuknutí jde po všech bodech grafu – i tam, kde je jen předpověď nebo jiná vrstva (venku), ne jen po hlavní čáře. Platí pro všechny čárové grafy.
 
