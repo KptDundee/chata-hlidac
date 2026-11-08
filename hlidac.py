@@ -41,7 +41,7 @@ DEFAULTS = {
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "", "gen_rucne": "", "gen_spotrebice": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
-    "den_kontrola": "po 7:00, út 5:30, st 7:00, čt 5:30, pá 7:00, so 8:00, ne 8:00", "den_navrat": "", "ticho": "0:00-5:45",
+    "ticho": "0:00-5:45",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
@@ -2005,6 +2005,7 @@ def main():
                          ("Přebytek při odjezdu", lambda: away_surplus(data, st, now, topic, cfg)),
                          ("Nabij River", lambda: river_charge_hint(data, st, now, topic, cfg)),
                          ("Připomínka plánu", lambda: plan_reminder(data, st, now, topic, cfg)),
+                         ("Dnešní plán", lambda: plan_today(data, st, now, topic, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
                          ("Palivo a cena", lambda: fuel_stats(data, st, now, cfg)),
@@ -4240,7 +4241,7 @@ def flip_check(data, st, now, topic, cfg):
     """4.51: jak rychle se Flip (brána na chatě) vybíjí a kdy dojde – s předstihem, ne až při 20 %.
     Historie baterie Flipu ve state.ph_hist (24 h). Z posledního úseku bez nabíjení (≥ 45 min, pokles ≥ 2 %) rychlost %/h.
     • nenabíjí se a pod 15 % klesne do 12 h → jednou za vybíjení „Flip vydrží jen do ~HH:MM“ (Vysoká)
-    • v ranní čas z rozvrhu (den_kontrola) a dojde do 48 h → „Než odjedeš: Flip se nenabíjí…“ (Vysoká)"""
+    • při odjezdu podle plánu a dojde do 48 h → „Než odjedeš: Flip se nenabíjí…“ (Vysoká)"""
     inv = data.get("inverter") or {}
     ph = inv.get("ph") or {}
     ts = now.timestamp()
@@ -4607,7 +4608,7 @@ def night_learn(data, st, now, cfg):
 def day_outlook(data, st, now, topic, cfg, rise, set_):
     """Výhled dne (přání 18. 10. 2026): když chata jede ze solární baterie – vydrží do den_do (22:00)?
     Teď v baterii (# nad alarmem 12,0 V) + zbývající výroba podle předpovědi − odběr (průměr 3 h), po 10 min.
-    data["day_fc"] = {ok, t_empty, t} pro web. Upozornění (Vysoká): v čas z rozvrhu den_kontrola (po dnech)
+    data["day_fc"] = {ok, t_empty, t} pro web. Upozornění (Vysoká): při odjezdu podle plánu
     a kdykoli během dne, když se výhled zhorší (ráno vydrželo, teď ne). Noc řeší jiná upozornění."""
     ts = now.timestamp()
     # 5.118: nejbližší nepřítomnost dnes (plán / obvyklý rozvrh) → vydržet do návratu; jinak den_do
@@ -4781,7 +4782,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     after = bool(tchk) and now >= tchk          # už je po dnešním čase kontroly (pro nabídku soláru během dne)
     if due:
         st["do_chk"] = akey
-    # 5.95: jedno ranní rozhodnutí v čas z rozvrhu (den_kontrola)
+    # 5.95: jedno rozhodnutí při odjezdu podle plánu
     if on_river:
         # 5.116: den s odjezdem (čas v rozvrhu) → jen v ten čas (pak už přepnout nejde); den bez odjezdu → jednou,
         # jakmile to poprvé vyjde (po východu slunce)
@@ -4852,19 +4853,25 @@ def load_plan(path=PLAN_FILE):
     return out
 
 
+def plan_day(plan, d):
+    """5.235 (Petr: jen jeden rozvrh): úseky dne d – z plan.txt přesně; den, který v plánu není, jako stejný den minulého
+    týdne (až 4 týdny zpět, bez úseků z tlačítka 🚗); nic = doma. Vrací ([(od, do, tlačítko)], zkopírováno_z | None)."""
+    if d in plan:
+        return plan[d], None
+    for k in range(1, 5):
+        d0 = d - timedelta(days=7 * k)
+        if d0 in plan:
+            return [(a + timedelta(days=7 * k), b + timedelta(days=7 * k), False) for a, b, f in plan[d0] if not f], d0
+    return [], None
+
+
 def away_list(cfg, plan, t0, days=3):
-    """Úseky nepřítomnosti [(od, do, tlačítko)] od dne t0 na `days` dní: den v plan.txt platí přesně, jinak
-    obvyklý rozvrh (den_kontrola = odjezd, den_navrat / den_do = návrat). Seřazené, překryvy sloučené."""
+    """Úseky nepřítomnosti [(od, do, tlačítko)] od dne t0 na `days` dní – z plánu (plan_day: den v plan.txt přesně,
+    jinak jako minulý týden). Seřazené, překryvy sloučené."""
     ivs = []
     d0 = t0.date() - timedelta(days=1)                 # i včerejší úsek přes půlnoc
     for i in range(days + 1):
-        d = d0 + timedelta(days=i)
-        if d in plan:
-            ivs += plan[d]
-        else:
-            dep = sched_time(cfg, d)
-            if dep:
-                ivs.append((dep, day_end(cfg, d), False))
+        ivs += plan_day(plan, d0 + timedelta(days=i))[0]
     ivs.sort()
     out = []
     for a, b, f in ivs:
@@ -4892,45 +4899,21 @@ def next_departure(cfg, plan, now, within_h=20):
 
 
 def is_away(cfg, plan, now):
-    """Jsem teď pryč? Jen podle plánu (plan.txt) nebo obvyklého rozvrhu s časem návratu (den_navrat). Bez známého
-    návratu se nepředpokládá, že jsem pryč až do den_do – upozornění, na která můžu reagovat, by jinak nechodila."""
+    """Jsem teď pryč? Podle plánu (plan_day – i den zkopírovaný z minulého týdne)."""
     for i in (-1, 0):
         d = (now + timedelta(days=i)).date()
-        if d in plan:
-            if any(a <= now < b for a, b, f in plan[d]):
-                return True
-        else:
-            dep, ret = sched_time(cfg, d), sched_time(cfg, d, "den_navrat")
-            if dep and ret and dep <= now < ret:
-                return True
+        if any(a <= now < b for a, b, f in plan_day(plan, d)[0]):
+            return True
     return False
 
 
 def day_end(cfg, d):
-    """5.117: do kdy musí chata na soláru vydržet v den d: v den s odjezdem čas návratu z rozvrhu den_navrat,
-    jinak den_do (22:00)."""
-    r = sched_time(cfg, d, "den_navrat") if sched_time(cfg, d) else None
-    if r:
-        return r
+    """Do kdy musí chata na soláru vydržet v den d: den_do (22:00). (5.235: obvyklý rozvrh zrušen.)"""
     try:
         hh, mm = (int(x) for x in str(cfg.get("den_do") or "22:00").split(":")[:2])
     except ValueError:
         hh, mm = 22, 0
     return datetime(d.year, d.month, d.day, hh, mm, tzinfo=TZ)
-
-
-def sched_time(cfg, d, key="den_kontrola"):
-    """Čas z rozvrhu po dnech („po 7:00, út 5:30…“) pro datum d (datetime / date), nebo None.
-    den_kontrola = odjezd (kontrola před odjezdem), den_navrat = návrat."""
-    for part in str(cfg.get(key) or "").split(","):
-        bits = part.strip().split()
-        if len(bits) == 2 and bits[0].lower()[:2] == WD[d.weekday()] and ":" in bits[1]:
-            try:
-                h2, m2 = (int(x) for x in bits[1].split(":")[:2])
-                return datetime(d.year, d.month, d.day, h2, m2, tzinfo=TZ)
-            except ValueError:
-                return None
-    return None
 
 
 def energy_model(data, cfg, now):
@@ -5003,7 +4986,7 @@ def sim_level(M, t0, t1, lvl, top, solar_until=None, step=600):
 
 def eve_plan(data, st, now, topic, cfg):
     """5.116: večerní doporučení „Přepni chatu na River do ~HH:MM“ (kategorie 2, s tlačítky).
-    Cíl: před dnem s odjezdem (rozvrh den_kontrola) musí v čase odjezdu v baterii zbýt tolik, aby solár s předpovědí
+    Cíl: před dnem s odjezdem (plán) musí v čase odjezdu v baterii zbýt tolik, aby solár s předpovědí
     výroby utáhl chatu do den_do (22:00). Bez odjezdu: vydržet do rána (východ + nabijeni_od_vychodu_min) nad alarmem.
     Když by zítra solár nestačil ani s plnou baterií, nic se nedoporučuje (chata bude stejně na River).
     Alarmy (pod 12,0 V, ve 22:00 „do rána nevydrží“) zůstávají beze změny. data["eve"] pro web."""
@@ -5742,6 +5725,20 @@ def battery_sim(data, st, now, cfg):
     if data.get("bsim"):
         data["bsim"]["price"] = {"czk_kwh": round(gen * ratio, 1) if gen and ratio else None, "gen": gen, "fuel": f_,
                                  "ratio": round(ratio, 2) if ratio else None}
+
+
+def plan_today(data, st, now, topic, cfg):
+    """5.235 (Petr): ráno po nočním klidu jednou zpráva s nízkou prioritou, jaký je dnes plán (a odkud)."""
+    day = now.strftime("%Y-%m-%d")
+    if in_quiet() or now.hour >= 12 or st.get("plan_day") == day:
+        return
+    st["plan_day"] = day
+    ivs, src = plan_day(PLAN, now.date())
+    hm = lambda x: x.strftime("%H:%M")
+    txt = "pryč " + ", ".join(f"{hm(a)}–{hm(b)}" for a, b, f in ivs) if ivs else "doma"
+    ntfy(topic, f"📅 Dnes {txt}", (f"Podle minulého týdne ({src.day}. {src.month}.) – " if src else "")
+         + "když to nesedí, uprav plán, ať hlídač počítá správně.", 2, "calendar",
+         actions=[{"action": "view", "label": "Otevřít plán", "url": DASHBOARD + "#plan", "clear": True}], view=False)
 
 
 def plan_reminder(data, st, now, topic, cfg):

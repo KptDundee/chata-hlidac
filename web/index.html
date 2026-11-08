@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.234", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.235", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -479,7 +479,7 @@ const DETCFG = {
   fridge: ["lednice_hlidat","lednice_ticho_h","lednice_bezi_h","lednice_max_C","zasuvka_lednice","teplomer_lednice"],
   health: ["kapacita_Ah","kapacita_odhad_Ah","plne_nabiti_od_dni","plne_nabiti_dni"],
   pan: ["panely_pocet","panely_doporucit","pojistka_A","panel_Wp","panely_min_W"],
-  plan: ["den_kontrola","den_navrat","den_do","ticho"],
+  plan: ["den_do","ticho"],
   sys: ["vecerni_souhrn_hodina","ticho","regulator_offline_min","brana_hlidat"],
   bsim: ["kapacita_Ah","noc_spotreba_W","menic_vlastni_W"],
 };
@@ -1570,7 +1570,7 @@ function planParse(txt){ const out = {};
     out[m[1]] = m[2].split(",").map(x=>x.trim().match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*(\*?)$/)).filter(Boolean).map(x=>({a:x[1].padStart(5,"0"), b:x[2].padStart(5,"0"), btn:!!x[3]})); }
   return out; }
 function planText(P){
-  const keys = Object.keys(P).sort(), cut = dK(new Date(Date.now() - 14*86400e3));
+  const keys = Object.keys(P).sort(), cut = dK(new Date(Date.now() - 35*86400e3));   // 5.235: 5 týdnů zpět – dny mimo plán jako minulý týden
   return "# kdy jsem pryč (zapisuje web): YYYY-MM-DD: HH:MM-HH:MM, … · prázdné = doma · * = tlačítko Odjíždím\n"
     + keys.filter(k=>k>=cut).map(k=>`${k}: ${P[k].map(x=>`${x.a}-${x.b}${x.btn?"*":""}`).join(", ")}`).join("\n") + "\n"; }
 async function planLoad(tok){
@@ -1584,7 +1584,7 @@ async function planSave(tok, P, sha, msg){
   if(!w.ok) throw new Error("Plán nejde uložit ("+w.status+")");
   await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{method:"POST",
     headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"}, body:JSON.stringify({ref:"main",inputs:{test:false,wake:true}})}).catch(()=>{}); }
-/* úseky z hlídače (data.away = plán / obvyklý rozvrh) pro den k → [{a,b}] */
+/* úseky z hlídače (data.away = plán, dny mimo plán jako minulý týden) pro den k → [{a,b}] */
 function awayDay(d, k){ return (d.away||[]).filter(x=>dK(new Date(x[0]*1000))===k).map(x=>({a:hmT(x[0]), b:hmT(x[1]), btn:!!x[2]})); }
 function tilePlan(d, h){
   const t = {k:"plan", icon:"🗓", label:"Kdy jsem pryč"}, A = d.away_plan, nxt = (d.away||[]).find(x=>x[1] > h.now);
@@ -1622,7 +1622,7 @@ function detPlan(body){
     const row = (dt) => { const k = dK(dt), own = P[k], ivs = own || awayDay(d, k), home = own ? !own.length : !ivs.length;
       const iv = (x, j) => `<div class="pliv" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="time" data-pa="${j}" value="${x.a||""}" style="font:inherit"> – <input type="time" data-pb="${j}" value="${x.b||""}" style="font:inherit"><button type="button" data-pdel style="font:inherit;padding:2px 8px">✕</button></div>`;
       return `<div class="plrow" data-k="${k}" style="padding:8px 0;border-bottom:1px solid var(--line)">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${WDN[dt.getDay()]} ${dt.getDate()}. ${dt.getMonth()+1}.${own ? "" : ` <span class="sub">(obvyklý rozvrh)</span>`}</b>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${WDN[dt.getDay()]} ${dt.getDate()}. ${dt.getMonth()+1}.${own ? "" : ` <span class="sub">(jako minulý týden)</span>`}</b>
           <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-home ${home?"checked":""}> doma</label></div>
         <div class="plivs" style="${home?"display:none":""}">${(ivs.length?ivs:[{a:"",b:""}]).map(iv).join("")}<button type="button" data-padd style="font:inherit;padding:4px 10px;margin-top:2px">+ další úsek</button></div></div>`; };
     const AP = d.away_plan, calc = !AP || !(AP.ivs||[]).length ? "" : `<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)"><b>Jak hlídač počítá nejbližší úseky</b>
@@ -1632,7 +1632,7 @@ function detPlan(body){
         const res = iv.src==="solar" ? "pojede solár" : iv.src==="river" ? `pojede ${escH(pn((R[iv.k]||{}).name||""))}` : `<b style="color:var(--crit)">nic nestačí</b>`;
         return `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px"><b>${relDay(iv.a)} ${hmT(iv.a)}–${hmT(iv.b)}</b> → ${res}<br>Solár: na začátku ~${W.sol?Math.max(0,W.sol.pct0):"?"} # → ${W.sol&&W.sol.ok?"vydrží ✓":"nevydrží"}<br>${rv}</div>`; }).join("")}
       <div class="sub" style="margin-top:4px">Spočítáno ${relDay(AP.t)} ${hmT(AP.t)}.</div></div>`;
-    box.innerHTML = `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45"><b>Rozvrhy jsou dva:</b> ① <b>🗓 Kdy jsem pryč</b> – plán na konkrétní dny (tento a příští týden), má vždy přednost; ② <b>Obvyklý rozvrh</b> v Nastavení – šablona pro dny, které v plánu nemáš. Tady zadáváš ①. Den označený „(obvyklý rozvrh)“ jsi tu neupravil – jede podle ②.</div>
+    box.innerHTML = `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45">Den, který tu nezadáš, se vezme <b>jako stejný den minulého týdne</b> (označený „jako minulý týden“). Uprav, co nesedí, a dej <b>Uložit plán</b> – klidně kdykoli, ne až v neděli večer.</div>
       <div class="sub" style="margin-bottom:6px">Kdy budeš pryč (od – do). „Do“ dřív než „od“ = přes půlnoc.</div>
       ${days.map(row).join("")}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="pl_save" style="font:inherit;padding:8px 14px;font-weight:600">Uložit plán</button>
@@ -4260,8 +4260,6 @@ const SETTINGS = [
   ["Upozornění", [
     ["nabito","Baterie nabitá na 100 %","V souhrnu ve 22:00","","", "sw"],
     ["panely_nevyrabi","Panely nevyrábí přes den","Sníh, stín nebo vypadlý kabel","","", "sw"],
-    ["den_kontrola","Obvyklý rozvrh – odjezd","Šablona: kdy obvykle odjíždíš – platí jen pro dny, které nemáš v plánu „🗓 Kdy jsem pryč“ (vypnutý den = doma)","",0,"week"],
-    ["den_navrat","Obvyklý rozvrh – návrat","Šablona: kdy se obvykle vracíš – platí jen pro dny, které nemáš v plánu „🗓 Kdy jsem pryč“ (prázdný den = „vydržet do“)","",0,"week"],
     ["den_do","Výhled dne – vydržet do","Do kolika má chata na soláru vydržet ve dny bez času návratu (pak řeší noc jiná upozornění)","",0,"time"],
     ["ticho","Noční klid upozornění","Od–do (např. 0:00-5:45): chodí jen ohrožení chodu, doporučení počkají na ráno","",0,"str"],
     ["nutne_river_v","Před spaním: přepni na River","Od tohoto času, když zdroj do rána nevydrží; opakuje se po 10 min","",0,"timeopt"],
@@ -4388,8 +4386,6 @@ const SETTINGS = [
 const SET_HELP = {
   nabito: "Řádek v souhrnu ve 22:00, když regulátor přešel do Float (solární baterie plně nabitá). Vypnuto = v souhrnu není.",
   panely_nevyrabi: "Upozornění „🌥 Panely nevyrábí“: jen když podle předpovědi počasí má svítit (očekávaný výkon aspoň 150 W) a panely dávají méně než 5 % z toho aspoň hodinu – sníh, zastínění, vypadlý kabel. Při zatažení nepřijde.",
-  den_kontrola: "Ráno v nastavenou hodinu (pro každý den zvlášť) hlídač zkontroluje, jestli chata na soláru vydrží do večera („Výhled dne“). Hodí se jako kontrola před odjezdem. Vypnutý den = ten den se nekontroluje.",
-  den_navrat: "Čas návratu pro každý den zvlášť. Ve dny s časem odjezdu musí chata na soláru vydržet do návratu – podle toho hlídač ráno kontroluje solár a večer předtím radí, do kdy přepnout na River. Den bez času návratu = platí „Výhled dne – vydržet do“.",
   den_do: "Do kolika hodin má chata na soláru vydržet při ranní kontrole (Výhled dne). Pozdější čas = přísnější kontrola, častěji poradí River. Noc potom řeší předpověď do rána.",
   nutne_river_v: "Od tohoto času do rána: když zdroj, ze kterého chata jede (solární baterie nebo River), do rána nevydrží, přijde „🌙 Před spaním přepni chatu na River“ s tlačítky Řeším / Za 30 min / Za 1 h a opakuje se po 10 min, dokud nepřepneš. Vypnuto = nikdy.",
   vecerni_souhrn_hodina: "V tuto hodinu přijde každý večer přehled dneška (výroba, spotřeba, baterie, River, chyby). Vypínačem se souhrn vypne úplně.",
@@ -4541,7 +4537,6 @@ function renderSettings(){
         for(const part of String(val).split(",")){ const b = part.trim().split(/\s+/); if(b.length===2 && /\d{1,2}:\d{2}/.test(b[1])) cur[b[0].toLowerCase().slice(0,2)] = b[1].padStart(5,"0"); }
         const sum = DN.filter(([d])=>cur[d]).map(([d])=>`${d} ${cur[d].replace(/^0/,"")}`).join(" · ") || (k==="den_navrat" ? "nevyplněno – dny mimo plán „🗓 Kdy jsem pryč“ vydrží do „Výhled dne – vydržet do“" : k==="den_kontrola" ? "nevyplněno – dny mimo plán „🗓 Kdy jsem pryč“ = doma" : "vypnuto");
         // 5.192 (Petr): dva rozvrhy – ať se nepletou
-        if(k==="den_kontrola") html += `<div style="margin:6px 0;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45"><b>Rozvrhy jsou dva:</b> ① <b>🗓 Kdy jsem pryč</b> – plán na konkrétní dny (tento a příští týden), má vždy přednost; ② <b>Obvyklý rozvrh</b> v Nastavení – šablona pro dny, které v plánu nemáš. Konkrétní časy na tento týden zadávej v ① – <a href="#" onclick="event.preventDefault();closeSettings();openDet('plan')">otevřít Kdy jsem pryč</a>.</div>`;
         html += `<details class="row" data-k="${k}" data-t="week" style="display:block"><summary style="cursor:pointer;list-style:none"><div class="t"><b>${label}${qh(k)} ›</b><span>${help}</span><span style="color:var(--text);margin-top:4px">${sum}</span></div></summary>
           <div style="padding:6px 0 4px">${DN.map(([d,n])=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-top:1px solid var(--line)">
             <label class="sw"><input type="checkbox" data-wd="${d}" ${cur[d]?"checked":""}><i></i></label>

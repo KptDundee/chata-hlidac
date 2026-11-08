@@ -472,3 +472,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.228**: `away_surplus` – první úsek pryč se začátkem do 24 h; simulace L po 10 min od teď do návratu (max 72 h) s `prod_ah` − `load_a` (5.229: během nepřítomnosti jen `idle_a`, jinak `load_a`), přetečení nad plnou během nepřítomnosti = propadne; ≥ 0,1 kWh (5.229) → `data.away_sur`, todo (4), ntfy jednou za odjezd (`st.sur_dep`) od 18:00 nebo < 12 h před odjezdem.
 
 **5.232**: `gen_spotrebice` = „Název=W; …“ (web `spotParse`, editor `SPOT_DRAFT`, `spotSave` → `setCfgKey`); `gen_jine` = „W:čas[:název]“ (hlídač bere ≥ 2 části, název do deníku).
+
+**5.235**: zrušeno `den_kontrola`, `den_navrat`, `sched_time`. `plan_day(plan, d)` → (úseky, zdroj): plan.txt, jinak d−7·k (k=1..4, bez `*`), jinak []. `away_list`, `is_away` přes `plan_day`; `day_end` = `den_do`. `plan_today` – ráno po tichu ntfy priorita 2 (`st.plan_day`). Web: `planText` drží 35 dní, popisek „(jako minulý týden)“.

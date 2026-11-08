@@ -385,3 +385,5 @@ Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River
 **Přebytek při odjezdu (5.228):** když do 24 h odjíždíš a podle předpovědi bude baterie během nepřítomnosti plná (propadne aspoň ~0,1 kWh výroby; radši upozorní dřív), dlaždice Kdy jsem pryč a zpráva večer před odjezdem připomenou zapojit nabíjení River ze soláru.
 
 **Jiný spotřebič na generátoru (5.232):** v kartě Generátor → Start vyber spotřebič ze seznamu – River se uberou o jeho výkon do konce nabíjení. Seznam (název a výkon) upravíš přes ✏️ Upravit seznam.
+
+**Plán – jen jeden (5.235):** kdy jsi pryč zadáváš jen v 🗓 Kdy jsem pryč (kdykoli, nejen v neděli). Den, který nezadáš, se vezme jako stejný den minulého týdne; nic = doma. Ráno přijde tichá zpráva, jaký je dnešní plán.
