@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.232", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.233", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2377,6 +2377,7 @@ const spotName = n => String(n||"").replace(/[=;:]/g, " ").replace(/\s+/g, " ").
 let JINE_P = null;
 function jineHtml(P){
   JINE_P = P;
+  let w0 = 300; try{ w0 = +localStorage.getItem("jineW") || 300; }catch(_){}   // 5.233: zadání čísla zůstává
   const on = P.jine > 0, L = spotList(), bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
   const jv = String((DATA && DATA.cfg && DATA.cfg.gen_jine)||"").split(":"), nm = on && +jv[0] === P.jine ? (jv.slice(2).join(":") || "") : "";
   const ins = `font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)`;
@@ -2393,7 +2394,9 @@ function jineHtml(P){
   return `<div id="jine_box" style="margin:8px 0 4px;padding:10px;border-radius:12px;background:var(--bg)">
     <div style="font-weight:600">🔌 Jiný spotřebič na generátoru</div>
     ${on && P.pre ? `<div style="font-size:14px;margin:4px 0">Připraveno${nm ? ` (${escH(nm)})` : ""}: River budou mít při nabíjení o <b>${nf(P.jine)} W</b> méně (platí do konce nabíjení)</div>` : on ? `<div style="font-size:14px;margin:4px 0">${nm ? `${escH(nm)}: ` : ""}River mají o <b>${nf(P.jine)} W</b> méně${P.x_w ? ` · spotřebič teď ~${nf(P.x_w)} W` : ""}${P.xwh ? ` · zatím ${kWh(P.xwh)}` : ""}</div>` : `<div class="sub" style="margin:4px 0">Zapojuješ něco přímo do generátoru? Nejdřív ho vyber (River se ubere), pak zapoj. ${P.pre ? "Jde to i předem – platí od startu nabíjení do jeho konce." : "Platí do konce tohoto nabíjení."}</div>`}
-    ${SPOT_ED ? ed : pick + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${on ? `<button onclick="genJine(0, this)" style="${bs}">Zrušit</button>` : ""}<button onclick="SPOT_ED=true;SPOT_DRAFT=spotList().map(x=>({...x}));rerenderGen()" style="${bs}">✏️ Upravit seznam</button></div>`}
+    ${SPOT_ED ? ed : pick + `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px"><input id="jine_w" type="number" inputmode="numeric" min="50" max="1500" step="50" value="${on ? P.jine : w0}" style="width:90px;${ins}"> W
+      <button onclick="genJine(+$('jine_w').value, this)" style="${bs}">${on ? "Změnit" : "➖ Ubrat"}</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${on ? `<button onclick="genJine(0, this)" style="${bs}">Zrušit</button>` : ""}<button onclick="SPOT_ED=true;SPOT_DRAFT=spotList().map(x=>({...x}));rerenderGen()" style="${bs}">✏️ Upravit seznam</button></div>`}
     <div class="sub" style="margin-top:4px">Co spotřebič vezme z generátoru, se do ceny nabíjení ani účinnosti nepočítá (palivo dál podle celé výroby).</div></div>`;
 }
 function rerenderGen(){ const b = $("jine_box"); if(b && JINE_P) b.outerHTML = jineHtml(JINE_P); }   // jen tenhle rámeček (záložka zůstane)
@@ -2412,7 +2415,8 @@ async function genJine(w, el, name){
   if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
   if(w && !(w >= 50 && w <= 1500)){ el.textContent = "50–1500 W"; return; }
   el.disabled = true; el.textContent = "Ukládám…";
-  try{ await setCfgKey(tok, "gen_jine", `${w||0}:${Math.floor(Date.now()/1000)}${w && name ? ":"+spotName(name) : ""}`);
+  try{ if(w && !name) try{ localStorage.setItem("jineW", String(w)); }catch(_){}
+    await setCfgKey(tok, "gen_jine", `${w||0}:${Math.floor(Date.now()/1000)}${w && name ? ":"+spotName(name) : ""}`);
     el.textContent = w ? `✓ ${name ? spotName(name)+" – " : ""}ubráno ${w} W – do půl minuty` : "✓ zrušeno – do půl minuty";
   }catch(e){ el.disabled = false; el.textContent = e.message; }
 }
