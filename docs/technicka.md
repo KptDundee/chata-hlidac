@@ -478,3 +478,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.239**: `lpg_bottle` → `data.lpg_bottle` {left_kg, kg, pct, per_run, n_left, per_day, t_end, gpk}; ntfy `st.lpg_low` = čas lahve. Web `lpgTxt`, `tileGen` bez běhu ukáže lahev.
 
 **5.240**: `load_calendars(now)` – env `CAL_TRENINK/CAL_TRSLEV/CAL_PRIVAT` (secrets), `icalendar` + `recurring_ical_events`, okno −36…+10 dní; úseky ±1 h, sloučení při dotyku → `CAL {datum: [(od, do, False)]}`. `plan_day`: plan.txt → CAL (zdroj „cal“) → minulý týden. `data.away_src`. Web: `data-orig` – neupravené dny se neukládají.
+
+**5.241**: `CAL_EV` [(od, do, index kalendáře)] → `data.cal_ev` (8 dní), `data.cal_n`. Web `tileCal`, `detCal` (mřížka 7 × 16 h, `CAL_C` barvy).

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.240", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.241", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1611,6 +1611,45 @@ function wplanHtml(d){
     <div style="font-size:15px;margin:6px 0">${head}</div>
     ${(W.segs||[]).length ? `<div style="font-size:14px;line-height:1.6">${W.ok ? "Čím pojede chata" : "Pak pojede"}: ${wpSeq(W)}</div>` : ""}
     <div class="sub" style="margin-top:6px;line-height:1.45">Hlídač zkouší všechna rozdělení solár / River, která jdou udělat – zdroj přepneš jen doma (teď, když solár přestane stačit, při odjezdu, po návratu, při západu a východu slunce, ve 22:00 a před spaním). Jednu River drží co nejplnější na noc a odjezd (kdy přepnout nejde) – mezitím jede z té načaté. Nepřepíná na méně než hodinu. Solár jede, dokud panely kryjí aspoň polovinu spotřeby; pak baterii vybíjí jen tolik, kolik zítra panely doplní navíc nad spotřebu. Když nic nevyjde, poradí, kterou River nabít (méně používanou) a do kdy, aby nabíjení skončilo v okně. Upozornění: 2 h před nejpozdějším začátkem, v nejpozdější čas (nejpozději ve 20:00) akutně. Mimo okno a při nabíjení nic.</div></div>`;
+}
+/* 5.241 (Petr): přehled kalendářů pro kontrolu – týden × hodiny 6–22, barva = kalendář, šedě cesta a volno do 2 h */
+const CAL_C = [["TRENINK","#2563eb"],["TrSLEV","#7cc4f5"],["PRIVAT","#f5a623"]];
+function tileCal(d, h){
+  const E = d.cal_ev || [], t0 = h.now, nx = E.filter(e=>e[0] > t0).length;
+  const day = new Date(); day.setHours(0,0,0,0); const d1 = day.getTime()/1000 + 86400;
+  const today = E.filter(e=>e[1] > t0 && e[0] < d1).length;
+  return {k:"cal", icon:"📆", label:"Kalendáře", cls:"ok", v:`${d.cal_n||0}<small>z 3 načteno</small>`,
+    st: today ? `dnes ještě ${today} ${today===1?"událost":today<5?"události":"událostí"}` : "dnes už nic", a:`týden: ${E.length} událostí – ťukni pro přehled`};
+}
+function detCal(body){
+  const d = DATA, E = d.cal_ev || [], A = d.away || [], src = d.away_src || {};
+  const H0 = 6, H1 = 22, n = H1 - H0;
+  const ov = (a, b, x, y) => Math.max(0, Math.min(b, y) - Math.max(a, x));
+  let rows = "";
+  for(let i = 0; i < 7; i++){
+    const dt = new Date(); dt.setHours(0,0,0,0); dt.setDate(dt.getDate()+i);
+    const k = dK(dt), base = dt.getTime()/1000;
+    let cells = "";
+    for(let hh = H0; hh < H1; hh++){
+      const a = base + hh*3600, b = a + 3600;
+      let best = null, bo = 0; for(const e of E){ const o = ov(a, b, e[0], e[1]); if(o > bo){ bo = o; best = e; } }
+      const away = A.some(x=>ov(a, b, x[0], x[1]) >= 900);
+      const col = best && bo >= 600 ? CAL_C[best[2]][1] : away ? "color-mix(in srgb,var(--text) 22%,transparent)" : "transparent";
+      const tt = best && bo >= 600 ? `${CAL_C[best[2]][0]} ${hmT(best[0])}–${hmT(best[1])}` : away ? "pryč (cesta / volno do 2 h / ruční)" : "doma";
+      cells += `<div data-tt="${WDN[dt.getDay()]} ${dt.getDate()}. ${hh}:00–${hh+1}:00 · ${escH(tt)}" style="cursor:pointer;height:22px;border-radius:3px;background:${col};border:1px solid var(--line)"></div>`;
+    }
+    const lab = src[k]==="cal" ? "" : src[k]==="copy" ? " ↺" : " ✎";
+    rows += `<div style="font-size:12px;white-space:nowrap;align-self:center">${WDN[dt.getDay()]} ${dt.getDate()}.<span class="sub">${lab}</span></div>${cells}`;
+  }
+  let hdr = `<div></div>`; for(let hh = H0; hh < H1; hh++) hdr += `<div class="sub" style="font-size:10px;text-align:center">${hh % 2 ? "" : hh}</div>`;
+  const leg = CAL_C.map(([nm,c])=>`<span style="white-space:nowrap"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};vertical-align:-1px"></span> ${nm}</span>`).join(" &nbsp; ")
+    + `<br><span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:color-mix(in srgb,var(--text) 22%,transparent);vertical-align:-1px"></span> pryč bez události (cesta ±1 h, volno do 2 h, ruční úprava)</span>`;
+  body.insertAdjacentHTML("beforeend", `<div class="card">
+    <div style="display:grid;grid-template-columns:62px repeat(${n},1fr);gap:2px;align-items:stretch">${hdr}${rows}</div>
+    <div id="cal_info" style="font-size:13.5px;margin-top:8px;min-height:1.4em"></div>
+    <div style="font-size:13px;margin-top:6px;line-height:1.7">${leg}</div>
+    <div class="sub" style="margin-top:6px;line-height:1.45">Načteno ${d.cal_n||0} ze 3 kalendářů. Barva = hodina s událostí z kalendáře, šedá = pryč i bez události. U dne s ✎ platí tvoje ruční úprava v 🗓 Kdy jsem pryč (má přednost), ↺ = jako minulý týden. Ťukni na políčko pro čas události.</div></div>`);
+  body.addEventListener("click", e => { const c = e.target.closest("[data-tt]"); if(c && $("cal_info")) $("cal_info").textContent = c.dataset.tt; });
 }
 function detPlan(body){
   const d = DATA, tok = store.get("ghtok");
@@ -3539,7 +3578,7 @@ function renderHome(d){
   $("h_use").innerHTML = T.use.map(tileHtml).join("");
   $("h_now").innerHTML = T.out.map(tileHtml).join("");
   $("h_past").innerHTML = T.past.map(tileHtml).join("");
-  $("h_plan2").innerHTML = tileHtml(tilePlan(d, h));          // 5.224 (Petr): „Kdy jsem pryč“ i v Přehledu
+  $("h_plan2").innerHTML = tileHtml(tilePlan(d, h)) + (d.cal_ev ? tileHtml(tileCal(d, h)) : "");   // 5.224 / 5.241
   $("h_long").innerHTML = T.long.map(tileHtml).join("");
   homeTabs({en:[...T.src, ...T.out], vy:T.prod, sp:T.use, ch:T.chata, pr:[...T.past, ...T.long]});   // 5.171 / 5.174
   const A = alertItems(d, h), el = $("alerts"), top = A[0];
@@ -3608,6 +3647,7 @@ const DET = {
   log:   {t:"📋 Deník", s:"Automatika, upozornění a chyby", ids:["s_log"]},
   bsim:  {t:"🔋 Jaká baterie", s:"Přehrání skutečné historie (počasí, spotřeba) pro různé baterie", build:detBsim},
   plan:  {t:"🗓 Kdy jsem pryč", s:"Plán na týden – podle něj hlídač hlídá solár, River a nabíjení", build:detPlan},
+  cal:   {t:"📆 Kalendáře", s:"Co hlídač načetl z kalendářů – týden 6:00–22:00", build:detCal},
   all:   {t:"🗂 Všechny údaje", s:"Kompletní původní přehled", ids:["heroSec","tilesSec","wxcard","s_plugs","s_pan","s_health","s_charts","s_log","s_tbl"]},
 };
 let DET_MOVED = [], DET_K = null, DETR = "d";

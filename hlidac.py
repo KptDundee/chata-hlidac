@@ -4863,6 +4863,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
 # ---- 5.118: plán nepřítomnosti (plan.txt, zapisuje web) ----
 PLAN_FILE = "plan.txt"
 PLAN = {}                                             # načte main() – {datum: [(od, do, tlačítko)]}
+CAL_EV = []                                           # 5.241: [(od, do, index kalendáře)] – události bez cesty, pro přehled
 CAL = None                                            # 5.240: {datum: [(od, do, False)]} z kalendářů, None = kalendáře nejsou / nešly načíst
 CAL_N = 0
 
@@ -4872,9 +4873,10 @@ def load_calendars(now):
     Každá událost = pryč, ±1 h na cestu; volno mezi událostmi ≤ 2 h = pořád pryč (s hodinou cesty tam i zpět se úseky
     dotknou a sloučí). Celodenní, zrušené a „volno“ (TRANSP:TRANSPARENT) se nepočítají; opakované ano. Do logu jen počty
     (repozitář je veřejný – žádné časy ani názvy)."""
-    global CAL, CAL_N
-    urls = [os.environ.get(k, "").strip() for k in ("CAL_TRENINK", "CAL_TRSLEV", "CAL_PRIVAT")]
-    urls = [u for u in urls if u]
+    global CAL, CAL_N, CAL_EV
+    urls_ = [(i, os.environ.get(k, "").strip()) for i, k in enumerate(("CAL_TRENINK", "CAL_TRSLEV", "CAL_PRIVAT"))]
+    idx = {u: i for i, u in urls_ if u}
+    urls = [u for i, u in urls_ if u]
     if not urls:
         return
     try:
@@ -4901,6 +4903,7 @@ def load_calendars(now):
                 b = (b.dt if b is not None and isinstance(b.dt, datetime) else a + timedelta(hours=1))
                 b = b if b.tzinfo else b.replace(tzinfo=TZ)
                 ivs.append((a.astimezone(TZ) - timedelta(hours=1), b.astimezone(TZ) + timedelta(hours=1)))
+                CAL_EV.append((a.astimezone(TZ), b.astimezone(TZ), idx[u]))
                 nev += 1
             ok += 1
         except Exception as e:
@@ -5655,6 +5658,14 @@ def away_plan(data, st, now, topic, cfg):
         s_ = plan_day(PLAN, d_)[1]
         if s_:
             data["away_src"][d_.isoformat()] = "cal" if s_ == "cal" else "copy"
+    # 5.241 (Petr: přehled pro kontrolu, že se kalendáře načetly dobře): události po kalendářích na 8 dní
+    if CAL is not None:
+        d0_ = datetime(now.year, now.month, now.day, tzinfo=TZ).timestamp()
+        data["cal_ev"] = [[int(a.timestamp()), int(b.timestamp()), i] for a, b, i in sorted(CAL_EV)
+                          if b.timestamp() > d0_ and a.timestamp() < d0_ + 8 * 86400]
+        data["cal_n"] = CAL_N
+    else:
+        data.pop("cal_ev", None)
     M = energy_model(data, cfg, now)
     RV = river_models(data, cfg, now)
     res_pct = cfg.get("river_rezerva_pct") or 5
