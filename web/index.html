@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.236", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.237", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2381,9 +2381,10 @@ function jineHtml(P){
   const L = spotList(), bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
   const ins = `font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)`;
   // 5.234 (Petr: nevidím, jestli je ubrání aktivní): stav – po ťuknutí hned (než ho hlídač převezme), jinak z dat
-  const jv = String((DATA && DATA.cfg && DATA.cfg.gen_jine)||"").split(":"), jt = +jv[1]||0;
-  const loc = JINE_LOC && JINE_LOC.t > jt && Date.now()/1000 - JINE_LOC.t < 600 ? JINE_LOC : null;
-  const w = loc ? loc.w : P.jine, on = w > 0, nm = loc ? loc.n : on && +jv[0] === P.jine ? (jv.slice(2).join(":") || "") : "";
+  // 5.237 (Petr: vypnout nešlo – po ťuknutí ukazoval „Vypnuto“): stav vždy z nastavení (gen_jine), které web hned po uložení zná
+  const jv = String((DATA && DATA.cfg && DATA.cfg.gen_jine)||"").split(":"), jt = +jv[1]||0, jw = +jv[0]||0;
+  const loc = Date.now()/1000 - jt < 120 ? {w:jw} : null;           // právě uloženo – hlídač ještě nepřevzal
+  const w = jw > 0 && Date.now()/1000 - jt < 6*3600 ? jw : 0, on = w > 0, nm = on ? (jv.slice(2).join(":") || "") : "";
   const stat = on
     ? `<div style="margin:6px 0 2px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--good) 18%,transparent);font-size:14px"><b>● Zapnuto${nm ? ` – ${escH(nm)}` : ""}:</b> River ${P.pre ? "budou mít" : "mají"} o <b>${nf(w)} W</b> méně ${P.pre ? "(od startu do konce nabíjení)" : "(do konce nabíjení)"}${P.x_w && !loc ? ` · spotřebič teď ~${nf(P.x_w)} W` : ""}${P.xwh && !loc ? ` · zatím ${kWh(P.xwh)}` : ""}${loc ? ` <span class="sub">· hlídač převezme do půl minuty</span>` : ""}</div>`
     : `<div style="margin:6px 0 2px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);font-size:14px"><b>○ Vypnuto:</b> River nabíjí plným výkonem${loc ? ` <span class="sub">· hlídač převezme do půl minuty</span>` : ""}</div>`;
@@ -2396,7 +2397,7 @@ function jineHtml(P){
         <button onclick="spotSave(this)" style="${bs}">Uložit</button><button onclick="SPOT_ED=false;rerenderGen()" style="${bs}">Zpět</button></div>
       <div class="sub" style="margin-top:4px">Výkon = o kolik River při nabíjení ubrat (50–1500 W).</div></div>`;
   const pick = L.map(x=>{ const sel = on && (nm ? nm===x.n : x.w===w);
-      return `<button onclick="genJine(${x.w}, this, '${escH(x.n).replace(/'/g,"&#39;")}')" style="${bs};${sel?"background:color-mix(in srgb,var(--good) 22%,transparent);border-color:var(--good)":""}">${sel?"✓ ":""}${escH(x.n)} <span style="font-weight:500;color:var(--text2)">${nf(x.w)} W</span></button>`; }).join("");
+      return `<button onclick="${sel ? "genJine(0, this)" : `genJine(${x.w}, this, '${escH(x.n).replace(/'/g,"&#39;")}')`}" title="${sel ? "ťukni znovu = vypnout" : ""}" style="${bs};${sel?"background:color-mix(in srgb,var(--good) 22%,transparent);border-color:var(--good)":""}">${sel?"✓ ":""}${escH(x.n)} <span style="font-weight:500;color:var(--text2)">${nf(x.w)} W</span></button>`; }).join("");
   return `<div id="jine_box" style="margin:8px 0 4px;padding:10px;border-radius:12px;background:var(--bg)">
     <div style="font-weight:600">🔌 Jiný spotřebič na generátoru</div>${stat}
     <div class="sub" style="margin:6px 0 2px">Zapojuješ něco do generátoru? Nejdřív ho tady zapni (River se uberou), pak spotřebič zapoj. Platí ${P.pre ? "od startu nabíjení " : ""}do konce nabíjení.</div>
@@ -2427,7 +2428,7 @@ async function genJine(w, el, name){
   try{ if(w && !name) try{ localStorage.setItem("jineW", String(w)); }catch(_){}
     const t_ = Math.floor(Date.now()/1000);
     await setCfgKey(tok, "gen_jine", `${w||0}:${t_}${w && name ? ":"+spotName(name) : ""}`);
-    JINE_LOC = {w:w||0, n:w && name ? spotName(name) : "", t:t_}; rerenderGen();     // 5.234: stav hned
+    rerenderGen();     // 5.234/5.237: stav hned (z nastavení, které setCfgKey právě přepsal)
   }catch(e){ el.disabled = false; el.textContent = e.message; }
 }
 async function setCfgKey(tok, key, val){
