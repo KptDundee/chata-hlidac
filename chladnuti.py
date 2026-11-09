@@ -81,6 +81,45 @@ def _interp(ser, t):
     return a + (b - a) * (t - t0) / (t1 - t0)
 
 
+def _tout_fn(O, M, bias):
+    """5.242 (Petr: teploměr OUTDOOR měří venku u chaty – mikroklima): venku = naměřená teplota, kde je měření do 30 min;
+    jinde předpověď + odchylka (naměřeno − předpověď za posledních 24 h)."""
+    def f(t):
+        if M:
+            m = _interp(M, t)
+            near = min((abs(t - x[0]) for x in M[max(0, _bis(M, t) - 1):_bis(M, t) + 1]), default=1e9)
+            if m is not None and near <= 1800:
+                return m
+        o = _interp(O, t)
+        return None if o is None else o + bias
+    return f
+
+
+def _bis(M, t):
+    lo, hi = 0, len(M)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if M[mid][0] < t:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+
+def _meas(data, name):
+    """Naměřená venkovní teplota [(t, °C)] z teploměru `name` (body hlídače)."""
+    key = str(name or "").strip(" ,;:.").lower()
+    out = []
+    if not key:
+        return out
+    for p in data.get("points", []):
+        th = p.get("th") or {}
+        v = next((th[k] for k in th if str(k).strip(" ,;:.").lower() == key), None)
+        if v is not None and (not out or p["t"] > out[-1][0]):
+            out.append((p["t"], float(v)))
+    return out
+
+
 def _segments(R):
     """R = [(t, T)] seřazené → úseky chladnutí [(i_vrchol, i_konec)]."""
     segs, i, n = [], 0, len(R)
@@ -199,7 +238,12 @@ def update(data, st, now, cfg, log=print):
     if len(R) < 6:
         return
     O = _outdoor(st, cfg, now, log)
-    tout = lambda t: _interp(O, t)
+    M = _meas(data, cfg.get("chladnuti_venku_teplomer", "OUTDOOR"))
+    dif = [m - _interp(O, t) for t, m in M if t >= ts - 86400 and _interp(O, t) is not None]
+    bias = round(sum(dif) / len(dif), 1) if len(dif) >= 6 else float(st.get("wo_bias") or 0.0)
+    st["wo_bias"] = bias
+    st["wo_m"] = [[t, v] for t, v in M if t >= ts - 6 * 3600][-60:]      # pro curve() – poslední naměřené
+    tout = _tout_fn(O, M, bias)
     if st.get("cool_ver") != 4:                       # 5.46: učí se jen z noci (bez udržovacího topení) – přepočítat
         st["cool_ev"] = {}
         st["cool_ver"] = 4
@@ -249,7 +293,8 @@ def update(data, st, now, cfg, log=print):
     c = {"room": room, "n": len(done), "need": need,
          "ev": sorted(ev.values(), key=lambda x: x["ta"])[-8:],
          "out_now": None if tout(ts) is None else round(tout(ts), 1),
-         "out": [[t, v] for t, v in O if ts - 8 * 86400 <= t <= ts + 24 * 3600]}      # 5.49: týden zpět pro graf nocí
+         "out": [[t, round(tout(t), 1)] for t, v in O if ts - 8 * 86400 <= t <= ts + 24 * 3600 and tout(t) is not None],   # 5.49 / 5.242
+         "bias": bias, "meas": bool(M and ts - M[-1][0] < 1800)}
     if R and ts - R[-1][0] < 1800:
         c["T_now"] = round(R[-1][1], 1)
         prev = [T for t, T in R if R[-1][0] - 3600 <= t < R[-1][0] - 1200]
@@ -356,10 +401,11 @@ def curve(st, k, T0, t0, t1, step=600):
     O = sorted((int(t), v) for t, v in ((st.get("wo") or {}).get("h") or {}).items())
     if not O or not k:
         return None
+    tout = _tout_fn(O, [tuple(x) for x in st.get("wo_m") or []], float(st.get("wo_bias") or 0.0))   # 5.242
     out, T, t = [(int(t0), round(T0, 2))], float(T0), int(t0)
     while t < t1:
         dt = min(step, t1 - t)
-        o = _interp(O, t)
+        o = tout(t)
         if o is None:
             return out if len(out) > 1 else None
         T += -k * (T - o) * dt / 3600

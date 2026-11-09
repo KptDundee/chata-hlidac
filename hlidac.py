@@ -41,7 +41,7 @@ DEFAULTS = {
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "", "gen_rucne": "", "gen_spotrebice": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
-    "ticho": "0:00-5:45",
+    "ticho": "0:00-5:45", "chladnuti_venku_teplomer": "OUTDOOR",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
@@ -1824,6 +1824,17 @@ def main():
     except (ValueError, IndexError):
         pass
     PLAN = load_plan()                                     # 5.118: plán nepřítomnosti (web)
+    if not st.get("mig_kuch"):                             # 5.242 (Petr): teploměr Kuchyne je teď venku (OUTDOOR) – stará data pryč
+        n_ = 0
+        for p_ in data.get("points", []):
+            for k_ in [k_ for k_ in (p_.get("th") or {}) if str(k_).strip(" ,;:.").lower().startswith("kuchyn")]:
+                p_["th"].pop(k_, None)
+                n_ += 1
+        for d_ in (st.get("th_watch") or {}, st.get("th_bat") or {}):
+            for k_ in [k_ for k_ in d_ if str(k_).lower().startswith("kuchyn")]:
+                d_.pop(k_, None)
+        st["mig_kuch"] = 1
+        print(f"Teploměr Kuchyne: smazáno {n_} starých hodnot")
     try:
         load_calendars(now)                                # 5.240: pracovní kalendáře (Google, tajné adresy iCal)
     except Exception as e:
@@ -4455,7 +4466,9 @@ def heat_plan(data, st, now, topic, cfg):
     data["heat"] = h
     hs = st.setdefault("heat", {})
     O = sorted((int(t), v) for t, v in ((st.get("wo") or {}).get("h") or {}).items())
-    h["out"] = [[t, v] for t, v in O if ts - 7 * 3600 <= t <= ts + 11 * 3600]
+    import chladnuti
+    to_ = chladnuti._tout_fn(O, chladnuti._meas(data, cfg.get("chladnuti_venku_teplomer", "OUTDOOR")), float(st.get("wo_bias") or 0.0))   # 5.242
+    h["out"] = [[t, round(to_(t), 1)] for t, v in O if ts - 7 * 3600 <= t <= ts + 11 * 3600 and to_(t) is not None]
     if c.get("T_now") is not None and c.get("k"):
         import chladnuti
         cv = chladnuti.curve(st, c["k"], c["T_now"], ts, ts + 10 * 3600)

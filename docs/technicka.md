@@ -480,3 +480,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.240**: `load_calendars(now)` – env `CAL_TRENINK/CAL_TRSLEV/CAL_PRIVAT` (secrets), `icalendar` + `recurring_ical_events`, okno −36…+10 dní; úseky ±1 h, sloučení při dotyku → `CAL {datum: [(od, do, False)]}`. `plan_day`: plan.txt → CAL (zdroj „cal“) → minulý týden. `data.away_src`. Web: `data-orig` – neupravené dny se neukládají.
 
 **5.241**: `CAL_EV` [(od, do, index kalendáře)] → `data.cal_ev` (8 dní), `data.cal_n`. Web `tileCal`, `detCal` (mřížka 7 × 16 h, `CAL_C` barvy).
+
+**5.242**: `chladnuti._meas` (teploměr `chladnuti_venku_teplomer`), `_tout_fn(O, M, bias)` – naměřeno do 30 min, jinak předpověď + `st.wo_bias` (průměr naměřeno − předpověď za 24 h, ≥ 6 bodů); `st.wo_m` pro `curve()`; `cool.bias`, `cool.meas`; `heat.out` stejně. Migrace `st.mig_kuch` smaže th „Kuchyn*“ z bodů.
