@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.243", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.244", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1630,7 +1630,7 @@ function detCal(body){
   let g = `<div></div>` + days.map(dt=>{ const k = dK(dt), lab = src[k]==="cal" ? "" : src[k]==="copy" ? " ↺" : " ✎";
     return `<div style="font-size:11.5px;text-align:center;line-height:1.2">${WDN[dt.getDay()]}<br>${dt.getDate()}.${lab}</div>`; }).join("");
   for(let hh = H0; hh < H1; hh++){
-    g += `<div class="sub" style="font-size:10.5px;text-align:right;padding-right:3px;align-self:center">${hh}</div>`;
+    g += `<div class="sub" style="font-size:10.5px;text-align:right;padding-right:3px;align-self:start;transform:translateY(-55%)">${hh}:00</div>`;   // 5.244: čas na horní hraně = začátek hodiny
     for(const dt of days){
       const a = dt.getTime()/1000 + hh*3600, b = a + 3600;
       let best = null, bo = 0; for(const e of E){ const o = ov(a, b, e[0], e[1]); if(o > bo){ bo = o; best = e; } }
@@ -1640,11 +1640,12 @@ function detCal(body){
       g += `<div data-tt="${WDN[dt.getDay()]} ${dt.getDate()}. ${hh}:00–${hh+1}:00 · ${escH(tt)}" style="cursor:pointer;height:18px;border-radius:3px;background:${col};border:1px solid var(--line)"></div>`;
     }
   }
+  g += `<div class="sub" style="font-size:10.5px;text-align:right;padding-right:3px;transform:translateY(-55%);height:6px">${H1}:00</div>` + days.map(()=>"<div></div>").join("");
   const sw = c => `<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};vertical-align:-1px"></span>`;
   const leg = CAL_C.map(([nm,c])=>`<span style="white-space:nowrap">${sw(c)} ${nm}</span>`).join(" &nbsp; ")
     + `<br><span>${sw("color-mix(in srgb,var(--text) 22%,transparent)")} pryč bez události (cesta ±1 h, volno do 2 h, ruční úprava)</span>`;
   body.insertAdjacentHTML("beforeend", `<div class="card">
-    <div style="display:grid;grid-template-columns:24px repeat(${ND},1fr);gap:2px">${g}</div>
+    <div style="display:grid;grid-template-columns:36px repeat(${ND},1fr);gap:2px;padding-top:4px">${g}</div>
     <div id="cal_info" style="font-size:13.5px;margin-top:8px;min-height:1.4em"></div>
     <div style="font-size:13px;margin-top:6px;line-height:1.7">${leg}</div>
     <div class="sub" style="margin-top:6px;line-height:1.45">Načteno ${d.cal_n||0} ze 3 kalendářů. Barva = hodina s událostí z kalendáře, šedá = pryč i bez události. U dne s ✎ platí tvoje ruční úprava v 🗓 Kdy jsem pryč (má přednost), ↺ = jako minulý týden. Ťukni na políčko pro čas události.</div></div>`);
