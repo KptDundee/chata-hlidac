@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.244", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.245", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1326,13 +1326,21 @@ function batFlow(h){           // stav: nabíjí / vybíjí / nabito / v klidu
   if(h.rvOn || h.menicOff) return {t: h.rvOn ? "Odpojená – chata jede z River" : "Odpojená – měnič vypnutý", c:"--text2"};
   return {t:"V klidu", c:"--text2"};
 }
+/* 5.245 (Petr: červený rámeček, i když plán přepne na River dřív, než baterie dojde): plán podle okna generátoru
+   má přepnutí na River (nebo odjezd na River) dřív, než solár dojde → v pořádku, jen informace */
+function planCovers(d, h){
+  const W = d.wplan, f = d.day_fc;
+  if(!W || !W.ok || h.now - W.t > 1800 || !f || f.ok || !f.t_empty) return false;
+  const g = (W.segs||[]).find(x=>x.src!=="s" && x.b > h.now);
+  return !!g && g.a <= f.t_empty;
+}
 /* výhled dne (4.05): chata na soláru – vydrží do 22:00? (počítá hlídač, data.day_fc) */
 function dayFcRow(d, h){
   const f = d.day_fc; if(!f || h.now - f.t > 1800) return null;
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
   if(f.src==="river")   // chata na River (4.26): jeden jasný řádek – můžu přepnout na solár? (rozpis v detailu)
     return ["přepnout na solár?", f.ok && f.night_ok ? `<b style="color:var(--good)">ano ✓</b>` : f.ok ? `<b style="color:var(--good)">do ${e}</b>` : `<b style="color:var(--text2)">ne</b>`, 1];
-  return [`do ${e}`, f.ok ? `<span style="color:var(--good)">vydrží ✓</span>` : `<b style="color:var(--crit)">${fcEmptyT(f)}</b>`];
+  return [`do ${e}`, f.ok ? `<span style="color:var(--good)">vydrží ✓</span>` : planCovers(d, h) ? `<span style="color:var(--text2)">${fcEmptyT(f)}</span>` : `<b style="color:var(--crit)">${fcEmptyT(f)}</b>`];
 }
 /* 5.200 (Petr): baterie už teď pod alarmem (v #) → ne „dojde ~12:44“ (čas v minulosti), ale „pod alarmem už teď“ */
 const fcEmptyT = (f, would) => (f.ah!=null && f.ah <= 0) || (f.t_empty && f.t_empty - f.t < 900) ? "pod alarmem" : `${would ? "došla by" : "dojde"} ~${hmT(f.t_empty)}`;
@@ -1373,7 +1381,7 @@ function nightRow(d, h){
   if(f && h.now - f.t <= 1800 && f.src==="river") return null;   // na River to řeší řádek „přepnout na solár?“
   if(f && h.now - f.t <= 1800 && f.night_ok != null)
     return f.night_ok && f.lvl_end!=null && f.cap ? [["do rána", `<span style="color:var(--good)">ano ✓</span>`], ["ráno zbude", `~${Math.round(f.alarm + f.lvl_end/f.cap*100)} #`]]   // 4.44: dva řádky, ať se vejdou
-      : ["do rána", f.night_ok ? `<span style="color:var(--good)">ano ✓</span>` : `<b style="color:var(${f.src==="river"?"--text2":"--crit"})">ne</b>`];
+      : ["do rána", f.night_ok ? `<span style="color:var(--good)">ano ✓</span>` : `<b style="color:var(${f.src==="river" || planCovers(d, h) ?"--text2":"--crit"})">ne</b>`];
   const n = d.forecast; if(!n || !n.until || h.invF && !(h.inv.mw > 3)) return null;   // noc: jen když chata jede ze soláru
   return ["do rána", n.t_crit ? `<b style="color:var(--crit)">ne</b>` : `<span style="color:var(--good)">ano ✓</span>`];
 }
@@ -1429,7 +1437,7 @@ function tileSolar(d, h){
   const odb = h.loadB==null ? "–" : `${nf(h.loadB)} W${h.inv && h.inv.mw!=null && h.inv.mw > 3 ? ` <span class="sub">(chata ${nf(h.inv.mw)} W)</span>` : ""}`;
   const off = h.menicOff || h.rvOn;   // 4.29: chata na River → řádek odběru pryč (nic neodebírá, „chata na River“ je v textu nad tím)
   // 4.78: zelená jen když vydrží do rána; do 22:00 ano, do rána ne → oranžová; ani do 22:00 → červená
-  const OL = h.rvOn ? null : batOutlook(d, h);
+  const OL = h.rvOn || planCovers(d, h) ? null : batOutlook(d, h);   // 5.245: plán přepne na River včas → v pořádku
   return {...t, label:`${t.label}${bang}`, cls: ac ? (h.bv!=null && h.bv < CRIT_V || R.stale ? "bad" : "warn") : OL || "ok",
     v, st: R.stale ? ac : `<span style="color:var(${F.c})">${F.t}</span>`,
     rows:[["nabití", soc!=null ? `${nf(soc)} %` : "–"], ["☀ panely", h.pv!=null ? `${nf(h.pv)} W` : "–"], ...(off ? [] : [["🔋 z baterie", odb]]),

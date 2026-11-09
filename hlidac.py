@@ -1835,6 +1835,18 @@ def main():
                 d_.pop(k_, None)
         st["mig_kuch"] = 1
         print(f"Teploměr Kuchyne: smazáno {n_} starých hodnot")
+    # 5.245 (Petr): teploměr venku ještě chodí z Flipu jako „Kuchyne“ (přejmenovat ve Flipu na OUTDOOR) – dokud Kuchyne
+    # není mezi hlídanými teploměry, jeho hodnoty se ukládají jako OUTDOOR; jednou: starší než hodina pryč
+    if not any(str(x).strip().lower().startswith("kuchyn") for x in str(cfg.get("teplomery") or "").split(",")):
+        out_ = str(cfg.get("chladnuti_venku_teplomer") or "OUTDOOR").strip()
+        lim_ = now.timestamp() - 3600 if not st.get("mig_kuch2") else 0
+        for p_ in data.get("points", []):
+            th_ = p_.get("th") or {}
+            for k_ in [k_ for k_ in th_ if str(k_).strip(" ,;:.").lower().startswith("kuchyn")]:
+                v_ = th_.pop(k_)
+                if p_["t"] >= lim_ and out_ and out_ not in th_:
+                    th_[out_] = v_
+        st["mig_kuch2"] = 1
     try:
         load_calendars(now)                                # 5.240: pracovní kalendáře (Google, tajné adresy iCal)
     except Exception as e:
