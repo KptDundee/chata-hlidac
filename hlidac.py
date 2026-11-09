@@ -2009,6 +2009,7 @@ def main():
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
                          ("Palivo a cena", lambda: fuel_stats(data, st, now, cfg)),
+                         ("Lahev PB u generátoru", lambda: lpg_bottle(data, st, now, topic, cfg)),
                          ("Plyn a voda v chatě", lambda: util_entries(data)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
@@ -3831,6 +3832,46 @@ def util_entries(data):
         out.append([t, b[1].lower(), v])
     out.sort(key=lambda x: x[0])
     data["util"] = out
+
+
+def lpg_bottle(data, st, now, topic, cfg):
+    """5.239 (Petr): kolik plynu je ještě v lahvi u generátoru, na kolik nabití vystačí a kdy asi měnit.
+    Zbývá = kg lahve − vyrobené kWh × g/kWh (nebo podle obvyklé výdrže lahve). Na nabití = průměr plynu na jedno nabití
+    z plynu za 60 dní. Výměna = podle spotřeby plynu za posledních 30 dní (kg/den). Zpráva (ne alarm) jednou na lahev,
+    když zbývá na 1 nabití nebo méně."""
+    F = (data.get("fuel") or {}).get("lpg") or {}
+    c = F.get("cur")
+    data.pop("lpg_bottle", None)
+    if not c or not c.get("kg"):
+        return
+    gpk = F.get("gpk")
+    if c.get("used_kg") is not None:
+        left = max(0.0, c["kg"] - c["used_kg"])
+    elif c.get("left_pct") is not None:
+        left = c["kg"] * c["left_pct"] / 100
+    else:
+        return
+    ts = now.timestamp()
+    runs = [r for r in data.get("fuel_runs") or [] if (r.get("wh_f") or {}).get("lpg", 0) > 100]
+    kg_of = lambda r: r["wh_f"]["lpg"] / 1000 * gpk / 1000 if gpk else None
+    r60 = [kg_of(r) for r in runs if r.get("t1", 0) >= ts - 60 * 86400 and kg_of(r)]
+    per_run = sum(r60) / len(r60) if r60 else None
+    k30 = sum(kg_of(r) or 0 for r in runs if r.get("t1", 0) >= ts - 30 * 86400)
+    span = min(30.0, max(7.0, (ts - min((r.get("t0") or r.get("t1") for r in runs), default=ts)) / 86400)) if runs else None
+    per_day = k30 / span if span and k30 > 0 else None
+    n_left = left / per_run if per_run else None
+    t_end = ts + left / per_day * 86400 if per_day else None
+    B = {"left_kg": round(left, 1), "kg": c["kg"], "pct": round(left / c["kg"] * 100), "t": int(c["t"]),
+         "per_run": round(per_run, 2) if per_run else None, "n_left": round(n_left, 1) if n_left is not None else None,
+         "per_day": round(per_day, 3) if per_day else None, "t_end": int(t_end) if t_end else None, "gpk": gpk}
+    data["lpg_bottle"] = B
+    print(f"Lahev PB: zbývá ~{left:.1f} kg z {c['kg']:.0f} kg, na nabití ~{per_run or 0:.2f} kg → ~{n_left or 0:.1f} nabití, "
+          f"výměna ~{datetime.fromtimestamp(t_end, TZ).strftime('%-d. %-m.') if t_end else '?'}")
+    if n_left is not None and n_left <= 1.0 and st.get("lpg_low") != int(c["t"]) and not in_quiet():
+        ntfy(topic, "🔥 Lahev PB u generátoru vystačí asi na 1 nabití",
+             f"Zbývá asi {fmt(left, 1)} kg plynu, jedno nabití bere ~{fmt(per_run, 1)} kg. Připrav novou lahev (odhad podle spotřeby generátoru).",
+             3, "fire")
+        st["lpg_low"] = int(c["t"])
 
 
 def fuel_stats(data, st, now, cfg):
