@@ -5728,9 +5728,9 @@ def battery_sim(data, st, now, cfg):
 
 
 def plan_today(data, st, now, topic, cfg):
-    """5.235 (Petr): ráno po nočním klidu jednou zpráva s nízkou prioritou, jaký je dnes plán (a odkud)."""
+    """5.235 (Petr): ráno v 9:00 (5.236) jednou zpráva s nízkou prioritou, jaký je dnes plán (a odkud)."""
     day = now.strftime("%Y-%m-%d")
-    if in_quiet() or now.hour >= 12 or st.get("plan_day") == day:
+    if not (9 <= now.hour < 12) or st.get("plan_day") == day:          # 5.236 (Petr): v 9:00, ne po nočním klidu
         return
     st["plan_day"] = day
     ivs, src = plan_day(PLAN, now.date())

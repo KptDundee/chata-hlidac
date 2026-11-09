@@ -473,4 +473,4 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 
 **5.232**: `gen_spotrebice` = „Název=W; …“ (web `spotParse`, editor `SPOT_DRAFT`, `spotSave` → `setCfgKey`); `gen_jine` = „W:čas[:název]“ (hlídač bere ≥ 2 části, název do deníku).
 
-**5.235**: zrušeno `den_kontrola`, `den_navrat`, `sched_time`. `plan_day(plan, d)` → (úseky, zdroj): plan.txt, jinak d−7·k (k=1..4, bez `*`), jinak []. `away_list`, `is_away` přes `plan_day`; `day_end` = `den_do`. `plan_today` – ráno po tichu ntfy priorita 2 (`st.plan_day`). Web: `planText` drží 35 dní, popisek „(jako minulý týden)“.
+**5.235**: zrušeno `den_kontrola`, `den_navrat`, `sched_time`. `plan_day(plan, d)` → (úseky, zdroj): plan.txt, jinak d−7·k (k=1..4, bez `*`), jinak []. `away_list`, `is_away` přes `plan_day`; `day_end` = `den_do`. `plan_today` – 9:00–12:00 (5.236) ntfy priorita 2 (`st.plan_day`). Web: `planText` drží 35 dní, popisek „(jako minulý týden)“.
