@@ -4766,7 +4766,10 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
             and st.get("sol_use_d") != now.strftime("%Y-%m-%d") and st.get("do_conn") != (str(int(AW[0].timestamp())) if AW else now.strftime("%Y-%m-%d")):
         ntfy(topic, "☀️ Přepni chatu na solár – vyrábí víc, než chata bere",
              f"Panely teď dávají ~{fmt(pv_)} W, chata bere ~{fmt(cab_w)} W (z baterie by šlo ~{fmt(need_w)} W). Spotřeba pojede rovnou z panelů "
-             f"– šetří River (plyn) a baterie se při tom nevybíjí. Solární baterie {hq['pct']} #.\nAž výroba klesne, napíšu, kdy zpátky na River.", 3, "sunny")
+             f"– šetří River (plyn) a baterie se při tom nevybíjí. Solární baterie {hq['pct']} #.\n"
+             + (f"Do {hh}:{mm:02d} to ale nevydrží (dojde ~{datetime.fromtimestamp(res['t_empty'], TZ).strftime('%H:%M')}) – "     # 5.238 (Petr)
+                "až výroba klesne, napíšu, kdy zpátky na River." if not res.get("ok") and res.get("t_empty") else
+                "Až výroba klesne, napíšu, kdy zpátky na River."), 3, "sunny")
         st["sol_use_d"] = now.strftime("%Y-%m-%d")
     was_soft = "sol_soft" in (st.get("al") or {})
     soft = on_solar and home_ and not in_quiet() and alarm_soc <= hq["pct"] < setr + (5 if was_soft else 0) and not covers
