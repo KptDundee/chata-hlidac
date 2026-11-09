@@ -182,4 +182,4 @@ vlhkost_min = 40                 # upozornit na suchý vzduch pod tolik % (dobr�
 gen_povel =                      start:lpg:1794077659# povel z tlačítka nabíjení z generátoru (zapisuje web – neměnit)
 gen_jine =                       80:1793612926# ubrat výkon River pro jiný spotřebič na generátoru „W:čas“ (zapisuje web – neměnit)
 gen_rucne =                      # ruční výkon River při nabíjení z generátoru „1/0:čas“ (zapisuje web – neměnit)
-gen_spotrebice = Kolobezka=80
+gen_spotrebice = Kolobezka=80; RoboVysavac=70
