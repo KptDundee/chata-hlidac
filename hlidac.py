@@ -1824,6 +1824,10 @@ def main():
     except (ValueError, IndexError):
         pass
     PLAN = load_plan()                                     # 5.118: plán nepřítomnosti (web)
+    try:
+        load_calendars(now)                                # 5.240: pracovní kalendáře (Google, tajné adresy iCal)
+    except Exception as e:
+        print(f"Kalendáře: chyba ({type(e).__name__})")
     alarm_acks(st, topic)                                  # 5.95: tlačítka Řeším / Za 30 min / Za 1 h
     rise, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
     data["cfg"] = cfg
@@ -4859,6 +4863,62 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
 # ---- 5.118: plán nepřítomnosti (plan.txt, zapisuje web) ----
 PLAN_FILE = "plan.txt"
 PLAN = {}                                             # načte main() – {datum: [(od, do, tlačítko)]}
+CAL = None                                            # 5.240: {datum: [(od, do, False)]} z kalendářů, None = kalendáře nejsou / nešly načíst
+CAL_N = 0
+
+
+def load_calendars(now):
+    """5.240 (Petr): tři Google kalendáře (tajné adresy iCal v GitHub Secrets TRENINK, TRSLEV, PRIVAT → env CAL_*).
+    Každá událost = pryč, ±1 h na cestu; volno mezi událostmi ≤ 2 h = pořád pryč (s hodinou cesty tam i zpět se úseky
+    dotknou a sloučí). Celodenní, zrušené a „volno“ (TRANSP:TRANSPARENT) se nepočítají; opakované ano. Do logu jen počty
+    (repozitář je veřejný – žádné časy ani názvy)."""
+    global CAL, CAL_N
+    urls = [os.environ.get(k, "").strip() for k in ("CAL_TRENINK", "CAL_TRSLEV", "CAL_PRIVAT")]
+    urls = [u for u in urls if u]
+    if not urls:
+        return
+    try:
+        import icalendar
+        import recurring_ical_events
+    except ImportError:
+        print("Kalendáře: chybí knihovna icalendar")
+        return
+    t0 = datetime(now.year, now.month, now.day, tzinfo=TZ) - timedelta(days=36)
+    t1 = t0 + timedelta(days=36 + 10)
+    ivs, ok, nev = [], 0, 0
+    for u in urls:
+        try:
+            req = urllib.request.Request(u.replace("webcal://", "https://"), headers={"User-Agent": "chata-hlidac"})
+            raw = urllib.request.urlopen(req, timeout=20).read()
+            cal = icalendar.Calendar.from_ical(raw)
+            for ev in recurring_ical_events.of(cal).between(t0, t1):
+                if str(ev.get("STATUS", "")).upper() == "CANCELLED" or str(ev.get("TRANSP", "")).upper() == "TRANSPARENT":
+                    continue
+                a, b = ev.get("DTSTART"), ev.get("DTEND")
+                if a is None or not isinstance(a.dt, datetime):
+                    continue                                     # celodenní
+                a = a.dt if a.dt.tzinfo else a.dt.replace(tzinfo=TZ)
+                b = (b.dt if b is not None and isinstance(b.dt, datetime) else a + timedelta(hours=1))
+                b = b if b.tzinfo else b.replace(tzinfo=TZ)
+                ivs.append((a.astimezone(TZ) - timedelta(hours=1), b.astimezone(TZ) + timedelta(hours=1)))
+                nev += 1
+            ok += 1
+        except Exception as e:
+            print(f"Kalendář {urls.index(u) + 1}: nejde načíst ({type(e).__name__})")
+    if not ok:
+        return
+    ivs.sort()
+    out = []
+    for a, b in ivs:
+        if out and a <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], b))
+        else:
+            out.append((a, b))
+    CAL = {}
+    for a, b in out:
+        CAL.setdefault(a.date(), []).append((a, b, False))
+    CAL_N = ok
+    print(f"Kalendáře: načteno {ok} z {len(urls)}, událostí {nev}, úseků pryč {len(out)}")
 
 
 def load_plan(path=PLAN_FILE):
@@ -4899,9 +4959,12 @@ def load_plan(path=PLAN_FILE):
 
 def plan_day(plan, d):
     """5.235 (Petr: jen jeden rozvrh): úseky dne d – z plan.txt přesně; den, který v plánu není, jako stejný den minulého
-    týdne (až 4 týdny zpět, bez úseků z tlačítka 🚗); nic = doma. Vrací ([(od, do, tlačítko)], zkopírováno_z | None)."""
+    týdne (až 4 týdny zpět, bez úseků z tlačítka 🚗); nic = doma. Vrací ([(od, do, tlačítko)], zkopírováno_z | None).
+    5.240: jsou-li načtené kalendáře, den mimo plan.txt = z kalendáře (bez událostí = doma), zdroj „cal“."""
     if d in plan:
         return plan[d], None
+    if CAL is not None:
+        return list(CAL.get(d, [])), "cal"
     for k in range(1, 5):
         d0 = d - timedelta(days=7 * k)
         if d0 in plan:
@@ -5586,6 +5649,12 @@ def away_plan(data, st, now, topic, cfg):
     ivs = [I for I in away_list(cfg, PLAN, now, days=2) if I[1] > now and I[0] <= now + timedelta(hours=30)]
     data["away"] = [[int(a.timestamp()), int(b.timestamp()), 1 if f else 0]
                     for a, b, f in away_list(cfg, PLAN, now, days=8) if b > now]
+    data["away_src"] = {}                              # 5.240: odkud den je – „cal“ kalendář, „copy“ minulý týden (plán = nic)
+    for i in range(9):
+        d_ = now.date() + timedelta(days=i)
+        s_ = plan_day(PLAN, d_)[1]
+        if s_:
+            data["away_src"][d_.isoformat()] = "cal" if s_ == "cal" else "copy"
     M = energy_model(data, cfg, now)
     RV = river_models(data, cfg, now)
     res_pct = cfg.get("river_rezerva_pct") or 5
@@ -5780,7 +5849,7 @@ def plan_today(data, st, now, topic, cfg):
     ivs, src = plan_day(PLAN, now.date())
     hm = lambda x: x.strftime("%H:%M")
     txt = "pryč " + ", ".join(f"{hm(a)}–{hm(b)}" for a, b, f in ivs) if ivs else "doma"
-    ntfy(topic, f"📅 Dnes {txt}", (f"Podle minulého týdne ({src.day}. {src.month}.) – " if src else "")
+    ntfy(topic, f"📅 Dnes {txt}", ("Podle kalendáře – " if src == "cal" else f"Podle minulého týdne ({src.day}. {src.month}.) – " if src else "")
          + "když to nesedí, uprav plán, ať hlídač počítá správně.", 2, "calendar",
          actions=[{"action": "view", "label": "Otevřít plán", "url": DASHBOARD + "#plan", "clear": True}], view=False)
 

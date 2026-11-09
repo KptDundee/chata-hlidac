@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.239", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.240", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1621,8 +1621,9 @@ function detPlan(body){
     const days = []; for(let i=0;i<8;i++){ const dt = new Date(); dt.setHours(12,0,0,0); dt.setDate(dt.getDate()+i); days.push(dt); }
     const row = (dt) => { const k = dK(dt), own = P[k], ivs = own || awayDay(d, k), home = own ? !own.length : !ivs.length;
       const iv = (x, j) => `<div class="pliv" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="time" data-pa="${j}" value="${x.a||""}" style="font:inherit"> – <input type="time" data-pb="${j}" value="${x.b||""}" style="font:inherit"><button type="button" data-pdel style="font:inherit;padding:2px 8px">✕</button></div>`;
-      return `<div class="plrow" data-k="${k}" style="padding:8px 0;border-bottom:1px solid var(--line)">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${WDN[dt.getDay()]} ${dt.getDate()}. ${dt.getMonth()+1}.${own ? "" : ` <span class="sub">(jako minulý týden)</span>`}</b>
+      const orig = home ? "doma" : ivs.map(x=>x.a+"-"+x.b).join(",");     // 5.240: neupravený den se neukládá (platí kalendář / minulý týden)
+      return `<div class="plrow" data-k="${k}" data-own="${own?1:0}" data-orig="${orig}" style="padding:8px 0;border-bottom:1px solid var(--line)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${WDN[dt.getDay()]} ${dt.getDate()}. ${dt.getMonth()+1}.${own ? "" : (d.away_src||{})[k]==="cal" ? ` <span class="sub">(z kalendáře)</span>` : (d.away_src||{})[k]==="copy" ? ` <span class="sub">(jako minulý týden)</span>` : ""}</b>
           <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-home ${home?"checked":""}> doma</label></div>
         <div class="plivs" style="${home?"display:none":""}">${(ivs.length?ivs:[{a:"",b:""}]).map(iv).join("")}<button type="button" data-padd style="font:inherit;padding:4px 10px;margin-top:2px">+ další úsek</button></div></div>`; };
     const AP = d.away_plan, calc = !AP || !(AP.ivs||[]).length ? "" : `<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)"><b>Jak hlídač počítá nejbližší úseky</b>
@@ -1632,7 +1633,7 @@ function detPlan(body){
         const res = iv.src==="solar" ? "pojede solár" : iv.src==="river" ? `pojede ${escH(pn((R[iv.k]||{}).name||""))}` : `<b style="color:var(--crit)">nic nestačí</b>`;
         return `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px"><b>${relDay(iv.a)} ${hmT(iv.a)}–${hmT(iv.b)}</b> → ${res}<br>Solár: na začátku ~${W.sol?Math.max(0,W.sol.pct0):"?"} # → ${W.sol&&W.sol.ok?"vydrží ✓":"nevydrží"}<br>${rv}</div>`; }).join("")}
       <div class="sub" style="margin-top:4px">Spočítáno ${relDay(AP.t)} ${hmT(AP.t)}.</div></div>`;
-    box.innerHTML = `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45">Den, který tu nezadáš, se vezme <b>jako stejný den minulého týdne</b> (označený „jako minulý týden“). Uprav, co nesedí, a dej <b>Uložit plán</b> – klidně kdykoli, ne až v neděli večer.</div>
+    box.innerHTML = `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45">${(d.away_src && Object.values(d.away_src).includes("cal")) ? `Dny se berou <b>z tvých kalendářů</b> (každá událost ±1 h na cestu, volno do 2 h = pořád pryč; označené „z kalendáře“). Když den upravíš a uložíš, platí tvoje úprava.` : `Den, který tu nezadáš, se vezme <b>jako stejný den minulého týdne</b> (označený „jako minulý týden“).`} Uprav, co nesedí, a dej <b>Uložit plán</b> – klidně kdykoli, ne až v neděli večer.</div>
       <div class="sub" style="margin-bottom:6px">Kdy budeš pryč (od – do). „Do“ dřív než „od“ = přes půlnoc.</div>
       ${days.map(row).join("")}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="pl_save" style="font:inherit;padding:8px 14px;font-weight:600">Uložit plán</button>
@@ -1652,8 +1653,10 @@ function detPlan(body){
     $("pl_save").onclick = async () => {
       const N = {...P};
       for(const r of box.querySelectorAll(".plrow")){ const k = r.dataset.k;
-        if(r.querySelector("[data-home]").checked){ N[k] = []; continue; }
-        const ivs = [...r.querySelectorAll(".pliv")].map(x=>({a:x.querySelector("[data-pa]").value, b:x.querySelector("[data-pb]").value})).filter(x=>x.a && x.b);
+        const home = r.querySelector("[data-home]").checked;
+        const ivs = home ? [] : [...r.querySelectorAll(".pliv")].map(x=>({a:x.querySelector("[data-pa]").value, b:x.querySelector("[data-pb]").value})).filter(x=>x.a && x.b);
+        const cur = home || !ivs.length ? "doma" : ivs.map(x=>x.a+"-"+x.b).join(",");
+        if(r.dataset.own!=="1" && cur === r.dataset.orig) continue;     // 5.240: beze změny – dál podle kalendáře / minulého týdne
         N[k] = ivs.map(x=>({...x, btn:false})); }
       $("pl_save").disabled = true; $("pl_msg").textContent = "Ukládám…";
       try{ await planSave(tok, N, sha, "týden od " + dK(days[0])); $("pl_msg").textContent = "Uloženo ✓ – hlídač plán načte při příštím běhu (do pár minut)."; }

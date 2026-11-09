@@ -389,3 +389,5 @@ Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River
 **Plán – jen jeden (5.235):** kdy jsi pryč zadáváš jen v 🗓 Kdy jsem pryč (kdykoli, nejen v neděli). Den, který nezadáš, se vezme jako stejný den minulého týdne; nic = doma. V 9:00 přijde tichá zpráva, jaký je dnešní plán.
 
 **Lahev PB u generátoru (5.239):** dlaždice a karta Generátor ukazují, kolik plynu asi zbývá, na kolik nabití vystačí a kdy měnit (odhad, upřesňuje se). Když zbývá na 1 nabití, přijde zpráva.
+
+**Kalendáře (5.240):** hlídač čte tvoje tři Google kalendáře – každá událost ±1 h na cestu = pryč, volno do 2 h = pořád pryč. Den, který upravíš a uložíš v 🗓 Kdy jsem pryč, má přednost.

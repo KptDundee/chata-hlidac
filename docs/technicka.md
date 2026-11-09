@@ -476,3 +476,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.235**: zrušeno `den_kontrola`, `den_navrat`, `sched_time`. `plan_day(plan, d)` → (úseky, zdroj): plan.txt, jinak d−7·k (k=1..4, bez `*`), jinak []. `away_list`, `is_away` přes `plan_day`; `day_end` = `den_do`. `plan_today` – 9:00–12:00 (5.236) ntfy priorita 2 (`st.plan_day`). Web: `planText` drží 35 dní, popisek „(jako minulý týden)“.
 
 **5.239**: `lpg_bottle` → `data.lpg_bottle` {left_kg, kg, pct, per_run, n_left, per_day, t_end, gpk}; ntfy `st.lpg_low` = čas lahve. Web `lpgTxt`, `tileGen` bez běhu ukáže lahev.
+
+**5.240**: `load_calendars(now)` – env `CAL_TRENINK/CAL_TRSLEV/CAL_PRIVAT` (secrets), `icalendar` + `recurring_ical_events`, okno −36…+10 dní; úseky ±1 h, sloučení při dotyku → `CAL {datum: [(od, do, False)]}`. `plan_day`: plan.txt → CAL (zdroj „cal“) → minulý týden. `data.away_src`. Web: `data-orig` – neupravené dny se neukládají.
