@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.252", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.253", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2373,52 +2373,67 @@ function ecoProbeHtml(p, sn){
 }
 // 4.68 / 4.87: nabíjení z generátoru – tlačítko start / konec a jak hlídač rozdělil výkon mezi velké River
 function genPlanHtml(d){
+  // 5.253 (Petr: Start byl graficky neurovnaný – tlačítka, text, tlačítka): karty po sobě – 1) Nabíjení (stav + ovládání),
+  // 2) Průběh (jen když nabíjí), 3) Jiný spotřebič, 4) Ruční výkon (jen když nabíjí), 5) Lahev a palivo; návod sbalený
   const c = d.cfg || {}, P = d.gen_plan, fuel = (c.gen_palivo||"benzin").startsWith("lpg") ? "lpg" : "benzin";
   const gmax = fuel==="lpg" ? (c.gen_max_lpg_W ?? 1600) : (c.gen_max_benzin_W ?? 1800), fl = fuel==="lpg" ? "plyn (LPG)" : "benzín";
   if(c.gen_rizeni === false) return `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2><span class="sub">Řízení je vypnuté (Nastavení → Generátor).</span></div>`;
   const run = P && !P.end && Date.now()/1000 - P.t < 900;
-  // 4.92: dvě tlačítka jako přepínač – Benzín / Plyn. Zelené = na čem právě nabíjí (nebo právě zmáčknuté).
-  //   Neběží: zmáčknutí = spustit na tom palivu. Běží: zmáčknutí druhého = přepnout palivo.
   const sty = on => `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:${on?"2px solid var(--good)":"1px solid var(--line)"};background:${on?"color-mix(in srgb,var(--good) 22%,transparent)":"transparent"}`;
+  const bs = `font:inherit;font-size:14px;font-weight:600;flex:1;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
   const FB = (f, txt) => { const on = run && fuel===f; return `<button data-fuel="${f}" onclick="genFuel('${f}', this, ${run?1:0})" style="${sty(on)}">${txt}${on?" ✓":""}</button>`; };
-  const btn = `<div style="display:flex;gap:8px;margin:6px 0 4px">${FB("benzin","⛽ Benzín")}${FB("lpg","🔥 Plyn")}</div>`
-    + `<div class="sub" style="margin-bottom:4px">${run ? `Nabíjí na: <b>${fl}</b> (max ${nf(gmax)} W). Po novém startu generátoru zmáčkni palivo, na které jede – spustí se znovu.` : "<b>Postup:</b> 1) zmáčkni palivo (Benzín / Plyn) – tím se nabíjení spustí, klidně před startem · 2) nastartuj generátor a zapoj River, nech ho 1–2 min zahřát · 3) v aplikaci Tapo zapni zásuvku (7) · 4) za 30 s hlídač nastaví výkony sám · konec: vypni generátor"}</div>`
-    + (run ? `<button onclick="genCmd('stop', this)" style="${sty(false)};width:100%;flex:none;font-weight:600">⏹ Ukončit nabíjení</button>` : "");
-  /* 5.139: palivo hned u nabíjení – výrazně, ať se nemusí hledat */
   const GS = d.gen_stop, stopNew = GS && !GS.res && Date.now()/1000 - GS.t < 3*3600 && !(((d.fuel||{})[GS.fuel]||{}).cur && d.fuel[GS.fuel].cur.t > GS.t);
-  // 5.197 (Petr): lahev / tankování po ruce, ale nepřebíjí Start – výrazné jen když se generátor zastavil uprostřed nabíjení
-  const fb2 = stopNew ? `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:2px dashed var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)`
-    : `font:inherit;font-size:13px;flex:1;padding:7px 8px;border-radius:10px;cursor:pointer;color:var(--text2);border:1px solid var(--line);background:transparent`;
-  const fuelBtns = (stopNew ? `<div style="margin:8px 0 4px;padding:10px;border-radius:12px;background:color-mix(in srgb,var(--warn) 25%,transparent);font-weight:600">⚠️ Generátor se zastavil ${relDay(GS.t)} v ${hmT(GS.t)}. Došla ${GS.fuel==="lpg" ? "lahev" : "nádrž"}? Po výměně zapiš →<div style="font-weight:400;font-size:13px;margin-top:3px">Zastavil se z jiného důvodu? Stačí ho nastartovat – nabíjení pokračuje samo (pruh pak zmizí).</div></div>` : "")
-    + `<div style="display:flex;gap:8px;margin:6px 0 4px"><button onclick="fuelAdd('lpg')" style="${fb2}">🔄 Vyměnil jsem lahev</button><button onclick="fuelAdd('benzin')" style="${fb2}">⛽ Natankoval jsem</button></div>`;
-  let h = `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2>${btn}${fuelBtns}`;
+  const card = (title, body) => `<div class="card"><h2 style="margin:0 0 8px">${title}</h2>${body}</div>`;
+  // 1) Nabíjení
+  const stat = run ? `<div style="padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--good) 18%,transparent);font-size:14.5px"><b>● Nabíjí</b> – ${fl}, max ${nf(gmax)} W${P.gw!=null ? ` · teď ${nf(P.gw)} W` : ""}</div>`
+    : `<div style="padding:8px 10px;border-radius:10px;border:1px solid var(--line);font-size:14.5px"><b>○ Generátor neběží</b>${P && P.end ? ` <span class="sub">· naposledy ${relDay(P.t_on||P.t)} ${hmT(P.t_on||P.t)}–${hmT(P.end)}</span>` : ""}</div>`;
+  const warn = stopNew ? `<div style="margin-top:8px;padding:10px;border-radius:12px;background:color-mix(in srgb,var(--warn) 25%,transparent);font-weight:600">⚠️ Generátor se zastavil ${relDay(GS.t)} v ${hmT(GS.t)}. Došla ${GS.fuel==="lpg" ? "lahev" : "nádrž"}? Po výměně zapiš dole v Lahev a palivo.<div style="font-weight:400;font-size:13px;margin-top:3px">Zastavil se z jiného důvodu? Stačí ho nastartovat – nabíjení pokračuje samo.</div></div>` : "";
+  const ctl = `<div class="sub" style="margin:10px 0 4px">${run ? "Přepnout palivo:" : "Spustit nabíjení na:"}</div><div style="display:flex;gap:8px">${FB("benzin","⛽ Benzín")}${FB("lpg","🔥 Plyn")}</div>`
+    + (run ? `<button onclick="genCmd('stop', this)" style="${sty(false)};width:100%;flex:none;font-weight:600;margin-top:8px">⏹ Ukončit nabíjení</button>` : "");
+  const how = `<details style="margin-top:10px"><summary class="sub" style="cursor:pointer">Jak na to</summary><div class="sub" style="margin-top:6px;line-height:1.5">
+      <b>Postup:</b> 1) zmáčkni palivo (Benzín / Plyn) – tím se nabíjení spustí, klidně před startem · 2) nastartuj generátor a zapoj River, nech ho 1–2 min zahřát · 3) v aplikaci Tapo zapni zásuvku (7) · 4) za 30 s hlídač nastaví výkony sám · konec: vypni generátor. Po novém startu generátoru zmáčkni palivo, na které jede – spustí se znovu.<br><br>zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${cfgV("gen_po_behu_W", `${nf(c.gen_po_behu_W ?? 200)} W`)} a malá ${cfgV("gen_mala_po_behu_W", `${nf(c.gen_mala_po_behu_W ?? 100)} W`)}, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${cfgV(fuel==="lpg" ? "gen_max_lpg_W" : "gen_max_benzin_W", `${nf(gmax)} W`)} − rezerva ${cfgV("gen_rezerva_W", `${nf(c.gen_rezerva_W ?? 100)} W`)} − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná (přestane brát), vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></details>`;
+  let h = card("⛽ Nabíjení z generátoru", stat + warn + ctl + how);
+  // 2) Průběh
   if(run){
-    h += (P.wait ? `<div class="sub" style="margin:4px 0">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
-      + rowI("Generátor", `${P.gw!=null ? nf(P.gw)+" W z " : "max "}${nf(P.gmax)} W (${P.gmax_gen ? `generátor hlásí max ${nf(P.gmax_gen)} W, nastaveno ${fl}` : fl})${P.gd && P.gd.fuel!=null && P.fuel==="benzin" ? ` · benzín v nádrži ${nf(P.gd.fuel)} %` : ""}`)   // 5.252: na plyn údaj nedává smysl; max od generátoru jen když se používá
+    h += card("📊 Průběh", (P.wait ? `<div class="sub" style="margin-bottom:4px">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
+      + rowI("Generátor", `${P.gw!=null ? nf(P.gw)+" W z " : "max "}${nf(P.gmax)} W${P.gd && P.gd.fuel!=null && P.fuel==="benzin" ? ` · benzín v nádrži ${nf(P.gd.fuel)} %` : ""}`)
       + (P.small ? rowI("Malá River (neovládaná)", `bere ~${nf(P.small)} W${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}`) : "")
       + P.rv.map(r=>rowI(`<b>${escH(r.n||"River")}</b>`, `${nf(r.soc)} % · ${r.w?`nastaveno ${nf(r.w)} W`:"200 W"} (bere ${nf(r.in)} W) · plná ${relDay(r.fin)} ~${hmT(r.fin)}`)).join("")
       + rowI("Celkem do River", `${nf(P.tot_in)} W · za toto nabíjení ${kWh(P.wh)} (od ${hmT(P.t_on)})`)
-      + jineHtml(P) + manHtml(P)
-      + (P.fin ? rowI("Generátor můžeš vypnout", `${relDay(P.fin)} ~${hmT(P.fin)}`) : "")
+      + (P.fin ? rowI("Generátor můžeš vypnout", `<b>${relDay(P.fin)} ~${hmT(P.fin)}</b>`) : "")
       + (P.rv.length ? "" : `<div class="sub">Velké River se zatím nenabíjejí – zapoj je do generátoru.</div>`)
-      + `<div class="sub" style="margin-top:4px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s</div>`;
-  } else {
-    h += `<div class="sub">Generátor neběží.${P && P.end ? ` Poslední nabíjení ${relDay(P.t_on||P.t)} ${hmT(P.t_on||P.t)}–${hmT(P.end)}.` : ""}</div>`;
-    // 5.185 (Petr): ubrat jde i předem – platí od startu nabíjení do jeho konce
-    const jv = String(c.gen_jine||"").split(":"), jw = +jv[0]||0, jt = +jv[1]||0;
-    h += jineHtml({jine: jw && Date.now()/1000 - jt < 6*3600 ? jw : 0, pre:true});
+      + `<div class="sub" style="margin-top:6px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s${P.set && P.set.length ? `<br>Naposledy nastaveno: ${escH(P.set.join(", "))}` : ""}</div>`);
   }
-  if(P && P.set && P.set.length) h += `<div class="sub" style="margin-top:4px">Naposledy nastaveno: ${escH(P.set.join(", "))}</div>`;
-  h += `<div class="sub" style="margin-top:6px;line-height:1.5"><b>Postup:</b> zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${cfgV("gen_po_behu_W", `${nf(c.gen_po_behu_W ?? 200)} W`)} a malá ${cfgV("gen_mala_po_behu_W", `${nf(c.gen_mala_po_behu_W ?? 100)} W`)}, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${cfgV(fuel==="lpg" ? "gen_max_lpg_W" : "gen_max_benzin_W", `${nf(gmax)} W`)} − rezerva ${cfgV("gen_rezerva_W", `${nf(c.gen_rezerva_W ?? 100)} W`)} − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná (přestane brát), vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></div>`;
+  // 3) Jiný spotřebič, 4) Ruční výkon
+  if(run) h += `<div class="card">${jineHtml(P)}</div><div class="card">${manHtml(P)}</div>`;
+  else { const jv = String(c.gen_jine||"").split(":"), jw = +jv[0]||0, jt = +jv[1]||0;
+    h += `<div class="card">${jineHtml({jine: jw && Date.now()/1000 - jt < 6*3600 ? jw : 0, pre:true})}</div>`; }
+  // 5) Lahev a palivo
+  const B = d.lpg_bottle, K = (B && B.kuck) || [];
+  const kuckTxt = K.length ? `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--warn) 18%,transparent);font-size:13.5px">💨 Tahle lahev už kuckala: ${K.map(e=>`${relDay(e.t)} ${hmT(e.t)} – zbývalo ~${nf(e.left,1)} kg${e.w ? `, ${nf(e.w)} W` : ""}${e.tout!=null ? `, venku ${nf(e.tout,1)} °C` : ""}`).join("; ")}. Nabíjej s menším výkonem (✋ Ruční výkon), nebo měň lahev.</div>` : "";
+  const fb2 = stopNew ? `${bs};border:2px dashed var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)` : bs;
+  h += card("🔥 Lahev a palivo", (B ? `<div style="font-size:14.5px">${lpgTxt(d, true)}</div><div class="sub" style="margin-top:4px">Odhad: spotřebovaný plyn = vyrobené kWh × spotřeba generátoru${B.gpk ? ` (~${nf(B.gpk)} g/kWh)` : ""}; nabití = průměr za 60 dní; výměna podle spotřeby za 30 dní.</div>` : `<div class="sub">Lahev zatím není zapsaná.</div>`)
+    + kuckTxt
+    + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button onclick="fuelAdd('lpg')" style="${fb2}">🔄 Vyměnil jsem lahev</button><button onclick="fuelAdd('benzin')" style="${fb2}">⛽ Natankoval jsem</button></div>`
+    + `<button onclick="genKuck(this)" style="${bs};width:100%;margin-top:8px">💨 Generátor kuckal – málo plynu</button>`
+    + `<div class="sub" style="margin-top:4px">Hlídač si zapamatuje, kolik v lahvi podle odhadu bylo, jaký byl výkon a teplota venku – časem z toho pozná, kdy kuckání hrozí.</div>`);
   return h;
+}
+/* 5.253 (Petr): generátor kuckal (dochází plyn / zima) – zapsat do nastavení, hlídač si to uloží k lahvi */
+async function genKuck(el){
+  const tok = store.get("ghtok");
+  if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
+  el.disabled = true; el.textContent = "Ukládám…";
+  try{ await setCfgKey(tok, "gen_kuckal", String(Math.floor(Date.now()/1000))); el.textContent = "✓ zapsáno – hlídač uloží do půl minuty"; }
+  catch(e){ el.disabled = false; el.textContent = e.message; }
 }
 /* 4.87 / 4.91: tlačítka nabíjení z generátoru. „start:benzin“ / „start:lpg“ = zapsat palivo do nastavení + spustit,
    „fuel:…“ = jen změnit palivo (hlídač ho načte do 30 s i během nabíjení), „stop“ = ukončit. */
 /* 5.197 (Petr): ruční výkon – když dochází lahev, hlídač River nenastavuje výkon (nastavíš v aplikaci EcoFlow), měří dál */
 function manHtml(P){
   const on = !!P.manual, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
-  return `<div style="margin:8px 0 4px;padding:10px;border-radius:12px;background:var(--bg)">
-    <div style="font-weight:600">✋ Ruční výkon${on ? ` <span style="color:var(--warn)">· zapnutý</span>` : ""}</div>
+  return `<div style="margin:4px 0">
+    <h2 style="margin:0 0 8px">✋ Ruční výkon${on ? ` <span style="color:var(--warn)">· zapnutý</span>` : ""}</h2>
     <div class="sub" style="margin:4px 0">${on ? "Hlídač teď River výkon nenastavuje – nastav ho v aplikaci EcoFlow. Měření, spotřeba i cena běží dál. Platí do konce nabíjení, pak River dostanou klidový výkon jako vždy."
       : "Dochází lahev a generátor nedá plný výkon? Vypni automatiku a nastav River výkon sám v aplikaci EcoFlow. Měření běží dál, platí do konce tohoto nabíjení."}</div>
     <button onclick="genManual(${on ? 0 : 1}, this)" style="${bs}">${on ? "↩︎ Zpět na automatiku" : "✋ Ruční výkon"}</button></div>`;
@@ -2462,8 +2477,8 @@ function jineHtml(P){
       <div class="sub" style="margin-top:4px">Výkon = o kolik River při nabíjení ubrat (50–1500 W).</div></div>`;
   const pick = L.map(x=>{ const sel = on && (nm ? nm===x.n : x.w===w);
       return `<button onclick="${sel ? "genJine(0, this)" : `genJine(${x.w}, this, '${escH(x.n).replace(/'/g,"&#39;")}')`}" title="${sel ? "ťukni znovu = vypnout" : ""}" style="${bs};${sel?"background:color-mix(in srgb,var(--good) 22%,transparent);border-color:var(--good)":""}">${sel?"✓ ":""}${escH(x.n)} <span style="font-weight:500;color:var(--text2)">${nf(x.w)} W</span></button>`; }).join("");
-  return `<div id="jine_box" style="margin:8px 0 4px;padding:10px;border-radius:12px;background:var(--bg)">
-    <div style="font-weight:600">🔌 Jiný spotřebič na generátoru</div>${stat}
+  return `<div id="jine_box" style="margin:4px 0">
+    <h2 style="margin:0 0 8px">🔌 Jiný spotřebič na generátoru</h2>${stat}
     <div class="sub" style="margin:6px 0 2px">Zapojuješ něco do generátoru? Nejdřív ho tady zapni (River se uberou), pak spotřebič zapoj. Platí ${P.pre ? "od startu nabíjení " : ""}do konce nabíjení.</div>
     <div style="font-size:13.5px;font-weight:600;margin-top:8px">Vyber spotřebič</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">${pick || `<span class="sub">Zatím žádný – přidej přes ✏️ Upravit seznam.</span>`}</div>
@@ -4024,7 +4039,7 @@ function detGen(body){
   const GT = tabsHead("gn_tab", [["data","📊 Data"],["start","▶️ Start"],["cena","💰 Cena"]]), vis = k => GT.cur===k ? "" : ' style="display:none"';
   { const P_ = d.gen_plan, nw_ = Date.now()/1000;   /* 5.139: během nabíjení / po zastavení generátoru rovnou ▶️ Start (tlačítka paliva) */
     if((P_ && !P_.end && nw_ - P_.t < 900) || (d.gen_stop && nw_ - d.gen_stop.t < 3*3600)){ GT.cur = "start"; GT.html = GT.html.replace(/data-t="data" aria-pressed="true"/, 'data-t="data" aria-pressed="false"').replace(/data-t="cena" aria-pressed="true"/, 'data-t="cena" aria-pressed="false"').replace(/data-t="start" aria-pressed="false"/, 'data-t="start" aria-pressed="true"'); } }
-  body.insertAdjacentHTML("beforeend", GT.html + `<div id="gn_tab_start"${vis("start")}>` + (d.lpg_bottle ? `<div class="card"><div style="font-size:14.5px">🔥 ${lpgTxt(d, true)}</div><div class="sub" style="margin-top:4px">Odhad: spotřebovaný plyn = vyrobené kWh × spotřeba generátoru${d.lpg_bottle.gpk ? ` (~${nf(d.lpg_bottle.gpk)} g/kWh)` : ""}; nabití = průměr za 60 dní; výměna podle spotřeby za posledních 30 dní. Upřesňuje se s každým nabitím.</div></div>` : "") + genPlanHtml(d) + `</div><div id="gn_tab_cena"${vis("cena")}>` + (()=>{ const CT = tabsHead("gn_ctab", [["lpg","🔥 Plyn"],["benzin","⛽ Benzín"],["graf","📈 Grafy"]]), cv = k => CT.cur===k ? "" : ' style="display:none"';
+  body.insertAdjacentHTML("beforeend", GT.html + `<div id="gn_tab_start"${vis("start")}>` + genPlanHtml(d) + `</div><div id="gn_tab_cena"${vis("cena")}>` + (()=>{ const CT = tabsHead("gn_ctab", [["lpg","🔥 Plyn"],["benzin","⛽ Benzín"],["graf","📈 Grafy"]]), cv = k => CT.cur===k ? "" : ' style="display:none"';
       return CT.html + `<div id="gn_ctab_lpg"${cv("lpg")}>` + costHtml(d,"lpg") + fuelHtml(d,"lpg") + `</div><div id="gn_ctab_benzin"${cv("benzin")}>` + costHtml(d,"benzin") + fuelHtml(d,"benzin") + `</div><div id="gn_ctab_graf"${cv("graf")}>` + costGraphsHtml() + `</div>`; })() + `</div><div id="gn_tab_data"${vis("data")}>`
     + chartCard("dg_w", "Výkon generátoru", "W · 48 h · zásuvka (7), během nabíjení i z EcoFlow")
     + chartCard("dg_rv", "Co se nabilo do které River", `kWh za den · příjem River podle EcoFlow (od 5.85 během nabíjení po ~30 s, dřív jen při čtení hlídače) · ${efs.map(e=>`<span style="color:${e.color}">■</span> ${escH(e.name)}`).join(" · ")}`)

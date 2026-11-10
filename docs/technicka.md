@@ -484,3 +484,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.242**: `chladnuti._meas` (teploměr `chladnuti_venku_teplomer`), `_tout_fn(O, M, bias)` – naměřeno do 30 min, jinak předpověď + `st.wo_bias` (průměr naměřeno − předpověď za 24 h, ≥ 6 bodů); `st.wo_m` pro `curve()`; `cool.bias`, `cool.meas`; `heat.out` stejně. Migrace `st.mig_kuch` smaže th „Kuchyn*“ z bodů.
 
 **5.249**: `strict_floor(M, cfg, now, floor_s)` (společné). `window_plan`: found = strict → (v okně) `find_need(True)` → šetrná / alarm / `find_need(False)`; tichá ntfy `st.wp_info`. `away_plan`: solár první jen při `lo_s ≥ fl_strict` (nebo nevybíjí), jinak až za River.
+
+**5.253**: `gen_kuckal` = čas (web `genKuck`); `lpg_bottle` → `st.lpg_kuck` [{t, left, w, tout, bt}] (50), `lpg_bottle.kuck` pro aktuální lahev. Web `genPlanHtml` po kartách.

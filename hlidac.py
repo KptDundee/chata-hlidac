@@ -38,7 +38,7 @@ DEFAULTS = {
     "vlhkost_hlidat": "", "vlhkost_min": 35,
     "river_sn": "",
     "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_nadrz_l": 4.0, "gen_rezerva_W": 100,
-    "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "", "gen_rucne": "", "gen_spotrebice": "",
+    "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "", "gen_rucne": "", "gen_spotrebice": "", "gen_kuckal": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
     "ticho": "0:00-5:45", "chladnuti_venku_teplomer": "OUTDOOR",
@@ -3892,6 +3892,19 @@ def lpg_bottle(data, st, now, topic, cfg):
     B = {"left_kg": round(left, 1), "kg": c["kg"], "pct": round(left / c["kg"] * 100), "t": int(c["t"]),
          "per_run": round(per_run, 2) if per_run else None, "n_left": round(n_left, 1) if n_left is not None else None,
          "per_day": round(per_day, 3) if per_day else None, "t_end": int(t_end) if t_end else None, "gpk": gpk}
+    # 5.253 (Petr: generátor při plném výkonu kuckal – dochází plyn, nebo je zima): tlačítko „kuckal“ → zapamatovat,
+    # kolik podle odhadu v lahvi bylo, jaký výkon generátor dával a jaká byla venku teplota; k lahvi jako zkušenost
+    kt_ = str(cfg.get("gen_kuckal") or "").split(":")[0]
+    if kt_.isdigit() and int(kt_) != st.get("kuck_t"):
+        gp_ = data.get("gen_plan") or {}
+        ev_ = {"t": int(kt_), "left": round(left, 1), "w": gp_.get("gw") if gp_ and ts - gp_.get("t", 0) < 1800 else None,
+               "tout": (data.get("cool") or {}).get("out_now"), "bt": int(c["t"])}
+        st.setdefault("lpg_kuck", []).append(ev_)
+        st["lpg_kuck"] = st["lpg_kuck"][-50:]
+        st["kuck_t"] = int(kt_)
+        print(f"Lahev PB: kuckání zapsáno – zbývalo ~{left:.1f} kg, výkon {ev_['w']} W, venku {ev_['tout']} °C")
+    B["kuck"] = [e for e in st.get("lpg_kuck") or [] if e.get("bt") == int(c["t"])]
+    B["kuck_all"] = (st.get("lpg_kuck") or [])[-10:]
     data["lpg_bottle"] = B
     print(f"Lahev PB: zbývá ~{left:.1f} kg z {c['kg']:.0f} kg, na nabití ~{per_run or 0:.2f} kg → ~{n_left or 0:.1f} nabití, "
           f"výměna ~{datetime.fromtimestamp(t_end, TZ).strftime('%-d. %-m.') if t_end else '?'}")
