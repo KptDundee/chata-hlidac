@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.256", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.257", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -14,13 +14,13 @@
   --bg:#f3f2ee;--surface:#fcfcfb;--text:#0b0b0b;--text2:#52514e;--muted:#8a8984;--line:#e4e3de;--grid:#ecebe6;
   --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948;--rvy:#c4a000;
   --good:#0ca30c;--warn:#fab219;--serious:#ec835a;--crit:#d03b3b;
-  --link:#1f5fbf;
+  --link:#1f5fbf;--btn:#efeee9;--btnline:#cbc9c1;
   --radius:16px;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#111110;--surface:#1a1a19;--text:#f0efec;--text2:#c3c2b7;--muted:#8c8b84;--line:#2c2c2a;--grid:#262624;
   --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767;--rvy:#f5d90a;
-  --link:#ffd54a;
+  --link:#ffd54a;--btn:#2e2e2b;--btnline:#55544e;
 }}
 a,a:visited{color:var(--link)}   /* 5.246 (Petr): odkazy byly výchozí sytě modré – v tmavém režimu skoro nečitelné → žlutě */
 *{box-sizing:border-box}
@@ -37,7 +37,7 @@ h1 .ver{font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;colo
 .hleft{flex:1 1 150px;min-width:150px}
 .hright{flex:0 1 auto;min-width:0;max-width:58%;text-align:right}
 .sub{color:var(--text2);font-size:13px}
-button,.btn{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:10px;padding:7px 12px;cursor:pointer}
+button,.btn{font:inherit;border:1px solid var(--btnline);background:var(--btn);color:var(--text);border-radius:10px;padding:7px 12px;cursor:pointer}
 button:focus-visible,input:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
 .hero{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px}
@@ -1968,7 +1968,7 @@ function utilBars(el, rows, kinds, per){
 const uLab = (k, per, long) => per==="y" ? k : new Date(uMonthStart(k)*1000).toLocaleDateString("cs-CZ", long ? {month:"long", year:"numeric"} : {month:"short"}) + (long ? "" : " " + k.slice(2,4));
 function detUtil(body){
   const d = DATA, U = d.util || [], {info, PR, priceOf} = utilCalc(d), Sm = utilSummary(d), now = Date.now()/1000;
-  const bs = `font:inherit;font-weight:600;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent;flex:1;min-width:30%`;
+  const bs = `font:inherit;font-weight:600;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn);flex:1;min-width:30%`;
   const btns = `<div style="display:flex;gap:6px;flex-wrap:wrap">${UGAS.map(k=>`<button onclick="utilAdd('${k}')" style="${bs}">🔄 ${UK[k].n}</button>`).join("")}<button onclick="utilAdd('voda')" style="${bs}">💧 Odečet vody</button></div>`;
   const kRow = k => { const I = info[k];
     if(k==="voda"){ const L = I.last; return rowI(`${UK.voda.ic} Voda`, L ? `poslední odečet ${dTxt(dkey(L[0]))}: <b>${nf(L[2],1)} m³</b>` : `<span class="sub">zatím žádný odečet</span>`); }
@@ -2044,7 +2044,7 @@ function utilAdd(kind){
     const line = `${fm.dt.value} ${tm} | ${kind} | ${v}`;
     msg.textContent = "Zapisuji…";
     try{ await utilWrite(t => t.replace(/\n?$/,"\n") + line + "\n", line);
-      fm.innerHTML = `<b style="font-size:18px">Zapsáno ✓</b><div>Do přehledu se dostane za minutu (po běhu hlídače).</div><button type="button" onclick="this.closest('#utilDlg').remove()" style="font:inherit;font-weight:700;padding:12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text)">Zavřít</button>`;
+      fm.innerHTML = `<b style="font-size:18px">Zapsáno ✓</b><div>Do přehledu se dostane za minutu (po běhu hlídače).</div><button type="button" onclick="this.closest('#utilDlg').remove()" style="font:inherit;font-weight:700;padding:12px;border-radius:12px;border:1px solid var(--btnline);background:var(--btn);color:var(--text)">Zavřít</button>`;
     }catch(err){ msg.innerHTML = `<b style="color:var(--crit)">Nejde zapsat: ${escH(err.message)}</b>`; }
   };
 }
@@ -2411,8 +2411,8 @@ function genPlanHtml(d){
   const gmax = fuel==="lpg" ? (c.gen_max_lpg_W ?? 1600) : (c.gen_max_benzin_W ?? 1800), fl = fuel==="lpg" ? "plyn (LPG)" : "benzín";
   if(c.gen_rizeni === false) return `<div class="card"><h2 style="margin:0 0 4px">Nabíjení z generátoru</h2><span class="sub">Řízení je vypnuté (Nastavení → Generátor).</span></div>`;
   const run = P && !P.end && Date.now()/1000 - P.t < 900;
-  const sty = on => `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:${on?"2px solid var(--good)":"1px solid var(--line)"};background:${on?"color-mix(in srgb,var(--good) 22%,transparent)":"transparent"}`;
-  const bs = `font:inherit;font-size:14px;font-weight:600;flex:1;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
+  const sty = on => `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:${on?"2px solid var(--good)":"1px solid var(--btnline)"};background:${on?"color-mix(in srgb,var(--good) 22%,transparent)":"var(--btn)"}`;
+  const bs = `font:inherit;font-size:14px;font-weight:600;flex:1;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
   const FB = (f, txt) => { const on = run && fuel===f; return `<button data-fuel="${f}" onclick="genFuel('${f}', this, ${run?1:0})" style="${sty(on)}">${txt}${on?" ✓":""}</button>`; };
   const GS = d.gen_stop, FG = (d.fuel||{})[GS && GS.fuel] || {}, stopNew = GS && !GS.res && Date.now()/1000 - GS.t < 3*3600 && !((FG.cur && FG.cur.t > GS.t) || (FG.last_t && FG.last_t > GS.t));   // 5.256: i „lahev došla“ vyřeší
   const card = (title, body) => `<div class="card"><h2 style="margin:0 0 8px">${title}</h2>${body}</div>`;
@@ -2452,7 +2452,7 @@ function genPlanHtml(d){
    „fuel:…“ = jen změnit palivo (hlídač ho načte do 30 s i během nabíjení), „stop“ = ukončit. */
 /* 5.197 (Petr): ruční výkon – když dochází lahev, hlídač River nenastavuje výkon (nastavíš v aplikaci EcoFlow), měří dál */
 function manHtml(P){
-  const on = !!P.manual, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
+  const on = !!P.manual, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
   return `<div style="margin:4px 0">
     <h2 style="margin:0 0 8px">✋ Ruční výkon${on ? ` <span style="color:var(--warn)">· zapnutý</span>` : ""}</h2>
     <div class="sub" style="margin:4px 0">${on ? "Hlídač teď River výkon nenastavuje – nastav ho v aplikaci EcoFlow. Měření, spotřeba i cena běží dál. Platí do konce nabíjení, pak River dostanou klidový výkon jako vždy."
@@ -2478,8 +2478,8 @@ let JINE_P = null, JINE_LOC = null;
 function jineHtml(P){
   JINE_P = P;
   let w0 = 300; try{ w0 = +localStorage.getItem("jineW") || 300; }catch(_){}
-  const L = spotList(), bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
-  const ins = `font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)`;
+  const L = spotList(), bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
+  const ins = `font:inherit;padding:8px;border-radius:10px;border:1px solid var(--btnline);background:var(--bg);color:var(--text)`;
   // 5.234 (Petr: nevidím, jestli je ubrání aktivní): stav – po ťuknutí hned (než ho hlídač převezme), jinak z dat
   // 5.237 (Petr: vypnout nešlo – po ťuknutí ukazoval „Vypnuto“): stav vždy z nastavení (gen_jine), které web hned po uložení zná
   const jv = String((DATA && DATA.cfg && DATA.cfg.gen_jine)||"").split(":"), jt = +jv[1]||0, jw = +jv[0]||0;
@@ -2498,11 +2498,11 @@ function jineHtml(P){
       <div class="sub" style="margin-top:4px">Výkon = o kolik River při nabíjení ubrat (50–1500 W).</div></div>`;
   // 5.255 (Petr: Start pořád neurovnaný): stav nahoře, pod ním jedna mřížka tlačítek stejné velikosti (spotřebiče + vlastní
   // výkon), dole drobně upravit seznam; vysvětlení sbalené
-  const chip = `font:inherit;font-weight:600;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent;text-align:left;line-height:1.25`;
+  const chip = `font:inherit;font-weight:600;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn);text-align:left;line-height:1.25`;
   const pick = L.map(x=>{ const sel = on && (nm ? nm===x.n : x.w===w);
       return `<button onclick="${sel ? "genJine(0, this)" : `genJine(${x.w}, this, '${escH(x.n).replace(/'/g,"&#39;")}')`}" style="${chip};${sel?"background:color-mix(in srgb,var(--good) 22%,transparent);border:2px solid var(--good)":""}">${sel?"✓ ":""}${escH(x.n)}<br><span style="font-weight:500;font-size:13px;color:var(--text2)">${sel ? "ťukni = vypnout" : `−${nf(x.w)} W`}</span></button>`; }).join("");
   const own = `<div style="${chip};display:flex;align-items:center;gap:6px;cursor:default"><input id="jine_w" type="number" inputmode="numeric" min="50" max="1500" step="10" value="${on && !nm ? w : w0}" style="width:64px;${ins};padding:6px"> W
-      <button onclick="genJine(+$('jine_w').value, this)" style="font:inherit;font-weight:600;padding:6px 10px;border-radius:10px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent">${on && !nm ? "Změnit" : "Ubrat"}</button></div>`;
+      <button onclick="genJine(+$('jine_w').value, this)" style="font:inherit;font-weight:600;padding:6px 10px;border-radius:10px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)">${on && !nm ? "Změnit" : "Ubrat"}</button></div>`;
   return `<div id="jine_box" style="margin:4px 0">
     <h2 style="margin:0 0 8px">🔌 Jiný spotřebič na generátoru</h2>${stat}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${pick}${own}</div>
@@ -2603,7 +2603,7 @@ function fuelAdd(f){
       const w = await fetch(GHF_(),{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
         body:JSON.stringify({message:`Palivo: ${line}`, content:utf8b64.enc(txt.replace(/\n?$/,"\n")+line+"\n"), ...(sha?{sha}:{}), branch:"main"})});
       if(!w.ok) throw new Error("GitHub odpověděl "+w.status);
-      fm.innerHTML = `<b style="font-size:18px">Zapsáno ✓</b><div>${fv==="lpg" ? "Nová lahev" : "Tankování"} od ${relDay(when/1000)} ${hmT(when/1000)} · ${price} Kč. Hlídač od toho času počítá energii na ${fv==="lpg" ? "tuhle lahev" : "tohle tankování"}.</div><button type="button" onclick="this.closest('#fuelDlg').remove()" style="font:inherit;font-weight:700;padding:12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text)">Zavřít</button>`;
+      fm.innerHTML = `<b style="font-size:18px">Zapsáno ✓</b><div>${fv==="lpg" ? "Nová lahev" : "Tankování"} od ${relDay(when/1000)} ${hmT(when/1000)} · ${price} Kč. Hlídač od toho času počítá energii na ${fv==="lpg" ? "tuhle lahev" : "tohle tankování"}.</div><button type="button" onclick="this.closest('#fuelDlg').remove()" style="font:inherit;font-weight:700;padding:12px;border-radius:12px;border:1px solid var(--btnline);background:var(--btn);color:var(--text)">Zavřít</button>`;
     }catch(err){ msg.innerHTML = `<b style="color:var(--crit)">Nejde zapsat: ${escH(err.message)}</b>`; }
   };
 }
@@ -2661,7 +2661,7 @@ function fuelHtml(d, f){
     const curT = c ? `${f==="lpg" ? "lahev" : "tankováno"} ${relDay(c.t)} ${hmT(c.t)} · ${nf(c.price,0)} Kč${c.l ? ` · ${nf(c.l,1)} l = ${nf(c.price/c.l,1)} Kč/l` : ""}${c.full ? "" : " · <span style='color:var(--warn)'>částečně</span>"} → zatím <b>${nf(c.wh/1000,2)} kWh</b>${f==="lpg" && c.left_pct!=null ? ` · zbývá ~${c.left_pct} %` : ""}${c.used_kg!=null ? ` <span class="sub">(spotřebováno ~${nf(c.used_kg,1)} kg z ${nf(c.kg,0)} kg; lahev ≈ ${nf(c.kwh_est,0)} kWh – předběžně podle spotřeby generátoru ${nf(x.gpk)} g/kWh)</span>` : ""}${f==="lpg" && !x.czk_kwh && c.full && c.wh > 100 ? ` · zatím ${nf(c.price/(c.wh/1000),0)} Kč/kWh (klesá, jak lahev dojíždí)` : ""} · <a href="#" onclick="event.preventDefault();fuelEdit('${f}')">upravit cenu</a>` : `<span class="sub">zatím nic nezapsáno</span>`;
     const old_ = (x.hist||[]).filter(h=>h.closed).reverse();   /* 5.135: každá lahev se svou cenou, cenu jde opravit zvlášť */
     const histT = old_.length ? `<details style="margin-top:3px"><summary class="sub" style="cursor:pointer">Předchozí ${f==="lpg" ? "lahve" : "tankování"} (${old_.length}) – každ${f==="lpg" ? "á" : "é"} má svou cenu</summary><div style="font-size:13px;margin-top:3px">${old_.map(h=>`${relDay(h.t)} · ${nf(h.price,0)} Kč${h.czk_l ? ` · ${nf(h.czk_l,1)} Kč/l` : ` · ${nf(h.wh/1000,2)} kWh`}${h.full ? "" : " · částečně"}${h.czk_kwh!=null ? ` → <b>${nf(h.czk_kwh,0)} Kč/kWh</b>${h.est ? " (odhad)" : ""}` : ""} · <a href="#" onclick="event.preventDefault();fuelEdit('${f}',${h.t})">✎</a>`).join("<br>")}</div><div class="sub" style="margin-top:3px">Změna ceny jedné ${f==="lpg" ? "lahve přepočítá jen ji a nabíjení, která z ní jela" : "položky přepočítá jen nabíjení, která jela z toho tankování"} – ostatní zůstávají.</div></details>` : "";
-    return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${nm}</b><button onclick="fuelAdd('${f}')" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer">${btn}</button></div>
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${nm}</b><button onclick="fuelAdd('${f}')" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--btnline);background:var(--btn);color:var(--text);cursor:pointer">${btn}</button></div>
       <div style="font-size:13.5px;margin-top:3px">${curT}</div>${tank}<div style="font-size:13.5px">${cost}</div>${histT}</div>`; };
   const runs = (d.fuel_runs||[]).filter(r=>(r.wh_f||{})[f] > 5 || (!r.wh_f && r.fuel===f) || (r.wh_f && !Object.keys(r.wh_f).length && r.fuel===f)).slice(-6).reverse();
   const {rvName} = costCalc(d, f);
@@ -4621,7 +4621,7 @@ const EMPTY_TXT = {river_sn:"prázdné = páruje se podle jména zásuvky", chla
 function renderSettings(){
   const v = SET.vals; let html="";
   const only = SET_OPT.keys ? new Set(SET_OPT.keys) : null;   // 5.176: jen nastavení k jedné kartě
-  if(only) html += `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${escH(SET_OPT.title||"Nastavení k této kartě")}</b><button type="button" id="setall" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text)">Všechna nastavení</button></div>`;
+  if(only) html += `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${escH(SET_OPT.title||"Nastavení k této kartě")}</b><button type="button" id="setall" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--btnline);background:var(--btn);color:var(--text)">Všechna nastavení</button></div>`;
   for(const [title, items0] of SETTINGS){
     const items = only ? items0.filter(x=>only.has(x[0])) : items0; if(!items.length) continue;
     html += `<h2>${title}</h2><div class="card" style="padding:4px 16px">`;
