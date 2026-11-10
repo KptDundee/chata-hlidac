@@ -294,7 +294,7 @@ def update(data, st, now, cfg, log=print):
          "ev": sorted(ev.values(), key=lambda x: x["ta"])[-8:],
          "out_now": None if tout(ts) is None else round(tout(ts), 1),
          "out": [[t, round(tout(t), 1)] for t, v in O if ts - 8 * 86400 <= t <= ts + 24 * 3600 and tout(t) is not None],   # 5.49 / 5.242
-         "bias": bias, "meas": bool(M and ts - M[-1][0] < 1800)}
+         "wo_bias": bias, "meas": bool(M and ts - M[-1][0] < 1800)}   # 5.258: ne „bias“ (to je ranní oprava)
     if R and ts - R[-1][0] < 1800:
         c["T_now"] = round(R[-1][1], 1)
         prev = [T for t, T in R if R[-1][0] - 3600 <= t < R[-1][0] - 1200]
