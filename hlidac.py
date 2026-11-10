@@ -2041,6 +2041,7 @@ def main():
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Co teď udělat", lambda: build_todo(data, st, now)),
+                         ("Před odjezdem", lambda: dep_confirm(data, st, now, topic, cfg)),
                          ("Upozornění pro web", lambda: data.__setitem__("alarms", [{"k": k_, "title": e_.get("title", k_), "t0": e_.get("t0"),
                                                                                      "ack": bool(e_.get("ack")), "snz": e_.get("snz")}
                                                                                     for k_, e_ in (st.get("al") or {}).items()])),
@@ -5328,6 +5329,39 @@ def rv_short(n):
 
 def todo_add(data, prio, txt, lvl="warn"):
     data.setdefault("todo_x", []).append({"p": prio, "txt": txt, "lvl": lvl})
+
+
+def dep_confirm(data, st, now, topic, cfg):
+    """5.247 (Petr): 70 min před každým odjezdem podle plánu jedna zpráva, co udělat – i když je vše v pořádku
+    („nech chatu na River ČERV – vydrží do návratu“). Když je co dělat, vypíše to (stejně jako „Co teď udělat“).
+    Posílá se i v nočním klidu – patří k odjezdu, kdy už je člověk vzhůru."""
+    ts = now.timestamp()
+    nxt = [(a, b) for a, b, f in away_list(cfg, PLAN, now, days=2) if not f and 0 < a.timestamp() - ts <= 70 * 60]
+    if not nxt:
+        return
+    a, b = nxt[0]
+    if st.get("dep_ok") == int(a.timestamp()):
+        return
+    st["dep_ok"] = int(a.timestamp())
+    hm = lambda x: x.strftime("%H:%M")
+    W = data.get("wplan") or {}
+    seg = next((g for g in W.get("segs") or [] if g["a"] <= a.timestamp() < g["b"]), None) \
+        or next((g for g in W.get("segs") or [] if g["a"] >= a.timestamp()), None)
+    todo = [x["txt"] for x in (data.get("todo") or {}).get("list") or []]
+    ret = f"{rel_day(b.timestamp(), now)} {hm(b)}" if b.date() != now.date() else hm(b)
+    if W.get("ok") and seg and not todo:
+        src = "na solár" if seg["src"] == "s" else f"na River {rv_short(seg['name'])}"
+        fs_ = (data.get("day_fc") or {}).get("src")
+        cur = "r" if fs_ == "river" else "s" if fs_ else None
+        now_src = (seg["src"] == "s") == (cur == "s") if cur else None
+        title = f"🚗 Odjezd {hm(a)}: {'nech' if now_src else 'přepni'} chatu {src}"
+        body = f"Podle plánu vydrží do návratu ({ret}). Nic dalšího není potřeba."
+    else:
+        title = f"🚗 Odjezd {hm(a)}: před odjezdem " + (todo[0] if todo else "zkontroluj plán")
+        body = ("Ještě: " + "; ".join(todo[1:]) + ". " if len(todo) > 1 else "") + \
+               ("Podle plánu to bez toho do návratu (" + ret + ") nevyjde." if not W.get("ok") else f"Návrat {ret}.")
+    ntfy(topic, title, body, 3, "car")
+    print(f"Před odjezdem {hm(a)}: {title}")
 
 
 def build_todo(data, st, now):

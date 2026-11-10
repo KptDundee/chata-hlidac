@@ -391,3 +391,5 @@ Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River
 **Lahev PB u generátoru (5.239):** dlaždice a karta Generátor ukazují, kolik plynu asi zbývá, na kolik nabití vystačí a kdy měnit (odhad, upřesňuje se). Když zbývá na 1 nabití, přijde zpráva.
 
 **Kalendáře (5.240):** hlídač čte tvoje tři Google kalendáře – každá událost ±1 h na cestu = pryč, volno do 2 h = pořád pryč. Den, který upravíš a uložíš v 🗓 Kdy jsem pryč, má přednost.
+
+**Před odjezdem (5.247):** 70 min před každým odjezdem přijde zpráva, na co nechat chatu a jestli je potřeba něco udělat.
