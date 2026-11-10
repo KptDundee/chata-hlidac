@@ -6973,7 +6973,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gp_ = data.setdefault("gen_pts", [])                # 5.06: výkon generátoru po 30 s (graf i bez Flipu)
         gp_.append([tnow, round(gw) if gw is not None else None, tot_in])
         gp_[:] = [x for x in gp_ if x[0] >= tnow - 7 * 86400][-3000:]
-        data["gen_plan"] = {"t": tnow, "fuel": fuel, "tot_in": tot_in, "wh": round(gs.get("wh", 0.0)), "gmax": gmax_eff, "gmax_set": gmax, "gmax_gen": gm, "budget": budget_eff, "gw": round(gw) if gw is not None else None,
+        data["gen_plan"] = {"t": tnow, "fuel": fuel, "tot_in": tot_in, "wh": round(gs.get("wh", 0.0)), "gmax": gmax_eff, "gmax_set": gmax, "gmax_gen": gm if gm and 1400 <= gm <= 2500 else None, "budget": budget_eff, "gw": round(gw) if gw is not None else None,
                             "jine": gs.get("jine") or 0, "manual": bool(gs.get("manual")), "xwh": round(gs.get("xwh") or 0), "x_w": round(gs.get("x_w") or 0),
                             "small": round(small_w), "small_soc": round(small["soc"]) if small and small.get("soc") is not None else None,
                             "avail": round(avail), "rv": rv, "fin": int(max(fins)) if fins else None, "t_on": gs.get("t_on"),
