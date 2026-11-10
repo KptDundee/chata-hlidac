@@ -3,6 +3,14 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.267 – 11. 11. 2026
+- Výdrž River v klidu („utáhne chatu do …“) počítá hlídač stejně jako „vydrží do“ u River, která chatu napájí: obvyklý odběr chaty den / noc (s lednicí), změřená kapacita, rezerva. Web dřív bral pevných 25 W – vycházelo moc optimisticky. Nové `data.rv_run`, v záznamu běhu „Výdrž River …“.
+
+## 5.266 – 11. 11. 2026
+- Dlaždice EcoFlow: o zásuvce na výstupu River už nemluví, žádné „?“ u záložky. Stará hodnota % → řádek „údaj z | včera 21:27“ (dřív oříznuto na tečky); stavový řádek se zalamuje.
+
+(Verze 5.234–5.265 jsou popsané v commitech.)
+
 ## 5.233 – 8. 11. 2026
 - Jiný spotřebič na generátoru: vráceno zadání čísla (W + Ubrat / Změnit) – vedle seznamu pojmenovaných spotřebičů zůstává (Petr; v 5.232 omylem odstraněno).
 
