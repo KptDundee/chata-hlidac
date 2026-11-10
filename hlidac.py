@@ -5622,7 +5622,7 @@ def window_plan(data, st, now, topic, cfg):
     if act and need:
         late = need["latest"]
         late_u = min(late, now.replace(hour=20, minute=0, second=0, microsecond=0).timestamp()) if w0_end >= t22 else late
-        msg = (why + f" Nabij {rv_short(need['name'])} na ~{need['target']} % (~{fmt_h(need['dur'] / 3600)}) – nabíjení musí skončit do "
+        msg = (why + f" Nabij {rv_short(need['name'])} – nejlépe do plna, minimum je ~{need['target']} % (~{fmt_h(need['dur'] / 3600)}); nabíjení musí skončit do "
                f"{hm(w0_end)}{' (odjezd)' if w0_end < t22 else ' (generátor jen do 22:00)'}.")
         plan_t = " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data["wplan"]["segs"])
         if plan_t:
@@ -5630,10 +5630,10 @@ def window_plan(data, st, now, topic, cfg):
         # 5.249 (Petr): jakmile je jasné, že se bude nabíjet – hned tichá zpráva (jednou za den a River)
         k_ = now.strftime("%Y-%m-%d") + ":" + str(need["k"])
         if st.get("wp_info") != k_ and ts < late - 2 * 3600 and not in_quiet():
-            ntfy(topic, f"🔋 Dnes bude potřeba nabít {rv_short(need['name'])} – nejpozději začni v {hm(late_u)}", msg, 2, "battery")
+            ntfy(topic, f"🔋 Dnes bude potřeba nabít {rv_short(need['name'])} (minimum ~{need['target']} %) – nejpozději začni v {hm(late_u)}", msg, 2, "battery")
             st["wp_info"] = k_
         alarm(st, topic, "wp_chg", late - 2 * 3600 <= ts < late_u,
-              f"🔋 Nabij {rv_short(need['name'])} na ~{need['target']} % – začni nejpozději v {hm(late_u)}", msg, 3, "battery", ok_title=False, cat=2)
+              f"🔋 Nabij {rv_short(need['name'])} (minimum ~{need['target']} %) – začni nejpozději v {hm(late_u)}", msg, 3, "battery", ok_title=False, cat=2)
         alarm(st, topic, "wp_chg1", ts >= late_u, f"⛽ Nabij {rv_short(need['name'])} teď – poslední chvíle", msg, 5, "rotating_light,battery",
               ok_title=False, cat=1)
         alarm(st, topic, "wp_none", False, ok_title=False)
@@ -5646,7 +5646,7 @@ def window_plan(data, st, now, topic, cfg):
     print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, zítra přebytek ~{sur_:.0f} Ah → vybíjet nejníž "
           f"na ~{M['alarm_soc'] + floor_x / max(1.0, M['cap']) * 100:.0f} #, "
           + ("vyjde: " + " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data['wplan']['segs']) if found
-             else f"nevyjde – nabít {need['name']} na {need['target']} % do {hm(need['latest'])}" if need else "nevyjde ani s nabitím"))
+             else f"nevyjde – nabít {need['name']} (minimum {need['target']} %) do {hm(need['latest'])}" if need else "nevyjde ani s nabitím"))
 
 
 def river_charge_hint(data, st, now, topic, cfg):
