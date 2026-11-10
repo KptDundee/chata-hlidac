@@ -5461,11 +5461,26 @@ def window_plan(data, st, now, topic, cfg):
         return
     res = cfg.get("river_rezerva_pct") or 5
     AW = [(a.timestamp(), b.timestamp()) for a, b, f in away_list(cfg, PLAN, now, days=3) if b > now]
-    home = lambda t: not any(a <= t < b for a, b in AW)
+    # 5.261 (Petr: „ráno chci spát“ – plán počítal, že v 6:00 můžu přepnout / nabíjet): od spaní (chladnuti_spat) do
+    # vstávání (chladnuti_rano) nejde nic dělat – jako bych byl pryč (přepnout ani pustit generátor)
+    SL = []
+    try:
+        hs_, ms_ = (int(x) for x in str(cfg.get("chladnuti_spat") or "0:00").split(":")[:2])
+        hr_, mr_ = (int(x) for x in str(cfg.get("chladnuti_rano") or "7:00").split(":")[:2])
+        for i_ in range(-1, 4):
+            d_ = now.date() + timedelta(days=i_)
+            a_ = datetime(d_.year, d_.month, d_.day, hs_, ms_, tzinfo=TZ) + (timedelta(days=1) if hs_ < 12 else timedelta())
+            b_ = datetime(d_.year, d_.month, d_.day, hr_, mr_, tzinfo=TZ) + timedelta(days=1)
+            if b_ > a_ and b_.timestamp() > ts:
+                SL.append((a_.timestamp(), b_.timestamp()))
+    except ValueError:
+        pass
+    AWS = AW + SL
+    home = lambda t: not any(a <= t < b for a, b in AWS)
     gen_ok = lambda t: 6 <= datetime.fromtimestamp(t, TZ).hour < 22
     in_win = home(ts) and gen_ok(ts)
     t22 = now.replace(hour=22, minute=0, second=0, microsecond=0).timestamp()
-    w0_end = min([t22] + [a for a, b in AW if a > ts]) if in_win else ts
+    w0_end = min([t22] + [a for a, b in AWS if a > ts]) if in_win else ts
     # začátek příštího okna (aspoň hodinu doma a 6–22)
     t, w1 = w0_end, None
     while t < ts + 72 * 3600:
@@ -5480,7 +5495,7 @@ def window_plan(data, st, now, topic, cfg):
     ba_now = sum(ba_) / len(ba_) if len(ba_) >= 2 else 0.0
     # body, kdy jde zdroj přepnout (jen doma): teď, odjezdy, návraty, západ a východ slunce
     pts_ = {ts}
-    for a, b in AW:
+    for a, b in AWS:
         if ts < a < w1:
             pts_.add(a)
         if ts < b < w1:
