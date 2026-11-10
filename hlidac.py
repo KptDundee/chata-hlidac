@@ -5107,6 +5107,23 @@ def energy_model(data, cfg, now):
             "room": ((100 - hq["pct"]) / 100 * cap) if hq.get("pct") is not None else None}
 
 
+def strict_floor(M, cfg, now, floor_s):
+    """5.219: kam nejníž solární baterii vybíjet (Ah nad alarmem): plná − zítřejší přebytek (co panely zítra vyrobí navíc
+    nad spotřebu chaty přes den), aspoň šetrná hranice floor_s. Vrací (hranice, přebytek Ah)."""
+    ts = now.timestamp()
+    r0_, _z0 = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    dn_ = now.date() if r0_ and ts < r0_.timestamp() else now.date() + timedelta(days=1)
+    rn_, zn_ = sun_times(cfg["sirka"], cfg["delka"], dn_)
+    sur_ = 0.0
+    if rn_ and zn_:
+        t_ = rn_.timestamp()
+        while t_ < zn_.timestamp():
+            sur_ += max(0.0, M["prod_ah"](t_, 600) - M["load_a"](t_) * 600 / 3600)
+            t_ += 600
+    top_full = (M["ah_now"] or 0) + (M["room"] or 0)
+    return (max(floor_s, top_full - sur_) if top_full else floor_s), sur_
+
+
 def sim_level(M, t0, t1, lvl, top, solar_until=None, step=600):
     """Ah nad alarmem od t0 do t1 (po 10 min). Do solar_until chata bere ze solární baterie, potom jen měnič naprázdno
     (chata na River). top = nejvýš (plná). Vrací (nejnižší úroveň, úroveň na konci)."""
@@ -5492,16 +5509,7 @@ def window_plan(data, st, now, topic, cfg):
     floor_s = max(0.0, ((cfg.get("baterie_setrna_pct") or 50) - M["alarm_soc"]) / 100 * M["cap"])
     # 5.219 (Petr): baterii vybíjet (výroba < spotřeba – odpoledne, večer, v noci) jen tolik, kolik zítra panely doplní
     # navíc nad spotřebu chaty. Jinak je lepší jet z River a výrobu brát rovnou (bez ztrát nabíjení a vybíjení baterie).
-    r0_, _z0 = sun_times(cfg["sirka"], cfg["delka"], now.date())
-    dn_ = now.date() if r0_ and ts < r0_.timestamp() else now.date() + timedelta(days=1)
-    rn_, zn_ = sun_times(cfg["sirka"], cfg["delka"], dn_)
-    sur_ = 0.0
-    if rn_ and zn_:
-        t_ = rn_.timestamp()
-        while t_ < zn_.timestamp():
-            sur_ += max(0.0, M["prod_ah"](t_, 600) - M["load_a"](t_) * 600 / 3600)
-            t_ += 600
-    floor_x = max(floor_s, top_full - sur_) if (top_full := M["ah_now"] + M["room"]) else floor_s
+    floor_x, sur_ = strict_floor(M, cfg, now, floor_s)
 
     # 5.221 (Petr): úseky, kdy přepnout nejde (noc od spaní, pryč) – River na ně ať má co největší rezervu
     fixed = [(not home(a)) or a in bed_ts for a, b in segs]
@@ -5562,27 +5570,43 @@ def window_plan(data, st, now, topic, cfg):
         return best[0]
 
     soc0 = {k: v["soc"] for k, v in RV.items()}
-    found = ((sun0 and search(soc0, floor_s, True, dis=floor_x)) or search(soc0, floor_s, dis=floor_x)
-             or search(soc0, floor_s) or search(soc0) or search(soc0, minrun=False))
-    need = None
-    if not found and RV:
-        order = sorted(RV, key=lambda k: (use.get(k, 0.0), -RV[k]["soc"]))
-        for k in order:
+
+    def find_need(strict):
+        """Kterou River nabít a na kolik, aby plán vyšel (strict = jen se zítřejším přebytkem, bez hlubšího vybíjení)."""
+        srch = (lambda so: search(so, floor_s, dis=floor_x)) if strict else \
+            (lambda so: search(so, floor_s, dis=floor_x) or search(so, floor_s) or search(so))
+        nd = None
+        for k in sorted(RV, key=lambda k: (use.get(k, 0.0), -RV[k]["soc"])):
             for tgt in range(int(math.ceil(RV[k]["soc"] / 5.0) * 5), 101, 5):
                 if tgt <= RV[k]["soc"]:
                     continue
-                f2 = search({**soc0, k: tgt}, floor_s, dis=floor_x) or search({**soc0, k: tgt}, floor_s) or search({**soc0, k: tgt})
+                f2 = srch({**soc0, k: tgt})
                 if f2:
                     dur = (tgt - RV[k]["soc"]) / 100 * RV[k]["per100"] / max(100.0, RV[k]["chg_w"]) * 3600
-                    need = {"k": k, "name": RV[k]["name"], "target": tgt, "dur": int(dur), "latest": int(w0_end - dur), "plan": f2}
+                    nd = {"k": k, "name": RV[k]["name"], "target": tgt, "dur": int(dur), "latest": int(w0_end - dur), "plan": f2}
                     break
-            if need and need["latest"] >= ts:
+            if nd and nd["latest"] >= ts:
                 break
-        if not need and len(RV) >= 2:
-            f2 = search({k: 100.0 for k in RV})
+        if not nd and len(RV) >= 2:
+            f2 = srch({k: 100.0 for k in RV})
             if f2:
                 dur = max((100 - RV[k]["soc"]) / 100 * RV[k]["per100"] / max(100.0, RV[k]["chg_w"]) * 3600 for k in RV)
-                need = {"k": "all", "name": "obě River", "target": 100, "dur": int(dur), "latest": int(w0_end - dur), "plan": f2}
+                nd = {"k": "all", "name": "obě River", "target": 100, "dur": int(dur), "latest": int(w0_end - dur), "plan": f2}
+        return nd
+
+    # 5.249 (Petr: River skoro prázdné a plán „vyšel“ jen díky vybití solární baterie v noci – v zimě nesmysl):
+    # 1) bez hlubšího vybíjení (jen zítřejší přebytek); 2) jsem doma v okně generátoru → radši nabít River (tak, aby to
+    #    vyšlo bez hlubšího vybíjení); 3) teprve když nabíjet nejde (mimo okno, pryč, nestihne se), šetrná hranice a alarm
+    found = (sun0 and search(soc0, floor_s, True, dis=floor_x)) or search(soc0, floor_s, dis=floor_x)
+    need = None
+    if not found and in_win and RV:
+        need = find_need(True)
+        if need and need["latest"] < ts:
+            need = None
+    if not found and not need:
+        found = search(soc0, floor_s) or search(soc0) or search(soc0, minrun=False)
+        if not found and RV:
+            need = find_need(False)
     hm = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M")
     rd = lambda x: rel_day(x, now)
     nm = lambda c: "solár" if c == "s" else pn_(RV[c]["name"])
@@ -5603,6 +5627,11 @@ def window_plan(data, st, now, topic, cfg):
         plan_t = " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data["wplan"]["segs"])
         if plan_t:
             msg += f"\nPak: {plan_t}."
+        # 5.249 (Petr): jakmile je jasné, že se bude nabíjet – hned tichá zpráva (jednou za den a River)
+        k_ = now.strftime("%Y-%m-%d") + ":" + str(need["k"])
+        if st.get("wp_info") != k_ and ts < late - 2 * 3600 and not in_quiet():
+            ntfy(topic, f"🔋 Dnes bude potřeba nabít {rv_short(need['name'])} – nejpozději začni v {hm(late_u)}", msg, 2, "battery")
+            st["wp_info"] = k_
         alarm(st, topic, "wp_chg", late - 2 * 3600 <= ts < late_u,
               f"🔋 Nabij {rv_short(need['name'])} na ~{need['target']} % – začni nejpozději v {hm(late_u)}", msg, 3, "battery", ok_title=False, cat=2)
         alarm(st, topic, "wp_chg1", ts >= late_u, f"⛽ Nabij {rv_short(need['name'])} teď – poslední chvíle", msg, 5, "rotating_light,battery",
@@ -5748,6 +5777,7 @@ def away_plan(data, st, now, topic, cfg):
         return tot / RV[k]["cap"] * 100
 
     soc = {k: v["soc"] for k, v in RV.items()}
+    fl_strict = strict_floor(M, cfg, now, max(0.0, ((cfg.get("baterie_setrna_pct") or 50) - M["alarm_soc"]) / 100 * M["cap"]))[0]
     L, t, plan, fails = M["ah_now"], now, [], []
     for a, b, f in ivs:
         a = max(a, now)
@@ -5777,12 +5807,17 @@ def away_plan(data, st, now, topic, cfg):
         why = {"sol": {"pct0": round(M["alarm_soc"] + L / M["cap"] * 100), "ok": lo_s > 0, "out": s_out() if lo_s <= 0 else None},
                "rv": {k: {"s0": round(soc[k]), "drop": round(drop(k, a, b)), "ok": soc[k] - drop(k, a, b) >= res_pct, "out": r_out(k)} for k in RV}}
         cand = []
-        if lo_s > 0:
+        # 5.249 (Petr: v zimě v noci solár nevybíjet): solár první, jen když baterii nevybije pod „zítřejší přebytek“
+        # (nebo ji nevybíjí vůbec); jinak River první a solár až jako záloha (nad alarmem)
+        sol_ok_strict = lo_s > 0 and (lo_s >= fl_strict or lo_s >= L - 0.5)
+        if sol_ok_strict:
             cand.append(("solar", None))
         use_ = river_usage(data, now)                   # 5.203: po zapojené méně používaná
         for k in sorted(RV, key=lambda k: (k != conn, use_.get(k, 0.0), -soc[k])):
             if soc[k] - drop(k, a, b) >= res_pct:
                 cand.append(("river", k))
+        if lo_s > 0 and not sol_ok_strict:
+            cand.append(("solar", None))
         if cand:
             kind, k = cand[0]
             if kind == "solar":
