@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.245", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.246", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -14,12 +14,15 @@
   --bg:#f3f2ee;--surface:#fcfcfb;--text:#0b0b0b;--text2:#52514e;--muted:#8a8984;--line:#e4e3de;--grid:#ecebe6;
   --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948;--rvy:#c4a000;
   --good:#0ca30c;--warn:#fab219;--serious:#ec835a;--crit:#d03b3b;
+  --link:#1f5fbf;
   --radius:16px;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#111110;--surface:#1a1a19;--text:#f0efec;--text2:#c3c2b7;--muted:#8c8b84;--line:#2c2c2a;--grid:#262624;
   --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767;--rvy:#f5d90a;
+  --link:#ffd54a;
 }}
+a,a:visited{color:var(--link)}   /* 5.246 (Petr): odkazy byly výchozí sytě modré – v tmavém režimu skoro nečitelné → žlutě */
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
 .wrap{max-width:960px;margin:0 auto;padding:16px 16px 48px}
@@ -588,7 +591,7 @@ function render(){
       const sub = p.off ? `<span>vypnutá / bez napájení</span>` : p.err ? `<span style="color:var(--serious)">chyba: ${p.err}</span>`
         : p.nm ? `<span>${p.on===1?"zapnutá":p.on===0?"vypnutá":""} · spotřebu neměří</span>` : p.wh!=null ? `<span>dnes ${nf(p.wh/1000,2)} kWh</span>` : "";
       const val = p.off || p.nm ? "" : p.w!=null ? nf(p.w)+" W" : "–";
-      const tag = p.ip===autoIp ? ` <span style="font-size:11px;color:var(--s1)">· nabíjení River</span>` : "";
+      const tag = p.ip===autoIp ? ` <span style="font-size:11px;color:var(--link)">· nabíjení River</span>` : "";
       return `<div class="row" data-ip="${p.ip}" style="padding:8px 0;cursor:pointer${p.off?";opacity:.5":""}"><div class="t"><b style="font-weight:500">${p.n ? pn(p.n) : ("Zásuvka ."+p.ip)} <span class="sub">(${p.ip}${p.a?` · .${p.a}`:""})</span>${tag}</b>${sub}</div><div style="font-variant-numeric:tabular-nums;font-weight:600">${val} <span style="color:var(--muted);font-weight:400">›</span></div></div>`;
     };
     let rows = "";
