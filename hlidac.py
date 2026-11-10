@@ -2008,6 +2008,7 @@ def main():
                          ("Kontrola upozornění", lambda: check(v, st, now, topic, cfg, rise, set_, data)),
                          ("Automatika River", lambda: river_auto(v, st, now, topic, cfg, rise, set_, data, inv)),
                          ("River napájí chatu", lambda: river_supply(data, st, now, topic, cfg, rise, set_)),
+                         ("Výdrž River", lambda: river_runtimes(data, now, cfg)),
                          ("Nabití #", lambda: hash_soc(data, st, now, cfg)),
                          ("Test kapacity", lambda: capacity_check(data, st, now, cfg)),
                          ("Lednice", lambda: fridge_check(data, st, now, topic, cfg)),
@@ -6406,6 +6407,33 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
     morning = (rise + timedelta(days=1) if evening else rise) + timedelta(hours=1)
     if until < morning.timestamp():
         st["_rvn"] = {"n": r["name"], "soc": r["soc"], "avg": avg, "until": int(until), "res": res, "m": int(morning.timestamp())}
+
+
+def river_runtimes(data, now, cfg):
+    """5.267 (Petr: „žlutá utáhne chatu 28 h???“ – web počítal s pevnými 25 W): výdrž každé velké River, kdyby od teď
+    napájela chatu – stejný výpočet jako „vydrží do“ u River, která chatu napájí (obvyklý odběr chaty den / noc,
+    změřená kapacita, rezerva). data["rv_run"] = {k6: until}; vypnutá River podle posledního známého %."""
+    M_ = energy_model(data, cfg, now)
+    res = cfg.get("river_rezerva_pct") or 5
+    rl, rc, ts_ = data.get("rv_last") or {}, data.get("rv_cap") or {}, now.timestamp()
+    out = {}
+    for r in data.get("rivers") or []:
+        cap = r.get("wh") or cfg.get("river_Wh") or 768
+        if cap < 500:
+            continue                                          # malá River chatu nenapájí
+        k6 = str(r.get("sn", ""))[-6:]
+        soc = r.get("soc") if r.get("online") and r.get("soc") is not None else (rl.get(k6) or {}).get("soc")
+        if soc is None:
+            continue
+        rc_ = rc.get(k6) or {}
+        use_wh = rc_["cap"] if rc_.get("cap") and (rc_.get("n") or 0) >= 2 else cap * 0.9
+        lvl, t_ = max(0.0, soc - res) / 100 * use_wh, ts_
+        while lvl > 0 and t_ - ts_ < 7 * 86400:
+            lvl -= M_["load_w"](t_) * 600 / 3600
+            t_ += 600
+        out[k6] = int(t_)
+        print(f"Výdrž River {r.get('name')}: {round(soc)} % → do {rel_day(int(t_), now)} {datetime.fromtimestamp(t_, TZ).strftime('%H:%M')}")
+    data["rv_run"] = out
 
 
 def river_supply_plugs(data, now, cfg):

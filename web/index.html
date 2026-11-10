@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.266", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.267", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3278,10 +3278,9 @@ const socOld = q => `<span style="color:var(--muted)">${nf(q.soc)}<small>%</smal
 const rvPlugBad = x => false;
 /* 5.265 (Petr: „vypnutá · EcoFlow ji nevidí“ = info na nic): River v klidu → na jak dlouho by chatu utáhla */
 function rvIdle(x){
-  const q = rvSoc(x); if(q.soc == null || !x.ef || (x.ef.wh||768) < 500) return "v klidu";
-  const k6 = String(x.ef.sn||"").slice(-6), rc = (DATA.rv_cap||{})[k6] || {}, cap = rc.cap && (rc.n||0) >= 2 ? rc.cap : (x.ef.wh||768) * 0.9;
-  const w = (DATA.river_sup||{}).typ_w || 25, hh = Math.max(0, q.soc - 5) / 100 * cap / w;
-  return `v klidu · utáhne chatu ~${hh >= 48 ? `${nf(hh/24,0)} dní` : `${nf(Math.floor(hh))} h`}`;
+  // 5.267: výdrž počítá hlídač (obvyklý odběr chaty den / noc – stejně jako „vydrží do“), web ji jen ukáže
+  const k6 = x.ef ? String(x.ef.sn||"").slice(-6) : "", u = (DATA.rv_run||{})[k6];
+  return u ? `v klidu · utáhne chatu do ${relDay(u)} ${hmT(u)}` : "v klidu";
 }
 function rivState(x, h, M){
   { const s12 = small12(x); if(s12) return s12; }
