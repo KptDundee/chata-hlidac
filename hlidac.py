@@ -6346,6 +6346,8 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
                          "capm": round(use_wh), "typ_w": round(M_["load_w"](now.timestamp())), "cap_est": not (rc_.get("cap") and (rc_.get("n") or 0) >= 2),
                          "soc_m": soc_m, "t_m": int(r_m.timestamp() + 3600) if r_m else None,
                          "cap": cap, "res": res, "sn": str(r.get("sn", ""))[-6:], **plug_extra}
+    print(f"River napájí chatu: {r['name']} {round(r['soc'])} %, ~{round(avg)} W, vydrží do {rel_day(until, now)} "
+          f"{datetime.fromtimestamp(until, TZ).strftime('%H:%M')}")
     # 5.95: vydrží do rána? – upozornění až ve 22:00 spolu se solárem (urgent_river)
     if not (rise and set_):
         return
