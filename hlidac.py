@@ -2032,7 +2032,7 @@ def main():
                          ("Přebytek při odjezdu", lambda: away_surplus(data, st, now, topic, cfg)),
                          ("Nabij River", lambda: river_charge_hint(data, st, now, topic, cfg)),
                          ("Připomínka plánu", lambda: plan_reminder(data, st, now, topic, cfg)),
-                         ("Dnešní plán", lambda: plan_today(data, st, now, topic, cfg)),
+                         ("Plán na zítřek", lambda: plan_today(data, st, now, topic, cfg)),
                          ("Běh generátoru", lambda: gen_sessions(data, st, now, topic, cfg)),
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
                          ("Palivo a cena", lambda: fuel_stats(data, st, now, cfg)),
@@ -5911,15 +5911,17 @@ def battery_sim(data, st, now, cfg):
 
 
 def plan_today(data, st, now, topic, cfg):
-    """5.235 (Petr): ráno v 9:00 (5.236) jednou zpráva s nízkou prioritou, jaký je dnes plán (a odkud)."""
+    """5.235 (Petr): jednou za den tichá zpráva, jaký je plán (a odkud) – 5.248: večer ve 20:00 na zítřek, ať jde
+    ještě opravit (ráno po odjezdu nemělo smysl; k odjezdu je zpráva 70 min předem)."""
     day = now.strftime("%Y-%m-%d")
-    if not (9 <= now.hour < 12) or st.get("plan_day") == day:          # 5.236 (Petr): v 9:00, ne po nočním klidu
+    if not (20 <= now.hour < 23) or st.get("plan_day") == day:
         return
     st["plan_day"] = day
-    ivs, src = plan_day(PLAN, now.date())
+    d1 = now.date() + timedelta(days=1)
+    ivs, src = plan_day(PLAN, d1)
     hm = lambda x: x.strftime("%H:%M")
     txt = "pryč " + ", ".join(f"{hm(a)}–{hm(b)}" for a, b, f in ivs) if ivs else "doma"
-    ntfy(topic, f"📅 Dnes {txt}", ("Podle kalendáře – " if src == "cal" else f"Podle minulého týdne ({src.day}. {src.month}.) – " if src else "")
+    ntfy(topic, f"📅 Zítra {txt}", ("Podle kalendáře – " if src == "cal" else f"Podle minulého týdne ({src.day}. {src.month}.) – " if src else "")
          + "když to nesedí, uprav plán, ať hlídač počítá správně.", 2, "calendar",
          actions=[{"action": "view", "label": "Otevřít plán", "url": DASHBOARD + "#plan", "clear": True}], view=False)
 
