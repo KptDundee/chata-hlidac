@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.254", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.255", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2496,18 +2496,20 @@ function jineHtml(P){
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button onclick="SPOT_DRAFT.push({n:'',w:500});rerenderGen()" style="${bs}">➕ Přidat</button>
         <button onclick="spotSave(this)" style="${bs}">Uložit</button><button onclick="SPOT_ED=false;rerenderGen()" style="${bs}">Zpět</button></div>
       <div class="sub" style="margin-top:4px">Výkon = o kolik River při nabíjení ubrat (50–1500 W).</div></div>`;
+  // 5.255 (Petr: Start pořád neurovnaný): stav nahoře, pod ním jedna mřížka tlačítek stejné velikosti (spotřebiče + vlastní
+  // výkon), dole drobně upravit seznam; vysvětlení sbalené
+  const chip = `font:inherit;font-weight:600;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent;text-align:left;line-height:1.25`;
   const pick = L.map(x=>{ const sel = on && (nm ? nm===x.n : x.w===w);
-      return `<button onclick="${sel ? "genJine(0, this)" : `genJine(${x.w}, this, '${escH(x.n).replace(/'/g,"&#39;")}')`}" title="${sel ? "ťukni znovu = vypnout" : ""}" style="${bs};${sel?"background:color-mix(in srgb,var(--good) 22%,transparent);border-color:var(--good)":""}">${sel?"✓ ":""}${escH(x.n)} <span style="font-weight:500;color:var(--text2)">${nf(x.w)} W</span></button>`; }).join("");
+      return `<button onclick="${sel ? "genJine(0, this)" : `genJine(${x.w}, this, '${escH(x.n).replace(/'/g,"&#39;")}')`}" style="${chip};${sel?"background:color-mix(in srgb,var(--good) 22%,transparent);border:2px solid var(--good)":""}">${sel?"✓ ":""}${escH(x.n)}<br><span style="font-weight:500;font-size:13px;color:var(--text2)">${sel ? "ťukni = vypnout" : `−${nf(x.w)} W`}</span></button>`; }).join("");
+  const own = `<div style="${chip};display:flex;align-items:center;gap:6px;cursor:default"><input id="jine_w" type="number" inputmode="numeric" min="50" max="1500" step="10" value="${on && !nm ? w : w0}" style="width:64px;${ins};padding:6px"> W
+      <button onclick="genJine(+$('jine_w').value, this)" style="font:inherit;font-weight:600;padding:6px 10px;border-radius:10px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent">${on && !nm ? "Změnit" : "Ubrat"}</button></div>`;
   return `<div id="jine_box" style="margin:4px 0">
     <h2 style="margin:0 0 8px">🔌 Jiný spotřebič na generátoru</h2>${stat}
-    <div class="sub" style="margin:6px 0 2px">Zapojuješ něco do generátoru? Nejdřív ho tady zapni (River se uberou), pak spotřebič zapoj. Platí ${P.pre ? "od startu nabíjení " : ""}do konce nabíjení.</div>
-    <div style="font-size:13.5px;font-weight:600;margin-top:8px">Vyber spotřebič</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">${pick || `<span class="sub">Zatím žádný – přidej přes ✏️ Upravit seznam.</span>`}</div>
-    <div style="font-size:13.5px;font-weight:600;margin-top:10px">Nebo zadej výkon</div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px"><input id="jine_w" type="number" inputmode="numeric" min="50" max="1500" step="10" value="${on && !nm ? w : w0}" style="width:90px;${ins}"> W
-      <button onclick="genJine(+$('jine_w').value, this)" style="${bs}">Zapnout</button></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${on ? `<button onclick="genJine(0, this)" style="${bs}">○ Vypnout</button>` : ""}<button onclick="SPOT_ED=true;SPOT_DRAFT=spotList().map(x=>({...x}));rerenderGen()" style="${bs}">✏️ Upravit seznam</button></div>
-    <div class="sub" style="margin-top:6px">Co spotřebič vezme z generátoru, se do ceny nabíjení ani účinnosti nepočítá (palivo dál podle celé výroby).</div></div>`;
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${pick}${own}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px">
+      ${on ? `<button onclick="genJine(0, this)" style="${bs}">○ Vypnout</button>` : `<span></span>`}
+      <a href="#" onclick="event.preventDefault();SPOT_ED=true;SPOT_DRAFT=spotList().map(x=>({...x}));rerenderGen()" style="font-size:14px">✏️ upravit seznam</a></div>
+    <details style="margin-top:8px"><summary class="sub" style="cursor:pointer">Jak to funguje</summary><div class="sub" style="margin-top:4px;line-height:1.45">Zapojuješ něco do generátoru? Nejdřív ho tady vyber (River se o jeho výkon uberou), pak spotřebič zapoj. Platí ${P.pre ? "od startu nabíjení " : ""}do konce nabíjení. Co spotřebič vezme z generátoru, se do ceny nabíjení ani účinnosti nepočítá (palivo dál podle celé výroby).</div></details></div>`;
 }
 function rerenderGen(){ const b = $("jine_box"); if(b && JINE_P) b.outerHTML = jineHtml(JINE_P); }   // jen tenhle rámeček (záložka zůstane)
 async function spotSave(el){
