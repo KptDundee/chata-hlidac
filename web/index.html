@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.265", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.266", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -226,7 +226,7 @@ details.sec>.in{margin-top:8px}
 .ht .v{font-size:27px;font-weight:750;letter-spacing:-.02em;margin:6px 0 2px;font-variant-numeric:tabular-nums;line-height:1.15}
 .ht .v small{font-size:15px;color:var(--text2);font-weight:600;margin-left:2px;letter-spacing:0}
 .ht .v .ar{font-size:20px;margin-left:10px;color:var(--c);white-space:nowrap}
-.ht .st{font-size:13px;font-weight:700;color:var(--c)}
+.ht .st{font-size:13px;font-weight:700;color:var(--c);overflow-wrap:anywhere}
 .ht.ok .st{color:var(--good)}
 .ht .a{font-size:12.5px;color:var(--text2);margin-top:3px}
 .hgrid.small .ht{min-height:0;padding:11px 12px 11px 14px}
@@ -3274,7 +3274,8 @@ function rvSoc(x){
 const socOld = q => `<span style="color:var(--muted)">${nf(q.soc)}<small>%</small></span>`;
 /* 5.193 (Petr): „?“ u River jen když je to opravdu divné – River dodává (> 20 W), ale zásuvku na jejím výstupu Flip nevidí.
    Vypnutý / vybitý výstup = zásuvka bez proudu, to je normální (vysvětlení je uvnitř karty). */
-const rvPlugBad = x => !x.gen && !x.chg && (x.miss || x.off) && x.ef && (x.ef.out_w||0) > 20;
+/* 5.266 (Petr: psát, že na vypnuté River není vidět zásuvka, je hloupost): o zásuvce na výstupu River dlaždice nemluví vůbec */
+const rvPlugBad = x => false;
 /* 5.265 (Petr: „vypnutá · EcoFlow ji nevidí“ = info na nic): River v klidu → na jak dlouho by chatu utáhla */
 function rvIdle(x){
   const q = rvSoc(x); if(q.soc == null || !x.ef || (x.ef.wh||768) < 500) return "v klidu";
@@ -3292,9 +3293,8 @@ function rivState(x, h, M){
   if(x.miss || x.off){
     if(x.ef && x.ef.online){ const iw0 = x.ef.in_w||0, ow0 = x.ef.out_w||0;
       // 5.193 (Petr): výstup River nic nedává → zásuvka na něm je bez proudu, to je v pořádku (bez varování)
-      const nz = ow0 > 20 ? `⚠ zásuvka (${x.id}) nevidět` : `výstup vypnutý`;
-      return iw0 > 20 ? `nabíjí se · ${nf(iw0)} W · ${nz}` : ow0 > 20 ? `dodává ${nf(ow0)} W · ${nz}` : `zapnutá · ${nz}`; }
-    return "vypnutá";
+      return iw0 > 20 ? `nabíjí se · ${nf(iw0)} W` : ow0 > 20 ? `dodává ${nf(ow0)} W` : rvIdle(x); }
+    return x.ef ? rvIdle(x) : "vypnutá";
   }
   const iw = x.ef ? x.ef.in_w||0 : 0, ow = x.ef ? x.ef.out_w||0 : 0;
   if((x.w||0) > 2) return h.invF && (h.inv.mw||0) > 3 ? "napájí spotřebič" : "napájí chatu";
@@ -3338,7 +3338,7 @@ function tileRivers(d, h){
     v: sel.gen && GP ? `${nf(GP.gw ?? GP.tot_in)}<small>W</small>` : soc!=null ? `${nf(soc)}<small>%</small>` : SQ.old ? socOld(SQ) : sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–",
     st: sel.gen && GP ? `běží od ${hmT(GP.t_on)} · ${GP.fuel==="lpg"?"plyn":"benzín"}` : rivState(sel, h, MM),
     rows: sel.gen ? genRows(d, h, sel) : soc!=null ? [["výstup (zásuvka)", sel.w!=null ? `${nf(sel.w)} W` : "–"]]
-      : SQ.old ? [["naposledy známé", `${nf(SQ.soc)} % · ${relDay(SQ.t)} ${hmT(SQ.t)}`]] : [["nabití", why]]};
+      : SQ.old ? [["údaj z", `${relDay(SQ.t)} ${hmT(SQ.t)}`]] : [["nabití", why]]};
 }
 /* časová osa: řádek pro každé zařízení, pruh = kdy bylo v činnosti */
 function timelineChart(el, pts, rows, hours){
