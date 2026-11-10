@@ -5725,7 +5725,7 @@ def window_plan(data, st, now, topic, cfg):
           f"🔄 Přepni chatu na River {rv_short(seg0['name']) if seg0 else ''} – {rv_short(sup_.get('name', ''))} dojde ~{hm(sup_['until']) if sup_.get('until') else ''}",
           f"River {sup_.get('name', '')} ({sup_.get('soc')} %) vydrží jen do ~{hm(sup_['until']) if sup_.get('until') else '?'}, "
           f"ale další možnost něco udělat je až {rd(w1)} {hm(w1)} (vstávání / okno generátoru). Přepni chatu teď na "
-          f"{seg0['name'] if seg0 else ''}." if need_sw else "", 4, "arrows_counterclockwise", ok_title=False, cat=2)
+          f"{seg0['name'] if seg0 else ''}." if need_sw else "", 4, "arrows_counterclockwise", ok_title=False, cat=1)
     print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, zítra přebytek ~{sur_:.0f} Ah → vybíjet nejníž "
           f"na ~{M['alarm_soc'] + floor_x / max(1.0, M['cap']) * 100:.0f} #, "
           + ("vyjde: " + " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data['wplan']['segs']) if found
