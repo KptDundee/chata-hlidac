@@ -7126,9 +7126,22 @@ def check_river(r, st, topic, cfg, data=None, rivers=None):
     else:
         mins = r.get("dsg_min")
         rest = f" Zbývá asi {fmt_h(mins / 60)}." if mins and mins < 6000 else ""
-        title = f"🔴 River {name} se vypnula ({fmt(soc)} %)" if died else f"🔄 River {name} má jen {fmt(soc)} % – přepoj chatu"
+        # 5.251 (Petr: „přepoj na druhou River“, a ta měla taky ~10 %): radit jen to, co opravdu jde
+        oth = max((o for o in rivers or [] if o is not r and (o.get("wh") or 768) >= 500 and o.get("online")
+                   and (o.get("soc") or 0) >= soc + 20), key=lambda o: o.get("soc") or 0, default=None)
+        hq_ = (data or {}).get("hq") or {}
+        sol_ = (hq_.get("pct") or 0) >= (cfg.get("baterie_setrna_pct") or 50)
+        what = (f"Přepoj chatu na River {oth['name']} ({fmt(oth.get('soc'))} %) a tuhle nabij." if oth
+                else "Přepni chatu na solár a River nabij." if sol_
+                else "Druhá River je taky skoro prázdná – pusť generátor a nabij je.")
+        title = f"🔴 River {name} se vypnula ({fmt(soc)} %)" if died else f"🔄 River {name} má jen {fmt(soc)} % – " + \
+            ("přepoj chatu" if oth or sol_ else "nabij")
         msg = (f"{io}.\nRiver přestala dodávat – pokud z ní jela chata, je teď bez 230 V (lednice, Wi‑Fi, Flip)." if died
-               else f"{io}.{rest}\nPřepoj chatu na druhou River (nebo solár) a tuhle nabij.")
+               else f"{io}.{rest}\n{what}")
+        # 5.251: generátor právě startuje na nabíjení (povel do 15 min) → nehlásit, nabíjení se řeší
+        gp_ = str(cfg.get("gen_povel") or "").split(":")
+        if not died and len(gp_) >= 2 and gp_[0] == "start" and gp_[-1].isdigit() and time.time() - int(gp_[-1]) < 900:
+            active = active and was
     alarm(st, topic, k, active, title, msg, 5, "rotating_light,battery",
           ok_title=f"✓ {name}: {'nabíjí se' if in_w > 20 else 'už nedodává'} ({fmt(soc)} %)")
     # Nabitá při nabíjení → jen do souhrnu (konec nabíjení z generátoru hlásí řízení generátoru)
