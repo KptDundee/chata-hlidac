@@ -2920,7 +2920,8 @@ def inv_src(inv, cfg):
         mw = by[mip]["w"]
     rw_ = river_w({k: v.get("w") for k, v in by.items()}, ips(cfg.get("zasuvky_river")))
     # 5.201: zásuvka měniče zmizela ze sítě (Flip hlásí „gone“ = bez proudu – přepínač ji odpojil) a River dodává → chata na River
-    if mw is None and (by.get(mip) or {}).get("gone") and rw_ is not None and rw_ > 3:
+    # 5.259: i když ji Flip v seznamu vůbec nemá (po restartu ji ještě nenašel) – dřív „nevíme“ a River výdrž chyběla
+    if mw is None and ((by.get(mip) or {}).get("gone") or mip not in by) and rw_ is not None and rw_ > 3:
         return "r"
     return cabin_src(mw, rw_, vic_state(inv))
 
@@ -6271,7 +6272,9 @@ def river_supply(data, st, now, topic, cfg, rise, set_):
         # 4.82: chatu napájí jen velká River (malá nikdy – ta jen spotřebiče); a jen když chata nejede ze soláru
         inv_ = data.get("inverter") or {}
         # 5.120: chatu napájí River jen podle jednoho výpočtu (cabin_src): solár i „nevíme“ = River chatu nenapájí
-        on_solar = now.timestamp() - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) in ("s", "?")
+        # 5.259 (Petr: na kartě River chyběla výdrž): „nevíme“ už neznamená solár – když velká River dává do chaty proud,
+        # chata jede z ní
+        on_solar = now.timestamp() - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) == "s"
         act = [(i, r) for i, r in enumerate(rv) if r.get("online") and r.get("soc") is not None and not on_solar
                and (r.get("wh") or 768) >= 500 and (r.get("out_w") or 0) - (r.get("in_w") or 0) > 3]
     plug_extra = {}
