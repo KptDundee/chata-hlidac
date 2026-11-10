@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.264", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.265", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3275,9 +3275,16 @@ const socOld = q => `<span style="color:var(--muted)">${nf(q.soc)}<small>%</smal
 /* 5.193 (Petr): „?“ u River jen když je to opravdu divné – River dodává (> 20 W), ale zásuvku na jejím výstupu Flip nevidí.
    Vypnutý / vybitý výstup = zásuvka bez proudu, to je normální (vysvětlení je uvnitř karty). */
 const rvPlugBad = x => !x.gen && !x.chg && (x.miss || x.off) && x.ef && (x.ef.out_w||0) > 20;
+/* 5.265 (Petr: „vypnutá · EcoFlow ji nevidí“ = info na nic): River v klidu → na jak dlouho by chatu utáhla */
+function rvIdle(x){
+  const q = rvSoc(x); if(q.soc == null || !x.ef || (x.ef.wh||768) < 500) return "v klidu";
+  const k6 = String(x.ef.sn||"").slice(-6), rc = (DATA.rv_cap||{})[k6] || {}, cap = rc.cap && (rc.n||0) >= 2 ? rc.cap : (x.ef.wh||768) * 0.9;
+  const w = (DATA.river_sup||{}).typ_w || 25, hh = Math.max(0, q.soc - 5) / 100 * cap / w;
+  return `v klidu · utáhne chatu ~${hh >= 48 ? `${nf(hh/24,0)} dní` : `${nf(Math.floor(hh))} h`}`;
+}
 function rivState(x, h, M){
   { const s12 = small12(x); if(s12) return s12; }
-  if(!x.chg && !x.gen && x.ef && x.ef.online === false && !((x.w||0) > 2)) return "vypnutá · EcoFlow ji nevidí";   // 5.85
+  if(!x.chg && !x.gen && x.ef && x.ef.online === false && !((x.w||0) > 2)) return rvIdle(x);   // 5.85 / 5.265
   if(x.chg) return !x.known ? "zásuvka bez dat" : x.on ? `nabíjí${x.tgt ? ` ${x.tgt.short}` : ""}` : "vypnuto";
   if(x.gen){ const P = DATA.gen_plan, fin = P && !P.end && P.fin && Date.now()/1000 - P.t < 1800 ? ` · vypnout ~${hmT(P.fin)}` : "";
     return (x.w||0) > 5 ? `běží · ${nf(x.w)} W${fin}` : "neběží"; }     // 4.77: jen podle zásuvky generátoru
@@ -3298,7 +3305,7 @@ function rivState(x, h, M){
   if(ow > 20) return `dodává ${nf(ow)} W${agoT}`;
   if(M && (M.G.w||0) > 5 && !(x.ef && x.ef.in_w!=null)) return "generátor běží – nabíjí se?";   // bez dat z EcoFlow nevíme
   if(M && M.C.on && M.C.tgt === x) return "nabíjí se ze soláru";
-  return "nic nedělá";
+  return x.ef ? rvIdle(x) : "nic nedělá";
 }
 /* 4.101: běžící nabíjení z generátoru (z EcoFlow přes aplikaci – nezávisle na Flipu) */
 function genLive(d){ const P = d.gen_plan; return P && !P.end && Date.now()/1000 - P.t < 900 ? P : null; }
