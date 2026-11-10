@@ -41,7 +41,7 @@ DEFAULTS = {
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "", "gen_rucne": "", "gen_spotrebice": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
-    "ticho": "0:00-5:45", "chladnuti_venku_teplomer": "OUTDOOR",
+    "ticho": "0:00-5:45", "chladnuti_venku_teplomer": "OUTDOOR", "vstavani": "",
     "zasuvka_menic": "", "zasuvky_river": "2, 3, 6", "river_noci_od": "2026-10-15", "zasuvka_generator": "7",
     "river_auto": True, "river_auto_ip": "8", "river_auto_pv_on": 150, "river_auto_pv_off": 100,
     "river_auto_v_off": 12.5, "river_auto_off_min": 20, "river_auto_v_drzet": 13.0, "river_auto_boost": True, "boost_V": 14.4, "float_V": 13.7, "odber_hlidat": True, "odber_z_baterie_A": 2.0, "odber_navic_W": 40, "lednice_max_W": 80, "river_auto_notifikace": False,
@@ -5441,6 +5441,26 @@ def build_todo(data, st, now):
     print("Co teď udělat: " + (" | ".join(x["txt"] for x in L[:3]) or "nic"))
 
 
+WDAYS = ("po", "út", "st", "čt", "pá", "so", "ne")
+
+
+def wake_time(cfg, d):
+    """5.262 (Petr): kdy ráno vstávám – po dnech (vstavani = „po 9:00, út 5:30, …“), jinak chladnuti_rano. (hodina, minuta)"""
+    for part in str(cfg.get("vstavani") or "").split(","):
+        b = part.strip().split()
+        if len(b) == 2 and b[0].lower()[:2] == WDAYS[d.weekday()]:
+            try:
+                h, m = (int(x) for x in b[1].split(":")[:2])
+                return h, m
+            except ValueError:
+                pass
+    try:
+        h, m = (int(x) for x in str(cfg.get("chladnuti_rano") or "7:00").split(":")[:2])
+        return h, m
+    except ValueError:
+        return 7, 0
+
+
 def window_plan(data, st, now, topic, cfg):
     """5.203 (Petr): jedno pravidlo pro nabíjení River podle okna generátoru.
     Okno = jsem doma a je 6:00–22:00. Hlídač vezme dobu do začátku příštího okna (přes noc, odjezd, návrat) a zkusí,
@@ -5466,11 +5486,12 @@ def window_plan(data, st, now, topic, cfg):
     SL = []
     try:
         hs_, ms_ = (int(x) for x in str(cfg.get("chladnuti_spat") or "0:00").split(":")[:2])
-        hr_, mr_ = (int(x) for x in str(cfg.get("chladnuti_rano") or "7:00").split(":")[:2])
         for i_ in range(-1, 4):
             d_ = now.date() + timedelta(days=i_)
             a_ = datetime(d_.year, d_.month, d_.day, hs_, ms_, tzinfo=TZ) + (timedelta(days=1) if hs_ < 12 else timedelta())
-            b_ = datetime(d_.year, d_.month, d_.day, hr_, mr_, tzinfo=TZ) + timedelta(days=1)
+            d1_ = d_ + timedelta(days=1)
+            hr_, mr_ = wake_time(cfg, d1_)                     # 5.262: vstávání po dnech (Nastavení → Plán)
+            b_ = datetime(d1_.year, d1_.month, d1_.day, hr_, mr_, tzinfo=TZ)
             if b_ > a_ and b_.timestamp() > ts:
                 SL.append((a_.timestamp(), b_.timestamp()))
     except ValueError:

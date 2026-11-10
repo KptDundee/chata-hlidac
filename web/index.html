@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.261", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.262", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -482,7 +482,7 @@ const DETCFG = {
   fridge: ["lednice_hlidat","lednice_ticho_h","lednice_bezi_h","lednice_max_C","zasuvka_lednice","teplomer_lednice"],
   health: ["kapacita_Ah","kapacita_odhad_Ah","plne_nabiti_od_dni","plne_nabiti_dni"],
   pan: ["panely_pocet","panely_doporucit","pojistka_A","panel_Wp","panely_min_W"],
-  plan: ["den_do","ticho"],
+  plan: ["vstavani","den_do","ticho"],
   sys: ["vecerni_souhrn_hodina","ticho","regulator_offline_min","brana_hlidat"],
   bsim: ["kapacita_Ah","noc_spotreba_W","menic_vlastni_W"],
 };
@@ -1683,7 +1683,11 @@ function detPlan(body){
         const res = iv.src==="solar" ? "pojede solár" : iv.src==="river" ? `pojede ${escH(pn((R[iv.k]||{}).name||""))}` : `<b style="color:var(--crit)">nic nestačí</b>`;
         return `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px"><b>${relDay(iv.a)} ${hmT(iv.a)}–${hmT(iv.b)}</b> → ${res}<br>Solár: na začátku ~${W.sol?Math.max(0,W.sol.pct0):"?"} # → ${W.sol&&W.sol.ok?"vydrží ✓":"nevydrží"}<br>${rv}</div>`; }).join("")}
       <div class="sub" style="margin-top:4px">Spočítáno ${relDay(AP.t)} ${hmT(AP.t)}.</div></div>`;
-    box.innerHTML = `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45">${(d.away_src && Object.values(d.away_src).includes("cal")) ? `Dny se berou <b>z tvých kalendářů</b> (každá událost ±1 h na cestu, volno do 2 h = pořád pryč; označené „z kalendáře“). Když den upravíš a uložíš, platí tvoje úprava.` : `Den, který tu nezadáš, se vezme <b>jako stejný den minulého týdne</b> (označený „jako minulý týden“).`} Uprav, co nesedí, a dej <b>Uložit plán</b> – klidně kdykoli, ne až v neděli večer.</div>
+    box.innerHTML = `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45">${(d.away_src && Object.values(d.away_src).includes("cal")) ? `Dny se berou <b>z tvých kalendářů</b> (každá událost ±1 h na cestu, volno do 2 h = pořád pryč; označené „z kalendáře“). Když den upravíš a uložíš, platí tvoje úprava.` : `Den, který tu nezadáš, se vezme <b>jako stejný den minulého týdne</b> (označený „jako minulý týden“).`} Uprav, co nesedí, a dej <b>Uložit plán</b> – klidně kdykoli, ne až v neděli večer.</div>${(()=>{ // 5.262 (Petr): spaní a vstávání – v tu dobu nic nepřepneš ani nenabiješ
+      const c = d.cfg||{}, W = {}; for(const part of String(c.vstavani||"").split(",")){ const b = part.trim().split(/\s+/); if(b.length===2) W[b[0].slice(0,2).toLowerCase()] = b[1]; }
+      const DN = ["po","út","st","čt","pá","so","ne"], grp = {}; for(const x of DN){ const t = W[x] || String(c.chladnuti_rano||"7:00"); (grp[t] = grp[t] || []).push(x); }
+      const txt = Object.entries(grp).sort((a,b)=>a[1].length-b[1].length).map(([t,ds])=>`${ds.length===7?"každý den":ds.join(", ")} ${t}`).join(" · ");
+      return `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45">😴 Spím od ${cfgV("chladnuti_spat", c.chladnuti_spat||"0:00")} · vstávám ${cfgV("vstavani", txt)}<br><span class="sub">V tu dobu hlídač počítá, že nic nepřepneš ani nepustíš generátor – River na noc musí vydržet do vstávání.</span></div>`; })()}
       <div class="sub" style="margin-bottom:6px">Kdy budeš pryč (od – do). „Do“ dřív než „od“ = přes půlnoc.</div>
       ${days.map(row).join("")}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="pl_save" style="font:inherit;padding:8px 14px;font-weight:600">Uložit plán</button>
@@ -4366,6 +4370,7 @@ const SETTINGS = [
   ["Upozornění", [
     ["nabito","Baterie nabitá na 100 %","V souhrnu ve 22:00","","", "sw"],
     ["panely_nevyrabi","Panely nevyrábí přes den","Sníh, stín nebo vypadlý kabel","","", "sw"],
+    ["vstavani","Kdy ráno vstávám","Od spaní (Chladnutí – kdy chodím spát) do vstávání hlídač počítá, že nic nepřepneš ani nepustíš generátor – River na noc musí vydržet do té doby. Den bez času = podle „Chladnutí – ráno“.","",0,"week"],
     ["den_do","Výhled dne – vydržet do","Do kolika má chata na soláru vydržet ve dny bez času návratu (pak řeší noc jiná upozornění)","",0,"time"],
     ["ticho","Noční klid upozornění","Od–do (např. 0:00-5:45): chodí jen ohrožení chodu, doporučení počkají na ráno","",0,"str"],
     ["nutne_river_v","Před spaním: přepni na River","Od tohoto času, když zdroj do rána nevydrží; opakuje se po 10 min","",0,"timeopt"],
