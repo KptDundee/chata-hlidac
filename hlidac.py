@@ -4033,7 +4033,8 @@ def fuel_stats(data, st, now, cfg):
                   "gpk": round(gpk) if gpk else None, "gpk_src": gpk_src if f == "lpg" and gpk else None,
                   "g_kwh_n": round(fg[1] / 1000, 2) if gpk and fg else None,
                   "lpk": round(lpk, 3) if lpk else None, "nadrz_l": float(cfg.get("gen_nadrz_l") or 4.0) if f == "benzin" else None,
-                  "czk_kwh": now_c, "n": len(ok), "hist": hist[-12:], "e": round(fe.get(f, 0.0))}
+                  "czk_kwh": now_c, "n": len(ok), "hist": hist[-12:], "e": round(fe.get(f, 0.0)),
+                  "last_t": max((e["t"] for e in es), default=None)}      # 5.256: poslední záznam (i „lahev došla“)
         fuel_hist_all[f] = hist
     data["fuel"] = out
     # 5.254 (Petr): přehled lahví – od kdy do kdy, nabíjení, kWh z generátoru / do River / v chatě, skutečná spotřeba a cena

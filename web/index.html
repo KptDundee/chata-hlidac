@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.255", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.256", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2414,7 +2414,7 @@ function genPlanHtml(d){
   const sty = on => `font:inherit;font-weight:700;flex:1;padding:12px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:${on?"2px solid var(--good)":"1px solid var(--line)"};background:${on?"color-mix(in srgb,var(--good) 22%,transparent)":"transparent"}`;
   const bs = `font:inherit;font-size:14px;font-weight:600;flex:1;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--line);background:transparent`;
   const FB = (f, txt) => { const on = run && fuel===f; return `<button data-fuel="${f}" onclick="genFuel('${f}', this, ${run?1:0})" style="${sty(on)}">${txt}${on?" ✓":""}</button>`; };
-  const GS = d.gen_stop, stopNew = GS && !GS.res && Date.now()/1000 - GS.t < 3*3600 && !(((d.fuel||{})[GS.fuel]||{}).cur && d.fuel[GS.fuel].cur.t > GS.t);
+  const GS = d.gen_stop, FG = (d.fuel||{})[GS && GS.fuel] || {}, stopNew = GS && !GS.res && Date.now()/1000 - GS.t < 3*3600 && !((FG.cur && FG.cur.t > GS.t) || (FG.last_t && FG.last_t > GS.t));   // 5.256: i „lahev došla“ vyřeší
   const card = (title, body) => `<div class="card"><h2 style="margin:0 0 8px">${title}</h2>${body}</div>`;
   // 1) Nabíjení
   const stat = run ? `<div style="padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--good) 18%,transparent);font-size:14.5px"><b>● Nabíjí</b> – ${fl}, max ${nf(gmax)} W${P.gw!=null ? ` · teď ${nf(P.gw)} W` : ""}</div>`
