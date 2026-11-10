@@ -5713,6 +5713,19 @@ def window_plan(data, st, now, topic, cfg):
         late_n = min(w0_end - 2 * 3600, now.replace(hour=20, minute=0, second=0, microsecond=0).timestamp())
         alarm(st, topic, "wp_none", act and not need and ts >= late_n, f"⚠️ Do {rd(w1)} {hm(w1)} to nevydrží ani s nabitím River",
               why + " Nepomůže ani nabití River do plna – omez spotřebu, nebo uprav plán (návrat dřív).", 5, "warning", ok_title=False, cat=1)
+    # 5.263 (Petr: ČERV dojde v 7:52, vstávám v 9:00 – a „Co teď udělat: nic“): chata jede z River, která do další
+    # možnosti něco udělat nevydrží, a plán chce teď jinou River → rada i upozornění „přepni teď“
+    sup_ = data.get("river_sup") or {}
+    seg0 = (data["wplan"]["segs"] or [None])[0]
+    need_sw = bool(found and seg0 and seg0["src"] != "s" and sup_.get("sn") and sup_["sn"] != seg0["src"]
+                   and sup_.get("until") and sup_["until"] < w1)
+    if need_sw:
+        todo_add(data, 8, f"přepni na River {rv_short(seg0['name'])} – {rv_short(sup_.get('name', ''))} dojde ~{hm(sup_['until'])}", "warn")
+    alarm(st, topic, "wp_sw", need_sw,
+          f"🔄 Přepni chatu na River {rv_short(seg0['name']) if seg0 else ''} – {rv_short(sup_.get('name', ''))} dojde ~{hm(sup_['until']) if sup_.get('until') else ''}",
+          f"River {sup_.get('name', '')} ({sup_.get('soc')} %) vydrží jen do ~{hm(sup_['until']) if sup_.get('until') else '?'}, "
+          f"ale další možnost něco udělat je až {rd(w1)} {hm(w1)} (vstávání / okno generátoru). Přepni chatu teď na "
+          f"{seg0['name'] if seg0 else ''}." if need_sw else "", 4, "arrows_counterclockwise", ok_title=False, cat=2)
     print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, zítra přebytek ~{sur_:.0f} Ah → vybíjet nejníž "
           f"na ~{M['alarm_soc'] + floor_x / max(1.0, M['cap']) * 100:.0f} #, "
           + ("vyjde: " + " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data['wplan']['segs']) if found
