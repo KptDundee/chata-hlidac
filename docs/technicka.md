@@ -486,3 +486,5 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.249**: `strict_floor(M, cfg, now, floor_s)` (společné). `window_plan`: found = strict → (v okně) `find_need(True)` → šetrná / alarm / `find_need(False)`; tichá ntfy `st.wp_info`. `away_plan`: solár první jen při `lo_s ≥ fl_strict` (nebo nevybíjí), jinak až za River.
 
 **5.253**: `gen_kuckal` = čas (web `genKuck`); `lpg_bottle` → `st.lpg_kuck` [{t, left, w, tout, bt}] (50), `lpg_bottle.kuck` pro aktuální lahev. Web `genPlanHtml` po kartách.
+
+**5.254**: palivo.txt 4. sloupec `prazdna` = konec lahve bez nové. `fuel_stats`: hist má `t1`, `c0`, `c1`; `gpk` ze spotřebovaných lahví (`gpk_src` „lahve“), jinak g/h; `fuel.lpg.bottles` [{t0,t1,price,kg,wh,runs,rivers,rv_wh,ch_wh,czk_kwh,g_kwh,czk_ch}]. Web `bottlesHtml`, `hBars`. Kuckání (5.253) odstraněno.

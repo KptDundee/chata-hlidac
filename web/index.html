@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.253", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.254", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2372,6 +2372,38 @@ function ecoProbeHtml(p, sn){
   return `<div class="sub" style="font-size:11.5px;word-break:break-all">zkouška ${relDay(p.t)} ${hmT(p.t)} (${r.on?"online":"offline"}): vybrané údaje → ${escH(http)}${mq?`<br>MQTT → ${escH(mq)}`:""}</div>`;
 }
 // 4.68 / 4.87: nabíjení z generátoru – tlačítko start / konec a jak hlídač rozdělil výkon mezi velké River
+/* 5.254 (Petr): přehled lahví PB – grafy před čísly. Každá lahev: kWh z generátoru / do River / v chatě, cena 1 kWh,
+   skutečná spotřeba g/kWh; souhrn lahví po měsících. Data z hlídače (fuel.lpg.bottles). */
+function hBars(rows, ser, unit, dec){
+  // vodorovné skupiny sloupců: rows [{lab, v:{key:val}}], ser [{key,name,color}]
+  const mx = Math.max(1e-9, ...rows.flatMap(r=>ser.map(z=>r.v[z.key]||0)));
+  return rows.map(r=>`<div style="margin:8px 0 2px"><div class="sub" style="font-size:12.5px;margin-bottom:3px">${r.lab}</div>`
+    + ser.map(z=>{ const v = r.v[z.key]; if(v==null) return "";
+      return `<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><div style="flex:1;height:14px;background:var(--grid);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Math.max(1, v/mx*100)}%;background:${z.color};border-radius:4px${r.est?";opacity:.55":""}"></div></div><span style="font-size:12.5px;min-width:74px;text-align:right;font-variant-numeric:tabular-nums">${nf(v,dec)} ${unit}</span></div>`; }).join("") + `</div>`).join("");
+}
+function bottlesHtml(d){
+  const L = (((d.fuel||{}).lpg||{}).bottles || []).slice().reverse();
+  if(!L.length) return `<div class="card"><span class="sub">Zatím žádná lahev v záznamech.</span></div>`;
+  const dd = t => { const x = new Date(t*1000); return `${x.getDate()}. ${x.getMonth()+1}.`; };
+  const lab = b => `${dd(b.t0)} – ${b.t1 ? dd(b.t1) : "teď"}${b.closed ? "" : " (jede)"} · ${Math.max(1, Math.round(((b.t1||Date.now()/1000) - b.t0)/86400))} dní · ${nf(b.price)} Kč`;
+  const SE = [{key:"g",name:"z generátoru",color:"var(--s2)"},{key:"r",name:"do River",color:"var(--s4)"},{key:"c",name:"v chatě",color:"var(--s3)"}];
+  const legE = SE.map(z=>`<span style="color:${z.color}">■</span> ${z.name}`).join(" · ");
+  const e = hBars(L.map(b=>({lab:lab(b), est:!b.closed, v:{g:b.wh/1000, r:b.rv_wh/1000, c:b.ch_wh/1000}})), SE, "kWh", 2);
+  const SC = [{key:"g",name:"1 kWh z generátoru",color:"var(--s2)"},{key:"c",name:"1 kWh v chatě",color:"var(--s3)"}];
+  const c = hBars(L.filter(b=>b.czk_kwh || b.czk_ch).map(b=>({lab:lab(b), est:!b.closed || b.est, v:{g:b.czk_kwh, c:b.czk_ch}})), SC, "Kč", 1);
+  const n = L.map(b=>`<div style="padding:6px 0;border-top:1px solid var(--line);font-size:13.5px"><b>${lab(b)}</b><br><span class="sub">${b.runs}× nabíjení · ${b.rivers}× River${b.g_kwh ? ` · skutečně ${nf(b.g_kwh)} g/kWh` : ""}${b.closed ? "" : " · lahev ještě jede – čísla průběžná"}</span></div>`).join("");
+  // lahve po měsících (rozpálená lahev jako zlomek podle odhadu)
+  const B = d.lpg_bottle, M = {};
+  for(const b of L){ const k = new Date(b.t0*1000), key = `${k.getFullYear()}-${String(k.getMonth()+1).padStart(2,"0")}`;
+    M[key] = (M[key]||0) + (b.closed ? 1 : B && B.kg ? (1 - B.left_kg/B.kg) : 0); }
+  const mk = Object.keys(M).sort();
+  const mon = hBars(mk.map(k=>({lab:`${["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"][+k.slice(5)-1]} ${k.slice(0,4)}`, v:{n:M[k]}})), [{key:"n",name:"lahví",color:"var(--s2)"}], "lahví", 1);
+  const tot = L.reduce((a,b)=>({kc:a.kc+(b.closed?b.price:0), g:a.g+b.wh, ch:a.ch+b.ch_wh, n:a.n+(b.closed?1:0)}), {kc:0,g:0,ch:0,n:0});
+  return `<div class="card"><h2 style="margin:0 0 4px">Energie z lahve</h2><div class="sub">kWh · ${legE}${L.some(b=>!b.closed) ? " · bledě = lahev ještě jede" : ""}</div>${e}</div>`
+    + `<div class="card"><h2 style="margin:0 0 4px">Cena 1 kWh</h2><div class="sub">Kč · ${SC.map(z=>`<span style="color:${z.color}">■</span> ${z.name}`).join(" · ")} · spotřebovaná lahev = skutečnost, jinak odhad (bledě)</div>${c || `<div class="sub" style="margin-top:6px">Ukáže se po první spotřebované lahvi.</div>`}</div>`
+    + `<div class="card"><h2 style="margin:0 0 4px">Lahve po měsících</h2>${mon}<div class="sub" style="margin-top:6px">Celkem spotřebováno ${tot.n} ${tot.n===1?"lahev":tot.n<5?"lahve":"lahví"} za ${nf(tot.kc)} Kč · z generátoru ${nf(tot.g/1000,1)} kWh · v chatě z River ${nf(tot.ch/1000,1)} kWh</div></div>`
+    + `<div class="card"><h2 style="margin:0 0 4px">Lahve</h2>${n}<div class="sub" style="margin-top:6px;line-height:1.45">Od – do = od nasazení do výměny. Z generátoru = co generátor vyrobil; do River = co šlo do River; v chatě = co River za tu dobu daly chatě (i z energie nabité dřív). Skutečná spotřeba = 10 kg ÷ kWh z generátoru – po spotřebované lahvi se podle ní počítá cena nabíjení i odhad další lahve.</div></div>`;
+}
 function genPlanHtml(d){
   // 5.253 (Petr: Start byl graficky neurovnaný – tlačítka, text, tlačítka): karty po sobě – 1) Nabíjení (stav + ovládání),
   // 2) Průběh (jen když nabíjí), 3) Jiný spotřebič, 4) Ruční výkon (jen když nabíjí), 5) Lahev a palivo; návod sbalený
@@ -2409,23 +2441,12 @@ function genPlanHtml(d){
   else { const jv = String(c.gen_jine||"").split(":"), jw = +jv[0]||0, jt = +jv[1]||0;
     h += `<div class="card">${jineHtml({jine: jw && Date.now()/1000 - jt < 6*3600 ? jw : 0, pre:true})}</div>`; }
   // 5) Lahev a palivo
-  const B = d.lpg_bottle, K = (B && B.kuck) || [];
-  const kuckTxt = K.length ? `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--warn) 18%,transparent);font-size:13.5px">💨 Tahle lahev už kuckala: ${K.map(e=>`${relDay(e.t)} ${hmT(e.t)} – zbývalo ~${nf(e.left,1)} kg${e.w ? `, ${nf(e.w)} W` : ""}${e.tout!=null ? `, venku ${nf(e.tout,1)} °C` : ""}`).join("; ")}. Nabíjej s menším výkonem (✋ Ruční výkon), nebo měň lahev.</div>` : "";
+  const B = d.lpg_bottle;
   const fb2 = stopNew ? `${bs};border:2px dashed var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)` : bs;
-  h += card("🔥 Lahev a palivo", (B ? `<div style="font-size:14.5px">${lpgTxt(d, true)}</div><div class="sub" style="margin-top:4px">Odhad: spotřebovaný plyn = vyrobené kWh × spotřeba generátoru${B.gpk ? ` (~${nf(B.gpk)} g/kWh)` : ""}; nabití = průměr za 60 dní; výměna podle spotřeby za 30 dní.</div>` : `<div class="sub">Lahev zatím není zapsaná.</div>`)
-    + kuckTxt
+  h += card("🔥 Lahev a palivo", (B ? `<div style="font-size:14.5px">${lpgTxt(d, true)}</div><div class="sub" style="margin-top:4px">Odhad: spotřebovaný plyn = vyrobené kWh × spotřeba generátoru${B.gpk ? ` (~${nf(B.gpk)} g/kWh)` : ""}; nabití = průměr za 60 dní; výměna podle spotřeby za 30 dní.</div>` : `<div class="sub">${((d.fuel||{}).lpg||{}).bottles && d.fuel.lpg.bottles.length ? "Lahev je prázdná – po nasazení nové zmáčkni 🔄 Vyměnil jsem lahev." : "Lahev zatím není zapsaná."}</div>`)
     + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button onclick="fuelAdd('lpg')" style="${fb2}">🔄 Vyměnil jsem lahev</button><button onclick="fuelAdd('benzin')" style="${fb2}">⛽ Natankoval jsem</button></div>`
-    + `<button onclick="genKuck(this)" style="${bs};width:100%;margin-top:8px">💨 Generátor kuckal – málo plynu</button>`
-    + `<div class="sub" style="margin-top:4px">Hlídač si zapamatuje, kolik v lahvi podle odhadu bylo, jaký byl výkon a teplota venku – časem z toho pozná, kdy kuckání hrozí.</div>`);
+    + `<div class="sub" style="margin-top:6px">Přehled všech lahví: záložka 🔥 Lahve.</div>`);
   return h;
-}
-/* 5.253 (Petr): generátor kuckal (dochází plyn / zima) – zapsat do nastavení, hlídač si to uloží k lahvi */
-async function genKuck(el){
-  const tok = store.get("ghtok");
-  if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
-  el.disabled = true; el.textContent = "Ukládám…";
-  try{ await setCfgKey(tok, "gen_kuckal", String(Math.floor(Date.now()/1000))); el.textContent = "✓ zapsáno – hlídač uloží do půl minuty"; }
-  catch(e){ el.disabled = false; el.textContent = e.message; }
 }
 /* 4.87 / 4.91: tlačítka nabíjení z generátoru. „start:benzin“ / „start:lpg“ = zapsat palivo do nastavení + spustit,
    „fuel:…“ = jen změnit palivo (hlídač ho načte do 30 s i během nabíjení), „stop“ = ukončit. */
@@ -4036,10 +4057,10 @@ function detGen(body){
     return {id:String(r.sn||"").slice(-6), name:pn(r.name)||`River ${i+1}`, color: m ? m.color : rivColor(r.name, i)}; });
   const genWh = k => Math.max(dayTp(k)[U.gen]||0, ((d.days||{})[k]||{}).gq||0);
   const tk = dkey(h.now), wk = dd.slice(-7), gd = ((d.ef_gens||[]).find(g=>g.gd)||{}).gd || {};
-  const GT = tabsHead("gn_tab", [["data","📊 Data"],["start","▶️ Start"],["cena","💰 Cena"]]), vis = k => GT.cur===k ? "" : ' style="display:none"';
+  const GT = tabsHead("gn_tab", [["data","📊 Data"],["start","▶️ Start"],["cena","💰 Cena"],["lahve","🔥 Lahve"]]), vis = k => GT.cur===k ? "" : ' style="display:none"';
   { const P_ = d.gen_plan, nw_ = Date.now()/1000;   /* 5.139: během nabíjení / po zastavení generátoru rovnou ▶️ Start (tlačítka paliva) */
     if((P_ && !P_.end && nw_ - P_.t < 900) || (d.gen_stop && nw_ - d.gen_stop.t < 3*3600)){ GT.cur = "start"; GT.html = GT.html.replace(/data-t="data" aria-pressed="true"/, 'data-t="data" aria-pressed="false"').replace(/data-t="cena" aria-pressed="true"/, 'data-t="cena" aria-pressed="false"').replace(/data-t="start" aria-pressed="false"/, 'data-t="start" aria-pressed="true"'); } }
-  body.insertAdjacentHTML("beforeend", GT.html + `<div id="gn_tab_start"${vis("start")}>` + genPlanHtml(d) + `</div><div id="gn_tab_cena"${vis("cena")}>` + (()=>{ const CT = tabsHead("gn_ctab", [["lpg","🔥 Plyn"],["benzin","⛽ Benzín"],["graf","📈 Grafy"]]), cv = k => CT.cur===k ? "" : ' style="display:none"';
+  body.insertAdjacentHTML("beforeend", GT.html + `<div id="gn_tab_start"${vis("start")}>` + genPlanHtml(d) + `</div><div id="gn_tab_lahve"${vis("lahve")}>` + bottlesHtml(d) + `</div><div id="gn_tab_cena"${vis("cena")}>` + (()=>{ const CT = tabsHead("gn_ctab", [["lpg","🔥 Plyn"],["benzin","⛽ Benzín"],["graf","📈 Grafy"]]), cv = k => CT.cur===k ? "" : ' style="display:none"';
       return CT.html + `<div id="gn_ctab_lpg"${cv("lpg")}>` + costHtml(d,"lpg") + fuelHtml(d,"lpg") + `</div><div id="gn_ctab_benzin"${cv("benzin")}>` + costHtml(d,"benzin") + fuelHtml(d,"benzin") + `</div><div id="gn_ctab_graf"${cv("graf")}>` + costGraphsHtml() + `</div>`; })() + `</div><div id="gn_tab_data"${vis("data")}>`
     + chartCard("dg_w", "Výkon generátoru", "W · 48 h · zásuvka (7), během nabíjení i z EcoFlow")
     + chartCard("dg_rv", "Co se nabilo do které River", `kWh za den · příjem River podle EcoFlow (od 5.85 během nabíjení po ~30 s, dřív jen při čtení hlídače) · ${efs.map(e=>`<span style="color:${e.color}">■</span> ${escH(e.name)}`).join(" · ")}`)
@@ -4058,7 +4079,7 @@ function detGen(body){
           <div class="sub" style="margin:4px 0">${G ? `Při běhu ${relDay(G.t)} ${hmT(G.t)} (${nf(G.w)} W, ${G.fuel==="lpg"?"plyn":"benzín"})` : "Teď – generátor neběží, hodnoty můžou být nulové"} · žlutě hodnoty 300–1000 (kandidáti na spotřebu v g/h)</div>
           <div style="font-size:12.5px">${rows}</div></details>`; })()
     + `</div>`);
-  tabsWire("gn_tab", ["data","start","cena"]);
+  tabsWire("gn_tab", ["data","start","cena","lahve"]);
   tabsWire("gn_ctab", ["lpg","benzin","graf"]); costGraphsDraw(d);
   const gsr = pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})).concat((d.gen_pts||[]).map(x=>({t:x[0], w:x[1] ?? x[2]}))).sort((a,b)=>a.t-b.t);
   lineChart($("dg_w"), gsr, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
