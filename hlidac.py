@@ -7478,7 +7478,7 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
         title, msg = "", ""
     active = st.get("ur_done") != win and (solar_bad or river_bad or (e is not None and on_solar and st.get("_night_src") == "solar"))
     alarm(st, topic, "night", active, title or (e or {}).get("title", "🌙 Před spaním přepni chatu na River"), msg, 4, "crescent_moon,warning", cat=2,
-          ok_title="✓ Do rána to už vydrží" if st.get("_night_src") == "river" or not on_river else "✓ Chata jede z River", ok_msg="")
+          ok_title=False if st.get("_night_src") == "river" else "✓ Do rána to už vydrží" if not on_river else "✓ Chata jede z River", ok_msg="")   # 5.288: zrušená River zpráva končí tiše
     if e and not active:
         st["ur_done"] = win
 
