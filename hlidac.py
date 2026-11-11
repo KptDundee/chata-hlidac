@@ -5726,15 +5726,31 @@ def window_plan(data, st, now, topic, cfg):
     # možnosti něco udělat nevydrží, a plán chce teď jinou River → rada i upozornění „přepni teď“
     sup_ = data.get("river_sup") or {}
     seg0 = (data["wplan"]["segs"] or [None])[0]
-    need_sw = bool(found and seg0 and seg0["src"] != "s" and sup_.get("sn") and sup_["sn"] != seg0["src"]
-                   and sup_.get("until") and sup_["until"] < w1)
+    # 5.280 (Petr: „ráno před odjezdem v 6:00 můžu přepnout cokoli na cokoli, nabíjet ne; když spím, nic“): přepnout jde
+    # kdykoli doma a vzhůru – rozhoduje, jestli River dojde ve chvíli, kdy spím nebo jsem pryč. Pak přepnout nejpozději
+    # před tím úsekem (před spaním / před odjezdem) a upozornit až 30 min předem; dojde-li, když jsem doma a vzhůru, nic
+    # (stačí běžná upozornění na River). Dřív se počítalo s další možností až v okně generátoru (14:08) → „přepni teď“.
+    blk_ = []
+    for a, b in sorted(AWS):
+        if blk_ and a <= blk_[-1][1] + 600:
+            blk_[-1] = (blk_[-1][0], max(blk_[-1][1], b))
+        else:
+            blk_.append((a, b))
+    U_ = sup_.get("until")
+    cut_ = next(((a, b) for a, b in blk_ if U_ and a <= U_ < b and a > ts), None) if home(ts) else None
+    is_sleep = cut_ and any(abs(cut_[0] - a) < 60 for a, b in SL)
+    need_sw = bool(found and seg0 and seg0["src"] != "s" and sup_.get("sn") and sup_["sn"] != seg0["src"] and cut_)
+    when_ = (("před spaním (do " if is_sleep else "před odjezdem (do ") + hm(cut_[0]) + ")") if cut_ else ""
+    if U_ and seg0:
+        print(f"Přepnutí River: {sup_.get('name')} dojde ~{rd(U_)} {hm(U_)}, "
+              + (f"to {'spíš' if is_sleep else 'jsi pryč'} → přepnout {when_}, upozornění od {hm(cut_[0] - 1800)}" if cut_ else "to jsi doma a vzhůru → nic"))
     if need_sw:
-        todo_add(data, 8, f"přepni na River {rv_short(seg0['name'])} – {rv_short(sup_.get('name', ''))} dojde ~{hm(sup_['until'])}", "warn", "rv")
-    alarm(st, topic, "wp_sw", need_sw,
-          f"🔄 Přepni chatu na River {rv_short(seg0['name']) if seg0 else ''} – {rv_short(sup_.get('name', ''))} dojde ~{hm(sup_['until']) if sup_.get('until') else ''}",
-          f"River {sup_.get('name', '')} ({sup_.get('soc')} %) vydrží jen do ~{hm(sup_['until']) if sup_.get('until') else '?'}, "
-          f"ale další možnost něco udělat je až {rd(w1)} {hm(w1)} (vstávání / okno generátoru). Přepni chatu teď na "
-          f"{seg0['name'] if seg0 else ''}." if need_sw else "", 4, "arrows_counterclockwise", ok_title=False, cat=1)
+        todo_add(data, 8, f"{when_} přepni na River {rv_short(seg0['name'])} – {rv_short(sup_.get('name', ''))} dojde ~{hm(U_)}", "warn", "rv")
+    alarm(st, topic, "wp_sw", need_sw and ts >= cut_[0] - 1800,
+          f"🔄 Přepni chatu na River {rv_short(seg0['name']) if seg0 else ''} – {when_}",
+          f"River {sup_.get('name', '')} ({sup_.get('soc')} %) vydrží jen do ~{hm(U_) if U_ else '?'}, "
+          f"to {'spíš' if is_sleep else 'budeš pryč'} ({rd(cut_[0]) if cut_ else ''} {hm(cut_[0]) if cut_ else ''}–{hm(cut_[1]) if cut_ else ''}). "
+          f"Přepni chatu {when_} na {seg0['name'] if seg0 else ''}." if need_sw else "", 4, "arrows_counterclockwise", ok_title=False, cat=1)
     print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, zítra přebytek ~{sur_:.0f} Ah → vybíjet nejníž "
           f"na ~{M['alarm_soc'] + floor_x / max(1.0, M['cap']) * 100:.0f} #, "
           + ("vyjde: " + " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data['wplan']['segs']) if found
