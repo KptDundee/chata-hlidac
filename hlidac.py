@@ -5743,7 +5743,8 @@ def window_plan(data, st, now, topic, cfg):
     when_ = (("před spaním (do " if is_sleep else "před odjezdem (do ") + hm(cut_[0]) + ")") if cut_ else ""
     if U_ and seg0:
         print(f"Přepnutí River: {sup_.get('name')} dojde ~{rd(U_)} {hm(U_)}, "
-              + (f"to {'spíš' if is_sleep else 'jsi pryč'} → přepnout {when_}, upozornění od {hm(cut_[0] - 1800)}" if cut_ else "to jsi doma a vzhůru → nic"))
+              + (f"to {'spíš' if is_sleep else 'jsi pryč'} → přepnout {when_}, upozornění od {hm(cut_[0] - 1800)}" if cut_ else "to jsi doma a vzhůru → nic")
+              + " · nedostupné: " + ", ".join(f"{rd(a)} {hm(a)}–{hm(b)}" for a, b in blk_[:5]))
     if need_sw:
         todo_add(data, 8, f"{when_} přepni na River {rv_short(seg0['name'])} – {rv_short(sup_.get('name', ''))} dojde ~{hm(U_)}", "warn", "rv")
     alarm(st, topic, "wp_sw", need_sw and ts >= cut_[0] - 1800,
