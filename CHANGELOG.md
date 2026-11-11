@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.277 – 11. 11. 2026
+- Nabíjení z generátoru: krátký výpadek nabíjení, když generátor dál běží (zakuckání, krátké přetížení) → výkony River se nesnižují a po obnovení jedou dál stejně. Klidový výkon 200 W až po 90 s bez nabíjení, nebo když motor stojí / generátor je offline. Skutečný start beze změny (nejdřív klidový výkon, výpočet po 30 s).
+
 ## 5.276 – 11. 11. 2026
 - Hlášený „max“ generátoru se při řízení nabíjení vůbec nepoužívá (Petr: je to nastavení pro DC výstup / nadmořskou výšku, pro nás mimo). Strop = gen_max_benzin_W / gen_max_lpg_W.
 

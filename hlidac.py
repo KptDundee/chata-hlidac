@@ -6890,6 +6890,17 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # i EcoFlow mlčí) stačí, že River bere. Nabíjení ze soláru (zásuvka River automatiky) sem nepatří – generátor 0 W.
         rv_take = any(acw(r) > 20 for r in ctl) or small_w > 0
         charging = rv_take and (gw is None or gw > 20)
+        # 5.277 (Petr): krátký výpadek nabíjení, když generátor dál běží (zakuckání, krátké přetížení – generátor na chvíli
+        # vypne výstup) → výkony NEsnižovat; River po obnovení hned pokračují s původními. Klidový výkon až když se
+        # nenabíjí déle než 90 s nebo motor stojí / generátor je offline. Skutečný start (motor nově naskočil) beze změny:
+        # nejdřív klidový výkon, výpočet po 30 s nabíjení.
+        motor_on = str(gd.get("motor")) in ("1", "True") and gd.get("w") is not None
+        if not charging and gs.get("active") and gs.get("first") and motor_on and tnow - (gs.get("dip") or tnow) < 90:
+            if not gs.get("dip"):
+                gs["dip"] = tnow
+                log("ev", "Nabíjení z generátoru: krátký výpadek (generátor běží) – výkony ponechány")
+            print(f"Nabíjení z generátoru: krátký výpadek {tnow - gs['dip']} s (generátor běží, {gw} W) → výkony ponechány")
+            return True
         if not charging:
             con = []
         out = []
@@ -6903,10 +6914,13 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             log("ev", "Nabíjení z generátoru: začátek (River se nabíjejí)")
         if not gs.get("active"):
             return False
+        if charging and gs.pop("dip", None):
+            print("Nabíjení z generátoru: po krátkém výpadku zase nabíjí – původní výkony")
         if charging:
             gs["idle"] = None
             gs["first"] = gs.get("first") or tnow
         else:
+            gs.pop("dip", None)
             gs["idle"] = gs.get("idle") or tnow
             gs["first"] = None                         # 4.89: po výpadku (došlo palivo) zase 30 s na klidových výkonech
             # 4.97: generátor vypadl / došlo palivo → hned všem klidový výkon, ať je nový start nepřetíží
