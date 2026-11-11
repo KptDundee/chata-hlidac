@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.272", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.273", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1399,10 +1399,14 @@ function nightRows2(d, h){ const r = nightRow(d, h); return !r ? [] : Array.isAr
 /* 5.116: kdy přepnout chatu na River (hlídač eve_plan – stejný výpočet jako večerní doporučení) */
 /* 5.215 (Petr: upozornění a dlaždice musí sedět): „co teď udělat“ počítá jen hlídač (data.todo) – z aktivních
    upozornění a rad; dlaždice ukazuje to nejdůležitější, stejnými slovy */
-function todoRow(d, h){
-  const T = d.todo; if(!T || h.now - T.t > 1800 || !(T.list||[]).length) return eveRow(d, h) || planRow(d, h);
-  const x = T.list[0], c = x.lvl==="crit" ? "--crit" : x.lvl==="ok" ? "--good" : "--warn";
-  return ["➜", `<b style="color:var(${c})">${escH(x.txt)}</b>`];
+// 5.273 (Petr: „u soláru kdy přepnout na River, u River kdy nabít“): každá rada patří své dlaždici (x.tile: sol / rv)
+function todoRow(d, h, tile = "sol"){
+  const T = d.todo, fresh = T && h.now - T.t <= 1800;
+  const x = fresh ? (T.list||[]).find(y => (y.tile || "sol") === tile) : null;
+  if(!x){ if(tile !== "sol") return null;   // solár bez rady: kdy šetrně / večer přepnout (plán)
+    const r = eveRow(d, h) || planRow(d, h); return r ? [r[0], r[1], 0, "w"] : null; }
+  const c = x.lvl==="crit" ? "--crit" : x.lvl==="ok" ? "--good" : "--warn";
+  return ["➜", `<b style="color:var(${c})">${escH(x.txt)}</b>`, 0, "w"];
 }
 /* 5.223 (Petr): plán počítá s přepnutím na River později – krátce kdy (šetrné k baterii; solár do té doby i déle vydrží) */
 function planRow(d, h){
@@ -2099,7 +2103,7 @@ const SEV = {bad:0, warn:1, ok:2, na:3};
 function tileHtml(x){
   return `<div class="ht ${x.cls}${x.wide?" wide":""}" data-det="${x.k}" role="button"><span class="go">›</span>
     <div class="l"><span>${x.icon}</span>${x.label}</div>${x.top||""}${x.v!==""?`<div class="v">${x.v}</div>`:""}
-    <div class="st">${x.st||""}</div>${x.a?`<div class="a">${x.a}</div>`:""}${x.html||""}${x.rows?`<div class="rows">${x.rows.map(r=>`<div><span${r[2]?' style="white-space:normal"':""}>${r[0]}</span><span>${r[1]}</span></div>`).join("")}</div>`:""}${x.bar!=null?`<div class="bar"><div style="width:${Math.max(0,Math.min(100,x.bar))}%"></div></div>`:""}</div>`;
+    <div class="st">${x.st||""}</div>${x.a?`<div class="a">${x.a}</div>`:""}${x.html||""}${x.rows?`<div class="rows">${x.rows.map(r=>`<div><span${r[2]?' style="white-space:normal"':""}>${r[0]}</span><span${r[3]==="w"?' style="white-space:normal;text-align:left;flex:1"':""}>${r[1]}</span></div>`).join("")}</div>`:""}${x.bar!=null?`<div class="bar"><div style="width:${Math.max(0,Math.min(100,x.bar))}%"></div></div>`:""}</div>`;
 }
 /* ---------- pevná struktura hlavní stránky (v3.33): lišta k řešení · Teď (baterie, River) · Dnes (spotřeba, výroba) · Výhled · Uplynulé · Dlouhodobě ---------- */
 let RVSEL = (()=>{ try{ return localStorage.getItem("rvsel"); }catch(e){ return null; } })();
@@ -3344,8 +3348,8 @@ function tileRivers(d, h){
     // 5.05: hlavní údaj River = % nabití (velkým písmem), výkon zásuvky do řádku
     v: sel.gen && GP ? `${nf(GP.gw ?? GP.tot_in)}<small>W</small>` : soc!=null ? `${nf(soc)}<small>%</small>` : SQ.old ? socOld(SQ) : sel.w!=null ? `${nf(sel.w)}<small>W</small>` : "–",
     st: sel.gen && GP ? `běží od ${hmT(GP.t_on)} · ${GP.fuel==="lpg"?"plyn":"benzín"}` : rivState(sel, h, MM),
-    rows: sel.gen ? genRows(d, h, sel) : soc!=null ? [["výstup (zásuvka)", sel.w!=null ? `${nf(sel.w)} W` : "–"]]
-      : SQ.old ? [["údaj z", `${relDay(SQ.t)} ${hmT(SQ.t)}`]] : [["nabití", why]]};
+    rows: (sel.gen ? genRows(d, h, sel) : soc!=null ? [["výstup (zásuvka)", sel.w!=null ? `${nf(sel.w)} W` : "–"]]
+      : SQ.old ? [["údaj z", `${relDay(SQ.t)} ${hmT(SQ.t)}`]] : [["nabití", why]]).concat(todoRow(d, h, "rv") ? [todoRow(d, h, "rv")] : [])};   // 5.273: rada k River (nabít / přepojit) – stejná na všech záložkách
 }
 /* časová osa: řádek pro každé zařízení, pruh = kdy bylo v činnosti */
 function timelineChart(el, pts, rows, hours){

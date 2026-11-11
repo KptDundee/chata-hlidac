@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.273 – 11. 11. 2026
+- Rady „co udělat“ patří své dlaždici (Petr: „u soláru kdy přepnout na River, u River kdy nabít“): Solární baterie = přepnutí zdroje chaty, EcoFlow = nabít River / přepojit na druhou River / zapojit nabíjení ze soláru. `todo.list[].tile` (sol / rv), seznam až 6 položek.
+- Rada na dlaždici se zalamuje přes celou šířku (dřív byla oříznutá a nebyla vidět).
+
 ## 5.272 – 11. 11. 2026
 - Kalendář (detail 🗓): události a doba pryč na minutu přesně (dřív po celých hodinách – 30min událost vypadala na hodinu a volné okno nebylo vidět). Barva = událost, šedá = pryč (cesta ±1 h, volno do 2 h).
 

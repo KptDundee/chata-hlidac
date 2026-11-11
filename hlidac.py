@@ -5382,8 +5382,9 @@ def rv_short(n):
     return (x.split() or [x])[0].rstrip(".") if x else ""
 
 
-def todo_add(data, prio, txt, lvl="warn"):
-    data.setdefault("todo_x", []).append({"p": prio, "txt": txt, "lvl": lvl})
+def todo_add(data, prio, txt, lvl="warn", tile="sol"):
+    """tile (5.273): která dlaždice radu ukáže – „sol“ = Solární baterie (přepnout zdroj chaty), „rv“ = EcoFlow (nabít River)."""
+    data.setdefault("todo_x", []).append({"p": prio, "txt": txt, "lvl": lvl, "tile": tile})
 
 
 def dep_confirm(data, st, now, topic, cfg):
@@ -5429,10 +5430,11 @@ def build_todo(data, st, now):
     for k, e in (st.get("al") or {}).items():
         if k in short:
             p_, t_, l_ = short[k]
-            L.append({"p": p_, "txt": t_, "lvl": l_})
+            L.append({"p": p_, "txt": t_, "lvl": l_, "tile": "rv" if k == "wp_none" else "sol"})
         elif k in ("wp_chg", "wp_chg1") or k.startswith("rv_"):
             t_ = _re.sub(r"^[^\wÁ-ž]+", "", str(e.get("title") or "")).strip()
-            L.append({"p": 8 if k == "wp_chg1" else 7 if k.startswith("rv_") else 6, "txt": t_[:1].lower() + t_[1:], "lvl": "crit" if k != "wp_chg" else "warn"})
+            L.append({"p": 8 if k == "wp_chg1" else 7 if k.startswith("rv_") else 6, "txt": t_[:1].lower() + t_[1:], "lvl": "crit" if k != "wp_chg" else "warn",
+                      "tile": "rv"})                    # 5.273: nabíjení River a stav River → dlaždice EcoFlow
     L.sort(key=lambda x: -x["p"])
     seen_, L2_ = set(), []                               # 5.217: stejná rada jen jednou (ta důležitější)
     for x in L:
@@ -5441,7 +5443,7 @@ def build_todo(data, st, now):
             seen_.add(k_)
             L2_.append(x)
     L = L2_
-    data["todo"] = {"t": int(now.timestamp()), "list": L[:3]}
+    data["todo"] = {"t": int(now.timestamp()), "list": L[:6]}      # 5.273: víc položek – každá dlaždice si vezme svou
     print("Co teď udělat: " + (" | ".join(x["txt"] for x in L[:3]) or "nic"))
 
 
@@ -5724,7 +5726,7 @@ def window_plan(data, st, now, topic, cfg):
     need_sw = bool(found and seg0 and seg0["src"] != "s" and sup_.get("sn") and sup_["sn"] != seg0["src"]
                    and sup_.get("until") and sup_["until"] < w1)
     if need_sw:
-        todo_add(data, 8, f"přepni na River {rv_short(seg0['name'])} – {rv_short(sup_.get('name', ''))} dojde ~{hm(sup_['until'])}", "warn")
+        todo_add(data, 8, f"přepni na River {rv_short(seg0['name'])} – {rv_short(sup_.get('name', ''))} dojde ~{hm(sup_['until'])}", "warn", "rv")
     alarm(st, topic, "wp_sw", need_sw,
           f"🔄 Přepni chatu na River {rv_short(seg0['name']) if seg0 else ''} – {rv_short(sup_.get('name', ''))} dojde ~{hm(sup_['until']) if sup_.get('until') else ''}",
           f"River {sup_.get('name', '')} ({sup_.get('soc')} %) vydrží jen do ~{hm(sup_['until']) if sup_.get('until') else '?'}, "
@@ -5805,7 +5807,7 @@ def away_surplus(data, st, now, topic, cfg):
     if kwh < 0.1:
         return
     data["away_sur"] = {"t": int(ts), "dep": int(a), "ret": int(b), "kwh": round(kwh, 2)}
-    todo_add(data, 4, f"před odjezdem zapoj nabíjení River ze soláru (~{fmt(kwh, 1)} kWh)", "warn")
+    todo_add(data, 4, f"před odjezdem zapoj nabíjení River ze soláru (~{fmt(kwh, 1)} kWh)", "warn", "rv")
     hr = now.hour + now.minute / 60
     if st.get("sur_dep") != int(a) and (hr >= 18 or a - ts <= 12 * 3600) and not in_quiet():
         ntfy(topic, "☀️ Před odjezdem zapoj nabíjení River ze soláru",
