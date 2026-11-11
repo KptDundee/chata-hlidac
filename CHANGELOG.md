@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.269 – 11. 11. 2026 (Flip 1.9.18)
+- Flip: když GitHub nejde (11. 11. „Unable to resolve host api.github.com“ → hlídač 24–48 min neběžel), zkusí to ještě 2× po 45 s; pak záloha přes ntfy a měření každé 2 min, dokud GitHub zase nepřijme data.
+- Flip: hlídka odesílání – výpadek přes 30 min → upozornění přímo z Flipu („⚠ Hlídač X min neběží“ s důvodem); odmítnutý klíč (401/403/404) nebo chybějící klíč → upozornění hned; po obnovení „✓ Data zase chodí“.
+- Flip: GitHub hlásí platnost klíče → upozornění 14 a 3 dny před vypršením.
+- Nová stránka `klic.html` (z upozornění se otevře ťuknutím): co je klíč, výměna krok za krokem, co dělat při výpadku – vše rozbalovací.
+
 ## 5.268 – 11. 11. 2026
 - „Regulátor mlčí“ jen když byl údaj regulátoru starý už při posledním běhu hlídače. Když hlídač neběžel (Flip neposlal data), dlaždice píše „Data nepřišla X min“ (Petr: „Regulátor mlčí 34 min“, přitom regulátor posílal). Nové `data.run_t`.
 - Stav chaty (na River / na soláru) se po 30 min bez dat už neztrácí: čerstvost se měří k poslednímu běhu hlídače → nezobrazí se nesmyslný řádek „🔋 z baterie“, když chata jede na River.

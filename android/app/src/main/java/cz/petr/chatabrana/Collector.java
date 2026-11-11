@@ -327,6 +327,7 @@ public final class Collector {
             // 1.4: data jdou rovnou na GitHub se spuštěním hlídače (ntfy.sh odmítal zprávy z chaty – HTTP 429).
             // ntfy jen jako záloha, když GitHub nejde (bez tokenu, bez internetu).
             int gh = sendGitHub(o.toString());
+            ghWatch(gh >= 0);
             if (gh >= 0) {
                 Prefs.get(ctx).edit().putLong(Prefs.LAST_SENT, System.currentTimeMillis()).apply();
                 Prefs.log(ctx, "Odesláno (GitHub): " + sum + (gh > 1 ? " (+ " + (gh - 1) + " starších)" : ""));
@@ -873,7 +874,8 @@ public final class Collector {
      */
     private synchronized int sendGitHub(String msg) {
         String tok = Prefs.s(ctx, Prefs.GH_TOKEN);
-        if (tok.isEmpty()) return -1;
+        ghAuthBad = false; ghLastErr = "";
+        if (tok.isEmpty()) { ghLastErr = "ve Flipu chybí klíč (GitHub token)"; ghAuthBad = true; return -1; }
         try {
             JSONArray buf = new JSONArray();
             // 1.4.1: zprávy, které čekaly ve frontě pro ntfy (ntfy je odmítal), pošlou se taky – přes GitHub
@@ -900,21 +902,38 @@ public final class Collector {
             }
             JSONObject body = new JSONObject().put("ref", "main").put("inputs",
                     new JSONObject().put("test", "false").put("wake", "false").put("flip", arr.toString()));
-            HttpURLConnection c = (HttpURLConnection) new URL("https://api.github.com/repos/KptDundee/chata-hlidac/actions/workflows/hlidac.yml/dispatches").openConnection();
-            c.setConnectTimeout(15000);
-            c.setReadTimeout(20000);
-            c.setRequestMethod("POST");
-            c.setDoOutput(true);
-            c.setRequestProperty("Authorization", "Bearer " + tok);
-            c.setRequestProperty("Accept", "application/vnd.github+json");
-            c.setRequestProperty("Content-Type", "application/json");
-            try (OutputStream o = c.getOutputStream()) { o.write(body.toString().getBytes(StandardCharsets.UTF_8)); }
-            int code = c.getResponseCode();
-            String err = code == 204 ? "" : errText(c);
-            c.disconnect();
+            // 1.9.18 (11. 11.: „Unable to resolve host api.github.com“ – hlídač pak 24–48 min neběžel): krátký výpadek
+            // → ještě 2× za 45 s; odmítnutý klíč (401/403/404) se neopakuje – to opakování nespraví
+            int code = -1; String err = "";
+            for (int att = 0; att < 3; att++) {
+                if (att > 0) SystemClock.sleep(45_000);
+                try {
+                    HttpURLConnection c = (HttpURLConnection) new URL("https://api.github.com/repos/KptDundee/chata-hlidac/actions/workflows/hlidac.yml/dispatches").openConnection();
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(20000);
+                    c.setRequestMethod("POST");
+                    c.setDoOutput(true);
+                    c.setRequestProperty("Authorization", "Bearer " + tok);
+                    c.setRequestProperty("Accept", "application/vnd.github+json");
+                    c.setRequestProperty("Content-Type", "application/json");
+                    try (OutputStream o = c.getOutputStream()) { o.write(body.toString().getBytes(StandardCharsets.UTF_8)); }
+                    code = c.getResponseCode();
+                    err = code == 204 ? "" : errText(c);
+                    if (code == 204) ghExpiry(c.getHeaderField("github-authentication-token-expiration"));
+                    c.disconnect();
+                } catch (Exception e) {
+                    code = -1; err = String.valueOf(e.getMessage());
+                    ghLastErr = e instanceof java.net.UnknownHostException ? "nenajde adresu GitHubu (internet / DNS)"
+                            : e instanceof java.net.SocketTimeoutException ? "GitHub neodpovídá (vypršel čas)" : "spojení s GitHubem selhalo: " + e.getMessage();
+                }
+                if (code == 204 || code == 401 || code == 403 || code == 404) break;
+                if (code >= 0) ghLastErr = "GitHub odpověděl " + code + (code >= 500 ? " (výpadek GitHubu)" : "");
+                if (att < 2) Prefs.log(ctx, "GitHub: " + ghLastErr + " – zkusím znovu za 45 s");
+            }
             if (code != 204) {
+                if (code == 401 || code == 403 || code == 404) { ghLastErr = "GitHub odmítá klíč (HTTP " + code + ")"; ghAuthBad = true; }
                 Prefs.get(ctx).edit().putString("ghbuf", buf.toString()).putString("outbox", "[]").apply();
-                Prefs.log(ctx, "GitHub odpověděl " + code + (code == 401 || code == 403 ? " – zkontroluj token (Actions: Read and write)" : "") + " " + err + " – zkusím ntfy");
+                Prefs.log(ctx, (code < 0 ? "GitHub: " + err : "GitHub odpověděl " + code + (ghAuthBad ? " – klíč (token) nefunguje" : "") + " " + err) + " – zkusím ntfy");
                 return -1;
             }
             JSONArray rest = new JSONArray();
@@ -926,8 +945,86 @@ public final class Collector {
             Prefs.get(ctx).edit().putString("ghbuf", rest.toString()).putString("outbox", "[]").apply();
             return arr.length();
         } catch (Exception e) {
+            ghLastErr = "chyba ve Flipu: " + e.getMessage();
             Prefs.log(ctx, "GitHub: " + e.getMessage() + " – zkusím ntfy");
             return -1;
+        }
+    }
+
+    private String ghLastErr = "";
+    private boolean ghAuthBad = false;
+    static final String HELP_URL = "https://kptdundee.github.io/chata-hlidac/klic.html";
+
+    /** 1.9.18: GitHub u každé úspěšné odpovědi hlásí, kdy klíč vyprší → upozornit 14 a 3 dny předem. */
+    private void ghExpiry(String h) {
+        if (h == null || h.isEmpty()) return;
+        try {
+            java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss z", Locale.US);
+            long exp = f.parse(h.trim()).getTime();
+            Prefs.get(ctx).edit().putLong("gh_exp", exp).apply();
+            long days = (exp - System.currentTimeMillis()) / 86_400_000L;
+            int stage = days <= 3 ? 2 : days <= 14 ? 1 : 0;
+            int done = Prefs.get(ctx).getInt("gh_exp_warn", 0);
+            if (stage == 0 && done != 0) Prefs.get(ctx).edit().putInt("gh_exp_warn", 0).apply();   // nový klíč
+            if (stage > done) {
+                String d = new java.text.SimpleDateFormat("d. M. yyyy", Locale.US).format(new java.util.Date(exp));
+                if (notifyUser("🔑 Klíč pro GitHub vyprší " + d,
+                        "Za " + days + " dní přestane Flip posílat data a hlídač nepoběží. Vyměň klíč (GitHub token) – ťukni na návod, krok za krokem.",
+                        stage == 2 ? 4 : 3, HELP_URL + "#vymena"))
+                    Prefs.get(ctx).edit().putInt("gh_exp_warn", stage).apply();
+            }
+        } catch (Exception ignored) { }
+    }
+
+    /**
+     * 1.9.18: hlídka odesílání. Když GitHub nejde, hlídač neběží a nikdo jiný (ani upozornění) o tom neví:
+     * odmítnutý klíč → upozornění hned; jiný výpadek → po 30 min; po obnovení „✓ Data zase chodí“.
+     * Mezitím Flip měří každé 2 min (fast_until), ať se data dostanou na GitHub hned, jak to půjde.
+     */
+    private void ghWatch(boolean ok) {
+        android.content.SharedPreferences p = Prefs.get(ctx);
+        long now = System.currentTimeMillis(), since = p.getLong("gh_fail_since", 0);
+        if (ok) {
+            if (since > 0 && p.getBoolean("gh_alerted", false))
+                notifyUser("✓ Data zase chodí", "Flip se zase dostane na GitHub, hlídač běží (výpadek " + Math.round((now - since) / 60_000.0) + " min).", 2, null);
+            if (since > 0) p.edit().putLong("gh_fail_since", 0).putBoolean("gh_alerted", false).apply();
+            return;
+        }
+        if (since == 0) { since = now; p.edit().putLong("gh_fail_since", now).apply(); }
+        p.edit().putLong("fast_until", Math.max(p.getLong("fast_until", 0), now + 3 * 60_000L)).apply();
+        if (p.getBoolean("gh_alerted", false)) return;
+        long min = (now - since) / 60_000L;
+        boolean sent = false;
+        if (ghAuthBad)
+            sent = notifyUser("🔑 Hlídač neběží – nefunguje klíč pro GitHub",
+                    "Flip posílá data jen do zálohy, hlídač nespouští. Příčina: " + ghLastErr + ". Oprava: nový GitHub token do Flipu – ťukni na návod, krok za krokem.", 4, HELP_URL + "#vymena");
+        else if (min >= 30)
+            sent = notifyUser("⚠ Hlídač " + min + " min neběží",
+                    "Flip se nedostane na GitHub – " + (ghLastErr.isEmpty() ? "neznámá chyba" : ghLastErr) + ". Data se neztratí (čekají), upozornění z hlídače ale teď nechodí. Ťukni pro vysvětlení.", 4, HELP_URL + "#vypadek");
+        if (sent) p.edit().putBoolean("gh_alerted", true).apply();
+    }
+
+    /** Upozornění přímo z Flipu do aplikace ntfy (stejné téma jako upozornění hlídače). */
+    private boolean notifyUser(String title, String msg, int prio, String click) {
+        String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
+        if (topic.isEmpty()) return false;
+        try {
+            JSONObject b = new JSONObject().put("topic", topic).put("title", title).put("message", msg).put("priority", prio);
+            if (click != null) b.put("click", click);           // stejně jako hlídač: JSON (diakritika v titulku bez potíží)
+            HttpURLConnection c = (HttpURLConnection) new URL("https://ntfy.sh/").openConnection();
+            c.setConnectTimeout(15000);
+            c.setReadTimeout(15000);
+            c.setRequestMethod("POST");
+            c.setDoOutput(true);
+            c.setRequestProperty("Content-Type", "application/json");
+            try (OutputStream o = c.getOutputStream()) { o.write(b.toString().getBytes(StandardCharsets.UTF_8)); }
+            int code = c.getResponseCode();
+            c.disconnect();
+            Prefs.log(ctx, "Upozornění z Flipu" + (code < 300 ? "" : " NEodesláno (" + code + ")") + ": " + title);
+            return code < 300;
+        } catch (Exception e) {
+            Prefs.log(ctx, "Upozornění z Flipu neodesláno (" + e.getMessage() + "): " + title);
+            return false;
         }
     }
 

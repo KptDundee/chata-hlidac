@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chata – klíč pro GitHub</title>
+<meta name="theme-color" content="#1a1a19">
+<style>
+:root{--bg:#f3f2ee;--surface:#fcfcfb;--text:#0b0b0b;--text2:#52514e;--line:#e4e3de;--link:#2a78d6;--warn:#b26a00}
+@media (prefers-color-scheme:dark){:root{--bg:#111110;--surface:#1a1a19;--text:#f0efec;--text2:#c3c2b7;--line:#2c2c2a;--link:#f2c94c;--warn:#f2a33a}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding:16px 16px 60px}
+h1{font-size:21px;margin:8px 0 4px}
+.sub{color:var(--text2);font-size:14px;margin:0 0 14px}
+details{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin:0 0 10px;padding:0 14px}
+summary{cursor:pointer;font-weight:650;padding:13px 0;list-style:none}
+summary::before{content:"▸ ";color:var(--text2)}
+details[open] summary::before{content:"▾ "}
+details[open]{padding-bottom:12px}
+ol{padding-left:22px;margin:4px 0}
+li{margin:0 0 10px}
+code,b.k{background:var(--bg);border-radius:5px;padding:1px 5px;font-size:14px}
+.w{color:var(--warn);font-weight:650}
+a{color:var(--link)}
+.ok{border-left:4px solid var(--line);padding:2px 10px;color:var(--text2);font-size:14px}
+</style>
+</head>
+<body><div class="wrap">
+<h1>🔑 Klíč pro GitHub</h1>
+<p class="sub">Ťukni na řádek, rozbalí se. Stránku poslal Flip v upozornění. <a href="./">← zpět na Chatu</a></p>
+
+<details id="co">
+<summary>Co je to za klíč</summary>
+<p>Hlídač běží na GitHubu. Aby ho mohl Flip spouštět a posílat mu data z chaty, potřebuje <b>klíč</b>. GitHub mu říká <b>token</b> (začíná <code>github_pat_</code>). Je to dlouhý řetězec, něco jako heslo, ale jen pro tenhle jeden úkol a jen pro repozitář <code>chata-hlidac</code>.</p>
+<p>Stejný klíč je uložený na dvou místech:</p>
+<ol>
+<li><b>Ve Flipu</b>: aplikace <i>Chata brána</i> → Nastavení → „GitHub token“. Bez něj hlídač nespouští.</li>
+<li><b>Na webu v tvém telefonu</b>: pro ⚡ Načíst a ukládání Nastavení.</li>
+</ol>
+<p>Klíč má <b>datum platnosti</b> (nejvýš rok). Pak přestane fungovat a je potřeba vyrobit nový. Flip tě na to upozorní 14 a 3 dny předem.</p>
+<p class="w">Klíč nikomu neposílej, ani do chatu s Claudem. Vkládá se jen do Flipu a na web.</p>
+</details>
+
+<details id="vymena">
+<summary>Výměna klíče – krok za krokem (~5 min)</summary>
+<p class="sub">Nejlíp na počítači, jde to i na telefonu. Stránku GitHubu nezavírej, dokud klíč nevložíš do Flipu i na web. Nový klíč ukáže GitHub jen jednou.</p>
+<ol>
+<li>Otevři <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a> a přihlas se jako <b>KptDundee</b>.<br>
+<span class="sub">Kdyby odkaz nešel: vpravo nahoře ikona účtu → <i>Settings</i> → úplně dole vlevo <i>Developer settings</i> → <i>Personal access tokens</i> → <i>Fine-grained tokens</i> → <i>Generate new token</i>.</span></li>
+<li><b>Token name</b>: třeba <code>chata Flip 2026-11</code> (jméno je jen pro tebe).</li>
+<li><b>Expiration</b>: vyber <i>Custom</i> a datum za rok (nebo nejdelší, co nabídne).</li>
+<li><b>Repository access</b>: <i>Only select repositories</i> → vyber <code>KptDundee/chata-hlidac</code>.</li>
+<li><b>Permissions</b> → <i>Repository permissions</i> (u novější podoby stránky tlačítko <i>Add permissions</i>):
+  <br>• <b>Actions</b> → <i>Read and write</i>
+  <br>• <b>Contents</b> → <i>Read and write</i>
+  <br><span class="sub">Metadata (Read-only) se přidá samo. Nic dalšího nezapínej.</span></li>
+<li>Dole <b>Generate token</b> (případně ještě jednou potvrď). Objeví se klíč <code>github_pat_…</code> → ťukni na ikonu <b>kopírovat</b> vedle něj.</li>
+<li><b>Flip:</b> otevři aplikaci <i>Chata brána</i> → <b>✏️ Upravit nastavení</b> → pole <b>„GitHub token (Actions: Read and write)“</b> → starý obsah celý smaž, vlož nový → <b>💾 Uložit</b>.<br>
+<span class="sub">Když kopíruješ na počítači: pošli si klíč do Flipu bezpečně (např. sám sobě do poznámky, kterou pak smažeš), ne e-mailem cizím lidem.</span></li>
+<li><b>Ověř Flip:</b> v aplikaci dej <b>Odeslat teď</b> (nebo počkej ~10 min). V záznamu musí být řádek <b>„Odesláno (GitHub): …“</b>. Do pár minut přijde upozornění <b>„✓ Data zase chodí“</b>.</li>
+<li><b>Web v telefonu:</b> otevři stránku Chata → <b>⚡ Načíst</b>. Když napíše „Token nefunguje – zadej ho znovu“, nebo ukáže pole „github_pat_…“, vlož tam nový klíč a ulož.<br>
+<span class="sub">Když web klíč nechce, je to tím, že u něj chybí <i>Contents: Read and write</i> (krok 5).</span></li>
+<li><b>Jen jestli máš záložní spouštění na cron-job.org:</b> přihlas se tam → otevři úlohu, která spouští hlídače (adresa <code>api.github.com/…/dispatches</code>) → v hlavičkách (<i>Headers</i>) u <code>Authorization</code> nech <code>Bearer </code> a za mezeru vlož nový klíč → uložit.</li>
+<li><b>Starý klíč smaž</b> (není nutné, jen pořádek): <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">github.com/settings/personal-access-tokens</a> → starý klíč → <i>Delete</i>.</li>
+</ol>
+<p class="ok">Hotovo, když: ve Flipu je „Odesláno (GitHub)“, přišlo „✓ Data zase chodí“ a web po ⚡ Načíst ukáže čerstvá data.</p>
+</details>
+
+<details id="vypadek">
+<summary>Hlídač neběží, ale klíč je v pořádku (výpadek)</summary>
+<p>Flip se nedostal na GitHub. V upozornění je důvod:</p>
+<ol>
+<li><b>„nenajde adresu GitHubu (internet / DNS)“</b>: na chatě vypadl internet, nebo router neumí přeložit adresu. Většinou to samo přejde. Když to trvá přes hodinu: restartuj router.</li>
+<li><b>„GitHub neodpovídá“ / „výpadek GitHubu (5xx)“</b>: problém je na straně GitHubu. Nic nedělej, přejde to. Stav je na <a href="https://www.githubstatus.com" target="_blank" rel="noopener">githubstatus.com</a>.</li>
+<li><b>„GitHub odmítá klíč“</b>: viz <a href="#vymena" onclick="document.getElementById('vymena').open=true">Výměna klíče</a>.</li>
+</ol>
+<p>Data se neztratí. Flip je mezitím ukládá a pošle, až to půjde, a díry v grafech se doplní. Dokud hlídač neběží, <b>nechodí jeho upozornění</b> (baterie, River, noc). Flip proto zkouší odeslat každé 2 min a po obnovení pošle „✓ Data zase chodí“.</p>
+</details>
+</div>
+<script>
+// otevřít sekci podle odkazu z upozornění (…/klic.html#vymena)
+const h = location.hash.slice(1), el = h && document.getElementById(h);
+if(el && el.tagName === "DETAILS"){ el.open = true; el.scrollIntoView(); }
+</script>
+</body></html>
