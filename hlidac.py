@@ -32,7 +32,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "chladnuti_vyjimky": "",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -5240,7 +5240,7 @@ def eve_plan(data, st, now, topic, cfg):
     # 5.211 (Petr: „nejpozději zítra ~03:00“ – v noci spím): vyjde-li přepnutí až po čase spaní, radí se před spaním
     bed_ = None
     try:
-        bh_, bm_ = (int(x) for x in str(cfg.get("chladnuti_spat") or "0:00").split(":")[:2])
+        bh_, bm_ = bed_time(cfg, (now if now.hour >= 12 else now - timedelta(days=1)).date())   # 5.283: po dnech
         bed_ = now.replace(hour=bh_, minute=bm_, second=0, microsecond=0)
         if bh_ < 12 and now.hour >= 12:
             bed_ += timedelta(days=1)
@@ -5453,6 +5453,24 @@ def build_todo(data, st, now):
 WDAYS = ("po", "út", "st", "čt", "pá", "so", "ne")
 
 
+def bed_time(cfg, d):
+    """5.283 (Petr): kdy jdu spát – po dnech (spani = „po 0:00, út 22:30, …“; den = večer, kdy jdu spát, čas před 12:00
+    = po půlnoci), jinak chladnuti_spat. (hodina, minuta)"""
+    for part in str(cfg.get("spani") or "").split(","):
+        b = part.strip().split()
+        if len(b) == 2 and b[0].lower()[:2] == WDAYS[d.weekday()]:
+            try:
+                h, m = (int(x) for x in b[1].split(":")[:2])
+                return h, m
+            except ValueError:
+                pass
+    try:
+        h, m = (int(x) for x in str(cfg.get("chladnuti_spat") or "0:00").split(":")[:2])
+        return h, m
+    except ValueError:
+        return 0, 0
+
+
 def wake_time(cfg, d):
     """5.262 (Petr): kdy ráno vstávám – po dnech (vstavani = „po 9:00, út 5:30, …“), jinak chladnuti_rano. (hodina, minuta)"""
     for part in str(cfg.get("vstavani") or "").split(","):
@@ -5494,9 +5512,9 @@ def window_plan(data, st, now, topic, cfg):
     # vstávání (chladnuti_rano) nejde nic dělat – jako bych byl pryč (přepnout ani pustit generátor)
     SL = []
     try:
-        hs_, ms_ = (int(x) for x in str(cfg.get("chladnuti_spat") or "0:00").split(":")[:2])
         for i_ in range(-1, 4):
             d_ = now.date() + timedelta(days=i_)
+            hs_, ms_ = bed_time(cfg, d_)                       # 5.283: spaní po dnech
             a_ = datetime(d_.year, d_.month, d_.day, hs_, ms_, tzinfo=TZ) + (timedelta(days=1) if hs_ < 12 else timedelta())
             d1_ = d_ + timedelta(days=1)
             hr_, mr_ = wake_time(cfg, d1_)                     # 5.262: vstávání po dnech (Nastavení → Plán)
@@ -5537,7 +5555,7 @@ def window_plan(data, st, now, topic, cfg):
         ev_ = []                                         # 5.203: i večer a před spaním (doma jde přepnout)
         for key_, dflt in (("den_do", "22:00"), ("chladnuti_spat", "0:00")):
             try:
-                h_, m_ = (int(x) for x in str(cfg.get(key_) or dflt).split(":")[:2])
+                h_, m_ = bed_time(cfg, d_) if key_ == "chladnuti_spat" else (int(x) for x in str(cfg.get(key_) or dflt).split(":")[:2])
                 ev_.append(datetime(d_.year, d_.month, d_.day, h_, m_, tzinfo=TZ) + (timedelta(days=1) if h_ < 6 else timedelta()))
                 if key_ == "chladnuti_spat":
                     bed_ts.add(ev_[-1].timestamp())

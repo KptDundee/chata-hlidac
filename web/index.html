@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.282", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.283", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1609,7 +1609,7 @@ async function planSave(tok, P, sha, msg){
 /* úseky z hlídače (data.away = plán, dny mimo plán jako minulý týden) pro den k → [{a,b}] */
 function awayDay(d, k){ return (d.away||[]).filter(x=>dK(new Date(x[0]*1000))===k).map(x=>({a:hmT(x[0]), b:hmT(x[1]), btn:!!x[2]})); }
 function tilePlan(d, h){
-  const t = {k:"plan", icon:"🗓", label:"Kdy jsem pryč"}, A = d.away_plan, nxt = (d.away||[]).find(x=>x[1] > h.now);
+  const t = {k:"plan", icon:"🗓", label:"Jsem pryč a spím"}, A = d.away_plan, nxt = (d.away||[]).find(x=>x[1] > h.now);
   if(!nxt) return {...t, cls:"na", v:"–", st:"Žádný odjezd v plánu", a:"Doplň plán na týden"};
   const iv = A && (A.ivs||[]).find(x=>x.b > h.now), rv = (A && A.rv) || {};
   const src = !iv ? "" : iv.src==="solar" ? "solár" : iv.src==="river" ? `River ${pn((rv[iv.k]||{}).name||"")}` : "nic nevydrží";
@@ -1703,20 +1703,45 @@ function detPlan(body){
     const wtxt = Object.entries(grp).sort((a,b)=>a[1].length-b[1].length).map(([t,ds])=>`${ds.length===7?"každý den":ds.join(", ")} ${t}`).join(" · ");
     const hm5 = v => { const m = String(v).trim().match(/^(\d{1,2})[:.](\d{2})/); return m ? m[1].padStart(2,"0")+":"+m[2] : ""; };
     const det = (t, h) => `<details style="margin-top:8px"><summary class="sub" style="cursor:pointer;padding:4px 0">${t}</summary><div style="margin-top:4px">${h}</div></details>`;
-    box.innerHTML = `
+    // 5.283 (Petr): dvě záložky – Jsem pryč / Spím, každá s vlastním Uložit; spaní i vstávání po dnech (noc = večer → ráno)
+    const SP = {}; for(const part of String(c.spani||"").split(",")){ const b = part.trim().split(/\s+/); if(b.length===2) SP[b[0].slice(0,2).toLowerCase()] = b[1]; }
+    const nxtD = x => DN[(DN.indexOf(x)+1) % 7];
+    const TB = tabsHead("pl_tab", [["pryc","🚗 Jsem pryč"],["spim","😴 Spím"]]), vis = k => TB.cur===k ? "" : ' style="display:none"';
+    const tIn = (attr, v) => `<input type="time" ${attr} value="${hm5(v)}" style="font:inherit;width:5.6em;padding:2px 3px">`;
+    box.innerHTML = `${TB.html}
+      <div id="pl_tab_pryc"${vis("pryc")}>
+      <div style="font-size:14px;margin-bottom:4px">V kalendáři je to takto. Pokud něco nesedí, uprav to.</div>
       ${days.map(row).join("")}
       <button type="button" id="pl_copy" style="font:inherit;padding:6px 12px;margin-top:8px;font-size:13.5px">Jako minulý týden</button>
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><b>😴 Kdy spím</b>
-        <div style="display:flex;gap:8px;align-items:center;margin:6px 0 4px;font-size:14px">spát chodím v <input type="time" id="sl_spat" value="${hm5(c.chladnuti_spat||"0:00")}" style="font:inherit;width:5.6em;padding:2px 3px"></div>
-        <div class="sub" style="font-size:12.5px;margin-bottom:3px">vstávám</div>
-        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 6px">${DN.map(x=>`<label style="display:flex;flex-direction:column;font-size:12.5px;gap:2px;min-width:0">${x}<input type="time" data-wk="${x}" value="${hm5(WK[x] || c.chladnuti_rano || "7:00")}" style="font:inherit;width:100%;min-width:0;box-sizing:border-box;padding:2px 2px"></label>`).join("")}</div></div>
       <button type="button" id="pl_save" style="font:inherit;padding:9px 18px;font-weight:600;margin-top:12px;width:100%">Uložit</button><div class="sub" id="pl_msg" style="margin-top:6px"></div>
       ${det("Jak to funguje", `<div class="sub" style="line-height:1.5">
         <b>Co platí pro den</b> (první, co existuje): <b>✎ ruční</b> úprava tady → <b>🗓 kalendář</b> (TRENINK, TrSLEV, PRIVAT; událost ±1 h na cestu, volno do 2 h = pořád pryč) → <b>↺ jako minulý týden</b> → doma. Ruční úprava má tedy přednost před kalendářem. Ukládá se jen den, který změníš – ostatní jedou dál podle kalendáře.<br>
-        <b>Úsek</b> od – do; „do“ dřív než „od“ = přes půlnoc. Uložit můžeš kdykoli, hlídač to načte do pár minut.<br>
-        <b>Spaní</b>: od spaní do vstávání hlídač počítá, že nic nepřepneš ani nepustíš generátor – River na noc musí vydržet do vstávání. Ráno mezi vstáváním a odjezdem přepnout jde, nabíjet ne.</div>`)}
+        <b>Úsek</b> od – do; „do“ dřív než „od“ = přes půlnoc. Uložit můžeš kdykoli, hlídač to načte do pár minut.</div>`)}
       ${det("Plán do příští možnosti pustit generátor", wplanHtml(d).replace(/^<div class="card">/, "<div>") || `<div class="sub">Zatím nespočítáno.</div>`)}
-      ${calc ? det("Jak hlídač počítá nejbližší úseky", calc) : ""}`;
+      ${calc ? det("Jak hlídač počítá nejbližší úseky", calc) : ""}
+      </div>
+      <div id="pl_tab_spim"${vis("spim")}>
+      <div style="font-size:14px;margin-bottom:6px">Kdy jdu spát a kdy vstávám – každou noc zvlášť.</div>
+      <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 10px;align-items:center;font-size:14px">
+        <div></div><div class="sub" style="font-size:12px">jdu spát</div><div class="sub" style="font-size:12px">vstávám</div>
+        ${DN.map(x=>`<div><b>${x}</b> → ${nxtD(x)}</div><div>${tIn(`data-sp="${x}"`, SP[x] || c.chladnuti_spat || "0:00")}</div><div>${tIn(`data-wk="${nxtD(x)}"`, WK[nxtD(x)] || c.chladnuti_rano || "7:00")}</div>`).join("")}
+      </div>
+      <button type="button" id="sl_save" style="font:inherit;padding:9px 18px;font-weight:600;margin-top:12px;width:100%">Uložit</button><div class="sub" id="sl_msg" style="margin-top:6px"></div>
+      ${det("Jak to funguje", `<div class="sub" style="line-height:1.5">Řádek = noc: „po → út“ = jdu spát v pondělí večer (čas po půlnoci = už v úterý) a vstávám v úterý ráno. Od spaní do vstávání hlídač počítá, že nic nepřepneš ani nepustíš generátor – River na noc musí vydržet do vstávání. Ráno mezi vstáváním a odjezdem přepnout jde, nabíjet ne. Čas spaní řídí i chladnutí (kolik °C mít v pokoji, když jdeš spát).</div>`)}
+      </div>`;
+    tabsWire("pl_tab", ["pryc","spim"]);
+    $("sl_save").onclick = async () => {
+      const unz = v => v.replace(/^0(\d)/, "$1");
+      const spn = DN.map(x => `${x} ${unz(box.querySelector(`[data-sp="${x}"]`).value || "0:00")}`).join(", ");
+      const vst = DN.map(x => `${x} ${unz(box.querySelector(`[data-wk="${x}"]`).value || "9:00")}`).join(", ");
+      $("sl_save").disabled = true; $("sl_msg").textContent = "Ukládám…";
+      try{
+        if(spn !== String(c.spani||"").trim()) await setCfgKey(tok, "spani", spn);
+        if(vst !== String(c.vstavani||"").trim()) await setCfgKey(tok, "vstavani", vst);
+        $("sl_msg").textContent = "Uloženo ✓ – hlídač to načte při příštím běhu (do pár minut).";
+      }catch(err){ $("sl_msg").textContent = err.message; }
+      $("sl_save").disabled = false;
+    };
     box.addEventListener("click", e => {
       const r = e.target.closest(".plrow"); if(!r) return;
       if(e.target.matches("[data-padd]")){ const n = r.querySelectorAll(".pliv").length; e.target.insertAdjacentHTML("beforebegin", `<div class="pliv" style="display:flex;gap:4px;align-items:center;margin:3px 0"><input type="time" data-pa="${n}" style="font:inherit;width:5.6em;padding:2px 3px"> – <input type="time" data-pb="${n}" style="font:inherit;width:5.6em;padding:2px 3px"><button type="button" data-pdel style="font:inherit;padding:2px 7px">✕</button></div>`); }
@@ -1738,14 +1763,9 @@ function detPlan(body){
         if(r.dataset.own!=="1" && cur === r.dataset.orig) continue;     // 5.240: beze změny – dál podle kalendáře / minulého týdne
         N[k] = ivs.map(x=>({...x, btn:false})); }
       $("pl_save").disabled = true; $("pl_msg").textContent = "Ukládám…";
-      // 5.282 (Petr): spaní a vstávání se zadávají tady stejně jako úseky (dřív odkaz do Nastavení)
-      const unz = v => v.replace(/^0(\d)/, "$1"), spat = unz($("sl_spat").value || "0:00");
-      const vst = DN.map(x => `${x} ${unz(box.querySelector(`[data-wk="${x}"]`).value || "9:00")}`).join(", ");
       try{
         const nz_ = v => JSON.stringify((v||[]).map(x=>[x.a, x.b]));
         if(Object.keys(N).some(k => !P[k] || nz_(N[k]) !== nz_(P[k]))) await planSave(tok, N, sha, "týden od " + dK(days[0]));
-        if(spat !== String(c.chladnuti_spat||"0:00").trim()) await setCfgKey(tok, "chladnuti_spat", spat);
-        if(vst !== String(c.vstavani||"").trim()) await setCfgKey(tok, "vstavani", vst);
         $("pl_msg").textContent = "Uloženo ✓ – hlídač to načte při příštím běhu (do pár minut)."; }
       catch(err){ $("pl_msg").textContent = err.message; $("pl_save").disabled = false; }
     };
@@ -3743,7 +3763,7 @@ const DET = {
   sys:   {t:"📡 Systém", s:"Co posílá data a deník událostí", ids:["sysInfo","s_log"]},
   log:   {t:"📋 Deník", s:"Automatika, upozornění a chyby", ids:["s_log"]},
   bsim:  {t:"🔋 Jaká baterie", s:"Přehrání skutečné historie (počasí, spotřeba) pro různé baterie", build:detBsim},
-  plan:  {t:"🗓 Kdy jsem pryč a kdy spím", s:"Uprav, co nesedí – ruční úprava má přednost před kalendářem", build:detPlan},
+  plan:  {t:"🗓 Jsem pryč a spím", s:"", build:detPlan},
   cal:   {t:"📆 Kalendáře", s:"Co hlídač načetl z kalendářů – týden, 6:00–22:00", build:detCal},
   all:   {t:"🗂 Všechny údaje", s:"Kompletní původní přehled", ids:["heroSec","tilesSec","wxcard","s_plugs","s_pan","s_health","s_charts","s_log","s_tbl"]},
 };

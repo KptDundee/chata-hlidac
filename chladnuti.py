@@ -376,6 +376,13 @@ def update(data, st, now, cfg, log=print):
         k = c["k"]
         hh, mm = (str(cfg.get("chladnuti_rano") or "7:00").split(":") + ["0"])[:2]
         bh, bm = (str(cfg.get("chladnuti_spat") or "0:00").split(":") + ["0"])[:2]
+        # 5.283: spaní po dnech (spani = „po 0:00, út 22:30, …“, den = večer, kdy jdu spát)
+        _ev = (now if now.hour >= 12 else now - timedelta(hours=12)).strftime("%a")
+        _wd = {"Mon": "po", "Tue": "út", "Wed": "st", "Thu": "čt", "Fri": "pá", "Sat": "so", "Sun": "ne"}[_ev]
+        for _p in str(cfg.get("spani") or "").split(","):
+            _b = _p.strip().split()
+            if len(_b) == 2 and _b[0].lower()[:2] == _wd and ":" in _b[1]:
+                bh, bm = _b[1].split(":")[:2]
         bed = now.replace(hour=int(bh), minute=int(bm), second=0, microsecond=0)
         mor = now.replace(hour=int(hh), minute=int(mm), second=0, microsecond=0)
         if mor <= now:
