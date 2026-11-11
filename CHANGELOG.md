@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.288 – 11. 11. 2026
+- Zrušena stará večerní zpráva „🌙 Před spaním přepoj chatu na druhou River“ (River do východu slunce + 1 h). Přepnutí River řeší jen plán – ví o spaní, vstávání a odjezdu („před spaním (do 0:00)“ / „před odjezdem (do 6:00)“). Dřív obě zprávy radily různé věci. Večerní zpráva pro solární baterii zůstává.
+
 ## 5.287 – 11. 11. 2026
 - Spotřeba chaty: přepínač období platí pro všechny grafy – Dnes / 48 h po hodinách, Týden po dnech (7), Rok po měsících (13, tento vedle loňského), Vše po měsících.
 - Nový graf „Výroba a spotřeba po hodinách“ (Dnes / 48 h). Hned pod ním „Co kdy napájelo chatu“ (pás) a „Na co jela chata“ (koláče čas / energie).

@@ -7457,7 +7457,10 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
     inv_ = data.get("inverter") or {}
     on_solar = bool(inv_) and now.timestamp() - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) == "s" and not on_river
     solar_bad = on_solar and bool(f.get("t_crit"))
-    river_bad = on_river and bool(rvn)
+    # 5.288 (Petr: „radí dvě rozdílné věci“ – 22:07 „před spaním přepoj na druhou River“ a zároveň „před odjezdem (do 6:00)
+    # přepni na ČERV“): River řeší jen plán (wp_sw) – ten ví, kdy spíš, kdy vstáváš a kdy odjíždíš. Tady dřív stačilo,
+    # že River nevydrží do východu slunce + 1 h, i když ráno mezi vstáváním a odjezdem přepnout jde. Zbývá jen solár.
+    river_bad = False
     hm = lambda t: datetime.fromtimestamp(t, TZ).strftime("%H:%M")
     if solar_bad:
         bv, hq = (data.get("last") or {}).get("bat_v"), (data.get("hq") or {}).get("pct")
