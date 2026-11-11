@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.281", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.282", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1701,12 +1701,16 @@ function detPlan(body){
     const c = d.cfg||{}, WK = {}; for(const part of String(c.vstavani||"").split(",")){ const b = part.trim().split(/\s+/); if(b.length===2) WK[b[0].slice(0,2).toLowerCase()] = b[1]; }
     const DN = ["po","út","st","čt","pá","so","ne"], grp = {}; for(const x of DN){ const t = WK[x] || String(c.chladnuti_rano||"7:00"); (grp[t] = grp[t] || []).push(x); }
     const wtxt = Object.entries(grp).sort((a,b)=>a[1].length-b[1].length).map(([t,ds])=>`${ds.length===7?"každý den":ds.join(", ")} ${t}`).join(" · ");
+    const hm5 = v => { const m = String(v).trim().match(/^(\d{1,2})[:.](\d{2})/); return m ? m[1].padStart(2,"0")+":"+m[2] : ""; };
     const det = (t, h) => `<details style="margin-top:8px"><summary class="sub" style="cursor:pointer;padding:4px 0">${t}</summary><div style="margin-top:4px">${h}</div></details>`;
     box.innerHTML = `
       ${days.map(row).join("")}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="pl_save" style="font:inherit;padding:8px 16px;font-weight:600">Uložit</button>
-      <button type="button" id="pl_copy" style="font:inherit;padding:8px 14px">Jako minulý týden</button></div><div class="sub" id="pl_msg" style="margin-top:6px"></div>
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:14px">😴 spím od ${cfgV("chladnuti_spat", c.chladnuti_spat||"0:00")} · vstávám ${cfgV("vstavani", wtxt)}</div>
+      <button type="button" id="pl_copy" style="font:inherit;padding:6px 12px;margin-top:8px;font-size:13.5px">Jako minulý týden</button>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><b>😴 Kdy spím</b>
+        <div style="display:flex;gap:8px;align-items:center;margin:6px 0 4px;font-size:14px">spát chodím v <input type="time" id="sl_spat" value="${hm5(c.chladnuti_spat||"0:00")}" style="font:inherit;width:5.6em;padding:2px 3px"></div>
+        <div class="sub" style="font-size:12.5px;margin-bottom:3px">vstávám</div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 6px">${DN.map(x=>`<label style="display:flex;flex-direction:column;font-size:12.5px;gap:2px;min-width:0">${x}<input type="time" data-wk="${x}" value="${hm5(WK[x] || c.chladnuti_rano || "7:00")}" style="font:inherit;width:100%;min-width:0;box-sizing:border-box;padding:2px 2px"></label>`).join("")}</div></div>
+      <button type="button" id="pl_save" style="font:inherit;padding:9px 18px;font-weight:600;margin-top:12px;width:100%">Uložit</button><div class="sub" id="pl_msg" style="margin-top:6px"></div>
       ${det("Jak to funguje", `<div class="sub" style="line-height:1.5">
         <b>Co platí pro den</b> (první, co existuje): <b>✎ ruční</b> úprava tady → <b>🗓 kalendář</b> (TRENINK, TrSLEV, PRIVAT; událost ±1 h na cestu, volno do 2 h = pořád pryč) → <b>↺ jako minulý týden</b> → doma. Ruční úprava má tedy přednost před kalendářem. Ukládá se jen den, který změníš – ostatní jedou dál podle kalendáře.<br>
         <b>Úsek</b> od – do; „do“ dřív než „od“ = přes půlnoc. Uložit můžeš kdykoli, hlídač to načte do pár minut.<br>
@@ -1734,7 +1738,15 @@ function detPlan(body){
         if(r.dataset.own!=="1" && cur === r.dataset.orig) continue;     // 5.240: beze změny – dál podle kalendáře / minulého týdne
         N[k] = ivs.map(x=>({...x, btn:false})); }
       $("pl_save").disabled = true; $("pl_msg").textContent = "Ukládám…";
-      try{ await planSave(tok, N, sha, "týden od " + dK(days[0])); $("pl_msg").textContent = "Uloženo ✓ – hlídač plán načte při příštím běhu (do pár minut)."; }
+      // 5.282 (Petr): spaní a vstávání se zadávají tady stejně jako úseky (dřív odkaz do Nastavení)
+      const unz = v => v.replace(/^0(\d)/, "$1"), spat = unz($("sl_spat").value || "0:00");
+      const vst = DN.map(x => `${x} ${unz(box.querySelector(`[data-wk="${x}"]`).value || "9:00")}`).join(", ");
+      try{
+        const nz_ = v => JSON.stringify((v||[]).map(x=>[x.a, x.b]));
+        if(Object.keys(N).some(k => !P[k] || nz_(N[k]) !== nz_(P[k]))) await planSave(tok, N, sha, "týden od " + dK(days[0]));
+        if(spat !== String(c.chladnuti_spat||"0:00").trim()) await setCfgKey(tok, "chladnuti_spat", spat);
+        if(vst !== String(c.vstavani||"").trim()) await setCfgKey(tok, "vstavani", vst);
+        $("pl_msg").textContent = "Uloženo ✓ – hlídač to načte při příštím běhu (do pár minut)."; }
       catch(err){ $("pl_msg").textContent = err.message; $("pl_save").disabled = false; }
     };
   }).catch(err=>{ box.innerHTML = `<div>${escH(err.message)}</div>`; });
@@ -2117,7 +2129,7 @@ function tileHtml(x){
     <div class="st">${x.st||""}</div>${x.a?`<div class="a">${x.a}</div>`:""}${x.html||""}${x.rows?`<div class="rows">${x.rows.map(r=>`<div><span${r[2]?' style="white-space:normal"':""}>${r[0]}</span><span${r[3]==="w"?' style="white-space:normal;text-align:left;flex:1"':""}>${r[1]}</span></div>`).join("")}</div>`:""}${x.bar!=null?`<div class="bar"><div style="width:${Math.max(0,Math.min(100,x.bar))}%"></div></div>`:""}</div>`;
 }
 /* ---------- pevná struktura hlavní stránky (v3.33): lišta k řešení · Teď (baterie, River) · Dnes (spotřeba, výroba) · Výhled · Uplynulé · Dlouhodobě ---------- */
-let RVSEL = (()=>{ try{ return localStorage.getItem("rvsel"); }catch(e){ return null; } })();
+let RVSEL = null;   // 5.282 (Petr): po otevření je vybraná River, ze které jede chata; ťuknutí platí jen do zavření stránky
 const kWh = wh => wh==null ? "–" : `${nf(wh/1000, wh < 1000 ? 2 : 1)} kWh`;
 function riverToday(d, r){ const k = String(r.sn||"").slice(-6); return ((((d.days||{})[dkey(Date.now()/1000)]||{}).rv)||{})[k] || {}; }
 /* jméno zásuvky bez úvodních závorek „(3) (R) “ – číslo slouží k rozpoznání, na stránce není potřeba */
@@ -2567,7 +2579,7 @@ async function setCfgKey(tok, key, val){
   if(re.test(txt) && (parseCfg(txt)[key]||"") === val) return;
   const nt = re.test(txt) ? txt.replace(re, (m,a,b,c)=>a+val+(c||"")) : txt.replace(/\n?$/,"\n")+`${key} = ${val}\n`;
   const w = await fetch(GH,{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
-    body:JSON.stringify({message:`Nastavení: ${key} = ${val} (tlačítko generátoru)`, content:utf8b64.enc(nt), sha:j.sha, branch:"main"})});
+    body:JSON.stringify({message:`Nastavení: ${key} = ${val} (web)`, content:utf8b64.enc(nt), sha:j.sha, branch:"main"})});
   if(!w.ok) throw new Error("Nastavení nejde uložit ("+w.status+")");
   if(DATA && DATA.cfg) DATA.cfg[key] = val;
 }
@@ -3347,7 +3359,8 @@ function tileRivers(d, h){
   const act = x => x.gen ? (x.w||0) > 5 : (x.w||0) > 2 || (x.ef && ((x.ef.in_w||0) > 20 || (x.ef.out_w||0) > 20)) || /^nabíjí se/.test(rivState(x, h, MM));
   // 4.78: zapnutá = EcoFlow ji vidí online (bez EcoFlow: zásuvka na jejím výstupu má proud); generátor = běží
   const onX = x => x.gen ? (x.w||0) > 5 : x.ef && x.ef.online != null ? !!x.ef.online : !x.off && !x.miss;
-  const sel = all.find(x=>x.id===RVSEL) || all.find(act) || all.find(onX) || R[0];
+  const supSn = String((d.river_sup||{}).sn||"").slice(-6), sup = supSn ? R.find(x=>x.ef && String(x.ef.sn||"").slice(-6)===supSn) : (d.river_sup||{}).name ? R.find(x=>x.ef && x.ef.name===d.river_sup.name) : null;
+  const sel = all.find(x=>x.id===RVSEL) || sup || all.find(act) || all.find(onX) || R[0];
   const tabs = `<div class="rtabs">${all.map(x=>`<button data-rv="${x.id}" class="${onX(x)?"on":""} ${x===sel?"sel":""}">${rvPlugBad(x)?"? ":""}${x.short.slice(0,12)}</button>`).join("")}</div>`;
   const SQ = sel.gen ? {soc:null} : rvSoc(sel), soc = SQ.old ? null : SQ.soc;
   // 4.59: proč chybí % z EcoFlow – chyba čtení / EcoFlow vidí jiná jména / nic
@@ -3730,7 +3743,7 @@ const DET = {
   sys:   {t:"📡 Systém", s:"Co posílá data a deník událostí", ids:["sysInfo","s_log"]},
   log:   {t:"📋 Deník", s:"Automatika, upozornění a chyby", ids:["s_log"]},
   bsim:  {t:"🔋 Jaká baterie", s:"Přehrání skutečné historie (počasí, spotřeba) pro různé baterie", build:detBsim},
-  plan:  {t:"🗓 Kdy jsem pryč", s:"Uprav, co nesedí – ruční úprava má přednost před kalendářem", build:detPlan},
+  plan:  {t:"🗓 Kdy jsem pryč a kdy spím", s:"Uprav, co nesedí – ruční úprava má přednost před kalendářem", build:detPlan},
   cal:   {t:"📆 Kalendáře", s:"Co hlídač načetl z kalendářů – týden, 6:00–22:00", build:detCal},
   all:   {t:"🗂 Všechny údaje", s:"Kompletní původní přehled", ids:["heroSec","tilesSec","wxcard","s_plugs","s_pan","s_health","s_charts","s_log","s_tbl"]},
 };
@@ -4208,7 +4221,7 @@ function closeDetMove(){
 $("detbody").addEventListener("click", e => { const b = e.target.closest("#detseg button"); if(!b) return; DETR = b.dataset.r; const k = DET_K; openDet(k); });
 $("home").addEventListener("click", e => {
   const rb = e.target.closest("[data-rv]");
-  if(rb){ e.stopPropagation(); RVSEL = rb.dataset.rv; try{ localStorage.setItem("rvsel", RVSEL); }catch(_){} renderHome(DATA); return; }
+  if(rb){ e.stopPropagation(); RVSEL = rb.dataset.rv; renderHome(DATA); return; }
   const fb = e.target.closest("[data-ftab]");                     // 5.61: Flip / Wi‑Fi na dlaždici
   if(fb){ e.stopPropagation(); try{ localStorage.setItem("df_tab", fb.dataset.ftab); }catch(_){} renderHome(DATA); return; }
   const t = e.target.closest("[data-det]"); if(t) openDet(t.dataset.det); });

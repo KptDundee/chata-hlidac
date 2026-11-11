@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.282 – 11. 11. 2026
+- Karta „🗓 Kdy jsem pryč a kdy spím“: spaní (spát chodím v) a vstávání po dnech se zadávají přímo v kartě jako úseky, jedno tlačítko Uložit (plán + nastavení, jen co se změnilo).
+- Dlaždice EcoFlow: po otevření je vybraná River, ze které jede chata; ťuknutí na jinou platí jen do zavření stránky (dřív si pamatovala poslední zobrazenou).
+
 ## 5.281 – 11. 11. 2026
 - Karta 🗓 Kdy jsem pryč: nahoře hned zadání (den · úseky · doma), u dne zdroj (✎ ruční / 🗓 kalendář / ↺ jako minule), Uložit; pod tím spaní/vstávání. Vysvětlení, plán do okna generátoru a výpočet úseků jsou rozbalovací.
 
