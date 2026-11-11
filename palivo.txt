@@ -1,3 +1,4 @@
 # lahve PB a tankování benzínu: čas | palivo | cena Kč | plna/castecna | litry (zapisuje web)
 2026-10-23 21:00 | lpg | 498 | plna
 2026-11-10 21:20 | lpg | 0 | prazdna
+2026-11-11 13:53 | benzin | 43 | plna | 
