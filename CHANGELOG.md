@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.272 – 11. 11. 2026
+- Kalendář (detail 🗓): události a doba pryč na minutu přesně (dřív po celých hodinách – 30min událost vypadala na hodinu a volné okno nebylo vidět). Barva = událost, šedá = pryč (cesta ±1 h, volno do 2 h).
+
 ## 5.271 – 11. 11. 2026
 - Dlaždice soláru: když jsi dnes pryč, řádek výhledu píše „návrat 18:30 · vydrží ✓“ místo „do 18:30“ (Petr: „proč do 18:30, odjíždím v 16“ – solár musí vydržet do návratu). Detail: „Odjezd 16:00 → do návratu 18:30“. `day_fc.ret`, `day_fc.dep`.
 

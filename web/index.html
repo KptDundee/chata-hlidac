@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.271", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.272", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1645,28 +1645,27 @@ function detCal(body){
   const H0 = 6, H1 = 22, ND = 7;
   const ov = (a, b, x, y) => Math.max(0, Math.min(b, y) - Math.max(a, x));
   const days = []; for(let i = 0; i < ND; i++){ const dt = new Date(); dt.setHours(0,0,0,0); dt.setDate(dt.getDate()+i); days.push(dt); }
+  // 5.272 (Petr: událost v 17:00 vypadala na celou hodinu a cesta taky → nebylo vidět volné okno): bloky na minutu přesně,
+  // ne po celých hodinách. Šedá = pryč (událost ±1 h cesta, volno do 2 h), barva = samotná událost.
+  const PX = 24, HT = (H1 - H0) * PX, GREY = "color-mix(in srgb,var(--text) 22%,transparent)";
+  const blk = (dt, a, b, col, tt, z) => { const d0 = dt.getTime()/1000 + H0*3600, d1 = d0 + (H1-H0)*3600;
+    const x = Math.max(a, d0), y = Math.min(b, d1); if(y <= x) return "";
+    return `<div data-tt="${WDN[dt.getDay()]} ${dt.getDate()}. ${escH(tt)}" style="position:absolute;left:${z?2:0}px;right:${z?2:0}px;top:${(x-d0)/3600*PX}px;height:${Math.max(3,(y-x)/3600*PX)}px;background:${col};border-radius:3px;cursor:pointer;z-index:${z?2:1}"></div>`; };
   let g = `<div></div>` + days.map(dt=>{ const k = dK(dt), lab = src[k]==="cal" ? "" : src[k]==="copy" ? " ↺" : " ✎";
     return `<div style="font-size:11.5px;text-align:center;line-height:1.2">${WDN[dt.getDay()]}<br>${dt.getDate()}.${lab}</div>`; }).join("");
-  for(let hh = H0; hh < H1; hh++){
-    g += `<div class="sub" style="font-size:10.5px;text-align:right;padding-right:3px;align-self:start;transform:translateY(-55%)">${hh}:00</div>`;   // 5.244: čas na horní hraně = začátek hodiny
-    for(const dt of days){
-      const a = dt.getTime()/1000 + hh*3600, b = a + 3600;
-      let best = null, bo = 0; for(const e of E){ const o = ov(a, b, e[0], e[1]); if(o > bo){ bo = o; best = e; } }
-      const away = A.some(x=>ov(a, b, x[0], x[1]) >= 900);
-      const col = best && bo >= 600 ? CAL_C[best[2]][1] : away ? "color-mix(in srgb,var(--text) 22%,transparent)" : "transparent";
-      const tt = best && bo >= 600 ? `${CAL_C[best[2]][0]} ${hmT(best[0])}–${hmT(best[1])}` : away ? "pryč (cesta / volno do 2 h / ruční)" : "doma";
-      g += `<div data-tt="${WDN[dt.getDay()]} ${dt.getDate()}. ${hh}:00–${hh+1}:00 · ${escH(tt)}" style="cursor:pointer;height:18px;border-radius:3px;background:${col};border:1px solid var(--line)"></div>`;
-    }
-  }
-  g += `<div class="sub" style="font-size:10.5px;text-align:right;padding-right:3px;transform:translateY(-55%);height:6px">${H1}:00</div>` + days.map(()=>"<div></div>").join("");
+  let hl = ""; for(let hh = H0; hh <= H1; hh++) hl += `<div class="sub" style="position:absolute;right:3px;top:${(hh-H0)*PX}px;transform:translateY(-55%);font-size:10.5px">${hh}:00</div>`;
+  g += `<div style="position:relative;height:${HT}px">${hl}</div>`;
+  g += days.map(dt => `<div style="position:relative;height:${HT}px;border:1px solid var(--line);border-radius:3px;background:repeating-linear-gradient(to bottom,transparent 0,transparent ${PX-1}px,var(--line) ${PX-1}px,var(--line) ${PX}px)">`
+    + A.map(x => blk(dt, x[0], x[1], GREY, `pryč ${hmT(x[0])}–${hmT(x[1])} (cesta / volno do 2 h / ruční)`, 0)).join("")
+    + E.map(e => blk(dt, e[0], e[1], CAL_C[e[2]][1], `${CAL_C[e[2]][0]} ${hmT(e[0])}–${hmT(e[1])}`, 1)).join("") + `</div>`).join("");
   const sw = c => `<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};vertical-align:-1px"></span>`;
   const leg = CAL_C.map(([nm,c])=>`<span style="white-space:nowrap">${sw(c)} ${nm}</span>`).join(" &nbsp; ")
     + `<br><span>${sw("color-mix(in srgb,var(--text) 22%,transparent)")} pryč bez události (cesta ±1 h, volno do 2 h, ruční úprava)</span>`;
   body.insertAdjacentHTML("beforeend", `<div class="card">
-    <div style="display:grid;grid-template-columns:36px repeat(${ND},1fr);gap:2px;padding-top:4px">${g}</div>
+    <div style="display:grid;grid-template-columns:36px repeat(${ND},1fr);gap:2px;padding:4px 0 6px">${g}</div>
     <div id="cal_info" style="font-size:13.5px;margin-top:8px;min-height:1.4em"></div>
     <div style="font-size:13px;margin-top:6px;line-height:1.7">${leg}</div>
-    <div class="sub" style="margin-top:6px;line-height:1.45">Načteno ${d.cal_n||0} ze 3 kalendářů. Barva = hodina s událostí z kalendáře, šedá = pryč i bez události. U dne s ✎ platí tvoje ruční úprava v 🗓 Kdy jsem pryč (má přednost), ↺ = jako minulý týden. Ťukni na políčko pro čas události.</div></div>`);
+    <div class="sub" style="margin-top:6px;line-height:1.45">Načteno ${d.cal_n||0} ze 3 kalendářů. Barva = událost z kalendáře (na minutu přesně), šedá = pryč (cesta ±1 h, volno do 2 h). U dne s ✎ platí tvoje ruční úprava v 🗓 Kdy jsem pryč (má přednost), ↺ = jako minulý týden. Ťukni na políčko pro čas události.</div></div>`);
   body.addEventListener("click", e => { const c = e.target.closest("[data-tt]"); if(c && $("cal_info")) $("cal_info").textContent = c.dataset.tt; });
 }
 function detPlan(body){
