@@ -4817,7 +4817,9 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "hrs": round((end.timestamp() - ts) / 3600, 1), "src": "solar" if on_solar else "river",
            "night_ok": t_empty_n is None, "t_empty_n": int(t_empty_n) if t_empty_n else None,
            "load_n_w": round(load_n * 12.4), "night_ah": round(load_n * max(0.0, end2 - max(ts, set_ts)) / 3600, 1),
-           "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_, "cf": round(cf, 2)}
+           "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_, "cf": round(cf, 2),
+           # 5.271 (Petr: „proč do 18:30, odjíždím v 16“): konec výhledu = návrat z nepřítomnosti → web píše „do návratu“
+           "dep": int(AW[0].timestamp()) if AW else None, "ret": 1 if AW else 0}
     data["day_fc"] = res
     # 5.201 (Petr): chata jede ze soláru a solární baterie je už pod alarmem (v #) → akutně, kdykoli (i doma, i když
     # napětí při nabíjení vypadá dobře). Konec, až chata jede z River nebo # stoupne aspoň 5 # nad alarm.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.270", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.271", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1349,7 +1349,8 @@ function dayFcRow(d, h){
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
   if(f.src==="river")   // chata na River (4.26): jeden jasný řádek – můžu přepnout na solár? (rozpis v detailu)
     return ["přepnout na solár?", f.ok && f.night_ok ? `<b style="color:var(--good)">ano ✓</b>` : f.ok ? `<b style="color:var(--good)">do ${e}</b>` : `<b style="color:var(--text2)">ne</b>`, 1];
-  return [`do ${e}`, f.ok ? `<span style="color:var(--good)">vydrží ✓</span>` : planCovers(d, h) ? `<span style="color:var(--text2)">${fcEmptyT(f)}</span>` : `<b style="color:var(--crit)">${fcEmptyT(f)}</b>`];
+  // 5.271: když je pryč, musí solár vydržet do návratu (odjezd v ${dep}, přepnout se pak nedá) – řádek to říká
+  return [f.ret ? `návrat ${e}` : `do ${e}`, f.ok ? `<span style="color:var(--good)">vydrží ✓</span>` : planCovers(d, h) ? `<span style="color:var(--text2)">${fcEmptyT(f)}</span>` : `<b style="color:var(--crit)">${fcEmptyT(f)}</b>`];
 }
 /* 5.200 (Petr): baterie už teď pod alarmem (v #) → ne „dojde ~12:44“ (čas v minulosti), ale „pod alarmem už teď“ */
 const fcEmptyT = (f, would) => (f.ah!=null && f.ah <= 0) || (f.t_empty && f.t_empty - f.t < 900) ? "pod alarmem" : `${would ? "došla by" : "dojde"} ~${hmT(f.t_empty)}`;
@@ -1358,7 +1359,7 @@ function dayFcBlock(f){
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"}), L = (a,b,c="") => `<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0"><span style="color:var(--text2)">${a}</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap;${c}">${b}</span></div>`;
   const sum = f.ah!=null ? f.ah + f.prod_ah - f.cons_ah : null;
   return `<div style="padding:8px 0;border-bottom:1px solid var(--line)">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font-size:14px;color:var(--text2)">${f.src==="river" ? `Kdyby chata jela ze soláru – do ${e}` : `Výhled do ${e}`}</span>${f.ok ? `<b style="color:var(--good)">${f.src==="river"?"vydržela by ✓":"vydrží ✓"}</b>` : f.src==="river" ? `<b style="color:var(--text2)">${fcEmptyT(f, true)}</b>` : `<b style="color:var(--crit)">${fcEmptyT(f)}</b>`}</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font-size:14px;color:var(--text2)">${f.src==="river" ? `Kdyby chata jela ze soláru – do ${f.ret?"návratu ":""}${e}` : f.ret && f.dep ? `Odjezd ${hmT(f.dep)} → do návratu ${e}` : `Výhled do ${e}`}</span>${f.ok ? `<b style="color:var(--good)">${f.src==="river"?"vydržela by ✓":"vydrží ✓"}</b>` : f.src==="river" ? `<b style="color:var(--text2)">${fcEmptyT(f, true)}</b>` : `<b style="color:var(--crit)">${fcEmptyT(f)}</b>`}</div>
     ${f.ah!=null ? `<div style="font-size:13.5px;margin-top:4px">
       ${L(`V baterii nad alarmem (${f.pct} # − ${f.alarm} #, kapacita ${f.cap} Ah)`, `${nf(f.ah,1)} Ah`)}
       ${L(`Ještě vyrobí ~${nf(f.rem_kwh,2)} kWh (předpověď ×${nf(f.ratio,1)} podle dneška, −20 %)`, `+${nf(f.prod_ah,1)} Ah`, "color:var(--good)")}
