@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.270 – 11. 11. 2026
+- Dlaždice Flip: žlutá jen když řízení nabíjení nefunguje a Flip do 12 h klesne pod 15 %. Když řízení funguje, nabíječku pod 30 % zapne samo → zelená (Petr: „proč je žlutá?“ při 32 % a „zapne se pod 30 %“).
+
 ## 5.269 – 11. 11. 2026 (Flip 1.9.18)
 - Flip: když GitHub nejde (11. 11. „Unable to resolve host api.github.com“ → hlídač 24–48 min neběžel), zkusí to ještě 2× po 45 s; pak záloha přes ntfy a měření každé 2 min, dokud GitHub zase nepřijme data.
 - Flip: hlídka odesílání – výpadek přes 30 min → upozornění přímo z Flipu („⚠ Hlídač X min neběží“ s důvodem); odmítnutý klíč (401/403/404) nebo chybějící klíč → upozornění hned; po obnovení „✓ Data zase chodí“.

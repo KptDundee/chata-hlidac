@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.269", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.270", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2175,7 +2175,9 @@ function tileFlip(d, h){
   const hot = ph.t!=null && ph.t >= (d.cfg?.flip_teplota_max_C ?? 40);
   const rt = g.rt, rc = g.rc && !g.rc.miss ? g.rc : null;
   const rLow = rt && rt.b!=null && rt.b < 30;
-  const cls = old ? "warn" : hot || ph.b <= 20 || (rt && rt.b!=null && rt.b < 25) ? "bad" : (!ph.c && ff && ff.t15 - h.now < 12*3600) || rLow ? "warn" : "ok";
+  const cls = old ? "warn" : hot || ph.b <= 20 || (rt && rt.b!=null && rt.b < 25) ? "bad" : (!ph.c && !fc && ff && ff.t15 - h.now < 12*3600) || rLow ? "warn" : "ok";
+  // 5.270 (Petr: proč žlutá?): Flip se vybíjí, ale řízení nabíjení funguje a pod 30 % nabíječku zapne samo → v pořádku;
+  // žlutá jen když řízení nefunguje (zásuvka (9) chybí / nejde ovládat) a Flip do 12 h klesne pod 15 %
   // 5.61: přepínač Flip / Wi‑Fi přímo na dlaždici (stejná volba jako v detailu)
   let tab = "flip"; try{ tab = localStorage.getItem("df_tab") || "flip"; }catch(_){}
   const tabs = `<div class="rtabs"><button data-ftab="flip" class="${tab==="flip"?"sel":""}">📱 Flip ${nf(ph.b)} %</button><button data-ftab="wifi" class="${tab==="wifi"?"sel":""}">📶 Wi‑Fi${rt && rt.b!=null ? ` ${nf(rt.b)} %` : ""}</button></div>`;
