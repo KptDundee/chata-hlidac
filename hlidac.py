@@ -5282,7 +5282,10 @@ def eve_plan(data, st, now, topic, cfg):
         if st.get("wp_sw") != k_:
             ntfy(topic, f"🔌 Přepni chatu na River {rv_short(W['cur_name'])}",
                  f"Podle plánu je teď šetrnější jet z River – panely už nekryjí spotřebu chaty a solární baterie ({data['hq'].get('pct')} #) "
-                 f"se šetří. Když nepřepneš, nic se nestane – solární baterie vydrží do rána, jen se víc vybije.", 3, "electric_plug")
+                 f"se šetří. Když nepřepneš, nic se nestane – solární baterie vydrží "
+                 # 5.279 (Petr: „vydrží do rána? asi těžko“): cíl výpočtu je odjezd + návrat, nebo ráno – text podle něj
+                 + (f"do návratu ({dend.strftime('%H:%M')}), jen se víc vybije. Po návratu ale přepni na River."
+                    if res.get("D") and dend else "do rána, jen se víc vybije."), 3, "electric_plug")
             st["wp_sw"] = k_
     res["ev"] = bool(evening)                      # 5.214: web ukazuje radu „přepni na River“ jen večer (jako upozornění)
     data["eve"] = res
