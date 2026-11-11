@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.285", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.286", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3191,7 +3191,9 @@ function detUse(body, src="a"){
   const d = DATA, h = homeData(d), U = useModel(d), hrs = detHours(), long = detLong() || hrs > 7*24;
   const SRC = [{id:"s", name:"ze soláru", color:css("--s2")}, {id:"r", name:"z River", color:css("--s1")}];
   const col = src==="r" ? css("--s1") : src==="s" ? css("--s2") : css("--text2");
-  const pts = withHist((d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), U, Date.now()/1000 - hrs*3600, Date.now()/1000),
+  // 5.286 (Petr: „Rok se často tváří, že nic nenačte“): pro Rok / Vše se průběh po 10 min nekreslí (jen součty po dnech),
+  // přitom se doplňoval z historie pro každou hodinu roku (~8 700 h × všechny zásuvky) → stránka zamrzla. Teď jen krátká období.
+  const pts = long ? [] : withHist((d.points||[]).filter(p=>p.t >= Date.now()/1000 - hrs*3600), U, Date.now()/1000 - hrs*3600, Date.now()/1000),
         bands = src==="a" ? riverBands(pts, U.rids) : [];
   const rows = pts.map(p=>useAt(p, U)).filter(Boolean);
   const dd = useDays(Math.max(hrs, 24), U);
@@ -3980,7 +3982,7 @@ function prodUse(el, mode){
     const g = M_ ? k.slice(0,7) : k, o = agg[g] ||= {k:g, p:0, s:0, r:0, nu:0};
     o.p += x.solar_kwh || 0;
     if(ac!=null || ud){ o.s += (ac||0)/0.88/1000 + ((ac||0) > 5 ? idle*24/1000 : 0); o.r += ud ? (ud.r._sum||0)/1000 : 0; o.nu++; } }
-  const rows = Object.values(agg).slice(M_ ? -12 : -30).map(o=>({...o, u: o.nu ? o.s + o.r : null}));
+  const rows = Object.values(agg).slice(M_ ? -13 : -30).map(o=>({...o, u: o.nu ? o.s + o.r : null}));   // 5.286: 13 měsíců – tento měsíc vedle loňského
   if(!rows.length) return empty(el, "Zatím žádné celé dny.");
   const hi = Math.max(...rows.map(r=>Math.max(r.p, r.u||0)))*1.15 || 1, {svg,y} = frame(el, 0, hi, hi<3?1:0);
   const n = Math.max(rows.length, 7), bw = (W-M.l-M.r)/n, w = Math.max(1.5, Math.min(12, bw/2-2));

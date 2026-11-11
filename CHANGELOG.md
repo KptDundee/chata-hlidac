@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.286 – 11. 11. 2026
+- Graf „Výroba a spotřeba po měsících“ ukazuje 13 měsíců (tento měsíc vedle loňského).
+- Spotřeba chaty, Rok / Vše: nedoplňuje se zbytečně průběh po hodinách za celý rok (kreslí se jen součty).
+
 ## 5.285 – 11. 11. 2026
 - Oprava 5.284: komentář v kódu spolkl sekci Spotřeba – úvodní stránka se nevykreslila.
 
