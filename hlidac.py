@@ -6889,7 +6889,12 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # 5.145 (Petr): nabíjí se = generátor dává proud a některá River bere. Bez údaje o generátoru (zásuvka (7)
         # i EcoFlow mlčí) stačí, že River bere. Nabíjení ze soláru (zásuvka River automatiky) sem nepatří – generátor 0 W.
         rv_take = any(acw(r) > 20 for r in ctl) or small_w > 0
-        charging = rv_take and (gw is None or gw > 20)
+        # 5.278 (11. 11. 14:43: generátor dával 1466 W, ale údaje River z EcoFlow ukázaly 0 W → hlídač usoudil „přestaly
+        # se nabíjet“ a stáhl všechny na 200 W): když generátor hlásí výkon, rozhoduje generátor – > 100 W = nabíjí se.
+        # Údaje River rozhodují jen bez údaje o generátoru.
+        charging = gw > 100 if gw is not None else rv_take
+        if not charging or not rv_take:
+            print(f"Nabíjení z generátoru: kontrola – generátor {gw} W, motor {gd.get('motor')}, River {[(byid(r['sn']).get('name'), round(acw(r))) for r in ctl]} W, aktivní {gs.get('active')}, první {gs.get('first')}")
         # 5.277 (Petr): krátký výpadek nabíjení, když generátor dál běží (zakuckání, krátké přetížení – generátor na chvíli
         # vypne výstup) → výkony NEsnižovat; River po obnovení hned pokračují s původními. Klidový výkon až když se
         # nenabíjí déle než 90 s nebo motor stojí / generátor je offline. Skutečný start (motor nově naskočil) beze změny:
