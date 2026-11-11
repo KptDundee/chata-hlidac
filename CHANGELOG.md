@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.284 – 11. 11. 2026
+- Dlaždice „🗓 Jsem pryč a spím“ i v sekci ☀️ Výroba (zůstává i ve Výhledu a Přehledu).
+
 ## 5.283 – 11. 11. 2026
 - Dlaždice a karta „🗓 Jsem pryč a spím“: dvě záložky 🚗 Jsem pryč / 😴 Spím, každá s vlastním Uložit. Nahoře „V kalendáři je to takto. Pokud něco nesedí, uprav to.“
 - Spaní po dnech: nové nastavení `spani` („po 0:00, út 22:30, …“ – den = večer), řádek v kartě = noc (jdu spát → vstávám). Hlídač (plán, přepínání, chladnutí) bere spaní podle dne, jinak chladnuti_spat.

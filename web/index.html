@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.283", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.284", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3687,7 +3687,7 @@ function renderHome(d){
   // 5.15: sekce – Chata (teploty, lednice, Flip, spotřebiče), Energie dnes (výroba + spotřeba), Výhled, Uplynulé, Dlouhodobě
   const T = {
     chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h)].filter(Boolean),
-    prod: [tileProdSolar(d, h), tileProdGen(d, h)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
+    prod: [tileProdSolar(d, h), tileProdGen(d, h), tilePlan(d, h)],   // 5.284 (Petr): plán pryč / spaní souvisí s výrobou use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
     out: [tileNight(d,h), tileTomorrow(d,h), tilePlan(d,h)], past: [tilePastNight(d,h), tileYesterday(d,h)],
     long: [tileUtil(d,h), tileWire(d,h), tileHealth(d,h), tileBsim(d,h), tilePanels(d,h), tileSystem(d,h)], src: SRC };
   $("h_dev").innerHTML = T.chata.map(tileHtml).join("");
