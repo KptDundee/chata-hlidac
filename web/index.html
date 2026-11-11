@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.280", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.281", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1674,18 +1674,23 @@ function detCal(body){
 }
 function detPlan(body){
   const d = DATA, tok = store.get("ghtok");
-  body.insertAdjacentHTML("beforeend", wplanHtml(d) + `<div class="card" id="plan_box"><div class="sub">Načítám plán…</div></div>`);
+  // 5.281 (Petr: „karta je povídavá – jde o zadání, info je v jiných kartách“): nahoře hned zadání, vysvětlení a výpočty
+  // pod tím rozbalovací
+  body.insertAdjacentHTML("beforeend", `<div class="card" id="plan_box"><div class="sub">Načítám plán…</div></div>`);
   const box = $("plan_box");
   if(!tok){ box.innerHTML = `<div>Pro úpravu plánu je potřeba přihlášení ke GitHubu (stejné jako u Nastavení).</div>`; $("tokbox").classList.remove("hide"); return; }
   planLoad(tok).then(({P, sha})=>{
     const days = []; for(let i=0;i<8;i++){ const dt = new Date(); dt.setHours(12,0,0,0); dt.setDate(dt.getDate()+i); days.push(dt); }
+    const SRC = k => P[k] ? ["✎", "ruční"] : (d.away_src||{})[k]==="cal" ? ["🗓", "kalendář"] : (d.away_src||{})[k]==="copy" ? ["↺", "jako minule"] : ["", ""];
     const row = (dt) => { const k = dK(dt), own = P[k], ivs = own || awayDay(d, k), home = own ? !own.length : !ivs.length;
-      const iv = (x, j) => `<div class="pliv" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="time" data-pa="${j}" value="${x.a||""}" style="font:inherit"> – <input type="time" data-pb="${j}" value="${x.b||""}" style="font:inherit"><button type="button" data-pdel style="font:inherit;padding:2px 8px">✕</button></div>`;
+      const iv = (x, j) => `<div class="pliv" style="display:flex;gap:4px;align-items:center;margin:3px 0"><input type="time" data-pa="${j}" value="${x.a||""}" style="font:inherit;width:5.6em;padding:2px 3px"> – <input type="time" data-pb="${j}" value="${x.b||""}" style="font:inherit;width:5.6em;padding:2px 3px"><button type="button" data-pdel aria-label="smazat úsek" style="font:inherit;padding:2px 7px">✕</button></div>`;
       const orig = home ? "doma" : ivs.map(x=>x.a+"-"+x.b).join(",");     // 5.240: neupravený den se neukládá (platí kalendář / minulý týden)
-      return `<div class="plrow" data-k="${k}" data-own="${own?1:0}" data-orig="${orig}" style="padding:8px 0;border-bottom:1px solid var(--line)">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${WDN[dt.getDay()]} ${dt.getDate()}. ${dt.getMonth()+1}.${own ? "" : (d.away_src||{})[k]==="cal" ? ` <span class="sub">(z kalendáře)</span>` : (d.away_src||{})[k]==="copy" ? ` <span class="sub">(jako minulý týden)</span>` : ""}</b>
-          <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-home ${home?"checked":""}> doma</label></div>
-        <div class="plivs" style="${home?"display:none":""}">${(ivs.length?ivs:[{a:"",b:""}]).map(iv).join("")}<button type="button" data-padd style="font:inherit;padding:4px 10px;margin-top:2px">+ další úsek</button></div></div>`; };
+      const [si, st] = SRC(k), we = dt.getDay()===0 || dt.getDay()===6;
+      return `<div class="plrow" data-k="${k}" data-own="${own?1:0}" data-orig="${orig}" style="display:grid;grid-template-columns:58px 1fr auto;gap:4px;align-items:start;padding:7px 0;border-bottom:1px solid var(--line)">
+        <div style="line-height:1.2"><b${we?' style="color:var(--text2)"':""}>${WDN[dt.getDay()]} ${dt.getDate()}.</b><div class="sub" style="font-size:11px">${si} ${st}</div></div>
+        <div><div class="plhome sub" style="padding-top:4px;${home?"":"display:none"}"></div>
+          <div class="plivs" style="${home?"display:none":""}">${(ivs.length?ivs:[{a:"",b:""}]).map(iv).join("")}<button type="button" data-padd style="font:inherit;padding:2px 8px;font-size:13px">+ úsek</button></div></div>
+        <label style="display:flex;flex-direction:column;align-items:center;font-size:11.5px;line-height:1.1"><input type="checkbox" data-home ${home?"checked":""} style="margin:2px 0">doma</label></div>`; };
     const AP = d.away_plan, calc = !AP || !(AP.ivs||[]).length ? "" : `<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)"><b>Jak hlídač počítá nejbližší úseky</b>
       <div class="sub" style="margin:4px 0 6px">Obvyklý odběr chaty: přes den ~${nf(AP.w_day)} W, v noci ~${nf(AP.w_night)} W. Doma mezi úseky jede chata ze zapojené River. River musí na konci úseku mít aspoň ${nf(AP.res)} %.</div>
       ${AP.ivs.map(iv=>{ const W = iv.why||{}, R = AP.rv||{};
@@ -1693,26 +1698,32 @@ function detPlan(body){
         const res = iv.src==="solar" ? "pojede solár" : iv.src==="river" ? `pojede ${escH(pn((R[iv.k]||{}).name||""))}` : `<b style="color:var(--crit)">nic nestačí</b>`;
         return `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px"><b>${relDay(iv.a)} ${hmT(iv.a)}–${hmT(iv.b)}</b> → ${res}<br>Solár: na začátku ~${W.sol?Math.max(0,W.sol.pct0):"?"} # → ${W.sol&&W.sol.ok?"vydrží ✓":"nevydrží"}<br>${rv}</div>`; }).join("")}
       <div class="sub" style="margin-top:4px">Spočítáno ${relDay(AP.t)} ${hmT(AP.t)}.</div></div>`;
-    box.innerHTML = `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45">${(d.away_src && Object.values(d.away_src).includes("cal")) ? `Dny se berou <b>z tvých kalendářů</b> (každá událost ±1 h na cestu, volno do 2 h = pořád pryč; označené „z kalendáře“). Když den upravíš a uložíš, platí tvoje úprava.` : `Den, který tu nezadáš, se vezme <b>jako stejný den minulého týdne</b> (označený „jako minulý týden“).`} Uprav, co nesedí, a dej <b>Uložit plán</b> – klidně kdykoli, ne až v neděli večer.</div>${(()=>{ // 5.262 (Petr): spaní a vstávání – v tu dobu nic nepřepneš ani nenabiješ
-      const c = d.cfg||{}, W = {}; for(const part of String(c.vstavani||"").split(",")){ const b = part.trim().split(/\s+/); if(b.length===2) W[b[0].slice(0,2).toLowerCase()] = b[1]; }
-      const DN = ["po","út","st","čt","pá","so","ne"], grp = {}; for(const x of DN){ const t = W[x] || String(c.chladnuti_rano||"7:00"); (grp[t] = grp[t] || []).push(x); }
-      const txt = Object.entries(grp).sort((a,b)=>a[1].length-b[1].length).map(([t,ds])=>`${ds.length===7?"každý den":ds.join(", ")} ${t}`).join(" · ");
-      return `<div style="margin-bottom:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13.5px;line-height:1.45">😴 Spím od ${cfgV("chladnuti_spat", c.chladnuti_spat||"0:00")} · vstávám ${cfgV("vstavani", txt)}<br><span class="sub">V tu dobu hlídač počítá, že nic nepřepneš ani nepustíš generátor – River na noc musí vydržet do vstávání.</span></div>`; })()}
-      <div class="sub" style="margin-bottom:6px">Kdy budeš pryč (od – do). „Do“ dřív než „od“ = přes půlnoc.</div>
+    const c = d.cfg||{}, WK = {}; for(const part of String(c.vstavani||"").split(",")){ const b = part.trim().split(/\s+/); if(b.length===2) WK[b[0].slice(0,2).toLowerCase()] = b[1]; }
+    const DN = ["po","út","st","čt","pá","so","ne"], grp = {}; for(const x of DN){ const t = WK[x] || String(c.chladnuti_rano||"7:00"); (grp[t] = grp[t] || []).push(x); }
+    const wtxt = Object.entries(grp).sort((a,b)=>a[1].length-b[1].length).map(([t,ds])=>`${ds.length===7?"každý den":ds.join(", ")} ${t}`).join(" · ");
+    const det = (t, h) => `<details style="margin-top:8px"><summary class="sub" style="cursor:pointer;padding:4px 0">${t}</summary><div style="margin-top:4px">${h}</div></details>`;
+    box.innerHTML = `
       ${days.map(row).join("")}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="pl_save" style="font:inherit;padding:8px 14px;font-weight:600">Uložit plán</button>
-      <button type="button" id="pl_copy" style="font:inherit;padding:8px 14px">Jako minulý týden</button></div><div class="sub" id="pl_msg" style="margin-top:6px"></div>${calc}`;
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="pl_save" style="font:inherit;padding:8px 16px;font-weight:600">Uložit</button>
+      <button type="button" id="pl_copy" style="font:inherit;padding:8px 14px">Jako minulý týden</button></div><div class="sub" id="pl_msg" style="margin-top:6px"></div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:14px">😴 spím od ${cfgV("chladnuti_spat", c.chladnuti_spat||"0:00")} · vstávám ${cfgV("vstavani", wtxt)}</div>
+      ${det("Jak to funguje", `<div class="sub" style="line-height:1.5">
+        <b>Co platí pro den</b> (první, co existuje): <b>✎ ruční</b> úprava tady → <b>🗓 kalendář</b> (TRENINK, TrSLEV, PRIVAT; událost ±1 h na cestu, volno do 2 h = pořád pryč) → <b>↺ jako minulý týden</b> → doma. Ruční úprava má tedy přednost před kalendářem. Ukládá se jen den, který změníš – ostatní jedou dál podle kalendáře.<br>
+        <b>Úsek</b> od – do; „do“ dřív než „od“ = přes půlnoc. Uložit můžeš kdykoli, hlídač to načte do pár minut.<br>
+        <b>Spaní</b>: od spaní do vstávání hlídač počítá, že nic nepřepneš ani nepustíš generátor – River na noc musí vydržet do vstávání. Ráno mezi vstáváním a odjezdem přepnout jde, nabíjet ne.</div>`)}
+      ${det("Plán do příští možnosti pustit generátor", wplanHtml(d).replace(/^<div class="card">/, "<div>") || `<div class="sub">Zatím nespočítáno.</div>`)}
+      ${calc ? det("Jak hlídač počítá nejbližší úseky", calc) : ""}`;
     box.addEventListener("click", e => {
       const r = e.target.closest(".plrow"); if(!r) return;
-      if(e.target.matches("[data-padd]")){ const n = r.querySelectorAll(".pliv").length; e.target.insertAdjacentHTML("beforebegin", `<div class="pliv" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="time" data-pa="${n}" style="font:inherit"> – <input type="time" data-pb="${n}" style="font:inherit"><button type="button" data-pdel style="font:inherit;padding:2px 8px">✕</button></div>`); }
+      if(e.target.matches("[data-padd]")){ const n = r.querySelectorAll(".pliv").length; e.target.insertAdjacentHTML("beforebegin", `<div class="pliv" style="display:flex;gap:4px;align-items:center;margin:3px 0"><input type="time" data-pa="${n}" style="font:inherit;width:5.6em;padding:2px 3px"> – <input type="time" data-pb="${n}" style="font:inherit;width:5.6em;padding:2px 3px"><button type="button" data-pdel style="font:inherit;padding:2px 7px">✕</button></div>`); }
       if(e.target.matches("[data-pdel]")) e.target.closest(".pliv").remove();
     });
-    box.addEventListener("change", e => { if(e.target.matches("[data-home]")){ e.target.closest(".plrow").querySelector(".plivs").style.display = e.target.checked ? "none" : ""; } });
+    box.addEventListener("change", e => { if(e.target.matches("[data-home]")){ const r = e.target.closest(".plrow"); r.querySelector(".plivs").style.display = e.target.checked ? "none" : ""; r.querySelector(".plhome").style.display = e.target.checked ? "" : "none"; } });
     $("pl_copy").onclick = () => { for(const r of box.querySelectorAll(".plrow")){ const k = r.dataset.k, dt = new Date(k+"T12:00"); dt.setDate(dt.getDate()-7);
       const src = P[dK(dt)] || awayDay(d, dK(dt)); const home = !src.length; r.querySelector("[data-home]").checked = home;
-      const L = r.querySelector(".plivs"); L.style.display = home ? "none" : "";
+      const L = r.querySelector(".plivs"); L.style.display = home ? "none" : ""; r.querySelector(".plhome").style.display = home ? "" : "none";
       L.querySelectorAll(".pliv").forEach(x=>x.remove()); const add = L.querySelector("[data-padd]");
-      for(const [j,x] of (src.length?src:[{a:"",b:""}]).entries()) add.insertAdjacentHTML("beforebegin", `<div class="pliv" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="time" data-pa="${j}" value="${x.a}" style="font:inherit"> – <input type="time" data-pb="${j}" value="${x.b}" style="font:inherit"><button type="button" data-pdel style="font:inherit;padding:2px 8px">✕</button></div>`); }
+      for(const [j,x] of (src.length?src:[{a:"",b:""}]).entries()) add.insertAdjacentHTML("beforebegin", `<div class="pliv" style="display:flex;gap:4px;align-items:center;margin:3px 0"><input type="time" data-pa="${j}" value="${x.a}" style="font:inherit;width:5.6em;padding:2px 3px"> – <input type="time" data-pb="${j}" value="${x.b}" style="font:inherit;width:5.6em;padding:2px 3px"><button type="button" data-pdel style="font:inherit;padding:2px 7px">✕</button></div>`); }
       $("pl_msg").textContent = "Zkopírováno z minulého týdne – zkontroluj a ulož."; };
     $("pl_save").onclick = async () => {
       const N = {...P};
@@ -3719,7 +3730,7 @@ const DET = {
   sys:   {t:"📡 Systém", s:"Co posílá data a deník událostí", ids:["sysInfo","s_log"]},
   log:   {t:"📋 Deník", s:"Automatika, upozornění a chyby", ids:["s_log"]},
   bsim:  {t:"🔋 Jaká baterie", s:"Přehrání skutečné historie (počasí, spotřeba) pro různé baterie", build:detBsim},
-  plan:  {t:"🗓 Kdy jsem pryč", s:"Plán na týden – podle něj hlídač hlídá solár, River a nabíjení", build:detPlan},
+  plan:  {t:"🗓 Kdy jsem pryč", s:"Uprav, co nesedí – ruční úprava má přednost před kalendářem", build:detPlan},
   cal:   {t:"📆 Kalendáře", s:"Co hlídač načetl z kalendářů – týden, 6:00–22:00", build:detCal},
   all:   {t:"🗂 Všechny údaje", s:"Kompletní původní přehled", ids:["heroSec","tilesSec","wxcard","s_plugs","s_pan","s_health","s_charts","s_log","s_tbl"]},
 };

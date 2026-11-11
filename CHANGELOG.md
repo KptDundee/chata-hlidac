@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.281 – 11. 11. 2026
+- Karta 🗓 Kdy jsem pryč: nahoře hned zadání (den · úseky · doma), u dne zdroj (✎ ruční / 🗓 kalendář / ↺ jako minule), Uložit; pod tím spaní/vstávání. Vysvětlení, plán do okna generátoru a výpočet úseků jsou rozbalovací.
+
 ## 5.280 – 11. 11. 2026
 - „🔄 Přepni chatu na River“: přepnout jde kdykoli doma a vzhůru (i ráno mezi vstáváním a odjezdem), nabíjet ne. Upozornění jen když River dojde ve chvíli, kdy spíš nebo jsi pryč – a to 30 min před spaním / odjezdem („před odjezdem (do 6:00)“). Dřív se jako další možnost bralo až okno generátoru (14:08) → nesmyslné „přepni teď“ v 17:14.
 
