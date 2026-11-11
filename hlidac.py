@@ -6823,6 +6823,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 done.append(f"{nm}: chyba {str(res.get('message'))[:60]}")
         if done:
             log("ev", "Nabíjení z generátoru: " + ", ".join(done))
+            print("Nabíjení z generátoru – nastaveno: " + ", ".join(done))     # 5.274: ať je to vidět v záznamu běhu
         return done
 
     def step(tnow):
@@ -6895,6 +6896,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # River, která se přestala nabíjet (plná / odpojená) → hned zpět na bezpečný výkon
         idle_pros = {r["sn"]: safe_of(r) for r in ctl if r not in con and sets.get(r["sn"]) not in (None, safe_of(r))}
         if idle_pros and not gs.get("manual"):
+            print(f"Nabíjení z generátoru: přestala se nabíjet {[byid(sn).get('name') for sn in idle_pros]} → klidový výkon")
             out += apply(idle_pros)
         if not gs.get("active") and charging:              # relace sama (bez tlačítka) – River se nabíjejí
             gs.update({"active": True, "first": None, "idle": None, "t_on": tnow, "idle_warned": False})
@@ -6910,6 +6912,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             # 4.97: generátor vypadl / došlo palivo → hned všem klidový výkon, ať je nový start nepřetíží
             back = {r["sn"]: safe_of(r) for r in ctl if sets.get(r["sn"]) not in (None, safe_of(r))}
             if back:
+                print(f"Nabíjení z generátoru: nenabíjí se (generátor {gw} W, River {[round(acw(r)) for r in ctl]} W) → klidový výkon")
                 out += apply(back)
             gs.pop("sig", None)
             insess.clear()
@@ -6921,9 +6924,12 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             gm = float(gm) if gm is not None else None
         except (TypeError, ValueError):
             gm = None
-        gmax_eff = min(gmax, gm) if gm and 1400 <= gm <= 2500 else gmax     # 4.94: jen věrohodná hodnota
+        # 5.274 (11. 11.: generátor hlásil max 1100 W a dal přesně 1103 W, hlídač plánoval 1700 W → přetížení, River spadly
+        # na klidových 200 W): hlášený max platí od 500 W (dřív až od 1400 W – menší hodnotu hlídač zahodil jako nevěrohodnou)
+        gmax_eff = min(gmax, gm) if gm and 500 <= gm <= 2500 else gmax
         budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0) - (gs.get("jine") or 0)   # 5.182: ubráno pro jiný spotřebič
         avail = max(0.0, budget_eff - small_w)
+        print(f"Nabíjení z generátoru: generátor {gw} W, hlásí max {gm} W → rozpočet {round(budget_eff)} W, nabíjí {[byid(r['sn']).get('name') for r in con]}, ručně {bool(gs.get('manual'))}")
         # 5.169 (Petr): co chybí do plna podle naměřených Wh na 1 % v pásmech (rv_cap.chg.bins; poslední procenta stojí víc)
         # a nikdy méně než 3 % – skoro plná River jinak spadla na 200 W a dobíjela se o 10 min déle než ostatní
         rvc_ = data.get("rv_cap") or {}

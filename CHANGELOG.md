@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.274 – 11. 11. 2026
+- Nabíjení z generátoru: hlášený max. výkon generátoru platí od 500 W (dřív až od 1400 W). 11. 11. generátor hlásil max 1100 W a dával přesně 1103 W, hlídač plánoval 1700 W → River spadly na klidových 200 W. Rozhodnutí řízení se nově vypisují do záznamu běhu.
+
 ## 5.273 – 11. 11. 2026
 - Rady „co udělat“ patří své dlaždici (Petr: „u soláru kdy přepnout na River, u River kdy nabít“): Solární baterie = přepnutí zdroje chaty, EcoFlow = nabít River / přepojit na druhou River / zapojit nabíjení ze soláru. `todo.list[].tile` (sol / rv), seznam až 6 položek.
 - Rada na dlaždici se zalamuje přes celou šířku (dřív byla oříznutá a nebyla vidět).
