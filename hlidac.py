@@ -6924,9 +6924,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             gm = float(gm) if gm is not None else None
         except (TypeError, ValueError):
             gm = None
-        # 5.274 (11. 11.: generátor hlásil max 1100 W a dal přesně 1103 W, hlídač plánoval 1700 W → přetížení, River spadly
-        # na klidových 200 W): hlášený max platí od 500 W (dřív až od 1400 W – menší hodnotu hlídač zahodil jako nevěrohodnou)
-        gmax_eff = min(gmax, gm) if gm and 500 <= gm <= 2500 else gmax
+        # 5.275: zpět na 1400 W – 11. 11. generátor hlásil max 1100 W a přitom dával 1581 W, „max“ tedy není skutečný strop
+        gmax_eff = min(gmax, gm) if gm and 1400 <= gm <= 2500 else gmax     # 4.94: jen věrohodná hodnota
         budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0) - (gs.get("jine") or 0)   # 5.182: ubráno pro jiný spotřebič
         avail = max(0.0, budget_eff - small_w)
         print(f"Nabíjení z generátoru: generátor {gw} W, hlásí max {gm} W → rozpočet {round(budget_eff)} W, nabíjí {[byid(r['sn']).get('name') for r in con]}, ručně {bool(gs.get('manual'))}")
