@@ -6924,8 +6924,9 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             gm = float(gm) if gm is not None else None
         except (TypeError, ValueError):
             gm = None
-        # 5.275: zpět na 1400 W – 11. 11. generátor hlásil max 1100 W a přitom dával 1581 W, „max“ tedy není skutečný strop
-        gmax_eff = min(gmax, gm) if gm and 1400 <= gm <= 2500 else gmax     # 4.94: jen věrohodná hodnota
+        # 5.276 (Petr): „max“ generátoru je nastavení pro jiný provoz (DC / nadmořská výška), pro nabíjení River nic neříká
+        # (11. 11. hlásil 1100 W a dával 1581 W) → nepoužívá se; strop = gen_max_benzin_W / gen_max_lpg_W
+        gmax_eff = gmax
         budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0) - (gs.get("jine") or 0)   # 5.182: ubráno pro jiný spotřebič
         avail = max(0.0, budget_eff - small_w)
         print(f"Nabíjení z generátoru: generátor {gw} W, hlásí max {gm} W → rozpočet {round(budget_eff)} W, nabíjí {[byid(r['sn']).get('name') for r in con]}, ručně {bool(gs.get('manual'))}")

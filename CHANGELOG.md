@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.276 – 11. 11. 2026
+- Hlášený „max“ generátoru se při řízení nabíjení vůbec nepoužívá (Petr: je to nastavení pro DC výstup / nadmořskou výšku, pro nás mimo). Strop = gen_max_benzin_W / gen_max_lpg_W.
+
 ## 5.275 – 11. 11. 2026
 - Vráceno 5.274: hlášený max generátoru (1100 W) není skutečný strop – hned potom generátor dával 1581 W. Výpis rozhodnutí řízení do záznamu běhu zůstává.
 
