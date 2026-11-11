@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.288", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.289", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2926,9 +2926,9 @@ function heatCard(d){
   const msg = st==="cool" ? `Teplota klesá – <b>${limT} dosáhne ${hitT}</b> → zatop do <b>~${hmT(H.warn)}</b>.`
     : st==="below" ? `<b style="color:var(--crit)">Už je pod ${limT}</b> – zatop.`
     : st==="heat" ? `Teplota neklesá – topí se. <span class="sub">(${ifStop})</span>`
-    : st==="ok" ? `Teplota klesá, ale do 22:00 pod ${limT} neklesne.${hitT ? ` <span class="sub">(${limT} ${hitT})</span>` : ""}`
+    : st==="ok" ? `Teplota klesá, ale do spaní pod ${limT} neklesne.${hitT ? ` <span class="sub">(${limT} ${hitT})</span>` : ""}`
     : st==="away" ? `Jsi pryč – upozornění se neposílá. <span class="sub">(${ifStop})</span>`
-    : st==="night" ? `V noci (22:00–6:00) se upozornění neposílá. <span class="sub">(${ifStop})</span>`
+    : st==="night" ? `Spíš – upozornění na zatopení se neposílá (nezatopíš). Na noc platí číslo „při spaní mít aspoň“. <span class="sub">(${ifStop})</span>`
     : "Zatím se nedá spočítat (chybí teplota pokoje nebo naučené chladnutí).";
   const now = H.t || Date.now()/1000, T0 = now - 6*3600, T1 = now + 10*3600;
   const clean = x => String(x).replace(/^[\s,;:.]+|[\s,;:.]+$/g, "");
@@ -2936,18 +2936,22 @@ function heatCard(d){
   const cv = H.curve || [];
   // 5.198 (Petr): standardní graf – zvětšení prsty, hodnoty po ťuknutí, celá obrazovka (⤢)
   HEATCH = (real.length || cv.length) ? {real, cv, lim, T0, T1, now} : null;
-  const svg = HEATCH ? `<div class="card chart" style="margin:10px -2px 0;padding:8px 6px;border:0;box-shadow:none"><h2>Teplota – ${escH(c.room||"pokoj")}</h2><div class="cs"><span style="color:var(--s1)">━</span> naměřeno, dál odhad · <span style="color:var(--s4)">┅</span> odhad, kdyby se od teď netopilo · <span style="color:var(--crit)">┅</span> ${limT}</div><div id="heat_ch"></div></div>` : "";
+  const svg = HEATCH ? `<div class="card chart" style="margin:10px -2px 0;padding:8px 6px;border:0;box-shadow:none"><h2>Teplota – ${escH(c.room||"pokoj")}</h2><div class="cs"><span style="color:var(--s1)">━</span> naměřeno, dál odhad · <span style="color:var(--s4)">┅</span> odhad, kdyby se od teď netopilo · <span style="color:var(--crit)">┅</span> ${nf(lim,0)} °C</div><div id="heat_ch"></div></div>` : "";
   // 5.156: dvě výrazná čísla – kdy zatopit a kolik mít při odchodu spát
   const bigL = (ic, main, sub) => `<div style="display:flex;gap:10px;align-items:baseline;margin:2px 0 6px"><span style="font-size:22px">${ic}</span><div><div style="font-size:24px;font-weight:700;line-height:1.15">${main}</div><div class="sub">${sub}</div></div></div>`;
-  const heatBig = st==="cool" ? bigL("🔥", `Zatop do ${hmT(H.warn)}`, `${limT} bude ${hitT}`)
-    : st==="below" ? bigL("🔥", `<span style="color:var(--crit)">Zatop teď</span>`, `už je pod ${limT}`)
-    : st==="heat" ? bigL("🔥", "Topí se", hitT ? `kdyby se přestalo, ${limT} ${hitT}` : "")
-    : st==="ok" ? bigL("🔥", "Do 22:00 netřeba", `teplota klesá, ale pod ${limT} neklesne`)
-    : bigL("🔥", st==="away" ? "Jsi pryč" : st==="night" ? "Noc" : "–", st==="away" || st==="night" ? "upozornění se teď neposílá" : "zatím se nedá spočítat");
-  const bedBig = c.need_bed!=null && c.bed ? bigL("🛏️", `Ve ${cfgV("chladnuti_spat", hmT(c.bed))} mít aspoň ${nf(c.need_bed,1)} °C`, `aby ${relDay(c.bed_mor)} v ${cfgV("chladnuti_rano", hmT(c.bed_mor))} bylo ${cfgV("chladnuti_cil_C", `${nf(c.target,0)} °C`)}${c.bias!=null && Math.abs(c.bias) >= 0.1 ? ` (s opravou podle ${c.bias_n} nocí ${c.bias < 0 ? "+" : "−"}${nf(Math.abs(c.need_bed - c.need_bed_raw),1)} °C)` : ""}`) : "";
-  return `<div class="card"><h2 style="margin:0 0 6px">🔥 Kdy zatopit – ${escH(c.room||"pokoj")}${H.T!=null ? ` <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--text2)">· teď ${nf(H.T,1)} °C</span>` : ""}</h2>${heatBig}${bedBig}${svg}
+  // 5.289 (Petr: „cirkus“): velká čísla bez tlačítek nastavení uvnitř; nastavení a vysvětlení dole v Podrobnostech
+  const limP = `${nf(lim,0)} °C`;
+  const heatBig = st==="cool" ? bigL("🔥", `Zatop do ${hmT(H.warn)}`, `${limP} bude ${hitT}`)
+    : st==="below" ? bigL("🔥", `<span style="color:var(--crit)">Zatop teď</span>`, `už je pod ${limP}`)
+    : st==="heat" ? bigL("🔥", "Topí se", hitT ? `kdyby se přestalo, ${limP} ${hitT}` : "")
+    : st==="ok" ? bigL("🔥", "Do spaní netřeba", `pod ${limP} klesne${hitT ? " až " + hitT : " až později"}`)
+    : st==="night" ? bigL("🌙", "Spíš", `na zatopení neupozorňuje${H.wake ? " – do " + hmT(H.wake) : ""}`)
+    : bigL("🔥", st==="away" ? "Jsi pryč" : "–", st==="away" ? "na zatopení neupozorňuje" : "zatím se nedá spočítat");
+  const bedBig = c.need_bed!=null && c.bed ? bigL("🛏️", `Ve ${hmT(c.bed)} mít aspoň ${nf(c.need_bed,1)} °C`, `aby ${relDay(c.bed_mor)} v ${hmT(c.bed_mor)} bylo ${nf(c.target,0)} °C${c.bias!=null && Math.abs(c.bias) >= 0.1 ? ` (s opravou podle ${c.bias_n} nocí ${c.bias < 0 ? "+" : "−"}${nf(Math.abs(c.need_bed - c.need_bed_raw),1)} °C)` : ""}`) : "";
+  return `<div class="card"><h2 style="margin:0 0 6px">🔥 Topení – ${escH(c.room||"pokoj")}${H.T!=null ? ` <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--text2)">· teď ${nf(H.T,1)} °C</span>` : ""}</h2>${heatBig}${bedBig}${svg}
     <details style="margin-top:6px"><summary class="sub" style="cursor:pointer">Podrobnosti</summary><div class="sub" style="font-size:13.5px;margin-top:4px">${msg}</div>
-    <div class="sub" style="margin-top:6px;line-height:1.5">Odhad chladnutí podle naučeného modelu a venkovní teploty (naměřené u chaty, dopředu předpovědi) – když se má ochladit, klesá rychleji, když oteplit, pomaleji. Upozornění (${cfgV("chladnuti_predstih_min", `${H.lead} min`)} předem, jednou za jedno chladnutí) jen když jsi na chatě, 6:00–22:00 a teplota za poslední hodinu klesá. Hranici a předstih nastavíš v Nastavení → Chladnutí.</div></details></div>`;
+    <div class="sub" style="margin-top:6px;line-height:1.5">Odhad chladnutí podle naučeného modelu a venkovní teploty (naměřené u chaty, dopředu předpovědi) – když se má ochladit, klesá rychleji, když oteplit, pomaleji. Upozornění (${cfgV("chladnuti_predstih_min", `${H.lead} min`)} předem, jednou za jedno chladnutí) jen když jsi na chatě a vzhůru (ne mezi spaním a vstáváním – to nastavíš v kartě 🗓 Jsem pryč a spím) a teplota za poslední hodinu klesá.</div>
+    <div style="margin-top:8px;font-size:13.5px;line-height:1.9">Nastavení: hranice ${limT} · upozornit ${cfgV("chladnuti_predstih_min", `${H.lead} min`)} předem · ráno mít ${cfgV("chladnuti_cil_C", `${nf(c.target??21,0)} °C`)}</div></details></div>`;
 }
 function coolCard(body, d, h){
   body.insertAdjacentHTML("beforeend", heatCard(d));   // 5.153
@@ -2981,12 +2985,16 @@ function coolCard(body, d, h){
   }
   const whyH = !ev.length && (c.why||[]).length ? `<details style="margin-top:8px"><summary class="sub" style="cursor:pointer">Proč se zatím neučí</summary><div class="sub" style="font-size:12px;margin-top:4px">${c.why.map(escH).join("<br>")}</div></details>` : "";
   const evRows = whyH + (ev.length ? `<details style="margin-top:8px"><summary class="sub" style="cursor:pointer">Noci, ze kterých se učí (${ev.length})</summary><table class="ut" style="width:100%;margin-top:6px;font-size:13px"><tr><th style="text-align:left">noc</th><th>z → na</th><th>venku</th><th>°C/h</th><th>na 10 °C</th></tr>${ev.map(x=>`<tr><td style="text-align:left">${relDay(x.ta)} ${hmT(x.ta)}–${hmT(x.tb)}${x.live?" · chladne":""}${x.win?` · 🪟`:""}</td><td>${nf(x.Ta,1)} → ${nf(x.Tb,1)}</td><td>${nf(x.To,0)} °C</td><td>${x.avg!=null ? `${x.avg > 0 ? "−" : x.avg < 0 ? "+" : ""}${nf(Math.abs(x.avg),2)}` : "–"}</td><td>−${nf(x.r10 ?? x.k*10,2)}</td></tr>`).join("")}</table></details>` : `<div class="sub">Zatím žádná noc (${W[0]}–${W[1]}) s plynulým chladnutím aspoň 3 h.</div>`);
-  body.insertAdjacentHTML("beforeend", `<div class="card"><h2 style="margin:0 0 6px">🌡️ Chladnutí – ${escH(c.room)}</h2>${tiles}${rows}${rowsD ? `<details style="margin-top:8px"><summary class="sub" style="cursor:pointer">Jak chata drží teplo a ráno proti předpovědi</summary>${rowsD}</details>` : ""}${evRows}</div>
+  body.insertAdjacentHTML("beforeend", `<div class="card"><h2 style="margin:0 0 6px">🌡️ Chladnutí – ${escH(c.room)}</h2>${tiles}${rows}</div>
     <div class="card chart"><h2>Noc: ${escH(c.room)} a venku</h2>
       <div class="cs"><span style="color:var(--s1)">━</span> ${escH(c.room)} · <span style="color:var(--s4)">┅</span> předpověď · <span style="color:var(--s3)">━</span> venku · šedé = noc, ze které se učí</div>
-      <details style="margin-top:2px"><summary class="sub" style="cursor:pointer">Co graf ukazuje</summary><div class="sub" style="margin-top:4px;line-height:1.45">K čemu: u minulých nocí porovnáš, jak pokoj skutečně chladl (modře) s předpovědí (oranžově) – když sedí, dá se věřit i číslu „ve 0:00 mít aspoň …“.${c.k && c.n < c.need ? ` Zatím hrubý odhad ze ${c.k_n||0} nocí, přesnější po ${c.need} nocích (teď ${c.n}).` : ""} Předpověď začíná od nejvyšší teploty po ${W[0]} (po přiložení teplota ještě chvíli stoupá); nadcházející noc od spaní z potřebné teploty. Venku: ${c.meas ? "naměřeno teploměrem u chaty, dopředu předpověď" : "předpověď"}${c.wo_bias ? ` posunutá o ${c.wo_bias>0?"+":""}${nf(c.wo_bias,1)} °C podle měření u chaty` : ""}.</div></details>
-      <div class="sub" style="margin-top:8px;font-weight:600;color:var(--text)">Vyber noc:</div><div class="seg" id="cool_nights" style="margin:4px 0 8px;flex-wrap:wrap;gap:4px"></div><div id="cool_ninfo" style="font-size:14px;margin:2px 0 4px"></div><div id="cool_exc" style="margin:4px 0 6px"></div><div id="cool_ch"></div></div>`
-    + `<details style="margin:0 4px 12px"><summary class="sub" style="cursor:pointer">Jak to číst</summary><div class="sub" style="margin-top:4px;line-height:1.5"> všechny rychlosti = změna teploty za hodinu: − chladne, + otepluje se. „Na 10 °C rozdílu“ −0,8 °C/h znamená: při 20 °C uvnitř a 10 °C venku klesá ~0,8 °C za hodinu, při rozdílu 20 °C ~1,6 °C/h; jak se teploty přibližují, chladnutí zpomaluje. Čím blíž nule, tím líp chata drží teplo. Předpověď v grafu je jen orientační – nezná vaření, dýchání ani větrání. Učí se jen z noci ${W[0]}–${W[1]} (přes den se topí udržovacím topením), z konce noci (na začátku ještě hřejí kamna) a bez větrání (🪟).</div></details>`);
+      <div id="cool_nights" style="display:flex;align-items:center;gap:8px;margin:8px 0 6px"></div><div id="cool_ninfo" style="font-size:14px;margin:2px 0 4px"></div><div id="cool_ch"></div><div id="cool_exc" style="margin:6px 0 0"></div></div>`
+    // 5.289: všechna vysvětlení a podrobnosti pohromadě dole
+    + `<div class="card"><h2 style="margin:0 0 4px">Podrobnosti a vysvětlení</h2>
+      ${rowsD ? `<details style="margin-top:6px"><summary class="sub" style="cursor:pointer">Jak chata drží teplo a ráno proti předpovědi</summary>${rowsD}</details>` : ""}
+      ${evRows}
+      <details style="margin-top:8px"><summary class="sub" style="cursor:pointer">Co ukazuje graf noci</summary><div class="sub" style="margin-top:4px;line-height:1.45">K čemu: u minulých nocí porovnáš, jak pokoj skutečně chladl (modře) s předpovědí (oranžově) – když sedí, dá se věřit i číslu „ve 0:00 mít aspoň …“.${c.k && c.n < c.need ? ` Zatím hrubý odhad ze ${c.k_n||0} nocí, přesnější po ${c.need} nocích (teď ${c.n}).` : ""} Předpověď začíná od nejvyšší teploty po ${W[0]} (po přiložení teplota ještě chvíli stoupá); nadcházející noc od spaní z potřebné teploty. Venku: ${c.meas ? "naměřeno teploměrem u chaty, dopředu předpověď" : "předpověď"}${c.wo_bias ? ` posunutá o ${c.wo_bias>0?"+":""}${nf(c.wo_bias,1)} °C podle měření u chaty` : ""}.</div></details>
+      <details style="margin-top:8px"><summary class="sub" style="cursor:pointer">Jak to číst</summary><div class="sub" style="margin-top:4px;line-height:1.5"> všechny rychlosti = změna teploty za hodinu: − chladne, + otepluje se. „Na 10 °C rozdílu“ −0,8 °C/h znamená: při 20 °C uvnitř a 10 °C venku klesá ~0,8 °C za hodinu, při rozdílu 20 °C ~1,6 °C/h; jak se teploty přibližují, chladnutí zpomaluje. Čím blíž nule, tím líp chata drží teplo. Předpověď v grafu je jen orientační – nezná vaření, dýchání ani větrání. Učí se jen z noci ${W[0]}–${W[1]} (přes den se topí udržovacím topením), z konce noci (na začátku ještě hřejí kamna) a bez větrání (🪟).</div></details></div>`);
   { const b0 = new Date(); b0.setHours(20,0,0,0); coolNight(d, h, new Date().getHours() >= 12 && Date.now()/1000 < b0.getTime()/1000 ? 1 : 0); }   // 5.159: přes den rovnou minulá noc (dnešní ještě nezačala)
 }
 /* 5.170 (Petr): výjimečná noc (víc lidí v pokoji…) – nepoužít k učení chladnutí; uloží se do nastavení chladnuti_vyjimky */
@@ -3012,12 +3020,14 @@ function coolNight(d, h, n){
   const nights = []; for(let i=0;i<8;i++){ const s0 = new Date(base); s0.setDate(base.getDate()-i); const t0 = s0.getTime()/1000, e0 = new Date(s0); e0.setDate(s0.getDate()+1); e0.setHours(8,0,0,0);
     const t1 = e0.getTime()/1000; if(i>0 && !room.some(q=>q.t>=t0 && q.t<=t1)) continue; nights.push({t0, t1, lab: i===0 ? (now < t0 ? "dnes v noci" : now < t1 ? "tahle noc" : "minulá noc") : `${s0.toLocaleDateString("cs-CZ",{weekday:"short"})}→${e0.toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})}`}); }
   if(n >= nights.length) n = 0;
-  bar.innerHTML = nights.map((x,i)=>`<button type="button" data-n="${i}" aria-pressed="${i===n}" style="white-space:nowrap">${x.lab}</button>`).join("");
-  bar.onclick = e => { const b = e.target.closest("button"); if(b) coolNight(d, h, +b.dataset.n); };
+  // 5.289: místo řady tlačítek šipky ‹ noc ›
+  const ab = (i, t) => `<button type="button" data-n="${i}" ${i<0||i>=nights.length?"disabled":""} style="font:inherit;font-size:18px;padding:2px 12px;border-radius:10px;border:1px solid var(--btnline);background:var(--btn);color:var(--text)">${t}</button>`;
+  bar.innerHTML = ab(n+1, "‹") + `<b style="flex:1;text-align:center">${nights[n] ? nights[n].lab : ""}</b>` + ab(n-1, "›");
+  bar.onclick = e => { const b = e.target.closest("button"); if(b && !b.disabled) coolNight(d, h, +b.dataset.n); };
   const N = nights[n]; if(!N) return empty(el, "Zatím málo dat.");
   { const cn = (c.nights||[]).find(x=>x.tb > N.t0 && x.tb <= N.t1 && x.err!=null), info = $("cool_ninfo");   // 5.160
     const nk = dkey(N.t0), exc = String(d.cfg?.chladnuti_vyjimky||"").split(/[,;\s]+/).filter(Boolean), isExc = exc.includes(nk);   // 5.170
-    const eb = $("cool_exc"); if(eb) eb.innerHTML = `<button type="button" onclick="coolExc('${nk}')" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:${isExc?"color-mix(in srgb,var(--warn) 25%,transparent)":"transparent"};color:var(--text);cursor:pointer">${isExc ? "✓ Výjimečná noc – nepoužívá se k učení (zrušit)" : "🚫 Označit jako výjimečnou (víc lidí…) – nepoužít k učení"}</button>`;
+    const eb = $("cool_exc"); if(eb) eb.innerHTML = `<button type="button" onclick="coolExc('${nk}')" style="font:inherit;font-size:12.5px;padding:3px 8px;border-radius:8px;border:1px solid var(--line);background:${isExc?"color-mix(in srgb,var(--warn) 25%,transparent)":"transparent"};color:var(--text2);cursor:pointer">${isExc ? "✓ výjimečná noc – neučí se z ní (zrušit)" : "výjimečná noc (víc lidí…) – neučit se z ní"}</button>`;
     if(info) info.innerHTML = cn ? `Ráno ${hmT(cn.tb)}: skutečnost <b>${nf(cn.Tb,1)} °C</b>, předpověď ${nf(cn.pred,1)} °C → <b style="color:var(${cn.err < -0.4 ? "--crit" : cn.err > 0.4 ? "--good" : "--text"})">${cn.err > 0 ? "+" : cn.err < 0 ? "−" : ""}${nf(Math.abs(cn.err),1)} °C</b>` : ""; }
   const R = room.filter(q=>q.t>=N.t0 && q.t<=N.t1), O = out.filter(q=>q.t>=N.t0 && q.t<=N.t1);   // 5.156: jen v okně (dřív svislé čáry na okrajích)
   // předpověď: od začátku okna (0:00) z naměřené teploty; když okno ještě nezačalo nebo běží, od teď

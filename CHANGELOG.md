@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.289 – 11. 11. 2026
+- Teploty → Chladnutí přehledněji: nahoře „🔥 Topení“ (kdy zatopit, při spaní mít aspoň, graf), pak chladnutí (3 čísla), graf noci s výběrem ‹ noc ›; nastavení a všechna vysvětlení dole v „Podrobnosti a vysvětlení“. Velká čísla bez tlačítek nastavení uvnitř.
+- Upozornění „zatop“: noc = když spíš (spaní → vstávání podle dne), ne pevně 22:00–6:00 – večer před spaním chodí. „Do spaní netřeba“ místo „Do 22:00“.
+
 ## 5.288 – 11. 11. 2026
 - Zrušena stará večerní zpráva „🌙 Před spaním přepoj chatu na druhou River“ (River do východu slunce + 1 h). Přepnutí River řeší jen plán – ví o spaní, vstávání a odjezdu („před spaním (do 0:00)“ / „před odjezdem (do 6:00)“). Dřív obě zprávy radily různé věci. Večerní zpráva pro solární baterii zůstává.
 

@@ -4528,9 +4528,18 @@ def heat_plan(data, st, now, topic, cfg):
                 h["hit"], h["warn"] = int(hit), int(hit - lead * 60)
     if c.get("trend") is not None and c["trend"] >= 0:
         hs.pop("sent", None)                                 # topí se → další chladnutí smí upozornit znovu
+    # 5.289 (Petr: „Noc – upozornění se teď neposílá. Proč ne?“): noc = když spíš (spaní → vstávání podle dne), ne pevně
+    # 22:00–6:00 – večer před spaním upozornění chodí. Hranice „do kdy“ = spaní.
+    ev_d = (now if now.hour >= 12 else now - timedelta(days=1)).date()
+    bh_, bm_ = bed_time(cfg, ev_d)
+    bed_dt = datetime(ev_d.year, ev_d.month, ev_d.day, bh_, bm_, tzinfo=TZ) + (timedelta(days=1) if bh_ < 12 else timedelta(0))
+    wd_ = bed_dt.date() if bh_ < 12 else bed_dt.date() + timedelta(days=1)
+    wh_, wm_ = wake_time(cfg, wd_)
+    wake_dt = datetime(wd_.year, wd_.month, wd_.day, wh_, wm_, tzinfo=TZ)
+    h["bed"], h["wake"] = int(bed_dt.timestamp()), int(wake_dt.timestamp())
     if is_away(cfg, PLAN, now):
         h["state"] = "away"
-    elif not 6 <= now.hour < 22:
+    elif bed_dt <= now < wake_dt:
         h["state"] = "night"
     elif c.get("T_now") is None or not c.get("k") or not h.get("curve"):
         h["state"] = "nomodel"
@@ -4538,7 +4547,7 @@ def heat_plan(data, st, now, topic, cfg):
         h["state"] = "heat"
     elif c["T_now"] <= lim:
         h["state"] = "below"
-    elif not h.get("hit") or h["hit"] > now.replace(hour=22, minute=0, second=0, microsecond=0).timestamp():
+    elif not h.get("hit") or h["hit"] > h["bed"]:
         h["state"] = "ok"
     else:
         h["state"] = "cool"
