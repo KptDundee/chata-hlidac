@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.286", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.287", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3199,19 +3199,20 @@ function detUse(body, src="a"){
   const dd = useDays(Math.max(hrs, 24), U);
   const only = src==="a" ? "" : ` · jen když chata jela ${SRCN[src]}`;
   const ser = id => rows.map(r=>({t:r.t, w: r[src][id] ?? null}));
-  const bars = (el, id) => src==="a"
-    ? stackBars(el, dd.map(q=>({k:q.k, v:{s:q.s[id]||0, r:q.r[id]||0}})), SRC, {})
-    : barChart(el, dd.filter(q=>q[src][id]!=null).map(q=>({k:q.k, v:(q[src][id]||0)/1000})), "v", col, {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
+  const bars = (el, id) => src==="a"     // 5.287: Rok / Vše po měsících
+    ? stackBars(el, perItems(dd.map(q=>({k:q.k, v:{s:q.s[id]||0, r:q.r[id]||0}}))), SRC, {})
+    : barChart(el, perItems(dd.filter(q=>q[src][id]!=null).map(q=>({k:q.k, v:(q[src][id]||0)/1000}))), "v", col, {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
   const srcCap = src==="a" ? ` · <span style="color:var(--s2)">■</span> ze soláru · <span style="color:var(--s1)">■</span> z River` : "";
   // 4.38: výroba a spotřeba chaty celkem po dnech – pokryla výroba spotřebu? (stejný graf jako v detailu Solár)
-  const pu = src==="a" ? chartCard("u_pu", long ? "Výroba a spotřeba po měsících" : "Výroba a spotřeba po dnech",
-    `kWh · <span style="color:var(--s2)">■</span> výroba · spotřeba celkem: <span style="color:var(--s3)">■</span> ze soláru (i se ztrátami měniče) <span style="color:var(--s1)">■</span> z River · ťukni na den`) : "";
-  const ud = src==="a" ? chartCard("u_days", "Spotřeba chaty po dnech", "kWh za den (měřeno na zásuvkách) · čárkovaně obvyklá = medián předchozích 14 dní (velké výkyvy se neprojeví)") : "";
+  const G = detGran();   // 5.287: h / d / m podle přepínače období
+  const pu = src==="a" ? chartCard("u_pu", G==="h" ? "Výroba a spotřeba po hodinách" : G==="m" ? "Výroba a spotřeba po měsících" : "Výroba a spotřeba po dnech",
+    `${G==="h" ? "Wh za hodinu" : "kWh"} · <span style="color:var(--s2)">■</span> výroba · spotřeba celkem: <span style="color:var(--s3)">■</span> ze soláru (i se ztrátami měniče) <span style="color:var(--s1)">■</span> z River${G==="d" ? " · ťukni na den" : ""}`) : "";
+  const ud = src==="a" && G!=="h" ? chartCard("u_days", G==="m" ? "Spotřeba chaty po měsících" : "Spotřeba chaty po dnech", G==="m" ? "kWh za měsíc (měřeno na zásuvkách)" : "kWh za den (měřeno na zásuvkách) · čárkovaně obvyklá = medián předchozích 14 dní (velké výkyvy se neprojeví)") : "";
   const UT = tabsHead("us_tab", [["g","📊 Grafy"],["n","🔢 Čísla"]]);
   // 5.199 (Petr): kolik hodin chata jela z čeho – skládané sloupce po dnech (vedle výroby a spotřeby)
-  const phc = src==="a" ? chartCard("u_ph", "Kolik hodin chata jela z čeho", `h za den · <span style="color:var(--s6)">■</span> solár · ${rivModel(d, homeData(d)).R.filter(r=>!rvSmall(r)).map(r=>`<span style="color:${r.color}">■</span> ${escH(r.short)}`).join(" · ")} · <span style="color:var(--muted)">■</span> nezjištěno · ťukni na den`) : "";
-  let html = UT.html + `<div id="us_tab_g"${UT.cur==="g"?"":' style="display:none"'}>` + segHtml() + pu + phc + (src==="a" ? srcPiesHtml(d, homeData(d)) : "") + ud
-    + chartCard("u_sum", `Odběr chaty ${SRCN[src]}`, long ? `kWh za den${srcCap}` : `W${src==="a" ? " · 220 V + River · šedé pozadí = chata na River" : src==="s" ? " · zásuvka 220 V za měničem" : " · zásuvky na výstupu River"}`);
+  const phc = src==="a" && G!=="h" ? chartCard("u_ph", "Kolik hodin chata jela z čeho", `h za ${G==="m" ? "měsíc" : "den"} · <span style="color:var(--s6)">■</span> solár · ${rivModel(d, homeData(d)).R.filter(r=>!rvSmall(r)).map(r=>`<span style="color:${r.color}">■</span> ${escH(r.short)}`).join(" · ")} · <span style="color:var(--muted)">■</span> nezjištěno${G==="d" ? " · ťukni na den" : ""}`) : "";
+  let html = UT.html + `<div id="us_tab_g"${UT.cur==="g"?"":' style="display:none"'}>` + segHtml() + pu + (src==="a" ? srcStripHtml(d, homeData(d)) + srcPiesHtml(d, homeData(d)) : "") + phc + ud
+    + chartCard("u_sum", `Odběr chaty ${SRCN[src]}`, long ? `kWh za ${detGran()==="m" ? "měsíc" : "den"}${srcCap}` : `W${src==="a" ? " · 220 V + River · šedé pozadí = chata na River" : src==="s" ? " · zásuvka 220 V za měničem" : " · zásuvky na výstupu River"}`);
   if(src!=="r") html += chartCard("u_220", "220 V – zásuvka za měničem", long ? `kWh za den · v bublině i se ztrátami měniče` : `W · <span style="color:var(--s2)">━ změřeno na zásuvce</span> · <span style="color:var(--s1)">╍ vzato z baterie (+12 % ztráty měniče, +${nf(U.idle,1)} W měnič a desulfátor)</span>`);
   // 5.175 (Petr): graf „Ostatní“ před světly
   const isLt = x => /sv[eě]tl/i.test(x.name) || ((d.inverter||{}).tp||[]).some(p=>p.ip===x.id && p.lt), devCard = x => chartCard("u_d"+x.id, x.name, `${long ? "kWh za den" + srcCap : "W"}${only}${x.hist ? "" : " · historie od 14. 10."}`);
@@ -3241,22 +3242,23 @@ function detUse(body, src="a"){
     <b>Nabíjení River ze soláru</b> (zásuvka 8) neměří – když běží, schová se v „ostatní“.</div></div></div>`;
   body.insertAdjacentHTML("beforeend", html);
   tabsWire("us_tab", ["g","n"]);
-  if(src==="a") prodUse($("u_pu"), long ? "m" : "d");
+  if(src==="a") prodUse($("u_pu"), G, G==="d" ? 7 : detMonths());
   if(src==="a" && $("u_ph")){ const R_ = rivModel(d, homeData(d)).R.filter(r=>!rvSmall(r)), D_ = d.days || {};
-    const ks = Object.keys(D_).sort().filter(k=>D_[k].sh != null).slice(-30);
+    const ks = Object.keys(D_).sort().filter(k=>D_[k].sh != null);
     const layers = [{id:"s", name:"solár", color:css("--s6")}, ...R_.map(r=>({id:"r"+r.id, name:r.short, color:r.color})), {id:"u", name:"nezjištěno", color:css("--muted")}];
-    stackBars($("u_ph"), ks.map(k=>{ const x = D_[k], v = {s:(x.sh||0)*1000}; let kn = x.sh||0;
+    stackBars($("u_ph"), perItems(ks.map(k=>{ const x = D_[k], v = {s:(x.sh||0)*1000}; let kn = x.sh||0;
       for(const r of R_){ const hh = (x.rh||{})[r.id]||0; v["r"+r.id] = hh*1000; kn += hh; }
       if(x.rhh != null && x.rhh - kn > 0.25) v.u = (x.rhh - kn)*1000;
-      return {k, v}; }), layers, {unit:"h", dec:1}); }
+      return {k, v}; })), layers, {unit:"h", dec:1}); }
   if(src==="a"){ const all = Object.keys(d.days||{}).sort().map(k=>useDay(k, U)).filter(Boolean).map(q=>({k:q.k, v:q.a._sum/1000}));
     const med = a => { const x = a.slice().sort((p,q)=>p-q); return x.length >= 3 ? x[Math.floor(x.length/2)] : null; };
-    const ser = all.map((q,i)=>({...q, m: med(all.slice(Math.max(0,i-14), i).map(r=>r.v))})).slice(-30);
-    barChart($("u_days"), ser, "v", css("--s3"), {unit:"kWh",dec:2,label:k=>dayLabel(k), line:"m",
+    const ser = G==="m" ? byMonth(all, detMonths()) : all.map((q,i)=>({...q, m: med(all.slice(Math.max(0,i-14), i).map(r=>r.v))})).slice(-7);
+    if($("u_days")) barChart($("u_days"), ser, "v", css("--s3"), {unit:"kWh",dec:2,label:k=>dayLabel(k), line: G==="m" ? undefined : "m",
       tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>${q.m ? `<br>obvykle ${nf(q.m,2)} kWh (${q.v>=q.m?"+":"−"}${nf(Math.abs(q.v/q.m-1)*100,0)} %)` : ""}`}); }
   if(long){
     bars($("u_sum"), "_sum");
-    if(src!=="r") barChart($("u_220"), dd.map(q=>({k:q.k, v:(q.s._sum||0)/1000})), "v", css("--s2"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b> změřeno<br>z baterie ~${nf(q.v/0.88 + U.idle*24/1000,2)} kWh`});
+    if(src!=="r"){ const M2 = detGran()==="m", it = perItems(dd.map(q=>({k:q.k, v:(q.s._sum||0)/1000, n:1})));
+      barChart($("u_220"), it, "v", css("--s2"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b> změřeno${M2 ? "" : `<br>z baterie ~${nf(q.v/0.88 + U.idle*24/1000,2)} kWh`}`}); }
     for(const x of U.devs) bars($("u_d"+x.id), x.id);
     bars($("u_o"), "_o");
     return;
@@ -3796,7 +3798,15 @@ function dayExt(key, days, fn){
     if(!best || (fn==="min" ? v < best.v : v > best.v)) best = {v, k}; }
   return best;
 }
-const dTxt = k => `${relN(k)>=-1 ? relDay(k) : dayLabel(k)}`;
+const dTxt = k => String(k).length===7 ? new Date(k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"}) : `${relN(k)>=-1 ? relDay(k) : dayLabel(k)}`;
+/* 5.287 (Petr): krok grafů podle období – Dnes / 48 h po hodinách, Týden po dnech, Rok (13) / Vše po měsících */
+const detGran = () => DETR==="d" || DETR==="48" ? "h" : DETR==="168" ? "d" : "m";
+const detMonths = () => DETR==="y" ? 13 : 800;
+function byMonth(items, last){ const g = {};
+  for(const q of items){ const m = q.k.slice(0,7), num = typeof q.v !== "object", o = g[m] ||= {k:m, v: num ? 0 : {}};
+    if(num) o.v += q.v || 0; else for(const [a,b] of Object.entries(q.v||{})) o.v[a] = (o.v[a]||0) + (b||0); }
+  const r = Object.values(g).sort((a,b)=>a.k < b.k ? -1 : 1); return last ? r.slice(-last) : r; }
+const perItems = items => detGran()==="m" ? byMonth(items, detMonths()) : detGran()==="d" ? items.slice(-7) : items;
 /* 5.83: záložky v detailu – společné (Flip/Wi‑Fi a EcoFlow mají vlastní, stejně vypadají) */
 function tabsHead(key, tabs){
   let cur = tabs[0][0]; try{ cur = localStorage.getItem(key) || cur; }catch(_){}
@@ -3973,16 +3983,28 @@ function detToday(body){
 }
 /* výroba a spotřeba chaty celkem po dnech / měsících (4.37): sloupec výroba + vedle něj spotřeba složená
    ze soláru (zásuvka za měničem + ztráty měniče) a z River (zásuvky River). Bublina: pokryla / chybělo. */
-function prodUse(el, mode){
-  const D = DATA.days || {}, U = useModel(DATA), idle = DATA.cfg?.menic_vlastni_W ?? 6, M_ = mode==="m";
+function prodUse(el, mode, last){
+  // mode: "h" po hodinách (Dnes / 48 h, z měření po ~10 min, Wh), "d" po dnech (last = kolik dní), "m" po měsících (last = 13 / vše)
+  const D = DATA.days || {}, U = useModel(DATA), idle = DATA.cfg?.menic_vlastni_W ?? 6, M_ = mode==="m", H_ = mode==="h";
   USE_SH = null;
-  const keys = Object.keys(D).sort().slice(M_ ? -400 : -30), agg = {};
+  let rows;
+  if(H_){   // 5.287 (Petr): Dnes / 48 h po hodinách – výroba panelů a spotřeba chaty (ze soláru vč. ztrát měniče / z River)
+    const now = Date.now()/1000, t0 = now - detHours()*3600, g = {}, av = a => a.reduce((x,y)=>x+y,0)/a.length;
+    for(const p of (DATA.points||[]).filter(p=>p.t >= t0)){ const hk = Math.floor(p.t/3600)*3600, o = g[hk] ||= {k:hk, pv:[], s:[], r:[]};
+      if(p.pv_w!=null) o.pv.push(p.pv_w); const u = useAt(p, U); if(u){ o.s.push(u.s._sum||0); o.r.push(u.r._sum||0); } }
+    rows = Object.values(g).sort((a,b)=>a.k-b.k).map(o=>{ const sw = o.s.length ? av(o.s) : null;
+      const sv = sw==null ? 0 : sw > 5 ? sw/0.88 + idle : sw, rv = o.r.length ? av(o.r) : 0;
+      return {k:o.k, p: o.pv.length ? av(o.pv) : 0, s: sv, r: rv, u: o.s.length ? sv + rv : null}; });
+  } else {
+  const keys = Object.keys(D).sort().slice(M_ ? -800 : -(last||30)), agg = {};
   for(const k of keys){ const x = D[k], ud = useDay(k, U), ac = ud ? ud.s._sum : (x.tp||{})[U.mip];
     if(x.solar_kwh==null && ac==null) continue;
     const g = M_ ? k.slice(0,7) : k, o = agg[g] ||= {k:g, p:0, s:0, r:0, nu:0};
     o.p += x.solar_kwh || 0;
     if(ac!=null || ud){ o.s += (ac||0)/0.88/1000 + ((ac||0) > 5 ? idle*24/1000 : 0); o.r += ud ? (ud.r._sum||0)/1000 : 0; o.nu++; } }
-  const rows = Object.values(agg).slice(M_ ? -13 : -30).map(o=>({...o, u: o.nu ? o.s + o.r : null}));   // 5.286: 13 měsíců – tento měsíc vedle loňského
+  rows = Object.values(agg).slice(M_ ? -(last||13) : -(last||30)).map(o=>({...o, u: o.nu ? o.s + o.r : null}));   // 5.286: 13 měsíců – tento měsíc vedle loňského
+  }
+  const UNt = H_ ? "Wh" : "kWh", DCt = H_ ? 0 : 2, kL = q => H_ ? `${relDay(q.k)} ${hmT(q.k)}–${hmT(q.k+3600)}` : M_ ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"}) : dTxt(q.k);
   if(!rows.length) return empty(el, "Zatím žádné celé dny.");
   const hi = Math.max(...rows.map(r=>Math.max(r.p, r.u||0)))*1.15 || 1, {svg,y} = frame(el, 0, hi, hi<3?1:0);
   const n = Math.max(rows.length, 7), bw = (W-M.l-M.r)/n, w = Math.max(1.5, Math.min(12, bw/2-2));
@@ -3993,17 +4015,17 @@ function prodUse(el, mode){
     s += bar(cx-w-1, 0, q.p, css("--s2"));
     if(q.u!=null){ s += bar(cx+1, 0, q.s, css("--s3")) + bar(cx+1, q.s, q.r, css("--s1")); }
     s += `<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
-    if(i%Math.ceil(rows.length/6)===0 || i===rows.length-1) s += `<text x="${cx}" y="${H-6}" text-anchor="middle">${M_ ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"}) : dayLabel(q.k)}</text>`; });
+    if(i%Math.ceil(rows.length/6)===0 || i===rows.length-1) s += `<text x="${cx}" y="${H-6}" text-anchor="middle">${H_ ? hmT(q.k).slice(0,2) : M_ ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"}) : dayLabel(q.k)}</text>`; });
   // 5.22: kolik musí solár vyrobit, aby pokryl obvyklou spotřebu (medián 14 celých dní ÷ účinnost nabíjení 85 %)
-  const NEED = (()=>{ if(M_) return null; const today = dkey(Date.now()/1000), us = rows.filter(r=>r.k < today && r.u!=null).slice(-14).map(r=>r.u).sort((a,b)=>a-b);
+  const NEED = (()=>{ if(M_ || H_) return null; const today = dkey(Date.now()/1000), us = rows.filter(r=>r.k < today && r.u!=null).slice(-14).map(r=>r.u).sort((a,b)=>a-b);
     return us.length >= 3 ? us[Math.floor(us.length/2)] / 0.85 : null; })();
   if(NEED){ s += `<line x1="${M.l}" x2="${W-M.r}" y1="${y(NEED)}" y2="${y(NEED)}" stroke="var(--text2)" stroke-width="1.5" stroke-dasharray="6 4"/>`
     + `<text x="${W-M.r}" y="${y(NEED)-4}" text-anchor="end" style="font-size:11px;fill:var(--text2)">potřeba ~${nf(NEED,2)} kWh</text>`; }
   svg.insertAdjacentHTML("beforeend", s);
   hover(svg, rows, q=>{ const b = q.u!=null ? q.p - q.u : null;
-    return `${M_ ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"}) : dTxt(q.k)}<br><span style="color:var(--s2)">■</span> výroba <b>${nf(q.p,2)} kWh</b>`
-      + (q.u!=null ? `<br>spotřeba celkem <b>${nf(q.u,2)} kWh</b><br><span style="color:var(--s3)">■</span> ze soláru ${nf(q.s,2)} · <span style="color:var(--s1)">■</span> z River ${nf(q.r,2)}`
-        + `<br><b style="color:var(${b>=0?"--good":"--crit"})">${b>=0?"výroba pokryla spotřebu (+"+nf(b,2)+" kWh)":"chybělo "+nf(-b,2)+" kWh"}</b>` : "<br>spotřeba –")
+    return `${kL(q)}<br><span style="color:var(--s2)">■</span> výroba <b>${nf(q.p,DCt)} ${UNt}</b>`
+      + (q.u!=null ? `<br>spotřeba celkem <b>${nf(q.u,DCt)} ${UNt}</b><br><span style="color:var(--s3)">■</span> ze soláru ${nf(q.s,DCt)} · <span style="color:var(--s1)">■</span> z River ${nf(q.r,DCt)}`
+        + `<br><b style="color:var(${b>=0?"--good":"--crit"})">${b>=0?"výroba pokryla spotřebu (+"+nf(b,DCt)+" "+UNt+")":"chybělo "+nf(-b,DCt)+" "+UNt}</b>` : "<br>spotřeba –")
       + (NEED ? `<br><span class="sub">obvyklá potřeba ~${nf(NEED,2)} kWh (spotřeba + ztráty nabíjení)</span>` : ""); });
 }
 /* ---------- rozbor nocí: proč je ranní minimum nižší (posledních 5 nocí vs předtím) ---------- */
@@ -4252,7 +4274,8 @@ $("detclose").addEventListener("click", () => { closeDetMove(); DET_K = null; $(
 $("openlog").addEventListener("click", e => { e.preventDefault(); openDet("log"); });
 $("openall").addEventListener("click", e => { e.preventDefault(); openDet("all"); });
 
-function dayLabel(k){return new Date(k).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"});}
+function dayLabel(k){ if(String(k).length===7) return new Date(k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"});   // 5.287: klíč měsíce „2026-11“
+  return new Date(k).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"});}
 function barChart(el, dd, key, color, o){
   const p=dd.filter(q=>q[key]!=null); if(!p.length) return empty(el,"Zatím žádné celé dny.");
   const hi=Math.max(...p.map(q=>q[key]))*1.15||1; const {svg,y}=frame(el,0,hi,1);

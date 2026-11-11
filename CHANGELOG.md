@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.287 – 11. 11. 2026
+- Spotřeba chaty: přepínač období platí pro všechny grafy – Dnes / 48 h po hodinách, Týden po dnech (7), Rok po měsících (13, tento vedle loňského), Vše po měsících.
+- Nový graf „Výroba a spotřeba po hodinách“ (Dnes / 48 h). Hned pod ním „Co kdy napájelo chatu“ (pás) a „Na co jela chata“ (koláče čas / energie).
+- „Kolik hodin chata jela z čeho“ a „Spotřeba chaty po dnech“ se u Dnes / 48 h skryjí (totéž říká pás a průběh Odběru); u Roku / Vše po měsících.
+
 ## 5.286 – 11. 11. 2026
 - Graf „Výroba a spotřeba po měsících“ ukazuje 13 měsíců (tento měsíc vedle loňského).
 - Spotřeba chaty, Rok / Vše: nedoplňuje se zbytečně průběh po hodinách za celý rok (kreslí se jen součty).
