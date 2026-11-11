@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.285 – 11. 11. 2026
+- Oprava 5.284: komentář v kódu spolkl sekci Spotřeba – úvodní stránka se nevykreslila.
+
 ## 5.284 – 11. 11. 2026
 - Dlaždice „🗓 Jsem pryč a spím“ i v sekci ☀️ Výroba (zůstává i ve Výhledu a Přehledu).
 
