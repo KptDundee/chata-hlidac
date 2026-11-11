@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.267", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.268", FLIP_VER = "1.9.17";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1210,7 +1210,10 @@ function homeData(d){
   const last = d.last || {}, pts = d.points || [], lp = pts[pts.length-1] || {};
   const now = Date.now()/1000, cfg = d.cfg || {}, idle = (cfg.menic_vlastni_W ?? 6) + (cfg.desulfator_W ?? 0.25);
   const bv = last.bat_v ?? lp.bat_v, status = last.status ?? lp.status, a = last.bat_a ?? lp.bat_a, pv = last.pv_w ?? lp.pv_w;
-  const inv = d.inverter, invF = inv && now - inv.t < 1800;
+  // 5.268: čerstvost vůči poslednímu běhu hlídače – když hlídač chvíli neběžel, platí poslední známý stav
+  // (dřív po 30 min zmizelo „chata na River“ a objevil se odběr z baterie); že data nepřišla, hlásí dlaždice zvlášť
+  const ref = d.run_t && d.run_t < now ? d.run_t : now;
+  const inv = d.inverter, invF = inv && ref - inv.t < 1800;
   const loadW = invF && inv.mw!=null ? inv.mw/0.88 + idle : null;
   const net = loadW!=null && bv && a!=null ? a - loadW/bv : null;
   const day = (d.sun ? now >= d.sun[0] && now < d.sun[1] : (new Date().getHours()>=7 && new Date().getHours()<19)) || ((last.pv_w ?? lp.pv_w) || 0) > 20;
@@ -1237,7 +1240,7 @@ function homeData(d){
   // 5.92: chyba čtení (err) neznamená vypnutý měnič – jen nedostupná / chybějící zásuvka (27. 10. web dlouho psal „měnič vypnutý“)
   // 5.102: Victron hlásí, že měnič běží (INVERTING) → měnič vypnutý není, jen jeho zásuvka (1) neodpovídá
   // 5.113: jeden výpočet s hlídačem (cabinSrc / data.cabin): „vypnutý“ jen když to hlásí Victron (OFF), jinak „nevíme“
-  const C = d.cabin && now - (d.cabin.t||0) < 1800 ? d.cabin : null;
+  const C = d.cabin && ref - (d.cabin.t||0) < 1800 ? d.cabin : null;
   const cs = C ? C.cs : invF ? invSrc(inv, cfg) : null;
   const menicOff = invF && inv.mw==null && vicState(inv)==="OFF";
   const srcUnk = cs==="?";
@@ -1274,7 +1277,10 @@ function riverBands(pts, ids){ const B=[]; let cur=null, prev=null;
 /* regulátor mlčí? (poslední čerstvé údaje starší než regulator_offline_min) */
 function regStale(d){
   const lim = d.cfg?.regulator_offline_min ?? 30, t = d.updated, min = t ? (Date.now()/1000 - t)/60 : null;
-  return {t, min, lim, stale: !t || min > lim};
+  // 5.268 (Petr: „Regulátor mlčí 34 min“, přitom regulátor posílal – hlídač 35 min neběžel, Flip data neposlal):
+  // regulátor mlčí jen když byl jeho údaj starý už při posledním běhu hlídače; jinak nepřišla data vůbec
+  const nr = d.run_t && t && (d.run_t - t)/60 <= lim;
+  return {t, min, lim, stale: !t || min > lim, norun: !!nr, who: nr ? "Data nepřišla" : "Regulátor mlčí"};
 }
 const durTxt = m => m < 90 ? `${Math.round(m)} min` : m < 48*60 ? hmH(m/60) : `${Math.round(m/1440)} dní`;
 function tileBat(d, h){
@@ -1284,7 +1290,7 @@ function tileBat(d, h){
   if(R.stale){
     const iv = h.invF && h.inv.v!=null ? h.inv.v : null;
     return {...t, cls:"bad", v: iv!=null ? `${nf(iv,2)}<small>V teď (Victron)</small>` : `<span style="color:var(--muted)">${nf(h.bv,2)}<small>V – staré</small></span>`,
-      st:`Regulátor mlčí ${durTxt(R.min)} (od ${relDay(R.t)} ${hmT(R.t)})`,
+      st:`${R.who} ${durTxt(R.min)} (od ${relDay(R.t)} ${hmT(R.t)})`,
       a: `regulátor naposledy ${nf(h.bv,2)} V`};
   }
   const arrow = h.net==null ? "" : h.net >= 0.3 ? `<span class="ar" style="color:var(--good)">↑ +${nf(h.net,1)} A</span>`
@@ -1308,7 +1314,7 @@ function tileBat(d, h){
 /* Hlavní stránka: napětí, % (regulátor), panely W, odběr z baterie W + stav. Výklad až v detailu. */
 function batAcute(d, h){       // jen to, co vyžaduje akci hned
   const R = regStale(d);
-  if(R.stale) return `Regulátor mlčí ${durTxt(R.min)}`;
+  if(R.stale) return `${R.who} ${durTxt(R.min)}`;
   if(h.bv==null) return "";
   if(h.bv < CRIT_V) return `Pod ${nf(CRIT_V,1)} V – odpoj spotřebiče`;
   if(h.bv < WARN_V) return "Baterie slábne – omez spotřebu";

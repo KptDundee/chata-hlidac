@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.268 – 11. 11. 2026
+- „Regulátor mlčí“ jen když byl údaj regulátoru starý už při posledním běhu hlídače. Když hlídač neběžel (Flip neposlal data), dlaždice píše „Data nepřišla X min“ (Petr: „Regulátor mlčí 34 min“, přitom regulátor posílal). Nové `data.run_t`.
+- Stav chaty (na River / na soláru) se po 30 min bez dat už neztrácí: čerstvost se měří k poslednímu běhu hlídače → nezobrazí se nesmyslný řádek „🔋 z baterie“, když chata jede na River.
+
 ## 5.267 – 11. 11. 2026
 - Výdrž River v klidu („utáhne chatu do …“) počítá hlídač stejně jako „vydrží do“ u River, která chatu napájí: obvyklý odběr chaty den / noc (s lednicí), změřená kapacita, rezerva. Web dřív bral pevných 25 W – vycházelo moc optimisticky. Nové `data.rv_run`, v záznamu běhu „Výdrž River …“.
 
