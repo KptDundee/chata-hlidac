@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.289", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.290", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1347,6 +1347,11 @@ function planCovers(d, h){
 function dayFcRow(d, h){
   const f = d.day_fc; if(!f || h.now - f.t > 1800) return null;
   const e = new Date(f.end*1000).toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit"});
+  // 5.290 (Petr: „proč jsem nedostal info přepnout na solár?“ – dlaždice říkala „ano“, plán i upozornění ne): rozhoduje plán
+  // (ví o zítřejší výrobě – solární baterie se v zimě šetří, když ji zítra nebude čím dobít); výhled dne jen bez plánu
+  const WPl = d.wplan && d.wplan.ok && h.now - d.wplan.t <= 1800 && (d.wplan.segs||[]).length ? d.wplan : null;
+  if(f.src==="river" && WPl){ const sg = WPl.segs.filter(x=>x.b > h.now), cur = sg[0], gs = sg.find(x=>x.src==="s");
+    return ["přepnout na solár?", cur && cur.src==="s" ? `<b style="color:var(--good)">ano ✓</b>` : gs ? `<b style="color:var(--good)">v ${hmT(Math.max(gs.a, h.now))}</b>` : `<span style="color:var(--text2)">ne – šetří se</span>`, 1]; }
   if(f.src==="river")   // chata na River (4.26): jeden jasný řádek – můžu přepnout na solár? (rozpis v detailu)
     return ["přepnout na solár?", f.ok && f.night_ok ? `<b style="color:var(--good)">ano ✓</b>` : f.ok ? `<b style="color:var(--good)">do ${e}</b>` : `<b style="color:var(--text2)">ne</b>`, 1];
   // 5.271: když je pryč, musí solár vydržet do návratu (odjezd v ${dep}, přepnout se pak nedá) – řádek to říká

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.290 – 12. 11. 2026
+- Dlaždice soláru, chata na River: „přepnout na solár?“ podle plánu (stejně jako upozornění) – „ano ✓“ / „v 15:04“ / „ne – šetří se“. Dřív podle samotného výhledu dne „ano“, i když plán solární baterii šetřil (zítra ji nebude čím dobít) a upozornění proto nepřišlo.
+
 ## 5.289 – 11. 11. 2026
 - Teploty → Chladnutí přehledněji: nahoře „🔥 Topení“ (kdy zatopit, při spaní mít aspoň, graf), pak chladnutí (3 čísla), graf noci s výběrem ‹ noc ›; nastavení a všechna vysvětlení dole v „Podrobnosti a vysvětlení“. Velká čísla bez tlačítek nastavení uvnitř.
 - Upozornění „zatop“: noc = když spíš (spaní → vstávání podle dne), ne pevně 22:00–6:00 – večer před spaním chodí. „Do spaní netřeba“ místo „Do 22:00“.
