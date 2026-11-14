@@ -3938,6 +3938,8 @@ def fuel_reserve(data, st, now, cfg):
         rb.clear()
         rb.update({"sig": sig, "t": int(now.timestamp()), "tank_l": tank_l})
     burned = sum(r.get("lit") or 0 for r in data.get("fuel_runs") or [] if rb.get("t") and (r.get("t0") or 0) >= rb["t"])
+    if rb.get("t") and rb.get("tank_l") is None and tank_l is not None and burned == 0:
+        rb["tank_l"] = tank_l                                # generátor byl při zadání offline – nádrž doplnit, jakmile ji hlásí
     tot = round(sum(k["l"] or 0 for k in kan) + (rb.get("tank_l") or 0) - burned, 1) if kan else None
     ben = {"kan": kan, "tank_l": tank_l, "tot": tot, "kan_now": round(max(0.0, tot - tank_l), 1) if tot is not None and tank_l is not None else None,
            "burned": round(burned, 2), "t": rb.get("t")}
