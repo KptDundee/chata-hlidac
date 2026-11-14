@@ -32,7 +32,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "chladnuti_vyjimky": "",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -5641,7 +5641,14 @@ def window_plan(data, st, now, topic, cfg):
                 # 5.218 (Petr): nejdřív co nejméně z River (plyn), pak ať jedna River zůstane co nejplnější (vydrží noc / odjezd),
                 # pak co nejméně přepnutí, při rovnosti víc z méně používané
                 # 5.221 (Petr): River na noc / odjezd (kdy přepnout nejde) ať má co největší rezervu – načatá jede, dokud jde přepínat
-                key = (round(sum(used_wh.values()) / 50), -round(mg / 5), sw, keep, bal)
+                # 5.291 (Petr: „jedna River vybitá, druhá plná – generátor pak nabíjí jen jednu, na půl výkonu, to je
+                # nehospodárné“): bezpečnost je podmínka, ne cíl – River na úsek, kdy nejde nic udělat (spaní / pryč), musí
+                # mít na konci aspoň rezervu (river_rezerva_noc_pct, 15 %); mezi bezpečnými plány ať jsou k oknu generátoru
+                # obě River co nejvíc vybité (nabíjí se obě najednou), hrubě nad počtem přepnutí, jemně pod ním
+                mg_min = float(cfg.get("river_rezerva_noc_pct") or 15)
+                short = max(0, round((mg_min - mg) / 5 + 0.49)) if mg < mg_min else 0
+                hi_ = max(soc.values()) if soc else 0
+                key = (round(sum(used_wh.values()) / 50), short, -round(mg / 5) if short else 0, round(hi_ / 20), sw, round(hi_ / 5), bal)
                 if best[0] is None or key < best[0][0]:
                     best[0] = (key, list(plan), L, dict(soc))
                 return

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.291 – 14. 11. 2026
+- Plán River: bezpečnost je podmínka – River na úsek, kdy nejde nic udělat (spaní / pryč), musí mít na konci aspoň rezervu `river_rezerva_noc_pct` (15 %). Mezi bezpečnými plány se vybere ten, kde jsou k oknu generátoru obě River co nejvíc vybité (generátor pak nabíjí obě najednou na plný výkon – úspornější). Dřív se naopak držela jedna River co nejplnější.
+
 ## 5.290 – 12. 11. 2026
 - Dlaždice soláru, chata na River: „přepnout na solár?“ podle plánu (stejně jako upozornění) – „ano ✓“ / „v 15:04“ / „ne – šetří se“. Dřív podle samotného výhledu dne „ano“, i když plán solární baterii šetřil (zítra ji nebude čím dobít) a upozornění proto nepřišlo.
 
