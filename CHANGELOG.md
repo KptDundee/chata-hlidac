@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.292 – 14. 11. 2026
+- Benzín: cena se zadává za litr (jak ukazuje stojan), litry nepovinné. Zápis 11. 11. (43) platí jako 43 Kč/l.
+- Zásoba paliva (Generátor → Cena → Benzín / Plyn): kanystry (jméno, objem, kolik je v nich) a lahve PB mimo generátor. Hlídač od uložení odečítá, co generátor spálil (z ubylých % nádrže); připojenou lahev odhaduje podle spotřeby. Na dlaždici Generátor řádek „zásoba“. Nastavení `kanystry`, `lahve_pb`.
+- Rada k nabíjení říká i palivo: pod `gen_plyn_min_C` (0 °C) venku v čase nabíjení benzín (plyn v mrazu špatně odpařuje), jinak plyn; když zvolené palivo došlo, to druhé.
+
 ## 5.291 – 14. 11. 2026
 - Plán River: bezpečnost je podmínka – River na úsek, kdy nejde nic udělat (spaní / pryč), musí mít na konci aspoň rezervu `river_rezerva_noc_pct` (15 %). Mezi bezpečnými plány se vybere ten, kde jsou k oknu generátoru obě River co nejvíc vybité (generátor pak nabíjí obě najednou na plný výkon – úspornější). Dřív se naopak držela jedna River co nejplnější.
 

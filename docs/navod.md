@@ -196,6 +196,9 @@ Na hlavní stránce je vidět, proč je River vypnutá, kdy to automatika znovu 
 ### Flip posílá data přes GitHub (Flip 1.4.0)
 Flip od 1.4.0 posílá naměřená data přímo s tokenem na GitHub (stejný token jako pro spouštění hlídače, musí mít **Actions: Read and write**). V záznamu Flipu je pak „Odesláno (GitHub): …“. Když GitHub nejde, pošle data postaru přes ntfy. Bez tokenu to funguje jen přes ntfy, a to má limit na počet zpráv (19. 10. odmítal – HTTP 429).
 
+### Zásoba paliva a volba paliva (5.292)
+Generátor → Cena → Benzín / Plyn: zadej kanystry (objem a kolik je v nich) a lahve PB mimo generátor. Hlídač od uložení odečítá, co generátor spálí; po nákupu jen přepiš čísla. Rada „nabij …“ připíše palivo: pod 0 °C venku benzín, jinak plyn (hranice `gen_plyn_min_C`). Cena benzínu se zadává za litr.
+
 ### Krátký výpadek generátoru (5.277)
 Když nabíjení na chvíli vypadne, ale generátor dál běží (zakuckání, krátké přetížení), hlídač výkony River nechá být – po obnovení jedou dál. Klidových 200 W nastaví až po 90 s bez nabíjení, nebo když motor stojí.
 

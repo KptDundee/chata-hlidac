@@ -185,3 +185,5 @@ gen_povel =                      start:benzin:1794595712# povel z tlačítka nab
 gen_jine =                       0:1794404166# ubrat výkon River pro jiný spotřebič na generátoru „W:čas“ (zapisuje web – neměnit)
 gen_rucne =                      1:1794339119# ruční výkon River při nabíjení z generátoru „1/0:čas“ (zapisuje web – neměnit)
 gen_spotrebice = Kolobezka=80; RoboVysavac=70; Autonabijecka 12V=50
+kanystry = šedý 5:1, černý 5:0, velký 10:10
+lahve_pb = 10:0, 10:?

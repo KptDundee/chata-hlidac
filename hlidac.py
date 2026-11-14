@@ -37,7 +37,7 @@ DEFAULTS = {
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
     "river_sn": "",
-    "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_nadrz_l": 4.0, "gen_rezerva_W": 100,
+    "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_nadrz_l": 4.0, "gen_plyn_min_C": 0, "kanystry": "", "lahve_pb": "", "gen_rezerva_W": 100,
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "", "gen_rucne": "", "gen_spotrebice": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
@@ -2039,6 +2039,7 @@ def main():
                          ("Nabíjení z generátoru", lambda: gen_charge_ctl(data, st, now, topic, cfg)),
                          ("Palivo a cena", lambda: fuel_stats(data, st, now, cfg)),
                          ("Lahev PB u generátoru", lambda: lpg_bottle(data, st, now, topic, cfg)),
+                         ("Zásoba paliva", lambda: fuel_reserve(data, st, now, cfg)),
                          ("Plyn a voda v chatě", lambda: util_entries(data)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
@@ -3905,6 +3906,84 @@ def lpg_bottle(data, st, now, topic, cfg):
         st["lpg_low"] = int(c["t"])
 
 
+def _gen_tank_pct(data):
+    for g in data.get("ef_gens") or []:
+        f_ = (g.get("gd") or {}).get("fuel")
+        if f_ is not None:
+            return float(f_)
+    return None
+
+
+def fuel_reserve(data, st, now, cfg):
+    """5.292 (Petr): zásoba paliva. kanystry = „šedý 5:1, černý 5:0, velký 10:10“ (jméno objem:teď litrů), lahve_pb =
+    „10:0, 10:?“ (lahve mimo generátor: objem:kg, ? = nevím). Benzín: od zadání ubývá to, co generátor spálil
+    (litry z ubylých % nádrže při nabíjení); celkem = kanystry + nádrž při zadání − spáleno, v kanystrech = celkem − nádrž
+    teď. Plyn: lahve mimo generátor + odhad zbytku připojené lahve. data["fuel_res"]."""
+    V = float(cfg.get("gen_nadrz_l") or 4.0)
+    tank = _gen_tank_pct(data)
+    tank_l = round(tank / 100 * V, 2) if tank is not None else None
+    kan, sig = [], str(cfg.get("kanystry") or "").strip()
+    for part in sig.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        nm_, _, val = part.rpartition(" ")
+        cap_, _, cur_ = val.partition(":")
+        try:
+            kan.append({"n": nm_ or "kanystr", "cap": float(cap_.replace(",", ".")), "l": float(cur_.replace(",", ".")) if cur_ else None})
+        except ValueError:
+            continue
+    rb = st.setdefault("fuel_resb", {})
+    if sig and rb.get("sig") != sig:                         # nové zadání → od teď se odečítá
+        rb.clear()
+        rb.update({"sig": sig, "t": int(now.timestamp()), "tank_l": tank_l})
+    burned = sum(r.get("lit") or 0 for r in data.get("fuel_runs") or [] if rb.get("t") and (r.get("t0") or 0) >= rb["t"])
+    tot = round(sum(k["l"] or 0 for k in kan) + (rb.get("tank_l") or 0) - burned, 1) if kan else None
+    ben = {"kan": kan, "tank_l": tank_l, "tot": tot, "kan_now": round(max(0.0, tot - tank_l), 1) if tot is not None and tank_l is not None else None,
+           "burned": round(burned, 2), "t": rb.get("t")}
+    bot = []
+    for part in str(cfg.get("lahve_pb") or "").split(","):
+        cap_, _, kg_ = part.strip().partition(":")
+        try:
+            bot.append({"cap": float(cap_.replace(",", ".")), "kg": None if kg_.strip() in ("", "?") else float(kg_.replace(",", "."))})
+        except ValueError:
+            continue
+    cur = ((data.get("fuel") or {}).get("lpg") or {}).get("cur")
+    conn = round(max(0.0, cur["kg"] - (cur.get("used_kg") or 0)), 1) if cur and cur.get("kg") else None
+    lpg = {"bot": bot, "spare_kg": round(sum(b["kg"] or 0 for b in bot), 1), "unknown": sum(1 for b in bot if b["kg"] is None), "conn_kg": conn}
+    data["fuel_res"] = {"benzin": ben, "lpg": lpg}
+    print(f"Zásoba paliva: benzín celkem {tot if tot is not None else '?'} l (nádrž {tank_l if tank_l is not None else '?'} l, spáleno od zadání {burned:.2f} l), "
+          f"PB mimo generátor {lpg['spare_kg']} kg + {lpg['unknown']}× nevím, připojená ~{conn if conn is not None else '?'} kg")
+
+
+def fuel_choice(data, st, cfg, t):
+    """5.292 (Petr): jaké palivo na nabíjení – plyn v mrazu špatně odpařuje → pod gen_plyn_min_C (0 °C) venku benzín,
+    jinak plyn (když je); když zvolené palivo chybí, to druhé. → (palivo, důvod)"""
+    thr = float(cfg.get("gen_plyn_min_C") if cfg.get("gen_plyn_min_C") is not None else 0)
+    T = None
+    try:
+        import chladnuti
+        O = sorted((int(a), v) for a, v in ((st.get("wo") or {}).get("h") or {}).items())
+        fn = chladnuti._tout_fn(O, chladnuti._meas(data, cfg.get("chladnuti_venku_teplomer", "OUTDOOR")), float(st.get("wo_bias") or 0.0))
+        T = fn(t)
+    except Exception:
+        T = None
+    R = data.get("fuel_res") or {}
+    b_tot = (R.get("benzin") or {}).get("tot")
+    L = R.get("lpg") or {}
+    lpg_has = (L.get("conn_kg") or 0) > 0.3 or (L.get("spare_kg") or 0) > 0 or (L.get("unknown") or 0) > 0 or not L.get("bot")
+    ben_has = b_tot is None or b_tot > 0.5
+    if T is not None and T < thr:
+        f, why = "benzin", f"venku ~{fmt(T, 0)} °C – plyn v mrazu nejede dobře"
+        if not ben_has:
+            f, why = "lpg", f"venku ~{fmt(T, 0)} °C, ale benzín došel – plyn v mrazu nemusí dát výkon"
+    else:
+        f, why = "lpg", (f"venku ~{fmt(T, 0)} °C" if T is not None else "")
+        if not lpg_has:
+            f, why = "benzin", "plyn došel"
+    return f, why
+
+
 def fuel_stats(data, st, now, cfg):
     """5.26: lahve PB a tankování benzínu (palivo.txt, zapisuje web: „čas | lpg/benzin | cena Kč | plna/castecna | litry“).
     Energie generátoru podle paliva (st.fuel_e – roste během nabíjení). Každý záznam = od té chvíle se pálí tohle palivo
@@ -4009,7 +4088,8 @@ def fuel_stats(data, st, now, cfg):
             lpk = sl_ / (sw_ / 1000) if sw_ >= 300 and sl_ > 0 else None
         for x in hist:
             if f == "benzin":
-                x["czk_l"] = round(x["price"] / x["l"], 2) if x.get("l") else None
+                # 5.292 (Petr): u benzínu se zadává cena za litr (jak ukazuje stojan); litry jsou nepovinné
+                x["czk_l"] = round(x["price"], 2) if x.get("price") else None
                 x["czk_kwh"], x["est"] = (round(x["czk_l"] * lpk, 1), True) if x["czk_l"] and lpk else (None, True)
                 continue
             if x["closed"] and x["full"] and x["wh"] > 100:
@@ -5734,20 +5814,24 @@ def window_plan(data, st, now, topic, cfg):
     why = f"Do {rd(w1)} {hm(w1)} (další možnost pustit generátor) to s tím, co je teď v solární baterii a River, nevydrží."
     if act and need:
         late = need["latest"]
+        fz_, fzw_ = fuel_choice(data, st, cfg, late)      # 5.292: jaké palivo
+        fzt_ = (" · ⛽ benzín" if fz_ == "benzin" else " · 🔥 plyn")
+        data["wplan"]["fuel"] = {"f": fz_, "why": fzw_}
         late_u = min(late, now.replace(hour=20, minute=0, second=0, microsecond=0).timestamp()) if w0_end >= t22 else late
         msg = (why + f" Nabij {rv_short(need['name'])} – nejlépe do plna, minimum je ~{need['target']} % (~{fmt_h(need['dur'] / 3600)}); nabíjení musí skončit do "
                f"{hm(w0_end)}{' (odjezd)' if w0_end < t22 else ' (generátor jen do 22:00)'}.")
+        msg += f"\nPalivo: {'benzín' if fz_ == 'benzin' else 'plyn'}{(' (' + fzw_ + ')') if fzw_ else ''}."
         plan_t = " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data["wplan"]["segs"])
         if plan_t:
             msg += f"\nPak: {plan_t}."
         # 5.249 (Petr): jakmile je jasné, že se bude nabíjet – hned tichá zpráva (jednou za den a River)
         k_ = now.strftime("%Y-%m-%d") + ":" + str(need["k"])
         if st.get("wp_info") != k_ and ts < late - 2 * 3600 and not in_quiet():
-            ntfy(topic, f"🔋 Dnes bude potřeba nabít {rv_short(need['name'])} (minimum ~{need['target']} %) – nejpozději začni v {hm(late_u)}", msg, 2, "battery")
+            ntfy(topic, f"🔋 Dnes bude potřeba nabít {rv_short(need['name'])} (minimum ~{need['target']} %) – nejpozději začni v {hm(late_u)}{fzt_}", msg, 2, "battery")
             st["wp_info"] = k_
         alarm(st, topic, "wp_chg", late - 2 * 3600 <= ts < late_u,
-              f"🔋 Nabij {rv_short(need['name'])} (minimum ~{need['target']} %) – začni nejpozději v {hm(late_u)}", msg, 3, "battery", ok_title=False, cat=2)
-        alarm(st, topic, "wp_chg1", ts >= late_u, f"⛽ Nabij {rv_short(need['name'])} teď – poslední chvíle", msg, 5, "rotating_light,battery",
+              f"🔋 Nabij {rv_short(need['name'])} (minimum ~{need['target']} %) – začni nejpozději v {hm(late_u)}{fzt_}", msg, 3, "battery", ok_title=False, cat=2)
+        alarm(st, topic, "wp_chg1", ts >= late_u, f"⛽ Nabij {rv_short(need['name'])} teď – poslední chvíle{fzt_}", msg, 5, "rotating_light,battery",
               ok_title=False, cat=1)
         alarm(st, topic, "wp_none", False, ok_title=False)
     else:

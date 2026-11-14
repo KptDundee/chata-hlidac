@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.291", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.292", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2630,8 +2630,8 @@ function fuelAdd(f){
   d.innerHTML = `<form style="background:var(--surface);color:var(--text);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;max-height:92vh;overflow:auto">
     <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:18px">Nové palivo</b><button type="button" data-x style="font:inherit;font-size:22px;background:none;border:0;color:var(--text);cursor:pointer">✕</button></div>
     ${seg("f", [["lpg","🔥 Nová lahev PB"],["benzin","⛽ Natankováno"]], f)}
-    <label>Cena v Kč<input name="price" inputmode="decimal" style="${inp}"></label>
-    <label data-lit>Kolik litrů<input name="lit" inputmode="decimal" style="${inp}"></label>
+    <label><span data-pl>Cena v Kč</span><input name="price" inputmode="decimal" style="${inp}"></label>
+    <label data-lit>Kolik litrů <span class="sub">(nepovinné)</span><input name="lit" inputmode="decimal" style="${inp}"></label>
     <label data-kg>Kolik kg plynu v lahvi <span class="sub">(plná PB = 10 kg; u částečné stačí odhad)</span><input name="kg" inputmode="decimal" value="10" style="${inp}"></label>
     <div>Kdy<div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
       ${stopOk ? `<label style="padding:8px;border:1px solid var(--line);border-radius:10px"><input type="radio" name="when" value="stop" checked> když se generátor zastavil – ${relDay(GS.t)} ${hmT(GS.t)} <span class="sub">(došlo palivo)</span></label>` : ""}
@@ -2644,6 +2644,7 @@ function fuelAdd(f){
   document.body.appendChild(d);
   const fm = d.querySelector("form"), upd = () => { const fv = fm.f.value, F = (DATA.fuel||{})[fv] || {}, last = (F.hist||[]).slice(-1)[0];
     d.querySelector("[data-lit]").style.display = fv==="benzin" ? "" : "none";
+    d.querySelector("[data-pl]").textContent = fv==="benzin" ? "Cena za litr (Kč/l, jak ukazuje stojan)" : "Cena lahve v Kč";   // 5.292
     d.querySelector("[data-kg]").style.display = fv==="lpg" && fm.full.value==="0" ? "" : "none";
     if(!fm.price.dataset.touched) fm.price.value = last ? String(last.price) : "";
     if(!fm.lit.dataset.touched) fm.lit.value = last && last.l ? String(last.l) : ""; };
@@ -2715,28 +2716,60 @@ function costHtml(d, f){
     <div style="padding:10px 0 4px;font-size:14px">⚙️ Výroba – 1 kWh z generátoru <b>${nf(gen,0)} Kč</b>${ratio ? ` <span class="sub">(ztráty v River ~${nf((1-1/ratio)*100,0)} %)</span>` : ""}</div>
     <div class="sub" style="line-height:1.45">${how}</div></div>`;
 }
+/* 5.292 (Petr): zásoba paliva – kanystry (jméno, objem, kolik je v něm) a lahve PB mimo generátor; hlídač od zadání
+   odečítá, co generátor spálil (benzín), připojenou lahev odhaduje podle spotřeby */
+const RES_INP = "font:inherit;width:4.2em;padding:3px 4px";
+const kanRow = k => `<div data-kr style="display:flex;gap:6px;align-items:center;margin:4px 0"><input data-kn value="${escH(k.nm)}" placeholder="název" style="font:inherit;flex:1;min-width:0;padding:3px 4px"><input data-kc value="${escH(k.cap||"")}" inputmode="decimal" style="${RES_INP}"> l, teď <input data-kl value="${escH(k.l||"")}" inputmode="decimal" style="${RES_INP}"> l<button type="button" onclick="this.parentElement.remove()" style="font:inherit;padding:2px 7px">✕</button></div>`;
+const botRow = b => `<div data-br style="display:flex;gap:6px;align-items:center;margin:4px 0">lahev <input data-bc value="${escH(b.cap||"10")}" inputmode="decimal" style="${RES_INP}"> kg, je v ní <input data-bk value="${escH(b.kg||"")}" placeholder="?" inputmode="decimal" style="${RES_INP}"> kg<button type="button" onclick="this.parentElement.remove()" style="font:inherit;padding:2px 7px">✕</button></div>`;
+function resHtml(d, f){
+  const c = d.cfg||{}, R = (d.fuel_res||{})[f] || {}, inp = "font:inherit;width:4.2em;padding:3px 4px";
+  if(f==="benzin"){
+    const K = String(c.kanystry||"").split(",").map(x=>x.trim()).filter(Boolean).map(x=>{ const i = x.lastIndexOf(" "), nm = i>0 ? x.slice(0,i) : "kanystr", [cap,l] = x.slice(i+1).split(":"); return {nm, cap, l}; });
+    const row = kanRow;
+    const sum = R.tot!=null ? `<div style="font-size:15px;margin:2px 0 6px">Benzín celkem <b>~${nf(R.tot,1)} l</b>${R.tank_l!=null ? ` · v nádrži ${nf(R.tank_l,1)} l · v kanystrech ~${nf(R.kan_now,1)} l` : ""}${R.burned ? ` <span class="sub">(od zadání spáleno ${nf(R.burned,1)} l)</span>` : ""}</div>` : "";
+    return `<div class="card"><h2 style="margin:0 0 4px">📦 Zásoba benzínu</h2>${sum}<div id="kan_rows">${(K.length?K:[{nm:"",cap:"",l:""}]).map(row).join("")}</div>
+      <button type="button" onclick="document.getElementById('kan_rows').insertAdjacentHTML('beforeend', kanRow({nm:'',cap:'',l:''}))" style="font:inherit;font-size:13px;padding:4px 10px">+ kanystr</button>
+      <button type="button" onclick="resSave('benzin')" style="font:inherit;font-weight:600;padding:7px 14px;margin-left:6px">Uložit</button><div class="sub" id="res_msg_benzin" style="margin-top:4px"></div>
+      <details style="margin-top:6px"><summary class="sub" style="cursor:pointer">Jak to funguje</summary><div class="sub" style="line-height:1.45">Zadej, kolik je teď v kanystrech. Od uložení hlídač odečítá, co generátor spálí (podle ubylých % nádrže), takže to nemusíš hlídat. Když koupíš benzín nebo přeliješ do generátoru, nic neměň – přelití se pozná podle nádrže. Po nákupu do kanystrů jen přepiš čísla a ulož.</div></details></div>`;
+  }
+  const B = String(c.lahve_pb||"").split(",").map(x=>x.trim()).filter(Boolean).map(x=>{ const [cap,kg] = x.split(":"); return {cap, kg}; });
+  const row = botRow;
+  const sum = `<div style="font-size:15px;margin:2px 0 6px">Připojená lahev ~<b>${R.conn_kg!=null ? nf(R.conn_kg,1)+" kg" : "?"}</b> · mimo generátor ${nf(R.spare_kg||0,1)} kg${R.unknown ? ` + ${R.unknown}× nevím kolik` : ""}</div>`;
+  return `<div class="card"><h2 style="margin:0 0 4px">📦 Zásoba plynu</h2>${sum}<div class="sub" style="font-size:12.5px">Lahve mimo generátor (náhradní, prázdné). Nevíš-li, kolik v ní je, nech prázdné.</div><div id="bot_rows">${(B.length?B:[{cap:"10",kg:""}]).map(row).join("")}</div>
+    <button type="button" onclick="document.getElementById('bot_rows').insertAdjacentHTML('beforeend', botRow({cap:'10',kg:''}))" style="font:inherit;font-size:13px;padding:4px 10px">+ lahev</button>
+    <button type="button" onclick="resSave('lpg')" style="font:inherit;font-weight:600;padding:7px 14px;margin-left:6px">Uložit</button><div class="sub" id="res_msg_lpg" style="margin-top:4px"></div></div>`;
+}
+async function resSave(f){
+  const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
+  const num = v => String(v).replace(",", ".").replace(/[^0-9.]/g, ""), m = $("res_msg_"+f);
+  let key, val;
+  if(f==="benzin"){ key = "kanystry"; val = [...document.querySelectorAll("#kan_rows [data-kr]")].map(r=>{ const n = r.querySelector("[data-kn]").value.trim().replace(/[,:]/g," ") || "kanystr", c = num(r.querySelector("[data-kc]").value), l = num(r.querySelector("[data-kl]").value); return c ? `${n} ${c}:${l||0}` : ""; }).filter(Boolean).join(", "); }
+  else { key = "lahve_pb"; val = [...document.querySelectorAll("#bot_rows [data-br]")].map(r=>{ const c = num(r.querySelector("[data-bc]").value) || "10", k = num(r.querySelector("[data-bk]").value); return `${c}:${k||"?"}`; }).join(", "); }
+  m.textContent = "Ukládám…";
+  try{ await setCfgKey(tok, key, val); m.textContent = "Uloženo ✓ – hlídač to načte při příštím běhu (do pár minut)."; }catch(e){ m.textContent = e.message; }
+}
 function fuelHtml(d, f){
   const F = d.fuel || {}, P = d.gen_plan, run = P && !P.end && Date.now()/1000 - P.t < 900;
   const gd = ((d.ef_gens||[]).find(g=>g.gd)||{}).gd || {};
   const blk = (f, nm, btn) => { const x = F[f] || {}, c = x.cur;
     const cost = x.czk_kwh ? `1 kWh dnes ≈ <b>${nf(x.czk_kwh,0)} Kč</b> <span class="sub">(${f==="benzin" ? "Kč/l × spotřeba l/kWh" : x.n ? "podle poslední lahve" : "předběžně podle spotřeby generátoru"})</span>${f==="lpg" && x.avg_kwh ? ` · lahev ≈ ${nf(x.avg_kwh,1)} kWh <span class="sub">(průměr z ${x.n}× plná)</span>` : ""}`
-      : `<span class="sub">${f==="lpg" ? "cena za kWh až po spotřebování první plné lahve nebo změření spotřeby" : "cena za kWh až po tankování (cena + litry) a nabíjení na benzín"}</span>`;
+      : `<span class="sub">${f==="lpg" ? "cena za kWh až po spotřebování první plné lahve nebo změření spotřeby" : "cena za kWh až po prvním nabíjení na benzín (z ubylých % nádrže × cena za litr)"}</span>`;
     const tank = f==="benzin" && gd.fuel!=null ? `<div style="font-size:13.5px">V nádrži teď ~<b>${nf(gd.fuel/100*(x.nadrz_l ?? 4),1)} l</b> (${nf(gd.fuel)} % z ${nf(x.nadrz_l ?? 4,1)} l)${x.lpk ? ` · spotřeba ~${nf(x.lpk,2)} l/kWh` : ""}</div>` : "";
-    const curT = c ? `${f==="lpg" ? "lahev" : "tankováno"} ${relDay(c.t)} ${hmT(c.t)} · ${nf(c.price,0)} Kč${c.l ? ` · ${nf(c.l,1)} l = ${nf(c.price/c.l,1)} Kč/l` : ""}${c.full ? "" : " · <span style='color:var(--warn)'>částečně</span>"} → zatím <b>${nf(c.wh/1000,2)} kWh</b>${f==="lpg" && c.left_pct!=null ? ` · zbývá ~${c.left_pct} %` : ""}${c.used_kg!=null ? ` <span class="sub">(spotřebováno ~${nf(c.used_kg,1)} kg z ${nf(c.kg,0)} kg; lahev ≈ ${nf(c.kwh_est,0)} kWh – předběžně podle spotřeby generátoru ${nf(x.gpk)} g/kWh)</span>` : ""}${f==="lpg" && !x.czk_kwh && c.full && c.wh > 100 ? ` · zatím ${nf(c.price/(c.wh/1000),0)} Kč/kWh (klesá, jak lahev dojíždí)` : ""} · <a href="#" onclick="event.preventDefault();fuelEdit('${f}')">upravit cenu</a>` : `<span class="sub">zatím nic nezapsáno</span>`;
+    const curT = c ? `${f==="lpg" ? "lahev" : "tankováno"} ${relDay(c.t)} ${hmT(c.t)} · ${f==="benzin" ? `${nf(c.price,1)} Kč/l${c.l ? ` · ${nf(c.l,1)} l` : ""}` : `${nf(c.price,0)} Kč`}${c.full ? "" : " · <span style='color:var(--warn)'>částečně</span>"} → zatím <b>${nf(c.wh/1000,2)} kWh</b>${f==="lpg" && c.left_pct!=null ? ` · zbývá ~${c.left_pct} %` : ""}${c.used_kg!=null ? ` <span class="sub">(spotřebováno ~${nf(c.used_kg,1)} kg z ${nf(c.kg,0)} kg; lahev ≈ ${nf(c.kwh_est,0)} kWh – předběžně podle spotřeby generátoru ${nf(x.gpk)} g/kWh)</span>` : ""}${f==="lpg" && !x.czk_kwh && c.full && c.wh > 100 ? ` · zatím ${nf(c.price/(c.wh/1000),0)} Kč/kWh (klesá, jak lahev dojíždí)` : ""} · <a href="#" onclick="event.preventDefault();fuelEdit('${f}')">upravit cenu</a>` : `<span class="sub">zatím nic nezapsáno</span>`;
     const old_ = (x.hist||[]).filter(h=>h.closed).reverse();   /* 5.135: každá lahev se svou cenou, cenu jde opravit zvlášť */
-    const histT = old_.length ? `<details style="margin-top:3px"><summary class="sub" style="cursor:pointer">Předchozí ${f==="lpg" ? "lahve" : "tankování"} (${old_.length}) – každ${f==="lpg" ? "á" : "é"} má svou cenu</summary><div style="font-size:13px;margin-top:3px">${old_.map(h=>`${relDay(h.t)} · ${nf(h.price,0)} Kč${h.czk_l ? ` · ${nf(h.czk_l,1)} Kč/l` : ` · ${nf(h.wh/1000,2)} kWh`}${h.full ? "" : " · částečně"}${h.czk_kwh!=null ? ` → <b>${nf(h.czk_kwh,0)} Kč/kWh</b>${h.est ? " (odhad)" : ""}` : ""} · <a href="#" onclick="event.preventDefault();fuelEdit('${f}',${h.t})">✎</a>`).join("<br>")}</div><div class="sub" style="margin-top:3px">Změna ceny jedné ${f==="lpg" ? "lahve přepočítá jen ji a nabíjení, která z ní jela" : "položky přepočítá jen nabíjení, která jela z toho tankování"} – ostatní zůstávají.</div></details>` : "";
+    const histT = old_.length ? `<details style="margin-top:3px"><summary class="sub" style="cursor:pointer">Předchozí ${f==="lpg" ? "lahve" : "tankování"} (${old_.length}) – každ${f==="lpg" ? "á" : "é"} má svou cenu</summary><div style="font-size:13px;margin-top:3px">${old_.map(h=>`${relDay(h.t)} · ${f==="benzin" ? `${nf(h.price,1)} Kč/l` : `${nf(h.price,0)} Kč · ${nf(h.wh/1000,2)} kWh`}${h.full ? "" : " · částečně"}${h.czk_kwh!=null ? ` → <b>${nf(h.czk_kwh,0)} Kč/kWh</b>${h.est ? " (odhad)" : ""}` : ""} · <a href="#" onclick="event.preventDefault();fuelEdit('${f}',${h.t})">✎</a>`).join("<br>")}</div><div class="sub" style="margin-top:3px">Změna ceny jedné ${f==="lpg" ? "lahve přepočítá jen ji a nabíjení, která z ní jela" : "položky přepočítá jen nabíjení, která jela z toho tankování"} – ostatní zůstávají.</div></details>` : "";
     return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${nm}</b><button onclick="fuelAdd('${f}')" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--btnline);background:var(--btn);color:var(--text);cursor:pointer">${btn}</button></div>
       <div style="font-size:13.5px;margin-top:3px">${curT}</div>${tank}<div style="font-size:13.5px">${cost}</div>${histT}</div>`; };
   const runs = (d.fuel_runs||[]).filter(r=>(r.wh_f||{})[f] > 5 || (!r.wh_f && r.fuel===f) || (r.wh_f && !Object.keys(r.wh_f).length && r.fuel===f)).slice(-6).reverse();
   const {rvName} = costCalc(d, f);
   const runTxt = r => { const kc = (r.czk_f||{})[f] ?? (Object.keys(r.wh_f||{}).length <= 1 ? r.czk : null), wh = ((r.wh_f||{})[f] ?? r.wh) * chgWh(r)/(r.wh||1);
     return `${relDay(r.t0)} ${hmT(r.t0)} ${nf(wh/1000,2)} kWh${r.lit!=null && f==="benzin" ? ` · ${nf(r.lit,2)} l` : ""}${kc!=null ? ` ≈ <b>${nf(kc,0)} Kč</b>` : ""}${Object.keys(r.wh_f||{}).length > 1 ? " (část nabíjení)" : ""}${r.x ? ` + jiný spotřebič ${nf(r.x/1000,2)} kWh${r.czk_x!=null ? ` ≈ ${nf(r.czk_x,0)} Kč` : ""}` : ""}${kc!=null && r.rv && Object.keys(r.rv).length > 1 ? (()=>{ const tot = Object.values(r.rv).reduce((a,b)=>a+b,0); return ` (${Object.entries(r.rv).map(([k,w])=>`${escH(rvName(k))} ${nf(kc*w/tot,0)} Kč`).join(", ")})`; })() : ""}`; };
-  return `<div class="card"><h2 style="margin:0 0 4px">${f==="lpg" ? "Lahve" : "Tankování"}</h2>${f==="lpg" ? blk("lpg","🔥 Plyn – lahev PB 10 kg","+ nová lahev") : blk("benzin","⛽ Benzín","+ natankováno")}
+  return resHtml(d, f) + `<div class="card"><h2 style="margin:0 0 4px">${f==="lpg" ? "Lahve" : "Tankování"}</h2>${f==="lpg" ? blk("lpg","🔥 Plyn – lahev PB 10 kg","+ nová lahev") : blk("benzin","⛽ Benzín","+ natankováno")}
     ${run && P.fwh && P.fuel===f ? `<div style="font-size:13.5px;margin-top:6px">Toto nabíjení zatím ${nf(P.fwh/1000,2)} kWh${(F[f]||{}).czk_kwh ? ` ≈ ${nf(P.fwh/1000*(F[f]).czk_kwh,0)} Kč` : ""}</div>` : ""}
     ${runs.length ? `<div class="sub" style="margin-top:6px">Poslední nabíjení na ${FUELN[f]}: ${runs.map(runTxt).join(" · ")}</div>` : ""}
     <div class="sub" style="margin-top:6px;line-height:1.45">${f==="lpg"
       ? "Při výměně lahve zmáčkni tlačítko a zadej cenu. Hlídač měří, kolik kWh generátor z lahve vyrobil. Každá lahev má svou cenu za kWh – nabíjení se ocení lahví, ze které jelo; když lahev dojde uprostřed nabíjení, část jde na starou a část na novou. Novou lahev zapiš kdykoli – stačí zadat čas výměny. Částečně plná lahev se do průměru kWh na lahev nepočítá."
-      : "Při tankování zmáčkni tlačítko a zadej cenu a litry. Každé nabíjení na benzín se ocení litry, které ubyly z nádrže (podle % z generátoru), a cenou litru z posledního tankování před nabíjením. Doplnění nádrže během nabíjení se pozná (skok nahoru) a nepočítá se jako spotřeba."}</div></div>`;
+      : "Při tankování zmáčkni tlačítko a zadej cenu za litr (litry nepovinně). Každé nabíjení na benzín se ocení litry, které ubyly z nádrže (podle % z generátoru), a cenou litru z posledního tankování před nabíjením. Doplnění nádrže během nabíjení se pozná (skok nahoru) a nepočítá se jako spotřeba."}</div></div>`;
 }
 /* 5.181 (Petr): přehled nákladů na nabíjení – Kč, kWh z generátoru, kWh využitelné (do chaty) a účinnost po dnech/týdnech/měsících/letech */
 const chgWh = r => Math.max(0, (r.wh||0) - (r.x||0));   // 5.182: Wh do nabíjení (bez jiného spotřebiče na generátoru)
@@ -3384,7 +3417,10 @@ function rivState(x, h, M){
 function genLive(d){ const P = d.gen_plan; return P && !P.end && Date.now()/1000 - P.t < 900 ? P : null; }
 function genRows(d, h, sel){
   const P = genLive(d), today = (((d.days||{})[dkey(h.now)]||{}).tp||{})[sel.id];
-  if(!P) return [["dnes dodal", kWh(today ?? 0)]];
+  // 5.292: zásoba paliva (kanystry + nádrž / lahve) – když generátor neběží
+  const FR = d.fuel_res || {}, zb = FR.benzin && FR.benzin.tot!=null ? `benzín ~${nf(FR.benzin.tot,1)} l` : "", L = FR.lpg || {};
+  const zl = L.conn_kg!=null || (L.bot||[]).length ? `PB ${L.conn_kg!=null ? "~"+nf(L.conn_kg+(L.spare_kg||0),1)+" kg" : (L.spare_kg ? nf(L.spare_kg,1)+" kg" : "")}${L.unknown ? (L.conn_kg!=null||L.spare_kg ? " + " : "") + L.unknown + "× ?" : ""}` : "";
+  if(!P) return [["dnes dodal", kWh(today ?? 0)]].concat(zb || zl ? [["zásoba", [zb, zl].filter(Boolean).join(" · ")]] : []);
   const rows = (P.rv||[]).map(r=>[`→ ${escH(pn(r.n)||"River")}`, `${nf(r.in)} W · ${nf(r.soc)} %`]);
   rows.push(["celkem do River", `${nf(P.tot_in)} W`], ["za toto nabíjení", kWh(P.wh)]);
   if(P.fin) rows.push(["vypnout", `${relDay(P.fin)} ~${hmT(P.fin)}`]);
