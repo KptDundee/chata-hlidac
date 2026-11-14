@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.292", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.293", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2792,11 +2792,15 @@ function costAgg(d, per){
     const m = new Date(x); m.setHours(12,0,0,0); m.setDate(m.getDate() - ((m.getDay()+6)%7)); return dkey(m.getTime()/1000); };
   for(const r of d.fuel_runs||[]){
     if(!r.t0 || !r.wh) continue;
-    const k = keyOf(r.t0), A = out[k] ||= {k, n:0, miss:0, kc:{lpg:0,benzin:0}, wh:{lpg:0,benzin:0}, whk:{lpg:0,benzin:0}, use:{lpg:0,benzin:0}, usek:{lpg:0,benzin:0}, ew:0, eu:0, xwh:0, xkc:0};
+    const k = keyOf(r.t0), A = out[k] ||= {k, n:0, miss:0, kc:{lpg:0,benzin:0}, wh:{lpg:0,benzin:0}, whk:{lpg:0,benzin:0}, use:{lpg:0,benzin:0}, usek:{lpg:0,benzin:0}, ew:0, eu:0, xwh:0, xkc:0, rk:{}, rw:{}};
     const U = runUse(d, r, ratio), wf0 = r.wh_f && Object.keys(r.wh_f).length ? r.wh_f : {[r.fuel||"lpg"]: r.wh};
     const kx = chgWh(r)/(r.wh||1), wf = Object.fromEntries(Object.entries(wf0).map(([f,w])=>[f, w*kx]));
     const tw = Object.values(wf).reduce((a,b)=>a+b,0) || 1;
     A.n++; if(U.eff!=null){ A.ew += chgWh(r); A.eu += U.use; } if(r.x){ A.xwh += r.x; if(r.czk_x!=null) A.xkc += r.czk_x; }
+    // 5.293 (Petr): kolik stálo nabíjení každé River – cena běhu rozdělená podle kWh, které která dostala
+    const rkc = r.czk ?? (Object.values(r.czk_f||{}).every(v=>v!=null) && Object.keys(r.czk_f||{}).length ? Object.values(r.czk_f).reduce((a,b)=>a+b,0) : null);
+    const rvw = Object.values(r.rv||{}).reduce((a,b)=>a+b,0);
+    if(rvw > 0) for(const [k6, w] of Object.entries(r.rv)){ A.rw[k6] = (A.rw[k6]||0) + w; if(rkc!=null) A.rk[k6] = (A.rk[k6]||0) + rkc*w/rvw; }
     for(const [f, w] of Object.entries(wf)){
       const kc = (r.czk_f||{})[f] ?? (Object.keys(wf).length===1 ? r.czk : null), u = U.use!=null ? U.use*w/tw : null;
       A.wh[f] += w; if(u!=null) A.use[f] += u;
@@ -2839,13 +2843,30 @@ function catLines(el, rows, series, o){
   svg.insertAdjacentHTML("beforeend", s);
   hover(svg, rows, q=>`${perLabel(q.k, o.per, true)}<br>${series.map(sr=>`<span style="color:${sr.color}">■</span> ${sr.name}: <b>${q[sr.key]!=null ? nf(q[sr.key], o.dec ?? 0) + " " + o.unit : "–"}</b>`).join("<br>")}`);
 }
-const COSTSER = [{key:"l",name:"plyn",color:"var(--s1)"},{key:"b",name:"benzín",color:"var(--s2)"},{key:"a",name:"celkem",color:"var(--text)",dash:"5 4"}];
+/* 5.293 (Petr: „čára propojení nic neříká, plyn a benzín zvlášť“): sloupce vedle sebe, jeden na řadu */
+function catBars(el, rows, series, o){
+  const vals = rows.flatMap(q=>series.map(s=>q[s.key]).filter(v=>v!=null));
+  if(!vals.length) return empty(el, o.emptyMsg || "Zatím žádné nabíjení s cenou.");
+  const hi = Math.max(...vals)*1.15 || 1, {svg,y} = frame(el, 0, hi, o.dec ?? 0);
+  const n = rows.length, bw = (W-M.l-M.r)/Math.max(n,1), cx = i => M.l + bw*i + bw/2, ns = series.length;
+  const gw = Math.min(bw*0.8, 14*ns + 2*(ns-1)), w1 = Math.max(2, (gw - 2*(ns-1))/ns);
+  let s = "";
+  rows.forEach((q,i)=>{ series.forEach((sr,j)=>{ const v = q[sr.key]; if(v==null) return;
+      const x = cx(i) - gw/2 + j*(w1+2), yy = y(v), h0 = y(0) - yy;
+      s += `<path d="M${x},${y(0)} V${yy+Math.min(3,h0)} q0,-3 3,-3 H${x+w1-3} q3,0 3,3 V${y(0)} Z" fill="${sr.color}"/>`; });
+    s += `<rect data-i="${i}" x="${cx(i)-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    if(i%Math.ceil(n/6)===0 || i===n-1) s += `<text x="${cx(i)}" y="${H-6}" text-anchor="middle">${perLabel(q.k, o.per)}</text>`; });
+  svg.insertAdjacentHTML("beforeend", s);
+  hover(svg, rows, q=>`${perLabel(q.k, o.per, true)}<br>${series.map(sr=>`<span style="color:${sr.color}">■</span> ${sr.name}: <b>${q[sr.key]!=null ? nf(q[sr.key], o.dec ?? 0) + " " + o.unit : "–"}</b>`).join("<br>")}`);
+}
+const COSTSER = [{key:"l",name:"plyn",color:"var(--s1)"},{key:"b",name:"benzín",color:"var(--s2)"}];
 function costGraphsHtml(){
   const P = [["d","Dny"],["w","Týdny"],["m","Měsíce"],["y","Roky"]];
-  const leg = COSTSER.map(s=>`<span style="color:${s.color}">${s.dash ? "┅" : "■"}</span> ${s.name}`).join(" · ");
+  const leg = COSTSER.map(s=>`<span style="color:${s.color}">■</span> ${s.name}`).join(" · ");
   return `<div class="seg" id="cper_seg" style="margin-bottom:12px">${P.map(([k,l])=>`<button data-p="${k}" aria-pressed="${CPER===k}">${l}</button>`).join("")}</div>`
     + chartCard("cg_gen", "Cena 1 kWh z generátoru", `Kč/kWh · ${leg}`)
     + chartCard("cg_use", "Cena 1 kWh využitelné (do chaty)", `Kč/kWh · se ztrátami nabíjení a River · ${leg}`)
+    + chartCard("cg_rv", "Kolik stálo nabíjení každé River", `Kč za období · cena nabíjení rozdělená podle kWh, které která River dostala<span id="cg_rv_leg"></span>`)
     + chartCard("cg_eff", "Účinnost nabíjení", `% · využitelné kWh ÷ kWh z generátoru (jen nabíjení se změřeným % River, od 5.181)`)
     + `<div class="card"><h2 style="margin:0 0 6px">Kolik nabíjení stálo</h2><div id="cg_tab"></div></div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Z generátoru = kWh, které generátor dodal. Využitelné = co z toho skutečně dojde do chaty: změna % každé River × její změřená kapacita (Wh do chaty na 100 %) + co River během nabíjení rovnou dodala do chaty. U nabíjení bez změřeného % (starší) odhad podle obvyklých ztrát River. Celkem = všechny Kč ÷ všechny kWh. Nabíjení bez zapsané ceny paliva se do Kč/kWh nepočítá (v tabulce označeno).</div>`;
@@ -2854,14 +2875,19 @@ function costGraphsDraw(d){
   if(!$("cg_gen")) return;
   const R = costAgg(d, CPER), lim = {d:31, w:26, m:24, y:10}[CPER];
   const rows = R.slice(-lim);
-  catLines($("cg_gen"), rows.map(q=>({k:q.k, l:q.pg.lpg, b:q.pg.benzin, a:q.pg.all})), COSTSER, {unit:"Kč/kWh", per:CPER});
-  catLines($("cg_use"), rows.map(q=>({k:q.k, l:q.pu.lpg, b:q.pu.benzin, a:q.pu.all})), COSTSER, {unit:"Kč/kWh", per:CPER});
-  catLines($("cg_eff"), rows.map(q=>({k:q.k, e:q.eff})), [{key:"e",name:"účinnost",color:"var(--s3)"}], {unit:"%", per:CPER, emptyMsg:"Účinnost se ukáže po prvním nabíjení se změřeným % River (od verze 5.181)."});
+  catBars($("cg_gen"), rows.map(q=>({k:q.k, l:q.pg.lpg, b:q.pg.benzin})), COSTSER, {unit:"Kč/kWh", per:CPER});
+  catBars($("cg_use"), rows.map(q=>({k:q.k, l:q.pu.lpg, b:q.pu.benzin})), COSTSER, {unit:"Kč/kWh", per:CPER});
+  const {rvName} = costCalc(d), RVK = [...new Set(R.flatMap(q=>Object.keys(q.rk)))], RVC = ["var(--s1)","var(--s2)","var(--s3)","var(--s4)"];
+  const rvS = k6 => rvName(k6).split(/\s+/)[0].replace(/\.$/,""), rvCol = (k6,i) => /^ŽLUT/i.test(rvS(k6)) ? "#e2b007" : /^ČERV/i.test(rvS(k6)) ? "#d64545" : RVC[(i+2)%RVC.length];
+  const RVS = RVK.map((k6,i)=>({key:k6, name:rvS(k6), color:rvCol(k6,i)}));
+  if($("cg_rv_leg")) $("cg_rv_leg").innerHTML = RVS.length ? "<br>" + RVS.map(x=>`<span style="color:${x.color}">■</span> ${escH(x.name)}`).join(" · ") : "";
+  catBars($("cg_rv"), rows.map(q=>({k:q.k, ...q.rk})), RVS, {unit:"Kč", per:CPER, emptyMsg:"Zatím žádné nabíjení s cenou a záznamem, kolik dostala která River."});
+  catBars($("cg_eff"), rows.map(q=>({k:q.k, e:q.eff})), [{key:"e",name:"účinnost",color:"var(--s3)"}], {unit:"%", per:CPER, emptyMsg:"Účinnost se ukáže po prvním nabíjení se změřeným % River (od verze 5.181)."});
   const kc = v => v ? `${nf(v,0)} Kč` : "–", kw = v => `${nf(v/1000,2)} kWh`;
   $("cg_tab").innerHTML = R.length ? `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:2px 12px;font-size:14px;font-variant-numeric:tabular-nums">
       <span class="sub">období</span><span class="sub" style="text-align:right">plyn</span><span class="sub" style="text-align:right">benzín</span><span class="sub" style="text-align:right">celkem</span>
       ${R.slice().reverse().map(q=>`<b style="border-top:1px solid var(--line);padding-top:5px">${perLabel(q.k, CPER, true)}</b><span style="text-align:right;border-top:1px solid var(--line);padding-top:5px">${kc(q.kc.lpg)}</span><span style="text-align:right;border-top:1px solid var(--line);padding-top:5px">${kc(q.kc.benzin)}</span><b style="text-align:right;border-top:1px solid var(--line);padding-top:5px">${kc(q.kcT)}</b>
-        <span class="sub" style="grid-column:1/-1;font-size:12.5px">${q.n}× nabíjení · z generátoru ${kw(q.whT)}${q.useT ? ` · využitelné ${kw(q.useT)}` : ""}${q.pg.all!=null ? ` · ${nf(q.pg.all,0)} Kč/kWh z generátoru` : ""}${q.pu.all!=null ? ` · ${nf(q.pu.all,0)} Kč/kWh využitelné` : ""}${q.eff!=null ? ` · účinnost ${nf(q.eff,0)} %` : ""}${q.xwh ? ` · jiný spotřebič na generátoru ${kw(q.xwh)}${q.xkc ? ` ≈ ${nf(q.xkc,0)} Kč` : ""} (nezapočteno)` : ""}${q.miss ? ` · <span style="color:var(--warn)">${q.miss}× bez ceny paliva</span>` : ""}</span>`).join("")}</div>`
+        <span class="sub" style="grid-column:1/-1;font-size:12.5px">${Object.keys(q.rk).length ? Object.entries(q.rk).map(([k6,v])=>`${escH(rvS(k6))} <b>${nf(v,0)} Kč</b>`).join(" · ") + "<br>" : ""}${q.n}× nabíjení · z generátoru ${kw(q.whT)}${q.useT ? ` · využitelné ${kw(q.useT)}` : ""}${q.pg.all!=null ? ` · ${nf(q.pg.all,0)} Kč/kWh z generátoru` : ""}${q.pu.all!=null ? ` · ${nf(q.pu.all,0)} Kč/kWh využitelné` : ""}${q.eff!=null ? ` · účinnost ${nf(q.eff,0)} %` : ""}${q.xwh ? ` · jiný spotřebič na generátoru ${kw(q.xwh)}${q.xkc ? ` ≈ ${nf(q.xkc,0)} Kč` : ""} (nezapočteno)` : ""}${q.miss ? ` · <span style="color:var(--warn)">${q.miss}× bez ceny paliva</span>` : ""}</span>`).join("")}</div>`
     : `<span class="sub">Zatím žádné nabíjení z generátoru.</span>`;
   const seg = $("cper_seg"); if(seg) seg.onclick = e => { const b = e.target.closest("button"); if(!b) return; CPER = b.dataset.p; try{ localStorage.setItem("cper", CPER); }catch(_){}
     for(const x of seg.children) x.setAttribute("aria-pressed", x===b); costGraphsDraw(d); };

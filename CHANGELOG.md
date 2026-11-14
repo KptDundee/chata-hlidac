@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 5.293 – 14. 11. 2026
+- Generátor → Cena → Grafy: sloupce místo čar; plyn a benzín zvlášť vedle sebe (bez společné „celkem“). Nový graf „Kolik stálo nabíjení každé River“ (cena běhu rozdělená podle kWh, které která River dostala); v tabulce u období Kč za každou River.
+
 ## 5.292 – 14. 11. 2026
 - Benzín: cena se zadává za litr (jak ukazuje stojan), litry nepovinné. Zápis 11. 11. (43) platí jako 43 Kč/l.
 - Zásoba paliva (Generátor → Cena → Benzín / Plyn): kanystry (jméno, objem, kolik je v nich) a lahve PB mimo generátor. Hlídač od uložení odečítá, co generátor spálil (z ubylých % nádrže); připojenou lahev odhaduje podle spotřeby. Na dlaždici Generátor řádek „zásoba“. Nastavení `kanystry`, `lahve_pb`.
