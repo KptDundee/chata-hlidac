@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.4 – 14. 11. 2026
+- Teploty → Chladnutí: nahoře jeden velký graf „Pokoj – teď až do rána“: skutečná teplota, odhad bez topení až do vstávání, svislé čáry teď / spaní / vstávání, vodorovné hranice cíl ráno a minimum, zelená tečka + křivka „na kolik vytopit“ (od spaní k cíli ráno), ťuknutím teplota v libovolném čase. Pod ním dvě věty (na kolik vytopit / kdy bez topení minimum). Všechno ostatní v rozbalovacích Podrobnostech.
+- Hlídač: odhad chladnutí až do vstávání (dřív 10 h), nová křivka `heat.bed_curve`.
+
 ## 6.3 – 14. 11. 2026
 - Grafy spotřeby: body bez měření zásuvek (doplněné z regulátoru) se v hodinách, kde měření jsou, vynechají. Dřív se plnily hodinovým průměrem zásuvek → „ostatní“ skákalo mezi skutečnou hodnotou a 0 W (průměr lednice ≈ okamžitý odběr 220 V).
 

@@ -4605,7 +4605,15 @@ def heat_plan(data, st, now, topic, cfg):
     h["out"] = [[t, round(to_(t), 1)] for t, v in O if ts - 7 * 3600 <= t <= ts + 11 * 3600 and to_(t) is not None]
     if c.get("T_now") is not None and c.get("k"):
         import chladnuti
-        cv = chladnuti.curve(st, c["k"], c["T_now"], ts, ts + 10 * 3600)
+        t_end = max(ts + 10 * 3600, (c.get("bed_mor") or 0) + 1800, (h.get("wake") or 0) + 1800 if (h.get("wake") or 0) > ts else 0)   # 6.4: až do vstávání
+        cv = chladnuti.curve(st, c["k"], c["T_now"], ts, min(t_end, ts + 16 * 3600))
+        # 6.4 (Petr: graficky „na kolik vytopit“): křivka od spaní (při spaní mít aspoň) do rána – stejný model, posunutá
+        # o korekci tak, aby začínala na need_bed a končila na cíli
+        if c.get("bed") and c.get("bed_mor") and c.get("need_bed_raw") is not None and c["bed"] > ts - 3600:
+            bc = chladnuti.curve(st, c["k"], c["need_bed_raw"], c["bed"], c["bed_mor"])
+            if bc:
+                corr, span = (c.get("need_bed") or c["need_bed_raw"]) - c["need_bed_raw"], max(1, c["bed_mor"] - c["bed"])
+                h["bed_curve"] = [[t, round(T + corr * (1 - (t - c["bed"]) / span), 2)] for t, T in bc]
         if cv:
             h["curve"] = cv
             hit = next((t for t, T in cv if T <= lim), None)

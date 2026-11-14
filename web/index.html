@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.3", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.4", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3017,7 +3017,63 @@ function heatCard(d){
     <div class="sub" style="margin-top:6px;line-height:1.5">Odhad chladnutí podle naučeného modelu a venkovní teploty (naměřené u chaty, dopředu předpovědi) – když se má ochladit, klesá rychleji, když oteplit, pomaleji. Upozornění (${cfgV("chladnuti_predstih_min", `${H.lead} min`)} předem, jednou za jedno chladnutí) jen když jsi na chatě a vzhůru (ne mezi spaním a vstáváním – to nastavíš v kartě 🗓 Jsem pryč a spím) a teplota za poslední hodinu klesá.</div>
     <div style="margin-top:8px;font-size:13.5px;line-height:1.9">Nastavení: hranice ${limT} · upozornit ${cfgV("chladnuti_predstih_min", `${H.lead} min`)} předem · ráno mít ${cfgV("chladnuti_cil_C", `${nf(c.target??21,0)} °C`)}</div></details></div>`;
 }
+/* 6.4 (Petr: „chci na první pohled graficky vidět, kolik stupňů kdy bude a na kolik chatu vytopit“): jeden hlavní graf
+   teď → ráno se svislými čarami (teď, spaní, vstávání), hranicemi (cíl ráno, minimum), odhadem bez topení a křivkou
+   „na kolik vytopit“ od spaní do rána; pod ním dvě věty. Všechno ostatní v Podrobnostech. */
+function coolMainHtml(d){
+  const H = d.heat, c = d.cool || {}; if(!H || !(H.curve||[]).length) return "";
+  const now = H.t || Date.now()/1000, pAt = (cv, t) => { if(!cv || !cv.length) return null; if(t <= cv[0][0]) return cv[0][1];
+    for(let i=1;i<cv.length;i++) if(cv[i][0] >= t){ const [a,va] = cv[i-1], [b,vb] = cv[i]; return va + (vb-va)*(t-a)/((b-a)||1); } return null; };
+  const wake = c.bed_mor || H.wake, bed = c.bed || H.bed, mor = pAt(H.curve, wake), lim = H.lim, tgt = c.target;
+  let l1 = "";
+  if(bed && bed > now && c.need_bed != null){ const pb = pAt(H.curve, bed);
+    l1 = pb != null && pb >= c.need_bed - 0.2 ? `✓ Netřeba přikládat – ráno bude ~<b>${nf(mor,1)} °C</b>`
+      : `🔥 Před spaním (${hmT(bed)}) vytop na <b style="font-size:20px">${nf(c.need_bed,1)} °C</b> <span class="sub">· teď ${nf(H.T,1)} °C</span>`; }
+  else if(mor != null) l1 = `Ráno (${hmT(wake)}) bude ~<b>${nf(mor,1)} °C</b>${tgt!=null && mor < tgt ? ` <span style="color:var(--warn)">– pod ${nf(tgt,0)} °C</span>` : ""}`;
+  const l2 = H.hit ? `<span style="color:var(--crit)">Bez topení: ${nf(lim,0)} °C už ${relDay(H.hit)} v <b>${hmT(H.hit)}</b></span>` : "";
+  return `<div class="card chart"><h2>🌡️ ${escH(c.room||"Pokoj")} – teď až do rána</h2>
+    <div class="sub" style="font-size:12.5px"><span style="color:var(--s1)">━</span> skutečně · <span style="color:var(--s4)">┅</span> bez topení · <span style="color:var(--good)">┈</span> na kolik vytopit · ťukni do grafu</div>
+    <div id="cool_main"></div>
+    <div style="font-size:16px;margin-top:8px;line-height:1.5">${l1}${l2 ? "<br>" + l2 : ""}</div></div>`;
+}
+function coolMainDraw(d){
+  const el = $("cool_main"); if(!el) return;
+  const Hh = d.heat, c = d.cool || {}, now = Hh.t || Date.now()/1000, room = c.room || "Pokoj";
+  const wake = c.bed_mor || Hh.wake, bed = c.bed || Hh.bed, T0 = now - 4*3600, T1 = Math.max(now + 6*3600, (wake||0) + 1800);
+  const real = (d.points||[]).filter(p=>p.t >= T0 && p.th && p.th[room] != null).map(p=>[p.t, p.th[room]]);
+  const pred = (Hh.curve||[]).filter(([t])=>t <= T1), bc = (Hh.bed_curve||[]).filter(([t])=>t <= T1);
+  const vals = [...real, ...pred, ...bc].map(x=>x[1]).concat([Hh.lim, c.target, c.need_bed].filter(v=>v!=null));
+  if(!vals.length) return empty(el);
+  // vlastní, vyšší graf s většími popisky (čte se na telefonu)
+  const VW = 600, VH = 330, L = 46, R = 14, T = 30, B = 34, FS = 19;
+  const lo = Math.floor(Math.min(...vals) - 0.5), hi = Math.ceil(Math.max(...vals) + 0.5);
+  const x = t => L + (VW - L - R) * (t - T0) / (T1 - T0), y = v => T + (VH - T - B) * (1 - (v - lo) / (hi - lo || 1));
+  const pl = a => a.map(([t,v])=>`${x(t).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  let s = "";
+  const st = Math.max(1, Math.round((hi - lo) / 5));
+  for(let v = lo; v <= hi; v += st) s += `<line x1="${L}" x2="${VW-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v)+6}" text-anchor="end" style="font-size:${FS-2}px;fill:var(--text2)">${v}°</text>`;
+  for(let t = Math.ceil(T0/7200)*7200; t <= T1; t += 7200) s += `<text x="${x(t)}" y="${VH-8}" text-anchor="middle" style="font-size:${FS-2}px;fill:var(--text2)">${hmT(t).replace(/:00$/,"")}</text>`;
+  const hl = (v, col, lab) => v==null ? "" : `<line x1="${L}" x2="${VW-R}" y1="${y(v)}" y2="${y(v)}" stroke="${col}" stroke-width="2" stroke-dasharray="8 5"/><text x="${L+6}" y="${y(v)-6}" style="font-size:${FS}px;fill:${col};font-weight:700">${lab}</text>`;
+  s += hl(c.target, "var(--good)", `cíl ráno ${nf(c.target,0)}°`) + hl(Hh.lim, "var(--crit)", `minimum ${nf(Hh.lim,0)}°`);
+  const vl = (t, lab, anc) => t && t > T0 && t < T1 ? `<line x1="${x(t)}" x2="${x(t)}" y1="${T}" y2="${VH-B}" stroke="var(--text2)" stroke-width="1.5" stroke-dasharray="3 4"/><text x="${x(t)}" y="${T-8}" text-anchor="${anc||"middle"}" style="font-size:${FS}px;fill:var(--text);font-weight:600">${lab}</text>` : "";
+  s += vl(now, "teď") + vl(bed, `😴 ${hmT(bed)}`) + vl(wake, `☀ ${hmT(wake)}`, x(wake) > VW - 70 ? "end" : "middle");
+  if(real.length > 1) s += `<polyline points="${pl(real)}" fill="none" stroke="var(--s1)" stroke-width="4" stroke-linejoin="round"/>`;
+  if(pred.length > 1) s += `<polyline points="${pl(pred)}" fill="none" stroke="var(--s4)" stroke-width="3" stroke-dasharray="9 6"/>`;
+  if(bc.length > 1){ s += `<polyline points="${pl(bc)}" fill="none" stroke="var(--good)" stroke-width="3" stroke-dasharray="2 6" stroke-linecap="round"/>`;
+    s += `<circle cx="${x(bc[0][0])}" cy="${y(bc[0][1])}" r="8" fill="var(--good)" stroke="var(--card)" stroke-width="3"/><text x="${x(bc[0][0])+12}" y="${y(bc[0][1])-10}" style="font-size:${FS+4}px;font-weight:800;fill:var(--good)">${nf(bc[0][1],1)}°</text>`; }
+  if(pred.length){ const e = pred[pred.length-1]; s += `<circle cx="${x(e[0])}" cy="${y(e[1])}" r="6" fill="var(--s4)"/><text x="${x(e[0])-10}" y="${y(e[1])+24}" text-anchor="end" style="font-size:${FS+2}px;font-weight:800;fill:var(--s4)">${nf(e[1],1)}°</text>`; }
+  if(real.length){ const e = real[real.length-1]; s += `<circle cx="${x(e[0])}" cy="${y(e[1])}" r="6" fill="var(--s1)"/>`; }
+  el.innerHTML = `<svg viewBox="0 0 ${VW} ${VH}" style="width:100%;height:auto;display:block;touch-action:pan-y">${s}<rect x="${L}" y="${T}" width="${VW-L-R}" height="${VH-T-B}" fill="transparent"/></svg>`;
+  const svg = el.querySelector("svg");
+  const at = (a, t) => { if(a.length < 2 || t < a[0][0] || t > a[a.length-1][0]) return null; for(let i=1;i<a.length;i++) if(a[i][0] >= t){ const [p,vp]=a[i-1],[q,vq]=a[i]; return vp+(vq-vp)*(t-p)/((q-p)||1); } return null; };
+  const tip = ev => { const r = svg.getBoundingClientRect(), t = T0 + ((ev.clientX - r.left) / r.width * VW - L) / (VW - L - R) * (T1 - T0);
+    const a = at(real, t), b = at(pred, t), g = at(bc, t);
+    showTip(ev, `${relDay(t)} ${hmT(t)}` + (a!=null ? `<br><span style="color:var(--s1)">━</span> skutečně <b>${nf(a,1)} °C</b>` : "") + (b!=null ? `<br><span style="color:var(--s4)">┅</span> bez topení <b>${nf(b,1)} °C</b>` : "") + (g!=null ? `<br><span style="color:var(--good)">┈</span> po vytopení <b>${nf(g,1)} °C</b>` : "")); };
+  svg.addEventListener("pointermove", tip); svg.addEventListener("pointerdown", tip); svg.addEventListener("pointerleave", ev => { if(ev.pointerType==="mouse") hideTip(); });
+}
 function coolCard(body, d, h){
+  body.insertAdjacentHTML("beforeend", coolMainHtml(d)); coolMainDraw(d);
+  if($("cool_main")){ body.insertAdjacentHTML("beforeend", `<details class="card" style="padding:10px 14px"><summary style="cursor:pointer;font-weight:600">Podrobnosti – čísla, minulé noci, vysvětlení</summary><div id="cool_more_b" style="margin-top:8px"></div></details>`); body = $("cool_more_b"); }
   body.insertAdjacentHTML("beforeend", heatCard(d));   // 5.153
   if(HEATCH && $("heat_ch")){ const X = HEATCH, m = new Map();
     for(const [t,v] of X.real) m.set(Math.round(t), {t:Math.round(t), v});
