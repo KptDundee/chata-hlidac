@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.2 – 14. 11. 2026
+- Dlaždice Spotřeba chaty: „ostatní“ až za řádkem „obvykle do teď“ (patří k celku) – na druhém místě.
+
 ## 6.1 – 14. 11. 2026
 - Barva ČERV River: karmínová do fialova (světle #c2185b, tmavě #f0508a) – dřív červená skoro jako oranžová výroba. Platí všude, kde má River svou barvu.
 
