@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.3 – 14. 11. 2026
+- Grafy spotřeby: body bez měření zásuvek (doplněné z regulátoru) se v hodinách, kde měření jsou, vynechají. Dřív se plnily hodinovým průměrem zásuvek → „ostatní“ skákalo mezi skutečnou hodnotou a 0 W (průměr lednice ≈ okamžitý odběr 220 V).
+
 ## 6.2 – 14. 11. 2026
 - Dlaždice Spotřeba chaty: „ostatní“ až za řádkem „obvykle do teď“ (patří k celku) – na druhém místě.
 

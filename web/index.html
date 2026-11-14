@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.2", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.3", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3202,6 +3202,11 @@ function withHist(pts, U, t0, t1){
   const fill = p => { const tp = {...(p.tp||{})}; let n = 0;
     for(const id of ids){ if(tp[id]==null){ const w = histW(id, p.t); if(w!=null){ tp[id] = w; n++; } } }
     return n ? {...p, tp, mw: p.mw ?? tp[U.mip], _h:1} : p; };
+  // 6.3 (Petr: „ostatní“ cyklicky 14 W ↔ 0 W): body bez zásuvek (doplněné z regulátoru) se dřív plnily hodinovým
+  // průměrem zásuvek – vedle okamžitých hodnot to dávalo nesmysl (průměr lednice skoro = odběr 220 V → ostatní 0).
+  // Když v té hodině jsou skutečná měření zásuvek, body bez nich se v grafech spotřeby vynechají.
+  const real = new Set(pts.filter(p=>p.tp).map(p=>Math.floor(p.t/3600)));
+  pts = pts.filter(p=>p.tp || !real.has(Math.floor(p.t/3600)));
   const out = pts.map(fill), have = new Set(pts.map(p=>Math.floor(p.t/3600)));
   for(let h = Math.ceil(t0/3600); h*3600 + 3600 <= Math.min(t1, now); h++){
     if(have.has(h)) continue;                                  // v té hodině nějaký bod je

@@ -1275,12 +1275,6 @@ def load_data(passphrase):
 
 
 def save_data(passphrase, data):
-    try:   # 6.2 ladění „ostatní“ 14. 11. 12–16 h (dočasné)
-        for p_ in data.get("points") or []:
-            if 1794652200 <= p_["t"] <= 1794670200:
-                print("BOD", datetime.fromtimestamp(p_["t"], TZ).strftime("%H:%M"), p_.get("mw"), p_.get("rw"), p_.get("src") or p_.get("cs"), json.dumps(p_.get("tp")), p_.get("bf"))
-    except Exception as e_:
-        print("BOD chyba", e_)
     data.pop("_inv_msgs", None)
     data["run_t"] = int(time.time())     # 5.268: kdy hlídač naposledy běžel (web pozná „nepřišla data“ od „regulátor mlčí“)
     rej_log(data, datetime.now(TZ))
