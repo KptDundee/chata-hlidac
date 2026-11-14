@@ -4122,6 +4122,9 @@ def fuel_stats(data, st, now, cfg):
                   "last_t": max((e["t"] for e in es), default=None)}      # 5.256: poslední záznam (i „lahev došla“)
         fuel_hist_all[f] = hist
     data["fuel"] = out
+    for r_ in [r_ for r_ in data.get("fuel_runs") or [] if (r_.get("wh_f") or {}).get("benzin", 0) > 50][-5:]:   # 5.292: kontrola benzínu
+        print(f"Benzín – nabíjení {datetime.fromtimestamp(r_.get('t0') or 0, TZ).strftime('%-d. %-m. %H:%M')}: {r_['wh_f']['benzin']} Wh, "
+              f"nádrž {r_.get('tk')}, {r_.get('lit')} l, l/kWh {(out.get('benzin') or {}).get('lpk')}, Kč {((r_.get('czk_f') or {}).get('benzin'))}")
     # 5.254 (Petr): přehled lahví – od kdy do kdy, nabíjení, kWh z generátoru / do River / v chatě, skutečná spotřeba a cena
     bots = []
     days_ = data.get("days") or {}
