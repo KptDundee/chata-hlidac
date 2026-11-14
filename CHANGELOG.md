@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.1 – 14. 11. 2026
+- Barva ČERV River: karmínová do fialova (světle #c2185b, tmavě #f0508a) – dřív červená skoro jako oranžová výroba. Platí všude, kde má River svou barvu.
+
 ## 6.0 – 14. 11. 2026
 - Nové číslování: 6.0 (dál 6.1, 6.2, …).
 - Spotřeba chaty: „ostatní“ (neměřené – TV, telefon, PC, kamery = běžný provoz) hned za součtem – na dlaždici (dnes kWh · teď W), v tabulce Čísla i jako graf hned pod „Odběr chaty“.
