@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.293", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "5.294", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3280,7 +3280,7 @@ function detUse(body, src="a"){
   // 4.38: výroba a spotřeba chaty celkem po dnech – pokryla výroba spotřebu? (stejný graf jako v detailu Solár)
   const G = detGran();   // 5.287: h / d / m podle přepínače období
   const pu = src==="a" ? chartCard("u_pu", G==="h" ? "Výroba a spotřeba po hodinách" : G==="m" ? "Výroba a spotřeba po měsících" : "Výroba a spotřeba po dnech",
-    `${G==="h" ? "Wh za hodinu" : "kWh"} · <span style="color:var(--s2)">■</span> výroba · spotřeba celkem: <span style="color:var(--s3)">■</span> ze soláru (i se ztrátami měniče) <span style="color:var(--s1)">■</span> z River${G==="d" ? " · ťukni na den" : ""}`) : "";
+    `${G==="h" ? "Wh za hodinu" : "kWh"} · <span style="color:var(--s2)">■</span> výroba · spotřeba celkem: <span style="color:var(--s3)">■</span> ze soláru (i se ztrátami měniče) · z River: ${rvLegend()}${G==="d" ? " · ťukni na den" : ""}`) : "";
   const ud = src==="a" && G!=="h" ? chartCard("u_days", G==="m" ? "Spotřeba chaty po měsících" : "Spotřeba chaty po dnech", G==="m" ? "kWh za měsíc (měřeno na zásuvkách)" : "kWh za den (měřeno na zásuvkách) · čárkovaně obvyklá = medián předchozích 14 dní (velké výkyvy se neprojeví)") : "";
   const UT = tabsHead("us_tab", [["g","📊 Grafy"],["n","🔢 Čísla"]]);
   // 5.199 (Petr): kolik hodin chata jela z čeho – skládané sloupce po dnech (vedle výroby a spotřeby)
@@ -4060,6 +4060,11 @@ function detToday(body){
 }
 /* výroba a spotřeba chaty celkem po dnech / měsících (4.37): sloupec výroba + vedle něj spotřeba složená
    ze soláru (zásuvka za měničem + ztráty měniče) a z River (zásuvky River). Bublina: pokryla / chybělo. */
+// 5.294: barva a krátké jméno River podle zásuvky (ŽLUT žlutá, ČERV červená, jinak modrá)
+const rvShortId = id => { const n = pn((DATA.plug_names||{})[id] || "") || `(${id})`; return n.split(/\s+/)[0].replace(/\.$/,""); };
+const rvColor = id => { const n = rvShortId(id); return /^ŽLUT/i.test(n) ? "#e2b007" : /^ČERV/i.test(n) ? "#d64545" : css("--s1"); };
+const rvLegend = () => { const ids = String(DATA.cfg?.zasuvky_river||"").split(/[,;\s]+/).filter(Boolean);
+  return ids.map(id=>`<span style="color:${rvColor(id)}">■</span> ${escH(rvShortId(id))}`).join(" "); };
 function prodUse(el, mode, last){
   // mode: "h" po hodinách (Dnes / 48 h, z měření po ~10 min, Wh), "d" po dnech (last = kolik dní), "m" po měsících (last = 13 / vše)
   const D = DATA.days || {}, U = useModel(DATA), idle = DATA.cfg?.menic_vlastni_W ?? 6, M_ = mode==="m", H_ = mode==="h";
@@ -4067,18 +4072,21 @@ function prodUse(el, mode, last){
   let rows;
   if(H_){   // 5.287 (Petr): Dnes / 48 h po hodinách – výroba panelů a spotřeba chaty (ze soláru vč. ztrát měniče / z River)
     const now = Date.now()/1000, t0 = now - detHours()*3600, g = {}, av = a => a.reduce((x,y)=>x+y,0)/a.length;
-    for(const p of (DATA.points||[]).filter(p=>p.t >= t0)){ const hk = Math.floor(p.t/3600)*3600, o = g[hk] ||= {k:hk, pv:[], s:[], r:[]};
-      if(p.pv_w!=null) o.pv.push(p.pv_w); const u = useAt(p, U); if(u){ o.s.push(u.s._sum||0); o.r.push(u.r._sum||0); } }
+    for(const p of (DATA.points||[]).filter(p=>p.t >= t0)){ const hk = Math.floor(p.t/3600)*3600, o = g[hk] ||= {k:hk, pv:[], s:[], r:[], rv:{}};
+      if(p.pv_w!=null) o.pv.push(p.pv_w); const u = useAt(p, U);
+      if(u){ o.s.push(u.s._sum||0); o.r.push(u.r._sum||0); for(const id of U.rids) (o.rv[id] ||= []).push(p.tp[id]||0); } }
     rows = Object.values(g).sort((a,b)=>a.k-b.k).map(o=>{ const sw = o.s.length ? av(o.s) : null;
       const sv = sw==null ? 0 : sw > 5 ? sw/0.88 + idle : sw, rv = o.r.length ? av(o.r) : 0;
-      return {k:o.k, p: o.pv.length ? av(o.pv) : 0, s: sv, r: rv, u: o.s.length ? sv + rv : null}; });
+      const n_ = o.r.length || 1, rvm = Object.fromEntries(Object.entries(o.rv).map(([id,a])=>[id, a.reduce((x,y)=>x+y,0)/n_]));
+      return {k:o.k, p: o.pv.length ? av(o.pv) : 0, s: sv, r: rv, rv: rvm, u: o.s.length ? sv + rv : null}; });
   } else {
   const keys = Object.keys(D).sort().slice(M_ ? -800 : -(last||30)), agg = {};
   for(const k of keys){ const x = D[k], ud = useDay(k, U), ac = ud ? ud.s._sum : (x.tp||{})[U.mip];
     if(x.solar_kwh==null && ac==null) continue;
-    const g = M_ ? k.slice(0,7) : k, o = agg[g] ||= {k:g, p:0, s:0, r:0, nu:0};
+    const g = M_ ? k.slice(0,7) : k, o = agg[g] ||= {k:g, p:0, s:0, r:0, nu:0, rv:{}};
     o.p += x.solar_kwh || 0;
-    if(ac!=null || ud){ o.s += (ac||0)/0.88/1000 + ((ac||0) > 5 ? idle*24/1000 : 0); o.r += ud ? (ud.r._sum||0)/1000 : 0; o.nu++; } }
+    if(ac!=null || ud){ o.s += (ac||0)/0.88/1000 + ((ac||0) > 5 ? idle*24/1000 : 0); o.r += ud ? (ud.r._sum||0)/1000 : 0; o.nu++;
+      for(const id of U.rids) if((x.tp||{})[id]) o.rv[id] = (o.rv[id]||0) + x.tp[id]/1000; } }
   rows = Object.values(agg).slice(M_ ? -(last||13) : -(last||30)).map(o=>({...o, u: o.nu ? o.s + o.r : null}));   // 5.286: 13 měsíců – tento měsíc vedle loňského
   }
   const UNt = H_ ? "Wh" : "kWh", DCt = H_ ? 0 : 2, kL = q => H_ ? `${relDay(q.k)} ${hmT(q.k)}–${hmT(q.k+3600)}` : M_ ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"long",year:"numeric"}) : dTxt(q.k);
@@ -4090,7 +4098,11 @@ function prodUse(el, mode, last){
   let s = "";
   rows.forEach((q,i)=>{ const cx = M.l+bw*i+bw/2;
     s += bar(cx-w-1, 0, q.p, css("--s2"));
-    if(q.u!=null){ s += bar(cx+1, 0, q.s, css("--s3")) + bar(cx+1, q.s, q.r, css("--s1")); }
+    if(q.u!=null){ s += bar(cx+1, 0, q.s, css("--s3"));
+      // 5.294 (Petr): z které River – barvou (ŽLUT žlutá, ČERV červená, ostatní modrá)
+      let acc = q.s; const ids = Object.keys(q.rv||{}).sort();
+      if(ids.length) for(const id of ids){ const v = q.rv[id]; if(v > 0){ s += bar(cx+1, acc, v, rvColor(id)); acc += v; } }
+      else s += bar(cx+1, q.s, q.r, css("--s1")); }
     s += `<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
     if(i%Math.ceil(rows.length/6)===0 || i===rows.length-1) s += `<text x="${cx}" y="${H-6}" text-anchor="middle">${H_ ? hmT(q.k).slice(0,2) : M_ ? new Date(q.k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"}) : dayLabel(q.k)}</text>`; });
   // 5.22: kolik musí solár vyrobit, aby pokryl obvyklou spotřebu (medián 14 celých dní ÷ účinnost nabíjení 85 %)
@@ -4101,7 +4113,7 @@ function prodUse(el, mode, last){
   svg.insertAdjacentHTML("beforeend", s);
   hover(svg, rows, q=>{ const b = q.u!=null ? q.p - q.u : null;
     return `${kL(q)}<br><span style="color:var(--s2)">■</span> výroba <b>${nf(q.p,DCt)} ${UNt}</b>`
-      + (q.u!=null ? `<br>spotřeba celkem <b>${nf(q.u,DCt)} ${UNt}</b><br><span style="color:var(--s3)">■</span> ze soláru ${nf(q.s,DCt)} · <span style="color:var(--s1)">■</span> z River ${nf(q.r,DCt)}`
+      + (q.u!=null ? `<br>spotřeba celkem <b>${nf(q.u,DCt)} ${UNt}</b><br><span style="color:var(--s3)">■</span> ze soláru ${nf(q.s,DCt)} · ${Object.keys(q.rv||{}).length ? Object.entries(q.rv).filter(([,v])=>v>0.0005).map(([id,v])=>`<span style="color:${rvColor(id)}">■</span> ${escH(rvShortId(id))} ${nf(v,DCt)}`).join(" · ") || `<span style="color:var(--s1)">■</span> z River 0` : `<span style="color:var(--s1)">■</span> z River ${nf(q.r,DCt)}`}`
         + `<br><b style="color:var(${b>=0?"--good":"--crit"})">${b>=0?"výroba pokryla spotřebu (+"+nf(b,DCt)+" "+UNt+")":"chybělo "+nf(-b,DCt)+" "+UNt}</b>` : "<br>spotřeba –")
       + (NEED ? `<br><span class="sub">obvyklá potřeba ~${nf(NEED,2)} kWh (spotřeba + ztráty nabíjení)</span>` : ""); });
 }
