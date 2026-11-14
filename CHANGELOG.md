@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.0 – 14. 11. 2026
+- Nové číslování: 6.0 (dál 6.1, 6.2, …).
+- Spotřeba chaty: „ostatní“ (neměřené – TV, telefon, PC, kamery = běžný provoz) hned za součtem – na dlaždici (dnes kWh · teď W), v tabulce Čísla i jako graf hned pod „Odběr chaty“.
+- Barvy River všude stejné (ŽLUT žlutá, ČERV červená) i u jmen bez diakritiky („ZLUTA“, „CERV.“) – v grafu Výroba a spotřeba byly dřív modré.
+
 ## 5.294 – 14. 11. 2026
 - Graf „Výroba a spotřeba“ (po hodinách / dnech / měsících): spotřeba z River rozdělená podle River barvou – ŽLUT žlutá, ČERV červená (ostatní modrá); v bublině kolik z které.
 

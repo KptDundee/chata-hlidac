@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "5.294", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.0", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2878,7 +2878,7 @@ function costGraphsDraw(d){
   catBars($("cg_gen"), rows.map(q=>({k:q.k, l:q.pg.lpg, b:q.pg.benzin})), COSTSER, {unit:"Kč/kWh", per:CPER});
   catBars($("cg_use"), rows.map(q=>({k:q.k, l:q.pu.lpg, b:q.pu.benzin})), COSTSER, {unit:"Kč/kWh", per:CPER});
   const {rvName} = costCalc(d), RVK = [...new Set(R.flatMap(q=>Object.keys(q.rk)))], RVC = ["var(--s1)","var(--s2)","var(--s3)","var(--s4)"];
-  const rvS = k6 => rvName(k6).split(/\s+/)[0].replace(/\.$/,""), rvCol = (k6,i) => /^ŽLUT/i.test(rvS(k6)) ? "#e2b007" : /^ČERV/i.test(rvS(k6)) ? "#d64545" : RVC[(i+2)%RVC.length];
+  const rvS = k6 => rvName(k6).split(/\s+/)[0].replace(/\.$/,""), rvCol = (k6,i) => rivColor(rvName(k6), i);
   const RVS = RVK.map((k6,i)=>({key:k6, name:rvS(k6), color:rvCol(k6,i)}));
   if($("cg_rv_leg")) $("cg_rv_leg").innerHTML = RVS.length ? "<br>" + RVS.map(x=>`<span style="color:${x.color}">■</span> ${escH(x.name)}`).join(" · ") : "";
   catBars($("cg_rv"), rows.map(q=>({k:q.k, ...q.rk})), RVS, {unit:"Kč", per:CPER, emptyMsg:"Zatím žádné nabíjení s cenou a záznamem, kolik dostala která River."});
@@ -3287,11 +3287,11 @@ function detUse(body, src="a"){
   const phc = src==="a" && G!=="h" ? chartCard("u_ph", "Kolik hodin chata jela z čeho", `h za ${G==="m" ? "měsíc" : "den"} · <span style="color:var(--s6)">■</span> solár · ${rivModel(d, homeData(d)).R.filter(r=>!rvSmall(r)).map(r=>`<span style="color:${r.color}">■</span> ${escH(r.short)}`).join(" · ")} · <span style="color:var(--muted)">■</span> nezjištěno${G==="d" ? " · ťukni na den" : ""}`) : "";
   let html = UT.html + `<div id="us_tab_g"${UT.cur==="g"?"":' style="display:none"'}>` + segHtml() + pu + (src==="a" ? srcStripHtml(d, homeData(d)) + srcPiesHtml(d, homeData(d)) : "") + phc + ud
     + chartCard("u_sum", `Odběr chaty ${SRCN[src]}`, long ? `kWh za ${detGran()==="m" ? "měsíc" : "den"}${srcCap}` : `W${src==="a" ? " · 220 V + River · šedé pozadí = chata na River" : src==="s" ? " · zásuvka 220 V za měničem" : " · zásuvky na výstupu River"}`);
+  html += chartCard("u_o", "Ostatní (běžný provoz)", `${long ? "kWh za " + (detGran()==="m" ? "měsíc" : "den") + srcCap : "W"}${only} · odběr − měřené zásuvky: TV, telefon, PC, kamery…`);   // 6.0: hned za součtem
   if(src!=="r") html += chartCard("u_220", "220 V – zásuvka za měničem", long ? `kWh za den · v bublině i se ztrátami měniče` : `W · <span style="color:var(--s2)">━ změřeno na zásuvce</span> · <span style="color:var(--s1)">╍ vzato z baterie (+12 % ztráty měniče, +${nf(U.idle,1)} W měnič a desulfátor)</span>`);
   // 5.175 (Petr): graf „Ostatní“ před světly
   const isLt = x => /sv[eě]tl/i.test(x.name) || ((d.inverter||{}).tp||[]).some(p=>p.ip===x.id && p.lt), devCard = x => chartCard("u_d"+x.id, x.name, `${long ? "kWh za den" + srcCap : "W"}${only}${x.hist ? "" : " · historie od 14. 10."}`);
   for(const x of U.devs.filter(x=>!isLt(x))) html += devCard(x);
-  html += chartCard("u_o", "Ostatní (neměřené)", `${long ? "kWh za den" + srcCap : "W"}${only} · odběr − měřené zásuvky: světla, kamery, TV a telefon z River…`);
   for(const x of U.devs.filter(isLt)) html += devCard(x);
   html += `</div><div id="us_tab_n"${UT.cur==="n"?"":' style="display:none"'}>`;
   // čísla
@@ -3301,7 +3301,8 @@ function detUse(body, src="a"){
   const avg = id => wk.length ? wk.reduce((s,q)=>s+(q[src][id]||0),0)/wk.length : null;
   const cell = (q, id) => { if(!q || q[src][id]==null) return "–"; const v = q[src][id];
     return `${k2(v)}${src==="a" && (q.r[id]||0) > 5 ? `<div class="sub" style="font-size:11px;font-weight:500;white-space:nowrap">☀ ${k2(q.s[id]||0)}<br>R ${k2(q.r[id])}</div>` : ""}`; };
-  const rowsN = [[`Chata ${SRCN[src]}`,"_sum"], ...(src!=="r" ? [] : []), ...U.devs.map(x=>[x.name, x.id]), ["ostatní (neměřené)","_o"]];
+  // 6.0 (Petr): „ostatní“ = běžný provoz (TV, telefon, PC…) hned za součtem
+  const rowsN = [[`Chata ${SRCN[src]}`,"_sum"], ["ostatní (neměřené)","_o"], ...U.devs.map(x=>[x.name, x.id])];
   html += `<div class="card"><h2 style="margin:0 0 6px">Čísla <span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500">kWh ${SRCN[src]}${src==="a"?" · ☀ ze soláru · R z River":""}</span></h2>
     <table class="ut"><thead><tr><th></th><th>dnes</th><th>včera</th><th>⌀ 7 dní</th></tr></thead><tbody>
     ${rowsN.map(([n,id],i)=>`<tr${i===0?' class="tot"':""}><td>${n}</td><td>${cell(td,id)}</td><td>${cell(yd,id)}</td><td>${k2(avg(id))}</td></tr>`).join("")}
@@ -3348,6 +3349,9 @@ function tileUseTotal(d, h){
   // 5.22: proti obvyklé (medián posledních 7 dní do stejné denní doby – hlídač)
   const cc = d.cons_cmp && h.now - d.cons_cmp.t < 3600 ? d.cons_cmp : null, pc = (a,b) => b ? `${a>=b?"+":"−"}${nf(Math.abs(a/b-1)*100,0)} %` : "";
   const rows = [];
+  // 6.0 (Petr): „ostatní“ (TV, telefon, PC…) = běžný provoz – hned pod součtem
+  if(td && td.a._o != null){ const lp = (d.points||[]).slice(-1)[0], ua = lp && h.now - lp.t < 1800 ? useAt(lp, U) : null;
+    rows.push(["ostatní (TV, telefon…)", `${kWh(td.a._o)}${ua && ua.a._o != null ? ` · ${nf(ua.a._o)} W` : ""}`]); }
   if(cc && cc.typ_wh) rows.push(["obvykle do teď", `${nf(cc.typ_wh/1000,2)} kWh · <b style="color:var(${cc.now_wh > cc.typ_wh*1.3 ? "--warn" : "--text"})">${pc(cc.now_wh, cc.typ_wh)}</b>`]);
   // 5.96: sloučeno s dlaždicí Spotřebiče – pod souhrnem jednotlivé zásuvky podle dnešní spotřeby
   const dv = tileDevices(d, h);
@@ -4062,7 +4066,7 @@ function detToday(body){
    ze soláru (zásuvka za měničem + ztráty měniče) a z River (zásuvky River). Bublina: pokryla / chybělo. */
 // 5.294: barva a krátké jméno River podle zásuvky (ŽLUT žlutá, ČERV červená, jinak modrá)
 const rvShortId = id => { const n = pn((DATA.plug_names||{})[id] || "") || `(${id})`; return n.split(/\s+/)[0].replace(/\.$/,""); };
-const rvColor = id => { const n = rvShortId(id); return /^ŽLUT/i.test(n) ? "#e2b007" : /^ČERV/i.test(n) ? "#d64545" : css("--s1"); };
+const rvColor = id => rivColor((DATA.plug_names||{})[id] || rvShortId(id), 0);   // 6.0: stejné barvy jako všude (ZLUTA i ŽLUT)
 const rvLegend = () => { const ids = String(DATA.cfg?.zasuvky_river||"").split(/[,;\s]+/).filter(Boolean);
   return ids.map(id=>`<span style="color:${rvColor(id)}">■</span> ${escH(rvShortId(id))}`).join(" "); };
 function prodUse(el, mode, last){
