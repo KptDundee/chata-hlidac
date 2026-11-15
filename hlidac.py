@@ -4779,8 +4779,11 @@ def frost_check(data, st, now, topic, cfg):
         fz["risk"] = True
     elif fz.get("risk") and (T > lim_t + 2 or (pct is not None and pct >= lim_h + 10)):
         fz["risk"] = False
-    alarm(st, topic, "frost", bool(fz.get("risk")), "❄️⚠️ Vybitá baterie v mrazu", f"Baterie {pct} # při {fmt(T, 1)} °C. Vybitá AGM může v mrazu zamrznout a prasknout. "
-          "Nevybíjej ji dál (chata na River) a dobij ji, jak to půjde.", 4, "snowflake,warning", ok_title="✓ Baterie v mrazu už není vybitá")
+    # 6.6 (Petr: „na kolik ji mám nabít?“): cíl = kdy upozornění končí (mraz_hash + 10 #); i do karty (data.frost)
+    tgt = lim_h + 10
+    data["frost"] = {"risk": bool(fz.get("risk")), "T": T, "pct": pct, "min": lim_h, "tgt": tgt}
+    alarm(st, topic, "frost", bool(fz.get("risk")), f"❄️⚠️ Vybitá baterie v mrazu – nabij aspoň na {tgt} #", f"Baterie {pct} # při {fmt(T, 1)} °C. Vybitá AGM může v mrazu zamrznout a prasknout. "
+          f"Nevybíjej ji dál (chata na River) a nech ji panely dobít aspoň na {tgt} # (pod {lim_h} # je v mrazu riziko).", 4, "snowflake,warning", ok_title="✓ Baterie v mrazu už není vybitá")
 
 
 def night_learn(data, st, now, cfg):
