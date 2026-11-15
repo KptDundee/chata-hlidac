@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.14 – 15. 11. 2026
+- Cena → Grafy: místo „Kolik stálo nabíjení každé River“ (součty Kč závisely na tom, jak moc byla River vybitá) graf „Je některá River dražší?“ – Kč za 1 kWh, které River opravdu přibyla (přírůstek % × změřená kapacita), po nabíjeních / týdnech / měsících. Pod nadpisem cena plného nabití 0→100 % každé River za zobrazené období.
+
 ## 6.13 – 15. 11. 2026
 - Cena nabíjení: přepínač „Dny“ → „Nabíjení“ – jeden sloupec / řádek = jedno nabíjení (dřív se dvě nabíjení v jednom dni sčítala). Týdny / Měsíce / Roky dál součty.
 - Cena nabíjení na benzín: když je spotřeba změřená z tankování do plna, každé nabíjení = kWh × l/kWh × Kč/l (14. 11. vycházelo 60 Kč kvůli skoku ukazatele nádrže).

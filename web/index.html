@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.13", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.14", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2795,7 +2795,7 @@ function costAgg(d, per){
     const m = new Date(x); m.setHours(12,0,0,0); m.setDate(m.getDate() - ((m.getDay()+6)%7)); return dkey(m.getTime()/1000); };
   for(const r of d.fuel_runs||[]){
     if(!r.t0 || !r.wh) continue;
-    const k = keyOf(r.t0), A = out[k] ||= {k, n:0, miss:0, kc:{lpg:0,benzin:0}, wh:{lpg:0,benzin:0}, whk:{lpg:0,benzin:0}, use:{lpg:0,benzin:0}, usek:{lpg:0,benzin:0}, ew:0, eu:0, xwh:0, xkc:0, rk:{}, rw:{}};
+    const k = keyOf(r.t0), A = out[k] ||= {k, n:0, miss:0, kc:{lpg:0,benzin:0}, wh:{lpg:0,benzin:0}, whk:{lpg:0,benzin:0}, use:{lpg:0,benzin:0}, usek:{lpg:0,benzin:0}, ew:0, eu:0, xwh:0, xkc:0, rk:{}, rw:{}, rp:{}, ru:{}};
     const U = runUse(d, r, ratio), wf0 = r.wh_f && Object.keys(r.wh_f).length ? r.wh_f : {[r.fuel||"lpg"]: r.wh};
     const kx = chgWh(r)/(r.wh||1), wf = Object.fromEntries(Object.entries(wf0).map(([f,w])=>[f, w*kx]));
     const tw = Object.values(wf).reduce((a,b)=>a+b,0) || 1;
@@ -2803,7 +2803,10 @@ function costAgg(d, per){
     // 5.293 (Petr): kolik stálo nabíjení každé River – cena běhu rozdělená podle kWh, které která dostala
     const rkc = r.czk ?? (Object.values(r.czk_f||{}).every(v=>v!=null) && Object.keys(r.czk_f||{}).length ? Object.values(r.czk_f).reduce((a,b)=>a+b,0) : null);
     const rvw = Object.values(r.rv||{}).reduce((a,b)=>a+b,0);
-    if(rvw > 0) for(const [k6, w] of Object.entries(r.rv)){ A.rw[k6] = (A.rw[k6]||0) + w; if(rkc!=null) A.rk[k6] = (A.rk[k6]||0) + rkc*w/rvw; }
+    if(rvw > 0) for(const [k6, w] of Object.entries(r.rv)){ A.rw[k6] = (A.rw[k6]||0) + w; if(rkc!=null) A.rk[k6] = (A.rk[k6]||0) + rkc*w/rvw;
+      // 6.14 (Petr: „je jedna River dražší?“): kolik % přibylo a kolik kWh to je v River (změřená kapacita) – cena za 1 kWh v River
+      const sp = (r.s||{})[k6]; if(rkc!=null && sp && sp[1] > sp[0]){ const c = (d.rv_cap||{})[k6], cap = c && c.cap && (c.n||0) >= 2 ? c.cap : null;
+        A.rp[k6] = (A.rp[k6]||0) + (sp[1]-sp[0]); if(cap) A.ru[k6] = (A.ru[k6]||0) + (sp[1]-sp[0])/100*cap; A.rkp = A.rkp || {}; A.rkp[k6] = (A.rkp[k6]||0) + rkc*w/rvw; } }
     for(const [f, w] of Object.entries(wf)){
       const kc = (r.czk_f||{})[f] ?? (Object.keys(wf).length===1 ? r.czk : null), u = U.use!=null ? U.use*w/tw : null;
       A.wh[f] += w; if(u!=null) A.use[f] += u;
@@ -2870,7 +2873,7 @@ function costGraphsHtml(){
   return `<div class="seg" id="cper_seg" style="margin-bottom:12px">${P.map(([k,l])=>`<button data-p="${k}" aria-pressed="${CPER===k}">${l}</button>`).join("")}</div>`
     + chartCard("cg_gen", "Cena 1 kWh z generátoru", `Kč/kWh · ${leg}`)
     + chartCard("cg_use", "Cena 1 kWh využitelné (do chaty)", `Kč/kWh · se ztrátami nabíjení a River · ${leg}`)
-    + chartCard("cg_rv", "Kolik stálo nabíjení každé River", `Kč za období · cena nabíjení rozdělená podle kWh, které která River dostala<span id="cg_rv_leg"></span>`)
+    + chartCard("cg_rv", "Je některá River dražší?", `Kč za 1 kWh, které River opravdu přibyla (přírůstek % × změřená kapacita) – nezávisí na tom, jak moc byla vybitá. Vyšší = dražší nabíjení (horší účinnost). Ťukni: i cena plného nabití.<span id="cg_rv_leg"></span>`)
     + chartCard("cg_eff", "Účinnost nabíjení", `% · využitelné kWh ÷ kWh z generátoru (jen nabíjení se změřeným % River, od 5.181)`)
     + `<div class="card"><h2 style="margin:0 0 6px">Kolik nabíjení stálo</h2><div id="cg_tab"></div></div>`
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Z generátoru = kWh, které generátor dodal. Využitelné = co z toho skutečně dojde do chaty: změna % každé River × její změřená kapacita (Wh do chaty na 100 %) + co River během nabíjení rovnou dodala do chaty. U nabíjení bez změřeného % (starší) odhad podle obvyklých ztrát River. Celkem = všechny Kč ÷ všechny kWh. Nabíjení bez zapsané ceny paliva se do Kč/kWh nepočítá (v tabulce označeno).</div>`;
@@ -2885,7 +2888,11 @@ function costGraphsDraw(d){
   const rvS = k6 => rvName(k6).split(/\s+/)[0].replace(/\.$/,""), rvCol = (k6,i) => rivColor(rvName(k6), i);
   const RVS = RVK.map((k6,i)=>({key:k6, name:rvS(k6), color:rvCol(k6,i)}));
   if($("cg_rv_leg")) $("cg_rv_leg").innerHTML = RVS.length ? "<br>" + RVS.map(x=>`<span style="color:${x.color}">■</span> ${escH(x.name)}`).join(" · ") : "";
-  catBars($("cg_rv"), rows.map(q=>({k:q.k, ...q.rk})), RVS, {unit:"Kč", per:CPER, emptyMsg:"Zatím žádné nabíjení s cenou a záznamem, kolik dostala která River."});
+  catBars($("cg_rv"), rows.map(q=>{ const o = {k:q.k}; for(const k6 of RVK){ const kc = (q.rkp||{})[k6], u = q.ru[k6]; if(kc!=null && u > 50) o[k6] = kc/(u/1000); } return o; }), RVS,
+    {unit:"Kč/kWh", per:CPER, dec:1, emptyMsg:"Zatím žádné nabíjení s cenou a změřeným % River."});
+  // plné nabití 0→100 % za celé zobrazené období (pod grafem)
+  const fullT = RVK.map(k6=>{ const kc = R.reduce((a,q)=>a+((q.rkp||{})[k6]||0),0), p_ = R.reduce((a,q)=>a+(q.rp[k6]||0),0); return p_ >= 20 ? `<span style="color:${rvCol(k6,0)}">■</span> ${escH(rvS(k6))} plné nabití ~<b>${nf(kc/p_*100,0)} Kč</b>` : ""; }).filter(Boolean).join(" · ");
+  if($("cg_rv_leg") && fullT) $("cg_rv_leg").insertAdjacentHTML("beforeend", `<br>${fullT}`);
   catBars($("cg_eff"), rows.map(q=>({k:q.k, e:q.eff})), [{key:"e",name:"účinnost",color:"var(--s3)"}], {unit:"%", per:CPER, emptyMsg:"Účinnost se ukáže po prvním nabíjení se změřeným % River (od verze 5.181)."});
   const kc = v => v ? `${nf(v,0)} Kč` : "–", kw = v => `${nf(v/1000,2)} kWh`;
   $("cg_tab").innerHTML = R.length ? `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:2px 12px;font-size:14px;font-variant-numeric:tabular-nums">
