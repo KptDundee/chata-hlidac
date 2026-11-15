@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.11", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.12", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3500,7 +3500,12 @@ function rivState(x, h, M){
     return x.ef ? rvIdle(x) : "vypnutá";
   }
   const iw = x.ef ? x.ef.in_w||0 : 0, ow = x.ef ? x.ef.out_w||0 : 0;
-  if((x.w||0) > 2) return h.invF && (h.inv.mw||0) > 3 ? "napájí spotřebič" : "napájí chatu";
+  if((x.w||0) > 2){ if(h.invF && (h.inv.mw||0) > 3) return "napájí spotřebič";
+    // 6.12 (Petr: „chata jede na červenou, ale nepíše se, jak dlouho vydrží“): výdrž v hodinách i čas
+    const k6 = x.ef ? String(x.ef.sn||"").slice(-6) : "", u = (DATA.rv_run||{})[k6] || ((DATA.river_sup||{}).until), now = Date.now()/1000;
+    if(!u || u <= now) return "napájí chatu";
+    const m = Math.round((u - now)/60);
+    return `napájí chatu · vydrží ~${Math.floor(m/60)}:${String(m%60).padStart(2,"0")} h (do ${relDay(u)} ${hmT(u)})`; }
   // 4.78: zdroj jen generátor (když opravdu běží); nabíjení z jiné River je výjimka – bez udání zdroje
   // 4.81: stáří údaje z EcoFlow (čte se s každým během hlídače) – ať je vidět, že 150 W může být z doby před 10 min
   const efAge = DATA.rivers_t ? Math.round((Date.now()/1000 - DATA.rivers_t)/60) : null, agoT = efAge!=null && efAge >= 5 ? ` · před ${efAge} min` : "";
