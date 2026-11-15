@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.10", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.11", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3480,7 +3480,11 @@ const rvPlugBad = x => false;
 function rvIdle(x){
   // 5.267: výdrž počítá hlídač (obvyklý odběr chaty den / noc – stejně jako „vydrží do“), web ji jen ukáže
   const k6 = x.ef ? String(x.ef.sn||"").slice(-6) : "", u = (DATA.rv_run||{})[k6];
-  return u ? `v klidu · utáhne chatu do ${relDay(u)} ${hmT(u)}` : "v klidu";
+  // 6.11 (Petr): i kolik hodin a – když ji plán chystá na později – od kdy do kdy
+  const dur = a => { const m = Math.max(0, Math.round(a/60)); return `${Math.floor(m/60)}:${String(m%60).padStart(2,"0")} h`; };
+  const pp = (DATA.rv_run_plan||{})[k6], now = Date.now()/1000;
+  if(!u) return "v klidu";
+  return `v klidu · utáhne chatu ~${dur(u - now)} (do ${relDay(u)} ${hmT(u)})` + (pp ? `<br>podle plánu od ${hmT(pp[0])} → do ${relDay(pp[1])} ${hmT(pp[1])} (~${dur(pp[1]-pp[0])})` : "");
 }
 function rivState(x, h, M){
   { const s12 = small12(x); if(s12) return s12; }

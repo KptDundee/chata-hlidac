@@ -6602,7 +6602,7 @@ def river_runtimes(data, now, cfg):
     M_ = energy_model(data, cfg, now)
     res = cfg.get("river_rezerva_pct") or 5
     rl, rc, ts_ = data.get("rv_last") or {}, data.get("rv_cap") or {}, now.timestamp()
-    out = {}
+    out, plan_out = {}, {}
     for r in data.get("rivers") or []:
         cap = r.get("wh") or cfg.get("river_Wh") or 768
         if cap < 500:
@@ -6613,13 +6613,20 @@ def river_runtimes(data, now, cfg):
             continue
         rc_ = rc.get(k6) or {}
         use_wh = rc_["cap"] if rc_.get("cap") and (rc_.get("n") or 0) >= 2 else cap * 0.9
-        lvl, t_ = max(0.0, soc - res) / 100 * use_wh, ts_
-        while lvl > 0 and t_ - ts_ < 7 * 86400:
-            lvl -= M_["load_w"](t_) * 600 / 3600
-            t_ += 600
-        out[k6] = int(t_)
-        print(f"Výdrž River {r.get('name')}: {round(soc)} % → do {rel_day(int(t_), now)} {datetime.fromtimestamp(t_, TZ).strftime('%H:%M')}")
-    data["rv_run"] = out
+        def run_from(t0):
+            lvl, t_ = max(0.0, soc - res) / 100 * use_wh, t0
+            while lvl > 0 and t_ - t0 < 7 * 86400:
+                lvl -= M_["load_w"](t_) * 600 / 3600
+                t_ += 600
+            return int(t_)
+        out[k6] = run_from(ts_)
+        # 6.11 (Petr: „o půlnoci přepnu na žlutou – do kdy vydrží?“): když ji plán chystá na později, výdrž od toho času
+        nx = next((g for g in ((data.get("wplan") or {}).get("segs") or []) if g.get("src") == r.get("sn") and g["a"] > ts_ + 300), None)
+        if nx:
+            plan_out[k6] = [int(nx["a"]), run_from(nx["a"])]
+        print(f"Výdrž River {r.get('name')}: {round(soc)} % → do {rel_day(out[k6], now)} {datetime.fromtimestamp(out[k6], TZ).strftime('%H:%M')}"
+              + (f", podle plánu od {datetime.fromtimestamp(nx['a'], TZ).strftime('%H:%M')} do {rel_day(plan_out[k6][1], now)} {datetime.fromtimestamp(plan_out[k6][1], TZ).strftime('%H:%M')}" if nx else ""))
+    data["rv_run"], data["rv_run_plan"] = out, plan_out
 
 
 def river_supply_plugs(data, now, cfg):
