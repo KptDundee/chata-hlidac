@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.9 – 15. 11. 2026
+- Zásoba benzínu: z kanystrů se odečítá každé tankování generátoru po zadání zásoby (zadané litry, jinak odhad z posledního stavu nádrže × objem); celkem = kanystry + nádrž. Dřív se odečítalo spálené podle % nádrže (nespolehlivé).
+
 ## 6.8 – 15. 11. 2026
 - Spotřeba benzínu: když jsou dvě tankování do plna a u druhého zadané litry, platí litry ÷ kWh mezi nimi (spolehlivější než ubylá % nádrže – ukazatel jednou po startu skočil o 22 %). Objem nádrže 4 l ověřen (Petr 15. 11.).
 

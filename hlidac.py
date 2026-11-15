@@ -3937,12 +3937,22 @@ def fuel_reserve(data, st, now, cfg):
     if sig and rb.get("sig") != sig:                         # nové zadání → od teď se odečítá
         rb.clear()
         rb.update({"sig": sig, "t": int(now.timestamp()), "tank_l": tank_l})
-    burned = sum(r.get("lit") or 0 for r in data.get("fuel_runs") or [] if rb.get("t") and (r.get("t0") or 0) >= rb["t"])
-    if rb.get("t") and rb.get("tank_l") is None and tank_l is not None and burned == 0:
-        rb["tank_l"] = tank_l                                # generátor byl při zadání offline – nádrž doplnit, jakmile ji hlásí
-    tot = round(sum(k["l"] or 0 for k in kan) + (rb.get("tank_l") or 0) - burned, 1) if kan else None
-    ben = {"kan": kan, "tank_l": tank_l, "tot": tot, "kan_now": round(max(0.0, tot - tank_l), 1) if tot is not None and tank_l is not None else None,
-           "burned": round(burned, 2), "t": rb.get("t")}
+    # 6.8: z kanystrů ubývá to, co se dolije do generátoru (záznamy tankování po zadání zásoby; litry zadané, jinak
+    # odhad z posledního stavu nádrže před tankováním × objem). Celkem = kanystry + nádrž teď.
+    runs_ = sorted(data.get("fuel_runs") or [], key=lambda r: r.get("t0") or 0)
+    poured = 0.0
+    for e in ((data.get("fuel") or {}).get("benzin") or {}).get("hist") or []:
+        if not rb.get("t") or e["t"] < rb["t"]:
+            continue
+        if e.get("l"):
+            poured += float(e["l"])
+        elif e.get("full"):
+            last = [r for r in runs_ if (r.get("t0") or 0) < e["t"] and (r.get("tk") or [None, None])[1] is not None]
+            poured += (100 - last[-1]["tk"][1]) / 100 * V if last else 0.0
+    kan_now = round(max(0.0, sum(k["l"] or 0 for k in kan) - poured), 1) if kan else None
+    tot = round(kan_now + (tank_l or 0), 1) if kan_now is not None else None
+    burned = poured
+    ben = {"kan": kan, "tank_l": tank_l, "tot": tot, "kan_now": kan_now, "burned": round(poured, 2), "t": rb.get("t")}
     bot = []
     for part in str(cfg.get("lahve_pb") or "").split(","):
         cap_, _, kg_ = part.strip().partition(":")
@@ -3954,7 +3964,7 @@ def fuel_reserve(data, st, now, cfg):
     conn = round(max(0.0, cur["kg"] - (cur.get("used_kg") or 0)), 1) if cur and cur.get("kg") else None
     lpg = {"bot": bot, "spare_kg": round(sum(b["kg"] or 0 for b in bot), 1), "unknown": sum(1 for b in bot if b["kg"] is None), "conn_kg": conn}
     data["fuel_res"] = {"benzin": ben, "lpg": lpg}
-    print(f"Zásoba paliva: benzín celkem {tot if tot is not None else '?'} l (nádrž {tank_l if tank_l is not None else '?'} l, spáleno od zadání {burned:.2f} l), "
+    print(f"Zásoba paliva: benzín v kanystrech {kan_now if kan_now is not None else '?'} l, nádrž {tank_l if tank_l is not None else '?'} l (dolito od zadání {poured:.2f} l), "
           f"PB mimo generátor {lpg['spare_kg']} kg + {lpg['unknown']}× nevím, připojená ~{conn if conn is not None else '?'} kg")
 
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.8", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.9", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2728,11 +2728,11 @@ function resHtml(d, f){
   if(f==="benzin"){
     const K = String(c.kanystry||"").split(",").map(x=>x.trim()).filter(Boolean).map(x=>{ const i = x.lastIndexOf(" "), nm = i>0 ? x.slice(0,i) : "kanystr", [cap,l] = x.slice(i+1).split(":"); return {nm, cap, l}; });
     const row = kanRow;
-    const sum = R.tot!=null ? `<div style="font-size:15px;margin:2px 0 6px">Benzín celkem <b>~${nf(R.tot,1)} l</b>${R.tank_l!=null ? ` · v nádrži ${nf(R.tank_l,1)} l · v kanystrech ~${nf(R.kan_now,1)} l` : ""}${R.burned ? ` <span class="sub">(od zadání spáleno ${nf(R.burned,1)} l)</span>` : ""}</div>` : "";
+    const sum = R.tot!=null ? `<div style="font-size:15px;margin:2px 0 6px">Benzín celkem <b>~${nf(R.tot,1)} l</b> · v kanystrech ~${nf(R.kan_now,1)} l${R.tank_l!=null ? ` · v nádrži ${nf(R.tank_l,1)} l` : ""}${R.burned ? ` <span class="sub">(od zadání dolito do generátoru ${nf(R.burned,1)} l)</span>` : ""}</div>` : "";
     return `<div class="card"><h2 style="margin:0 0 4px">📦 Zásoba benzínu</h2>${sum}<div id="kan_rows">${(K.length?K:[{nm:"",cap:"",l:""}]).map(row).join("")}</div>
       <button type="button" onclick="document.getElementById('kan_rows').insertAdjacentHTML('beforeend', kanRow({nm:'',cap:'',l:''}))" style="font:inherit;font-size:13px;padding:4px 10px">+ kanystr</button>
       <button type="button" onclick="resSave('benzin')" style="font:inherit;font-weight:600;padding:7px 14px;margin-left:6px">Uložit</button><div class="sub" id="res_msg_benzin" style="margin-top:4px"></div>
-      <details style="margin-top:6px"><summary class="sub" style="cursor:pointer">Jak to funguje</summary><div class="sub" style="line-height:1.45">Zadej, kolik je teď v kanystrech. Od uložení hlídač odečítá, co generátor spálí (podle ubylých % nádrže), takže to nemusíš hlídat. Když koupíš benzín nebo přeliješ do generátoru, nic neměň – přelití se pozná podle nádrže. Po nákupu do kanystrů jen přepiš čísla a ulož.</div></details></div>`;
+      <details style="margin-top:6px"><summary class="sub" style="cursor:pointer">Jak to funguje</summary><div class="sub" style="line-height:1.45">Zadej, kolik je teď v kanystrech. Od uložení hlídač z kanystrů odečítá každé tankování generátoru (zadané litry, jinak odhad podle stavu nádrže před tankováním). Po nákupu benzínu do kanystrů jen přepiš čísla a ulož.</div></details></div>`;
   }
   const B = String(c.lahve_pb||"").split(",").map(x=>x.trim()).filter(Boolean).map(x=>{ const [cap,kg] = x.split(":"); return {cap, kg}; });
   const row = botRow;
