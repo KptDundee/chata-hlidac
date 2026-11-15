@@ -4092,7 +4092,7 @@ def fuel_stats(data, st, now, cfg):
             gpk, gpk_src = sum(real_) / len(real_), "lahve"
         # 5.181 (Petr): benzín – generátor hlásí stav nádrže v %; spotřeba = ubylé % × objem nádrže (gen_nadrz_l).
         # Litr stojí cena tankování ÷ litry; 1 kWh = Kč/l × l/kWh (l/kWh ze všech nabíjení na benzín s měřením nádrže).
-        lpk = None
+        lpk, lpk_fill = None, False
         if f == "benzin":
             rl_ = [(r_["lit"], (r_.get("wh_f") or {}).get("benzin", 0)) for r_ in data.get("fuel_runs") or []
                    if r_.get("lit") is not None and (r_.get("wh_f") or {}).get("benzin", 0) > 50 and not (r_.get("wh_f") or {}).get("lpg")]
@@ -4103,6 +4103,7 @@ def fuel_stats(data, st, now, cfg):
             hs_ = sorted(hist, key=lambda x: x["t"])
             fl_ = [(y["l"], x["wh"]) for x, y in zip(hs_, hs_[1:]) if x.get("full") and y.get("full") and y.get("l") and x.get("wh", 0) > 500]
             if fl_:
+                lpk_fill = True
                 lpk = sum(a for a, _ in fl_) / (sum(b for _, b in fl_) / 1000)
                 print(f"Benzín: spotřeba z tankování do plna {lpk:.3f} l/kWh ({sum(a for a, _ in fl_)} l / {sum(b for _, b in fl_) / 1000:.2f} kWh)")
         for x in hist:
@@ -4134,7 +4135,7 @@ def fuel_stats(data, st, now, cfg):
         out[f] = {"cur": cur if cur and not cur["closed"] else None, "avg_kwh": round(avg_kwh, 2) if avg_kwh else None,
                   "gpk": round(gpk) if gpk else None, "gpk_src": gpk_src if f == "lpg" and gpk else None,
                   "g_kwh_n": round(fg[1] / 1000, 2) if gpk and fg else None,
-                  "lpk": round(lpk, 3) if lpk else None, "nadrz_l": float(cfg.get("gen_nadrz_l") or 4.0) if f == "benzin" else None,
+                  "lpk": round(lpk, 3) if lpk else None, "lpk_src": ("plna" if lpk_fill else "nadrz") if lpk else None, "nadrz_l": float(cfg.get("gen_nadrz_l") or 4.0) if f == "benzin" else None,
                   "czk_kwh": now_c, "n": len(ok), "hist": hist[-12:], "e": round(fe.get(f, 0.0)),
                   "last_t": max((e["t"] for e in es), default=None)}      # 5.256: poslední záznam (i „lahev došla“)
         fuel_hist_all[f] = hist
@@ -4173,6 +4174,15 @@ def fuel_stats(data, st, now, cfg):
                 if c1 - c0 <= 5:
                     continue
                 hs = fuel_hist_all.get(f) or []
+                bz_ = out.get("benzin") or {}
+                if f == "benzin" and bz_.get("lpk_src") == "plna":
+                    # 6.13 (Petr: velký sloupec 14. 11.): ukazatel nádrže jednou skočil o 22 % → když je spotřeba změřená
+                    # z tankování do plna, cena = kWh × l/kWh × Kč/l (stejně pro každé nabíjení)
+                    tk_ = [x for x in hs if x["t"] <= (r.get("t0") or 0) and x.get("czk_l")] or [x for x in hs if x.get("czk_l")]
+                    czf["benzin"] = (c1 - c0) / 1000 * bz_["lpk"] * tk_[-1]["czk_l"] if tk_ else None
+                    tot += czf["benzin"] or 0
+                    miss = miss or not tk_
+                    continue
                 if f == "benzin" and r.get("lit") is not None:
                     # 5.181: benzín = litry z nádrže × cena litru z posledního tankování před nabíjením
                     # (nabíjení bez měření nádrže → postaru podle kWh níž, cena 1 kWh = Kč/l × l/kWh)

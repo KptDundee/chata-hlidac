@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.13 – 15. 11. 2026
+- Cena nabíjení: přepínač „Dny“ → „Nabíjení“ – jeden sloupec / řádek = jedno nabíjení (dřív se dvě nabíjení v jednom dni sčítala). Týdny / Měsíce / Roky dál součty.
+- Cena nabíjení na benzín: když je spotřeba změřená z tankování do plna, každé nabíjení = kWh × l/kWh × Kč/l (14. 11. vycházelo 60 Kč kvůli skoku ukazatele nádrže).
+
 ## 6.12 – 15. 11. 2026
 - Dlaždice EcoFlow, River, která napájí chatu: „napájí chatu · vydrží ~4:13 h (do zítra 00:13)“.
 

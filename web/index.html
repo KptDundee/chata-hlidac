@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.12", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.13", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2789,7 +2789,8 @@ function runUse(d, r, ratio){
 let CPER = "m"; try{ CPER = localStorage.getItem("cper") || "m"; }catch(_){}
 function costAgg(d, per){
   const {ratio} = costCalc(d), out = {};
-  const keyOf = t => { const x = new Date(t*1000); if(per==="d") return dkey(t); if(per==="y") return String(x.getFullYear());
+  // 6.13 (Petr: 14. 11. velký sloupec – dvě nabíjení sečtená): ve Dnech jeden sloupec = jedno nabíjení
+  const keyOf = t => { const x = new Date(t*1000); if(per==="d") return String(Math.round(t)); if(per==="y") return String(x.getFullYear());
     if(per==="m") return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`;
     const m = new Date(x); m.setHours(12,0,0,0); m.setDate(m.getDate() - ((m.getDay()+6)%7)); return dkey(m.getTime()/1000); };
   for(const r of d.fuel_runs||[]){
@@ -2821,6 +2822,7 @@ function costAgg(d, per){
 }
 function perLabel(k, per, long){
   if(per==="y") return k;
+  if(per==="d" && /^\d{9,}$/.test(String(k))){ const t = +k; return long ? `${relDay(t)} ${hmT(t)}` : new Date(t*1000).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}); }
   if(per==="m"){ const x = new Date(k+"-15T12:00"); return x.toLocaleDateString("cs-CZ", long ? {month:"long", year:"numeric"} : {month:"short"}) + (long ? "" : " " + k.slice(2,4)); }
   const x = new Date(k+"T12:00"), t = x.toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"});
   return per==="w" ? (long ? `týden od ${t}` : t) : t;
@@ -2863,7 +2865,7 @@ function catBars(el, rows, series, o){
 }
 const COSTSER = [{key:"l",name:"plyn",color:"var(--s1)"},{key:"b",name:"benzín",color:"var(--s2)"}];
 function costGraphsHtml(){
-  const P = [["d","Dny"],["w","Týdny"],["m","Měsíce"],["y","Roky"]];
+  const P = [["d","Nabíjení"],["w","Týdny"],["m","Měsíce"],["y","Roky"]];
   const leg = COSTSER.map(s=>`<span style="color:${s.color}">■</span> ${s.name}`).join(" · ");
   return `<div class="seg" id="cper_seg" style="margin-bottom:12px">${P.map(([k,l])=>`<button data-p="${k}" aria-pressed="${CPER===k}">${l}</button>`).join("")}</div>`
     + chartCard("cg_gen", "Cena 1 kWh z generátoru", `Kč/kWh · ${leg}`)
