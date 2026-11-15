@@ -4991,7 +4991,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     conn_ = (data.get("river_sup") or {}).get("sn")
     if home_ and W2_ and W2_["cur"] != "s" and W2_["cur"] in RVl and (on_solar or (on_river and conn_ and conn_ != W2_["cur"])):
         todo_add(data, 5, (f"šetrně přepni na River {rv_short(RVl[W2_['cur']]['name'])}" if res.get("ok") and on_solar else      # 5.225: solár vydrží – jen šetření
-                           f"přepni na River {rv_short(RVl[W2_['cur']]['name'])} ({fmt(RVl[W2_['cur']]['soc'])} %)"), "warn")
+                           f"přepni na River {rv_short(RVl[W2_['cur']]['name'])} ({fmt(RVl[W2_['cur']]['soc'])} %)"), "warn",
+                 "sol" if on_solar else "rv")      # 6.10 (Petr): z River na jinou River patří na dlaždici EcoFlow, ne k soláru
     elif home_ and W2_ and W2_["cur"] == "s" and on_river and not covers:
         todo_add(data, 3, "můžeš přepnout na solár", "ok")
     if on_river and home_ and covers and (W2_["cur"] == "s" if W2_ else hq["pct"] >= start_pct) and hq["pct"] >= alarm_soc and rise and set_ and rise <= now < set_ - timedelta(hours=1) \
@@ -5556,7 +5557,7 @@ def build_todo(data, st, now):
     for k, e in (st.get("al") or {}).items():
         if k in short:
             p_, t_, l_ = short[k]
-            L.append({"p": p_, "txt": t_, "lvl": l_, "tile": "rv" if k == "wp_none" else "sol"})
+            L.append({"p": p_, "txt": t_, "lvl": l_, "tile": "rv" if k == "wp_none" or k.startswith("rv") else "sol"})
         elif k in ("wp_chg", "wp_chg1") or k.startswith("rv_"):
             t_ = _re.sub(r"^[^\wÁ-ž]+", "", str(e.get("title") or "")).strip()
             L.append({"p": 8 if k == "wp_chg1" else 7 if k.startswith("rv_") else 6, "txt": t_[:1].lower() + t_[1:], "lvl": "crit" if k != "wp_chg" else "warn",

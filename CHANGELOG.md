@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.10 – 15. 11. 2026
+- Rada „přepni na River X“, když chata už jede z jiné River, a upozornění na vybitou River patří na dlaždici EcoFlow, ne k soláru (u soláru jen přepnutí solár ↔ River).
+
 ## 6.9 – 15. 11. 2026
 - Zásoba benzínu: z kanystrů se odečítá každé tankování generátoru po zadání zásoby (zadané litry, jinak odhad z posledního stavu nádrže × objem); celkem = kanystry + nádrž. Dřív se odečítalo spálené podle % nádrže (nespolehlivé).
 
