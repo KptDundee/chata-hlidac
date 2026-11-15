@@ -7423,7 +7423,9 @@ def check_river(r, st, topic, cfg, data=None, rivers=None):
         mins = r.get("dsg_min")
         rest = f" Zbývá asi {fmt_h(mins / 60)}." if mins and mins < 6000 else ""
         # 5.251 (Petr: „přepoj na druhou River“, a ta měla taky ~10 %): radit jen to, co opravdu jde
-        oth = max((o for o in rivers or [] if o is not r and (o.get("wh") or 768) >= 500 and o.get("online")
+        # 6.5 (Petr: „druhá je taky skoro prázdná“, a ŽLUT měla 99 %): vypnutá River je v EcoFlow „offline“, ale nabití si drží –
+        # počítá se s posledním známým %
+        oth = max((o for o in rivers or [] if o is not r and (o.get("wh") or 768) >= 500 and o.get("soc") is not None
                    and (o.get("soc") or 0) >= soc + 20), key=lambda o: o.get("soc") or 0, default=None)
         hq_ = (data or {}).get("hq") or {}
         sol_ = (hq_.get("pct") or 0) >= (cfg.get("baterie_setrna_pct") or 50)
