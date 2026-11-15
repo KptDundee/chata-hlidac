@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.6", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.7", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -4122,7 +4122,9 @@ function detToday(body){
   if(DETR==="d") barChart($("dt_prod"), hourly(pts,"pv_w"), "v", css("--s2"), {unit:"kWh",dec:2,label:x=>x+":00",tip:q=>`${q.k}:00–${q.k+1}:00<br><b>${nf(q.v,2)} kWh</b>`});
   else if(detLong()) monthlyBars($("dt_prod"), hrs);
   else barChart($("dt_prod"), Object.keys(D).sort().slice(-Math.round(hrs/24)-1).map(k=>({k, v:D[k].solar_kwh})), "v", css("--s2"), {unit:"kWh",dec:2});
-  lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
+  // 6.7 (Petr: „není málo dat – chata jede z River, dnes ŽÁDNÁ data“): měnič vypnutý → říct proč, ne „málo dat“
+  if(!pts.some(p=>p.mw!=null && p.mw > 3)) empty($("dt_cons"), "Měnič je v tomto období vypnutý – chata jede z River, za měničem nic neodebírá. Odběr chaty z River je v kartě Spotřeba chaty.");
+  else lineChart($("dt_cons"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
   body.insertAdjacentHTML("beforeend", srcPiesHtml(d, h));      // 5.199 (Petr): na co jela chata – i v kartě Dnes
 }
 /* výroba a spotřeba chaty celkem po dnech / měsících (4.37): sloupec výroba + vedle něj spotřeba složená

@@ -32,7 +32,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "chladnuti_vyjimky": "",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -4967,7 +4967,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     bk2_ = bk_
     rvt_ = f"River {rv_short(RVl[bk2_]['name'])} ({fmt(RVl[bk2_]['soc'])} %)" if bk2_ else "River"
     W2_ = wp_now(data, now)
-    if on_river and home_ and covers and (W2_ is None or W2_["cur"] == "s"):
+    start_pct = cfg.get("solar_start_pct") or 90                  # 6.7: z River na solár až skoro plná
+    if on_river and home_ and covers and (W2_["cur"] == "s" if W2_ else hq["pct"] >= start_pct):
         todo_add(data, 4, "přepni na solár – vyrábí víc, než chata bere", "ok")
     # 5.217 (Petr: dlaždice a rady musí sedět s plánem): plán říká teď jiný zdroj, než na kterém chata jede → přepni
     conn_ = (data.get("river_sup") or {}).get("sn")
@@ -4976,7 +4977,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
                            f"přepni na River {rv_short(RVl[W2_['cur']]['name'])} ({fmt(RVl[W2_['cur']]['soc'])} %)"), "warn")
     elif home_ and W2_ and W2_["cur"] == "s" and on_river and not covers:
         todo_add(data, 3, "můžeš přepnout na solár", "ok")
-    if on_river and home_ and covers and (W2_ is None or W2_["cur"] == "s") and hq["pct"] >= alarm_soc and rise and set_ and rise <= now < set_ - timedelta(hours=1) \
+    if on_river and home_ and covers and (W2_["cur"] == "s" if W2_ else hq["pct"] >= start_pct) and hq["pct"] >= alarm_soc and rise and set_ and rise <= now < set_ - timedelta(hours=1) \
             and st.get("sol_use_d") != now.strftime("%Y-%m-%d") and st.get("do_conn") != (str(int(AW[0].timestamp())) if AW else now.strftime("%Y-%m-%d")):
         ntfy(topic, "☀️ Přepni chatu na solár – vyrábí víc, než chata bere",
              f"Panely teď dávají ~{fmt(pv_)} W, chata bere ~{fmt(cab_w)} W (z baterie by šlo ~{fmt(need_w)} W). Spotřeba pojede rovnou z panelů "
@@ -5007,7 +5008,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         # (po západu by se baterie jen vybíjela a večer by se stejně přepínalo zpátky na River)
         free_ok = not tk and rise and now >= rise and set_ and now < set_ - timedelta(hours=2) and st.get("do_conn") != akey
         W_ = wp_now(data, now)
-        plan_sol = (W_ is None or W_["cur"] == "s") and (hq["pct"] >= (cfg.get("baterie_setrna_pct") or 50) or covers)   # 5.215/5.216
+        plan_sol = (W_["cur"] == "s" if W_ else hq["pct"] >= (cfg.get("solar_start_pct") or 90)) and (hq["pct"] >= (cfg.get("baterie_setrna_pct") or 50) or covers)   # 5.215/5.216, 6.7
         if res["ok"] and plan_sol and now.timestamp() < res["end"] and rise and set_ and rise <= now < set_ - timedelta(hours=2):
             todo_add(data, 3, f"můžeš přepnout na solár – vydrží do {hh}:{mm:02d}", "ok")
         if (due or free_ok) and res["ok"] and plan_sol and now.timestamp() < res["end"]:
@@ -5716,7 +5717,12 @@ def window_plan(data, st, now, topic, cfg):
     # 5.221 (Petr): úseky, kdy přepnout nejde (noc od spaní, pryč) – River na ně ať má co největší rezervu
     fixed = [(not home(a)) or a in bed_ts for a, b in segs]
 
-    def search(soc0, floor=0.0, sun=False, minrun=True, dis=None):
+    # 6.7 (Petr: „není lepší nechat chatu na River, ať je solární baterie plnější? každý třetí den se pak může zapnout“):
+    # z River na solár až když je baterie skoro plná (solar_start_pct, 90 #) – do té doby jde celá výroba do baterie.
+    # Když už chata na soláru jede, jede dál (do šetrné hranice). Jen když to jinak nejde, solár i dřív.
+    start_L = max(0.0, ((cfg.get("solar_start_pct") or 90) - M["alarm_soc"]) / 100 * M["cap"])
+
+    def search(soc0, floor=0.0, sun=False, minrun=True, dis=None, st0=True):
         best = [None]
 
         def rec(i, L, soc, plan, used_wh, mg=100.0):
@@ -5749,7 +5755,10 @@ def window_plan(data, st, now, topic, cfg):
                     best[0] = (key, list(plan), L, dict(soc))
                 return
             choices = srcs if home(segs[i][0]) or home(segs[i][0] - 60) or i == 0 else [plan[-1]]   # při odjezdu ještě přepnout jde
-            if sun and i == 0:
+            on_s = (plan[-1] == "s") if plan else (cur == "s")
+            if st0 and not on_s and L < start_L:
+                choices = [c_ for c_ in choices if c_ != "s"] or choices      # 6.7: z River na solár až od solar_start_pct
+            if sun and i == 0 and (on_s or not st0 or L >= start_L):
                 choices = ["s"]                          # 5.217: dokud solár stačí, jede solár
             for c in choices:
                 L2, s2, ok, wh = L, dict(soc), True, 0.0
@@ -5813,7 +5822,7 @@ def window_plan(data, st, now, topic, cfg):
         if need and need["latest"] < ts:
             need = None
     if not found and not need:
-        found = search(soc0, floor_s) or search(soc0) or search(soc0, minrun=False)
+        found = search(soc0, floor_s) or search(soc0) or search(soc0, minrun=False) or search(soc0, minrun=False, st0=False)
         if not found and RV:
             need = find_need(False)
     hm = lambda x: datetime.fromtimestamp(x, TZ).strftime("%H:%M")
