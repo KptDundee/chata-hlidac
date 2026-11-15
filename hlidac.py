@@ -6627,6 +6627,11 @@ def river_runtimes(data, now, cfg):
         print(f"Výdrž River {r.get('name')}: {round(soc)} % → do {rel_day(out[k6], now)} {datetime.fromtimestamp(out[k6], TZ).strftime('%H:%M')}"
               + (f", podle plánu od {datetime.fromtimestamp(nx['a'], TZ).strftime('%H:%M')} do {rel_day(plan_out[k6][1], now)} {datetime.fromtimestamp(plan_out[k6][1], TZ).strftime('%H:%M')}" if nx else ""))
     data["rv_run"], data["rv_run_plan"] = out, plan_out
+    try:   # 6.12: obvyklý odběr chaty po hodinách (pro kontrolu výdrže)
+        d0 = now.replace(minute=30, second=0, microsecond=0)
+        print("Obvyklý odběr chaty po hodinách:", ", ".join(f"{(d0 + timedelta(hours=i)).strftime('%H')}h {M_['load_w']((d0 + timedelta(hours=i)).timestamp()):.0f} W" for i in range(0, 18)))
+    except Exception as e_:
+        print("Odběr po hodinách:", e_)
 
 
 def river_supply_plugs(data, now, cfg):
