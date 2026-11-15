@@ -4088,6 +4088,13 @@ def fuel_stats(data, st, now, cfg):
                    if r_.get("lit") is not None and (r_.get("wh_f") or {}).get("benzin", 0) > 50 and not (r_.get("wh_f") or {}).get("lpg")]
             sl_, sw_ = sum(a for a, _ in rl_), sum(b for _, b in rl_)
             lpk = sl_ / (sw_ / 1000) if sw_ >= 300 and sl_ > 0 else None
+            # 6.8 (Petr: „do generátoru se opravdu vešlo 4 l“; ukazatel % po startu jednou skočil o 22 %): spolehlivější je
+            # tankování do plna – litry dolité do plna ÷ kWh od předchozího tankování do plna. Jakmile je, platí to.
+            hs_ = sorted(hist, key=lambda x: x["t"])
+            fl_ = [(y["l"], x["wh"]) for x, y in zip(hs_, hs_[1:]) if x.get("full") and y.get("full") and y.get("l") and x.get("wh", 0) > 500]
+            if fl_:
+                lpk = sum(a for a, _ in fl_) / (sum(b for _, b in fl_) / 1000)
+                print(f"Benzín: spotřeba z tankování do plna {lpk:.3f} l/kWh ({sum(a for a, _ in fl_)} l / {sum(b for _, b in fl_) / 1000:.2f} kWh)")
         for x in hist:
             if f == "benzin":
                 # 5.292 (Petr): u benzínu se zadává cena za litr (jak ukazuje stojan); litry jsou nepovinné

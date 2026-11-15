@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.8 – 15. 11. 2026
+- Spotřeba benzínu: když jsou dvě tankování do plna a u druhého zadané litry, platí litry ÷ kWh mezi nimi (spolehlivější než ubylá % nádrže – ukazatel jednou po startu skočil o 22 %). Objem nádrže 4 l ověřen (Petr 15. 11.).
+
 ## 6.7 – 15. 11. 2026
 - Plán: z River na solár až když je solární baterie skoro plná (`solar_start_pct`, 90 #) – do té doby jde celá výroba do baterie (plnější baterie, žádné hlášky pod 50 #). Když chata na soláru už jede, jede dál do šetrné hranice. Solár dřív jen když to jinak nejde. Rady „přepni na solár“ / „můžeš přepnout“ podle toho.
 - Karta Solár → Odběr za měničem: když je měnič vypnutý (chata na River), píše to místo „Zatím málo dat“.
