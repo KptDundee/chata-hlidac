@@ -31,7 +31,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 /**
- * Komplikace: aktuální venkovní teplota (Open-Meteo, zdarma, bez klíče).
+ * Komplikace: venku u chaty (teploměr OUTDOOR z hlídače) + menší řádek pokoj na chatě.
+ * Když měření OUTDOOR není čerstvé: aktuální venkovní teplota z Open-Meteo (zdarma, bez klíče).
  * Poloha: poslední známá poloha hodinek (když je povolená), jinak poloha chaty z hlídače, jinak Praha.
  * Výsledek se drží 20 minut, aby se zbytečně nestahovalo.
  */
@@ -42,8 +43,10 @@ public class TempComplication extends ComplicationDataSourceService {
     @Override
     public void onComplicationRequest(@NonNull ComplicationRequest request, @NonNull ComplicationRequestListener listener) {
         new Thread(() -> {
-            Double t = temperature(this);
-            ComplicationData out = t == null ? new NoDataComplicationData() : build(request.getComplicationType(), t, room(Data.fresh(this)));
+            JSONObject d = Data.fresh(this);
+            Double t = outdoor(d);                       // 1.11: teploměr OUTDOOR u chaty
+            if (t == null) t = temperature(this);        // bez čerstvého měření: předpověď Open-Meteo (jako dřív)
+            ComplicationData out = t == null ? new NoDataComplicationData() : build(request.getComplicationType(), t, room(d));
             try {
                 listener.onComplicationData(out);
             } catch (RemoteException ignored) { }
@@ -56,10 +59,17 @@ public class TempComplication extends ComplicationDataSourceService {
         return build(type, 14.0, 21.0);
     }
 
+    /** 1.11: venku u chaty z teploměru OUTDOOR (pole „ven“), jen když data nejsou starší než 1 h. */
+    @Nullable
+    static Double outdoor(@Nullable JSONObject d) {
+        if (d == null || !d.has("ven") || d.isNull("ven") || Data.ageMin(d) > 60) return null;
+        return d.optDouble("ven");
+    }
+
     /** 1.10: teplota v pokoji z hlídače (pole „pk“), jen když data nejsou starší než 1 h. */
     @Nullable
     static Double room(@Nullable JSONObject d) {
-        if (d == null || d.isNull("pk") || !d.has("pk") || Data.ageMin(d) > 60) return null;
+        if (d == null || !d.has("pk") || d.isNull("pk") || Data.ageMin(d) > 60) return null;
         return d.optDouble("pk");
     }
 

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.16 – 16. 11. 2026
+- Hodinky + ciferník 1.11: velké číslo v kruhu teploty = venku u chaty z teploměru OUTDOOR (hlídač posílá `ven`, jen měření do 30 min). Když měření chybí nebo jsou data starší než 1 h, jako dřív předpověď Open-Meteo. Ciferník Chata kreslí pod ním menší šedé číslo = pokoj (title komplikace).
+
 ## 6.15 – 16. 11. 2026
 - Hodinky 1.10: komplikace teploty ukazuje dvě hodnoty – hlavní venku, menší (title) teplota v pokoji na chatě. Hlídač ji posílá v souhrnu pro hodinky (`pk`, jen čerstvé měření do 30 min); hodinky ji ukážou, jen když data nejsou starší než 1 h. Komplikace se obnovuje po 10 min (dřív 30).
 

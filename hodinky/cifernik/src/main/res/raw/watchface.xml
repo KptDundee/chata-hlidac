@@ -45,7 +45,7 @@
       </PartText>
     </Group>
 
-    <!-- ===== teplota (dole) – komplikace „Chata – teplota venku“ (Open-Meteo); jde vyměnit za počasí Xiaomi ===== -->
+    <!-- ===== teplota (dole) – komplikace „Chata – teplota venku + pokoj“: velké = venku u chaty (OUTDOOR, jinak Open-Meteo), pod ním menší šedé = pokoj (COMPLICATION.TITLE) ===== -->
     <ComplicationSlot name="temp" slotId="2" displayName="Teplota" x="164" y="264" width="152" height="152"
         supportedTypes="RANGED_VALUE SHORT_TEXT" isCustomizable="TRUE">
       <DefaultProviderPolicy defaultSystemProvider="EMPTY" defaultSystemProviderType="SHORT_TEXT"
@@ -56,16 +56,26 @@
           <Transform target="angle" value="-135 + 270 * (clamp([COMPLICATION.RANGED_VALUE_VALUE], [COMPLICATION.RANGED_VALUE_MIN], [COMPLICATION.RANGED_VALUE_MAX]) - [COMPLICATION.RANGED_VALUE_MIN]) / ([COMPLICATION.RANGED_VALUE_MAX] - [COMPLICATION.RANGED_VALUE_MIN])"/>
           <Image resource="marker"/>
         </PartImage>
-        <PartText name="tempText" x="0" y="60" width="152" height="44">
+        <PartText name="tempText" x="0" y="54" width="152" height="44">
           <Text align="CENTER">
             <Font family="saira" size="32" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
           </Text>
         </PartText>
+        <PartText name="tempRoom" x="0" y="98" width="152" height="30">
+          <Text align="CENTER">
+            <Font family="saira" size="22" color="#ff9aa3ad"><Template>%s<Parameter expression="[COMPLICATION.TITLE]"/></Template></Font>
+          </Text>
+        </PartText>
       </Complication>
       <Complication type="SHORT_TEXT">
-        <PartText name="tempShort" x="0" y="60" width="152" height="44">
+        <PartText name="tempShort" x="0" y="54" width="152" height="44">
           <Text align="CENTER">
             <Font family="saira" size="32" color="#ffffffff"><Template>%s<Parameter expression="[COMPLICATION.TEXT]"/></Template></Font>
+          </Text>
+        </PartText>
+        <PartText name="tempRoomS" x="0" y="98" width="152" height="30">
+          <Text align="CENTER">
+            <Font family="saira" size="22" color="#ff9aa3ad"><Template>%s<Parameter expression="[COMPLICATION.TITLE]"/></Template></Font>
           </Text>
         </PartText>
       </Complication>
