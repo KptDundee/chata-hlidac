@@ -2426,6 +2426,7 @@ def watch_publish(data, v, st, now, topic, cfg):
             "ven": (data.get("cool") or {}).get("out_meas"),    # 6.16: venku u chaty z teploměru OUTDOOR (jen čerstvé, do 30 min)
             "rv": ({"s": rs.get("soc"), "h": rs.get("h"), "w": rs["w"], "u": rs.get("until"), "n": rs["name"],
                     "now": rs.get("now"), "t0": rs.get("t0"), "wh": rs.get("wh"), "ok": rv_ok} if rs else None)}           # poloha chaty – hodinky z ní počítají východ / západ slunce
+    print(f"Hodinky: venku (OUTDOOR) {body['ven']}, pokoj {body['pk']}")   # 6.17: kontrola, co jde do komplikace teploty
     try:
         req = urllib.request.Request(f"https://ntfy.sh/{topic}-hodinky", data=json.dumps(body).encode(),
                                      headers={"Title": "chata", "Priority": "1"}, method="POST")
