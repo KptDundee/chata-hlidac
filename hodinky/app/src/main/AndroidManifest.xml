@@ -72,7 +72,7 @@
         <!-- komplikace: venkovní teplota (Open-Meteo) -->
         <service
             android:name=".TempComplication"
-            android:label="Chata – teplota venku"
+            android:label="Chata – teplota venku + pokoj"
             android:icon="@drawable/ic_chata"
             android:exported="true"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
@@ -82,7 +82,7 @@
             <meta-data android:name="android.support.wearable.complications.SUPPORTED_TYPES"
                 android:value="RANGED_VALUE,SHORT_TEXT" />
             <meta-data android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
-                android:value="1800" />
+                android:value="600" />
         </service>
     </application>
 </manifest>

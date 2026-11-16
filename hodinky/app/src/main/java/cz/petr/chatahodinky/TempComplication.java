@@ -43,7 +43,7 @@ public class TempComplication extends ComplicationDataSourceService {
     public void onComplicationRequest(@NonNull ComplicationRequest request, @NonNull ComplicationRequestListener listener) {
         new Thread(() -> {
             Double t = temperature(this);
-            ComplicationData out = t == null ? new NoDataComplicationData() : build(request.getComplicationType(), t);
+            ComplicationData out = t == null ? new NoDataComplicationData() : build(request.getComplicationType(), t, room(Data.fresh(this)));
             try {
                 listener.onComplicationData(out);
             } catch (RemoteException ignored) { }
@@ -53,20 +53,33 @@ public class TempComplication extends ComplicationDataSourceService {
     @Nullable
     @Override
     public ComplicationData getPreviewData(@NonNull ComplicationType type) {
-        return build(type, 14.0);
+        return build(type, 14.0, 21.0);
     }
 
-    private ComplicationData build(ComplicationType type, double t) {
+    /** 1.10: teplota v pokoji z hlídače (pole „pk“), jen když data nejsou starší než 1 h. */
+    @Nullable
+    static Double room(@Nullable JSONObject d) {
+        if (d == null || d.isNull("pk") || !d.has("pk") || Data.ageMin(d) > 60) return null;
+        return d.optDouble("pk");
+    }
+
+    /** Hlavní hodnota = venku; menší řádek (title, vykreslí ciferník menším / slabším písmem) = pokoj na chatě. */
+    private ComplicationData build(ComplicationType type, double t, @Nullable Double room) {
         String s = Math.round(t) + "°";
-        ComplicationText desc = txt("Venku " + s);
+        String rs = room == null ? null : Math.round(room) + "°";
+        ComplicationText desc = txt("Venku " + s + (rs == null ? "" : ", v pokoji " + rs));
         PendingIntent tap = PendingIntent.getActivity(this, 2, new Intent(this, MainActivity.class),
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         switch (type) {
             case RANGED_VALUE:
-                return new RangedValueComplicationData.Builder((float) Math.max(MIN, Math.min(MAX, t)), MIN, MAX, desc)
-                        .setText(txt(s)).setTapAction(tap).build();
+                RangedValueComplicationData.Builder rb = new RangedValueComplicationData.Builder((float) Math.max(MIN, Math.min(MAX, t)), MIN, MAX, desc)
+                        .setText(txt(s)).setTapAction(tap);
+                if (rs != null) rb.setTitle(txt(rs));
+                return rb.build();
             case SHORT_TEXT:
-                return new ShortTextComplicationData.Builder(txt(s), desc).setTapAction(tap).build();
+                ShortTextComplicationData.Builder sb = new ShortTextComplicationData.Builder(txt(s), desc).setTapAction(tap);
+                if (rs != null) sb.setTitle(txt(rs));
+                return sb.build();
             default:
                 return null;
         }

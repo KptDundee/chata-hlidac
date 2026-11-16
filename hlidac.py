@@ -2422,6 +2422,7 @@ def watch_publish(data, v, st, now, topic, cfg):
             "st": st_txt, "fc": fc, "lvl": lvl, "day": v.get("day_kwh"), "hq": hq.get("pct"),
             "ra": bool((data.get("river_auto") or {}).get("on")), "vmin": cfg["odpojeni_V"] or 11.6,
             "lat": cfg["sirka"], "lon": cfg["delka"],
+            "pk": (data.get("cool") or {}).get("T_now"),        # 6.15: teplota v pokoji (jen čerstvá, do 30 min) – komplikace teploty ji ukáže menší
             "rv": ({"s": rs.get("soc"), "h": rs.get("h"), "w": rs["w"], "u": rs.get("until"), "n": rs["name"],
                     "now": rs.get("now"), "t0": rs.get("t0"), "wh": rs.get("wh"), "ok": rv_ok} if rs else None)}           # poloha chaty – hodinky z ní počítají východ / západ slunce
     try:

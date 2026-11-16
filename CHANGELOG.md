@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.15 – 16. 11. 2026
+- Hodinky 1.10: komplikace teploty ukazuje dvě hodnoty – hlavní venku, menší (title) teplota v pokoji na chatě. Hlídač ji posílá v souhrnu pro hodinky (`pk`, jen čerstvé měření do 30 min); hodinky ji ukážou, jen když data nejsou starší než 1 h. Komplikace se obnovuje po 10 min (dřív 30).
+
 ## 6.14 – 15. 11. 2026
 - Cena → Grafy: místo „Kolik stálo nabíjení každé River“ (součty Kč závisely na tom, jak moc byla River vybitá) graf „Je některá River dražší?“ – Kč za 1 kWh, které River opravdu přibyla (přírůstek % × změřená kapacita), po nabíjeních / týdnech / měsících. Pod nadpisem cena plného nabití 0→100 % každé River za zobrazené období.
 
