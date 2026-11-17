@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.24", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.25", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3876,26 +3876,23 @@ function tileColor(t, d, h){
 }
 function renderHome(d){
   const h = homeData(d);
-  const tileSolar_ = tileSolar, tileRivers_ = tileRivers, tileNight_ = tileNight, tileTomorrow_ = tileTomorrow, tilePlan_ = tilePlan;
-  const tileSolar = (d, h) => tileColor(tileSolar_(d, h), d, h), tileRivers = (d, h) => tileColor(tileRivers_(d, h), d, h),
-    tileNight = (d, h) => tileColor(tileNight_(d, h), d, h), tileTomorrow = (d, h) => tileColor(tileTomorrow_(d, h), d, h),
-    tilePlan = (d, h) => tileColor(tilePlan_(d, h), d, h);
+  const C_ = (f, ...x) => tileColor(f(d, h, ...x), d, h);         // 6.25: barva podle pravidla 6.24
   // chata jede z River → River první (jde o chatu), po přepojení na solár zase solární baterie první
-  const SRC = h.rvOn ? [tileRivers(d, h), tileSolar(d, h)] : [tileSolar(d, h), tileRivers(d, h)];
+  const SRC = h.rvOn ? [C_(tileRivers), C_(tileSolar)] : [C_(tileSolar), C_(tileRivers)];
   $("h_src").innerHTML = SRC.map(tileHtml).join("");
   // 5.15: sekce – Chata (teploty, lednice, Flip, spotřebiče), Energie dnes (výroba + spotřeba), Výhled, Uplynulé, Dlouhodobě
   const T = {
     chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h), tileUtil(d, h)].filter(Boolean),   // 6.23: Plyn a voda patří k chatě
     // 5.284 (Petr): plán pryč / spaní souvisí s výrobou → i ve Výrobě
-    prod: [tileProdSolar(d, h), tileProdGen(d, h), tilePlan(d, h)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
-    out: [tileNight(d,h), tileTomorrow(d,h), tilePlan(d,h)], past: [tilePastNight(d,h), tileYesterday(d,h)],
+    prod: [tileProdSolar(d, h), tileProdGen(d, h), C_(tilePlan)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
+    out: [C_(tileNight), C_(tileTomorrow), C_(tilePlan)], past: [tilePastNight(d,h), tileYesterday(d,h)],
     long: [tileWire(d,h), tileHealth(d,h), tileBsim(d,h), tilePanels(d,h), tileSystem(d,h)], src: SRC };
   $("h_dev").innerHTML = T.chata.map(tileHtml).join("");
   $("h_day").innerHTML = T.prod.map(tileHtml).join("");
   $("h_use").innerHTML = T.use.map(tileHtml).join("");
   $("h_now").innerHTML = T.out.map(tileHtml).join("");
   $("h_past").innerHTML = T.past.map(tileHtml).join("");
-  $("h_plan2").innerHTML = tileHtml(tilePlan(d, h)) + (d.cal_ev ? tileHtml(tileCal(d, h)) : "");   // 5.224 / 5.241
+  $("h_plan2").innerHTML = tileHtml(C_(tilePlan)) + (d.cal_ev ? tileHtml(tileCal(d, h)) : "");   // 5.224 / 5.241
   $("h_long").innerHTML = T.long.map(tileHtml).join("");
   homeTabs({en:[...T.src, ...T.out], vy:T.prod, sp:T.use, ch:T.chata, pr:[...T.past, ...T.long]});   // 5.171 / 5.174
   const A = alertItems(d, h), el = $("alerts"), top = A[0];

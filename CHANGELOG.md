@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.25 – 17. 11. 2026
+- Oprava 6.24: hlavní stránka byla prázdná (chyba v obarvování dlaždic – proměnná použitá před definicí).
+
 ## 6.24 – 17. 11. 2026
 - Barvy dlaždic jedním pravidlem – barva svítí tam, kde se má něco udělat: **Solár** a **EcoFlow** podle nejhorší rady na nich (oranžová = čeká tě to, např. „nabij River – začni nejpozději ve 20:00“; červená = naléhavé). **Výhled** (noc, zítřek) jen informuje – nejvýš oranžová. **🗓 Jsem pryč a spím** bez varovné barvy (je to rozvrh).
 
