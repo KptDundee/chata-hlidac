@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.20", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.21", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -4648,7 +4648,7 @@ const SETTINGS = [
   ["Napětí baterie", [
     ["baterie_slabne_V","Baterie slábne","Jen do souhrnu ve 22:00","V",0.05,"num"],
     ["baterie_kriticka_V","Přepni na River","Jediné upozornění na solární baterii","V",0.05,"num"],
-    ["baterie_setrna_pct","Šetrná hranice baterie","Pod ní (když jsi doma a chata jede ze soláru) rada přepnout na River; plán se ji snaží držet","#",5,"num"],
+    ["baterie_setrna_pct","Spodní hranice baterie","Níž se ze soláru nejezdí: při ní upozornění přepnout na River, o 5 # níž důrazně; plán ji drží (rezerva a ochrana baterie)","#",5,"num"],
     ["odpojeni_V","Měnič se vypíná","Ochrana baterie v měniči Victron","V",0.05,"num"],
   ]],
   ["Panely", [

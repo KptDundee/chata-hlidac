@@ -4997,7 +4997,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     #   solar_start_pct (90 #) = plná → přes den můžeš z River na solár (nabídka jednou za den; výroba by se jinak nevyužila),
     #   baterie_setrna_pct (50 #) = spodní hranice → přepni na River, o 5 # níž důrazně (River prázdné → nabij generátorem),
     #   alarm (~20 #) = poslední záchrana, kdykoli. Ve dny dobíjení do plna (fullplan) se na solár nenabízí.
-    full_pct, back_pct = cfg.get("solar_start_pct") or 90, cfg.get("baterie_setrna_pct") or 50
+    full_pct, back_pct = round(cfg.get("solar_start_pct") or 90), round(cfg.get("baterie_setrna_pct") or 50)
     back2_pct = back_pct - 5
     sf = st.setdefault("sol_full", {})
     sf.pop("on", None)
