@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.19 – 17. 11. 2026
+- Solár z plné baterie: upozornění při 75 # a 70 # chodí i když jsou River skoro prázdné (pod 20 %) – pak „River jsou skoro prázdné – nabij je generátorem a pak přepni chatu na River“. Pod 70 # už chata ze soláru jet nemá.
+
 ## 6.18 – 17. 11. 2026
 - Plná solární baterie přes den (≥ 98 #, `solar_plna_pct`), chata na River, jsem doma, do 2 h před západem → nepovinná rada a jednou za den upozornění „☀️ Solární baterie je plná – můžeš chatu přepnout na solár“ (regulátor ve Float panely přiškrcuje, výroba by se nevyužila). Dlaždice Solár: „přepnout na solár? ano · zpět při 75 #“.
 - Když po nabídce chata přejde na solár: při 75 # (`solar_zpet_pct`) „přepni chatu zpátky na River“, při 70 # (`solar_zpet_durazne_pct`) důrazně. Jen když jsem doma a vzhůru (ne v době spánku podle nastavení spaní / vstávání) a nějaká River má aspoň 20 %.

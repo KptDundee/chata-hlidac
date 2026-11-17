@@ -5014,19 +5014,23 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         sf.pop("on", None)
     sf_on = bool(sf.get("on")) and on_solar
     data["sol_full"] = {"offer": 1 if full_offer else 0, "on": 1 if sf_on else 0, "back": back_pct, "back2": back2_pct, "t": int(ts)}
-    awake_ = home_ and not asleep(cfg, now) and bool(best and best["soc"] >= 20)   # River skoro prázdné → zpátky nemá kam
-    rv_back = f"River {rv_short(best['name'])} ({fmt(best['soc'])} %)" if best else "River"
-    if sf_on and best and best["soc"] >= 20:
-        print(f"Solár z plné baterie: {hq['pct']} #, zpět na River při {back_pct} #, důrazně {back2_pct} #")
-        todo_add(data, 2 if hq["pct"] > back_pct else 6, f"zpátky na {rv_back} při {back_pct} #" if hq["pct"] > back_pct
-                 else f"přepni zpátky na {rv_back}", "ok" if hq["pct"] > back_pct else "warn")
+    awake_ = home_ and not asleep(cfg, now)
+    rv_ok_ = bool(best and best["soc"] >= 20)                       # 6.19: River skoro prázdné → nabít generátorem, pak přepnout
+    rv_back = f"River {rv_short(best['name'])} ({fmt(best['soc'])} %)" if rv_ok_ else "River"
+    do_ = (f"přepni chatu zpátky na {rv_back}" if rv_ok_ else
+           "River jsou skoro prázdné – nabij je generátorem a pak přepni chatu na River")
+    if sf_on:
+        print(f"Solár z plné baterie: {hq['pct']} #, zpět na River při {back_pct} #, důrazně {back2_pct} #, River {'ok' if rv_ok_ else 'prázdné'}")
+        todo_add(data, 2 if hq["pct"] > back_pct else 6, (f"zpátky na {rv_back} při {back_pct} #" if rv_ok_ else
+                 f"při {back_pct} # zpátky na River – předtím je nabij") if hq["pct"] > back_pct else do_,
+                 "ok" if hq["pct"] > back_pct else "warn")
     alarm(st, topic, "sol_back", sf_on and awake_ and back2_pct < hq["pct"] <= back_pct,
-          f"🔋 Solární baterie {hq['pct']} # – přepni chatu zpátky na River",
-          f"Chata jede ze soláru od chvíle, kdy byla baterie plná. Teď je na {hq['pct']} # – přepni na {rv_back}.\n"
-          f"Když nepřepneš, při {back2_pct} # napíšu důrazně.", 3, "battery", ok_title=False, cat=2)
+          f"🔋 Solární baterie {hq['pct']} # – " + ("přepni chatu zpátky na River" if rv_ok_ else "nabij River a přepni na ně"),
+          f"Chata jede ze soláru od chvíle, kdy byla baterie plná. Teď je na {hq['pct']} # – {do_}.\n"
+          f"Při {back2_pct} # už musí jet z River – pak napíšu důrazně.", 3, "battery", ok_title=False, cat=2)
     alarm(st, topic, "sol_back2", sf_on and awake_ and hq["pct"] <= back2_pct,
-          f"⚠️ Solární baterie už {hq['pct']} # – přepni chatu zpátky na River",
-          f"Měla jít zpátky na River při {back_pct} #. Přepni teď na {rv_back}, ať se solární baterie zbytečně nevybíjí.",
+          f"⚠️ Solární baterie už {hq['pct']} # – " + ("přepni chatu na River" if rv_ok_ else "nabij River a přepni na ně"),
+          f"Měla jít zpátky na River při {back_pct} #. Pod {back2_pct} # už ze soláru ne – {do_}.",
           4, "warning,battery", ok_title=False, cat=2)
     setr = cfg.get("baterie_setrna_pct") or 50
     bk2_ = bk_
