@@ -31,8 +31,8 @@ DEFAULTS = {
     "odpojeni_V": 11.6, "odpojeni_reset_V": 12.8,
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
-    "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "solar_plna_pct": 98, "solar_zpet_pct": 75, "solar_zpet_durazne_pct": 70, "chladnuti_vyjimky": "",
+    "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -4993,44 +4993,45 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
                  for p in data.get("points", []) if p["t"] >= ts - 1800 and p.get("bat_a") is not None]
         if len(nets_) >= 2:
             covers = sum(nets_) / len(nets_) > 0
-    # 6.18 (Petr): plná solární baterie přes den = výroba se nevyužije (regulátor ve Float přiškrtí panely) → nepovinně
-    # na solár; zpátky na River při solar_zpet_pct (75 #), důrazně při solar_zpet_durazne_pct (70 #). Držet solár plný
-    # pro nic za nic nemá smysl, ale níž ho kvůli tomu vybíjet taky ne.
-    full_pct, back_pct = cfg.get("solar_plna_pct") or 98, cfg.get("solar_zpet_pct") or 75
-    back2_pct = cfg.get("solar_zpet_durazne_pct") or 70
+    # 6.20 (Petr: „moc podmínek = zmatek“): jedna sada hranic solární baterie pro plán, dlaždice, rady i upozornění:
+    #   solar_start_pct (90 #) = plná → přes den můžeš z River na solár (nabídka jednou za den; výroba by se jinak nevyužila),
+    #   baterie_setrna_pct (50 #) = spodní hranice → přepni na River, o 5 # níž důrazně (River prázdné → nabij generátorem),
+    #   alarm (~20 #) = poslední záchrana, kdykoli. Ve dny dobíjení do plna (fullplan) se na solár nenabízí.
+    full_pct, back_pct = cfg.get("solar_start_pct") or 90, cfg.get("baterie_setrna_pct") or 50
+    back2_pct = back_pct - 5
     sf = st.setdefault("sol_full", {})
+    sf.pop("on", None)
     day_ok_ = bool(rise and set_ and rise <= now < set_ - timedelta(hours=2))
-    full_offer = on_river and home_ and day_ok_ and hq["pct"] >= full_pct
+    fp_ = data.get("fullplan") or {}
+    fullchg_ = bool(fp_.get("cur")) and (data.get("last_full") or 0) < ts - 12 * 3600   # dnes se dobíjí do plna (ještě nebyl Float)
+    full_offer = on_river and home_ and day_ok_ and hq["pct"] >= full_pct and not fullchg_
     if full_offer:
-        todo_add(data, 4, f"můžeš na solár – baterie plná, výroba se jinak nevyužije (zpět na River při {back_pct} #)", "ok")
+        todo_add(data, 4, f"můžeš přepnout na solár (zpátky na River při {back_pct} #)", "ok")
         if sf.get("d") != now.strftime("%Y-%m-%d") and not in_quiet():
-            ntfy(topic, "☀️ Solární baterie je plná – můžeš chatu přepnout na solár",
-                 f"Solární baterie {hq['pct']} #, regulátor panely přiškrcuje – výroba se jinak nevyužije a šetří se River (palivo).\n"
-                 f"Nepovinné. Až baterie klesne na {back_pct} #, napíšu, ať přepneš zpátky na River.", 3, "sunny")
+            ntfy(topic, f"☀️ Solární baterie {hq['pct']} # – můžeš chatu přepnout na solár",
+                 f"Baterie je skoro plná, výroba by se jinak nevyužila a šetří se River (palivo). Nepovinné.\n"
+                 f"Při {back_pct} # napíšu, ať přepneš zpátky na River.", 3, "sunny")
             sf.update(d=now.strftime("%Y-%m-%d"), t=int(ts))
-    if on_solar and sf.get("d") == now.strftime("%Y-%m-%d") and not sf.get("on"):
-        sf["on"] = int(ts)                                          # přepnul na solár po nabídce → hlídat 75 / 70 #
-    if on_river:
-        sf.pop("on", None)
-    sf_on = bool(sf.get("on")) and on_solar
-    data["sol_full"] = {"offer": 1 if full_offer else 0, "on": 1 if sf_on else 0, "back": back_pct, "back2": back2_pct, "t": int(ts)}
+    if on_river and home_ and fullchg_:
+        todo_add(data, 2, "dnes dobití solární baterie do plna – nech chatu na River", "ok")
+    data["sol_full"] = {"offer": 1 if full_offer else 0, "back": back_pct, "back2": back2_pct, "chg": 1 if fullchg_ else 0, "t": int(ts)}
     awake_ = home_ and not asleep(cfg, now)
-    rv_ok_ = bool(best and best["soc"] >= 20)                       # 6.19: River skoro prázdné → nabít generátorem, pak přepnout
+    rv_ok_ = bool(best and best["soc"] >= 20)                       # River skoro prázdné → nabít generátorem, pak přepnout
     rv_back = f"River {rv_short(best['name'])} ({fmt(best['soc'])} %)" if rv_ok_ else "River"
-    do_ = (f"přepni chatu zpátky na {rv_back}" if rv_ok_ else
+    do_ = (f"přepni chatu na {rv_back}" if rv_ok_ else
            "River jsou skoro prázdné – nabij je generátorem a pak přepni chatu na River")
-    if sf_on:
-        print(f"Solár z plné baterie: {hq['pct']} #, zpět na River při {back_pct} #, důrazně {back2_pct} #, River {'ok' if rv_ok_ else 'prázdné'}")
-        todo_add(data, 2 if hq["pct"] > back_pct else 6, (f"zpátky na {rv_back} při {back_pct} #" if rv_ok_ else
+    if on_solar and home_:
+        todo_add(data, 1 if hq["pct"] > back_pct else 6, (f"zpátky na {rv_back} při {back_pct} #" if rv_ok_ else
                  f"při {back_pct} # zpátky na River – předtím je nabij") if hq["pct"] > back_pct else do_,
                  "ok" if hq["pct"] > back_pct else "warn")
-    alarm(st, topic, "sol_back", sf_on and awake_ and back2_pct < hq["pct"] <= back_pct,
-          f"🔋 Solární baterie {hq['pct']} # – " + ("přepni chatu zpátky na River" if rv_ok_ else "nabij River a přepni na ně"),
-          f"Chata jede ze soláru od chvíle, kdy byla baterie plná. Teď je na {hq['pct']} # – {do_}.\n"
-          f"Při {back2_pct} # už musí jet z River – pak napíšu důrazně.", 3, "battery", ok_title=False, cat=2)
-    alarm(st, topic, "sol_back2", sf_on and awake_ and hq["pct"] <= back2_pct,
+    was_b_ = "sol_back" in (st.get("al") or {})
+    alarm(st, topic, "sol_back", on_solar and awake_ and not covers and back2_pct < hq["pct"] <= back_pct + (3 if was_b_ else 0),
+          f"🔋 Solární baterie {hq['pct']} # – " + ("přepni chatu na River" if rv_ok_ else "nabij River a přepni na ně"),
+          f"Spodní hranice solární baterie je {back_pct} # (rezerva a ochrana baterie) – {do_}.\n"
+          f"Když nepřepneš, při {back2_pct} # napíšu důrazně.", 3, "battery", ok_title=False, cat=2)
+    alarm(st, topic, "sol_back2", on_solar and awake_ and not covers and alarm_soc <= hq["pct"] <= back2_pct,
           f"⚠️ Solární baterie už {hq['pct']} # – " + ("přepni chatu na River" if rv_ok_ else "nabij River a přepni na ně"),
-          f"Měla jít zpátky na River při {back_pct} #. Pod {back2_pct} # už ze soláru ne – {do_}.",
+          f"Je pod spodní hranicí {back_pct} #. Ze soláru už ne – {do_}.",
           4, "warning,battery", ok_title=False, cat=2)
     setr = cfg.get("baterie_setrna_pct") or 50
     bk2_ = bk_
@@ -5056,11 +5057,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
                 "až výroba klesne, napíšu, kdy zpátky na River." if not res.get("ok") and res.get("t_empty") else
                 "Až výroba klesne, napíšu, kdy zpátky na River."), 3, "sunny")
         st["sol_use_d"] = now.strftime("%Y-%m-%d")
-    was_soft = "sol_soft" in (st.get("al") or {})
-    soft = on_solar and home_ and not in_quiet() and alarm_soc <= hq["pct"] < setr + (5 if was_soft else 0) and not covers
-    alarm(st, topic, "sol_soft", soft, f"🔋 Solární baterie {hq['pct']} # – šetři ji, přepni na River",
-          f"Chata jede ze solární baterie a ta je pod šetrnou hranicí {fmt(setr)} # (alarm je {round(alarm_soc)} #). Hlubší vybíjení AGM baterii "
-          f"zkracuje život.\nPřepni chatu na {rvt_}.", 3, "battery", ok_title=False, cat=2)
+    st.get("al", {}).pop("sol_soft", None)                      # 6.20: nahrazeno sol_back / sol_back2 (stejná hranice 50 #)
     day = now.strftime("%Y-%m-%d")
     # čas kontroly podle rozvrhu (dnešní den v týdnu) – 5.117: stejná funkce jako večerní plán
     tchk = AW[0] if AW else None                      # 5.118: odjezd (úsek nepřítomnosti) – kontrola při každém odjezdu
@@ -5605,7 +5602,7 @@ def build_todo(data, st, now):
     import re as _re
     L = list(data.pop("todo_x", None) or [])
     short = {"sol_low": (9, "přepni na River teď – baterie pod alarmem", "crit"), "day": (7, "před odjezdem přepni na River", "crit"),
-             "sol_soft": (5, "přepni na River – šetři baterii", "warn"), "wp_none": (8, "omez spotřebu – nevydrží ani s nabitím", "crit")}
+             "wp_none": (8, "omez spotřebu – nevydrží ani s nabitím", "crit")}
     for k, e in (st.get("al") or {}).items():
         if k in short:
             p_, t_, l_ = short[k]
