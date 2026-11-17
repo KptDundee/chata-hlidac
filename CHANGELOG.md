@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.26 – 17. 11. 2026
+- Plyn a voda: nová karta **Spotřeba** se záložkami 🍳 Vaření / 🔥 Primotop / 🚿 Sprcha / 💧 Voda. Voda po rocích v m³ (odečty jsou řídké – neúplný rok světlejší, pod grafem m³ a Kč za rok a od kdy do kdy odečty). Plyn po měsících / rocích v kg (lahev rozpočítaná na dny, které vydržela; světlejší = odhad, lahev ještě nedošla), pod grafem jak dlouho lahev obvykle vydrží a kolik lahví letos.
+- spotreba.txt: dva zápisy primotopu z 2. 10. (koupené, zatím nezapojené lahve) zakomentovány – zápis „🔄“ = zapojení nové lahve.
+
 ## 6.25 – 17. 11. 2026
 - Oprava 6.24: hlavní stránka byla prázdná (chyba v obarvování dlaždic – proměnná použitá před definicí).
 

@@ -408,3 +408,8 @@ Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River
 **Kalendáře (5.240):** hlídač čte tvoje tři Google kalendáře – každá událost ±1 h na cestu = pryč, volno do 2 h = pořád pryč. Den, který upravíš a uložíš v 🗓 Kdy jsem pryč, má přednost.
 
 **Před odjezdem (5.247):** 70 min před každým odjezdem přijde zpráva, na co nechat chatu a jestli je potřeba něco udělat.
+
+### 🧾 Plyn a voda (záložka Chata)
+- **Zápis:** „🔄 Vaření / Primotop / Sprcha“ = **zapojil jsem novou lahev** (cena lahve v Kč) – ne nákup do zásoby. „💧 Odečet vody“ = stav vodoměru v m³.
+- **Kolik to stojí:** Kč za měsíc a za období, graf Kč (Měsíce / Roky).
+- **Spotřeba (6.26):** záložky 🍳 / 🔥 / 🚿 / 💧. Voda **po rocích v m³** (odečty jsou řídké, po měsících by to nedávalo smysl; neúplný rok světlejší). Plyn **po měsících nebo rocích v kg** – lahev se rozpočítá rovnoměrně na dny, které vydržela; lahev, která ještě nedošla, je světlejší odhad. Pod grafem: jak dlouho lahev obvykle vydrží a kolik lahví letos.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.25", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.26", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2034,6 +2034,24 @@ function utilBars(el, rows, kinds, per){
   svg.insertAdjacentHTML("beforeend", s);
   hover(svg, rows, r=>`${uLab(r.k, per, true)}<br>${kinds.filter(k=>r[k]).map(k=>`<span style="color:${UK[k].c}">■</span> ${UK[k].n}: <b>${nf(r[k].kc,0)} Kč</b>${r[k].est?" (odhad)":""}`).join("<br>")}<br><b>Celkem ${nf(r.tot,0)} Kč</b>`);
 }
+/* 6.26 (Petr): graf spotřeby v množství – voda po rocích (m³; odečty jsou řídké, po dnech/měsících by to byla vymyšlená přesnost),
+   plyn po měsících / rocích (kg; lahev rozpočítaná rovnoměrně na dny, které vydržela; světlejší = odhad, lahev ještě nedošla) */
+let UQK = (()=>{ try{ return localStorage.getItem("uqk") || "voda"; }catch(_){ return "voda"; } })();
+function utilQBars(el, rows, kind, per){
+  const unit = kind==="voda" ? "m³" : "kg", p = rows.filter(r=>r[kind] && r[kind].q > 0);
+  if(!p.length) return empty(el, kind==="voda" ? "Zatím málo odečtů – graf se ukáže po druhém odečtu vody." : "Zatím málo zápisů – graf se ukáže po druhé výměně lahve.");
+  const hi = Math.max(...p.map(r=>r[kind].q))*1.18 || 1, {svg,y} = frame(el, 0, hi, hi < 5 ? 1 : 0);
+  const n = Math.max(rows.length, 6), bw = (W-M.l-M.r)/n, w = Math.max(4, Math.min(per==="y" ? 44 : 30, bw-4));
+  let s = "";
+  rows.forEach((r,i)=>{ const cx = M.l + bw*i + bw/2, E = r[kind];
+    if(E && E.q > 0){ const y1 = y(E.q), est = E.est || r.part;
+      s += `<path d="M${cx-w/2},${y(0)} V${y1+4} Q${cx-w/2},${y1} ${cx-w/2+4},${y1} H${cx+w/2-4} Q${cx+w/2},${y1} ${cx+w/2},${y1+4} V${y(0)} Z" fill="${UK[kind].c}"${est ? ` fill-opacity=".45"` : ""}/>`;
+      if(per==="y" || rows.length <= 8) s += `<text x="${cx}" y="${y1-5}" text-anchor="middle" style="fill:var(--text2)">${nf(E.q, kind==="voda" || E.q < 10 ? 1 : 0)}</text>`; }
+    s += `<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    if(i%Math.ceil(rows.length/6)===0 || i===rows.length-1) s += `<text x="${cx}" y="${H-6}" text-anchor="middle">${uLab(r.k, per)}</text>`; });
+  svg.insertAdjacentHTML("beforeend", s);
+  hover(svg, rows, r=>{ const E = r[kind]; return `${uLab(r.k, per, true)}<br>${E ? `<b>${nf(E.q, 1)} ${unit}</b> · ${nf(E.kc,0)} Kč${E.est ? " (odhad)" : ""}${r.part ? `<br><span style="opacity:.8">${r.part}</span>` : ""}` : "–"}`; });
+}
 const uLab = (k, per, long) => per==="y" ? k : new Date(uMonthStart(k)*1000).toLocaleDateString("cs-CZ", long ? {month:"long", year:"numeric"} : {month:"short"}) + (long ? "" : " " + k.slice(2,4));
 function detUtil(body){
   const d = DATA, U = d.util || [], {info, PR, priceOf} = utilCalc(d), Sm = utilSummary(d), now = Date.now()/1000;
@@ -2059,19 +2077,38 @@ function detUtil(body){
     <div class="seg" id="uper_seg" style="margin-bottom:12px"><button data-p="m" aria-pressed="${UPER==="m"}">Měsíce</button><button data-p="y" aria-pressed="${UPER==="y"}">Roky</button></div>
     ${chartCard("ut_bars", "Kč za období", `${leg} · světlejší = odhad (lahev, která ještě nedošla)`)}
     <div class="card"><h2 style="margin:0 0 6px">Po obdobích</h2><div id="ut_tab"></div></div>
+    <div class="card chart"><h2>Spotřeba</h2><div class="seg" id="uq_seg" style="margin:4px 0 8px">${Object.keys(UK).map(k=>`<button data-k="${k}" aria-pressed="${UQK===k}">${UK[k].ic} ${UK[k].n}</button>`).join("")}</div>
+      <div class="cs" id="uq_cs"></div><div id="uq_bars"></div><div id="uq_sum" style="font-size:14px;margin-top:6px"></div></div>
     <div class="card"><h2 style="margin:0 0 6px">Cena vody</h2><div style="font-size:14px">${priceT}</div><div class="sub" style="margin-top:4px">Každý rok má svou cenu – změna jednoho roku přepočítá jen vodu v tom roce. Rok bez ceny převezme cenu z nejbližšího roku (odhad).</div></div>
     <div class="card"><h2 style="margin:0 0 6px">Zápisy</h2>${entT}</div>
     <div class="sub" style="margin:0 4px 12px;line-height:1.5">Lahev = od výměny do další výměny; její cena a kg se rozpočítají rovnoměrně na dny, které vydržela (lahev na 3 měsíce dá každému měsíci jeho díl). Lahev, která ještě nedošla, se počítá podle toho, jak dlouho lahev obvykle vydrží (medián) – odhad, nikdy víc než její cena. Voda = rozdíl dvou odečtů rozpočítaný na dny mezi nimi × cena vody v daném roce; počítá se jen do posledního odečtu.</div>`);
   const draw = () => {
     const rows = utilRows(d, UPER).slice(UPER==="m" ? -24 : -10);
     utilBars($("ut_bars"), rows, Object.keys(UK), UPER);
+    drawQ();
     const cell = (r,k) => { const E = r[k]; if(!E) return `<span style="text-align:right">–</span>`; return `<span style="text-align:right${E.est?";color:var(--text2)":""}">${nf(E.kc,0)}${E.est||E.pest?"*":""}<br><span class="sub" style="font-size:11.5px">${k==="voda" ? `${nf(E.q,1)} m³` : `${nf(E.q,1)} kg`}</span></span>`; };
     $("ut_tab").innerHTML = rows.length ? `<div style="display:grid;grid-template-columns:1.2fr repeat(5,auto);gap:4px 8px;font-size:13.5px;font-variant-numeric:tabular-nums;align-items:start">
       <span class="sub"></span>${Object.keys(UK).map(k=>`<span class="sub" style="text-align:right">${UK[k].ic}</span>`).join("")}<span class="sub" style="text-align:right">Kč</span>
       ${rows.slice().reverse().map(r=>`<b>${uLab(r.k, UPER, true)}</b>${Object.keys(UK).map(k=>cell(r,k)).join("")}<b style="text-align:right">${nf(r.tot,0)}</b>`).join("")}</div>
       <div class="sub" style="margin-top:4px">Kč, pod tím kg plynu / m³ vody · * = odhad (lahev ještě nedošla, nebo cena vody převzatá z jiného roku)</div>` : `<span class="sub">Zatím nic.</span>`;
   };
+  function drawQ(){   // 6.26: množství – voda vždy po rocích, plyn podle přepínače Měsíce / Roky
+    const k = UQK, per = k==="voda" ? "y" : UPER, unit = k==="voda" ? "m³" : "kg";
+    const rows = utilRows(d, per).slice(per==="m" ? -24 : -10), W_ = U.filter(e=>e[1]==="voda"), cy = String(new Date().getFullYear());
+    if(k==="voda") for(const r of rows){ const R = W_.filter(e=>String(new Date(e[0]*1000).getFullYear())===r.k);
+      if(r.k===cy || (R.length && dkey(R[0][0]) > r.k+"-01-15")) r.part = R.length ? `odečty ${dTxt(dkey(R[0][0]))} – ${dTxt(dkey(R[R.length-1][0]))}${r.k===cy ? " (rok ještě běží)" : ""}` : "rok ještě běží"; }
+    $("uq_cs").innerHTML = k==="voda" ? "m³ za rok · světlejší = neúplný rok (podle odečtů)"
+      : `kg za ${per==="y" ? "rok" : "měsíc"} (lahev ${UK[k].kg} kg rozpočítaná na dny, které vydržela) · světlejší = odhad, lahev ještě nedošla · Měsíce / Roky přepíná přepínač nahoře`;
+    utilQBars($("uq_bars"), rows, k, per);
+    const I = info[k], L = U.filter(e=>e[1]===k), yN = L.filter(e=>String(new Date(e[0]*1000).getFullYear())===cy).length;
+    $("uq_sum").innerHTML = k==="voda"
+      ? rows.filter(r=>r.voda).slice().reverse().map(r=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0"><span>${r.k}</span><span><b>${nf(r.voda.q,1)} m³</b> · ${nf(r.voda.kc,0)} Kč${r.part ? ` <span class="sub">· ${r.part}</span>` : ""}</span></div>`).join("")
+      : !L.length ? `<span class="sub">Zatím žádná lahev.</span>`
+      : `${I.typ ? `Lahev vydrží obvykle <b>~${nf(I.typ,0)} dní</b> · ` : `<span class="sub">Jak dlouho lahev vydrží, bude vidět po druhé výměně.</span> · `}letos ${yN} ${yN===1 ? "lahev" : yN>=2 && yN<=4 ? "lahve" : "lahví"}`;
+  }
   draw();
+  const qs = $("uq_seg"); qs.onclick = e => { const b = e.target.closest("button"); if(!b) return; UQK = b.dataset.k; try{ localStorage.setItem("uqk", UQK); }catch(_){}
+    for(const x of qs.children) x.setAttribute("aria-pressed", x===b); drawQ(); };
   const seg = $("uper_seg"); seg.onclick = e => { const b = e.target.closest("button"); if(!b) return; UPER = b.dataset.p; try{ localStorage.setItem("uper", UPER); }catch(_){}
     for(const x of seg.children) x.setAttribute("aria-pressed", x===b); draw(); };
 }

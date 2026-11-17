@@ -4,8 +4,7 @@
 #   cena_vody = cena vody v Kč/m³ pro rok podle data (jen rok se počítá)
 2026-01-01 00:00 | cena_vody | 78
 2026-10-01 12:00 | varic | 460
-2026-10-02 12:00 | primotop | 120
-2026-10-02 12:00 | primotop | 120
+# 2026-10-02: koupeny 2 lahve na primotop (2 kg, 120 Kč) – zatím nezapojené; „🔄 Primotop“ se zapisuje při zapojení lahve
 2026-03-28 12:00 | voda | 309.88
 2026-03-28 12:00 | voda | 310.8
 2026-04-27 12:00 | voda | 311.56
