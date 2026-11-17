@@ -32,7 +32,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "hash_upozornit": "50, 30", "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "chladnuti_vyjimky": "",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "solar_plna_pct": 98, "solar_zpet_pct": 75, "solar_zpet_durazne_pct": 70, "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -4993,12 +4993,47 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
                  for p in data.get("points", []) if p["t"] >= ts - 1800 and p.get("bat_a") is not None]
         if len(nets_) >= 2:
             covers = sum(nets_) / len(nets_) > 0
+    # 6.18 (Petr): plná solární baterie přes den = výroba se nevyužije (regulátor ve Float přiškrtí panely) → nepovinně
+    # na solár; zpátky na River při solar_zpet_pct (75 #), důrazně při solar_zpet_durazne_pct (70 #). Držet solár plný
+    # pro nic za nic nemá smysl, ale níž ho kvůli tomu vybíjet taky ne.
+    full_pct, back_pct = cfg.get("solar_plna_pct") or 98, cfg.get("solar_zpet_pct") or 75
+    back2_pct = cfg.get("solar_zpet_durazne_pct") or 70
+    sf = st.setdefault("sol_full", {})
+    day_ok_ = bool(rise and set_ and rise <= now < set_ - timedelta(hours=2))
+    full_offer = on_river and home_ and day_ok_ and hq["pct"] >= full_pct
+    if full_offer:
+        todo_add(data, 4, f"můžeš na solár – baterie plná, výroba se jinak nevyužije (zpět na River při {back_pct} #)", "ok")
+        if sf.get("d") != now.strftime("%Y-%m-%d") and not in_quiet():
+            ntfy(topic, "☀️ Solární baterie je plná – můžeš chatu přepnout na solár",
+                 f"Solární baterie {hq['pct']} #, regulátor panely přiškrcuje – výroba se jinak nevyužije a šetří se River (palivo).\n"
+                 f"Nepovinné. Až baterie klesne na {back_pct} #, napíšu, ať přepneš zpátky na River.", 3, "sunny")
+            sf.update(d=now.strftime("%Y-%m-%d"), t=int(ts))
+    if on_solar and sf.get("d") == now.strftime("%Y-%m-%d") and not sf.get("on"):
+        sf["on"] = int(ts)                                          # přepnul na solár po nabídce → hlídat 75 / 70 #
+    if on_river:
+        sf.pop("on", None)
+    sf_on = bool(sf.get("on")) and on_solar
+    data["sol_full"] = {"offer": 1 if full_offer else 0, "on": 1 if sf_on else 0, "back": back_pct, "back2": back2_pct, "t": int(ts)}
+    awake_ = home_ and not asleep(cfg, now) and bool(best and best["soc"] >= 20)   # River skoro prázdné → zpátky nemá kam
+    rv_back = f"River {rv_short(best['name'])} ({fmt(best['soc'])} %)" if best else "River"
+    if sf_on and best and best["soc"] >= 20:
+        print(f"Solár z plné baterie: {hq['pct']} #, zpět na River při {back_pct} #, důrazně {back2_pct} #")
+        todo_add(data, 2 if hq["pct"] > back_pct else 6, f"zpátky na {rv_back} při {back_pct} #" if hq["pct"] > back_pct
+                 else f"přepni zpátky na {rv_back}", "ok" if hq["pct"] > back_pct else "warn")
+    alarm(st, topic, "sol_back", sf_on and awake_ and back2_pct < hq["pct"] <= back_pct,
+          f"🔋 Solární baterie {hq['pct']} # – přepni chatu zpátky na River",
+          f"Chata jede ze soláru od chvíle, kdy byla baterie plná. Teď je na {hq['pct']} # – přepni na {rv_back}.\n"
+          f"Když nepřepneš, při {back2_pct} # napíšu důrazně.", 3, "battery", ok_title=False, cat=2)
+    alarm(st, topic, "sol_back2", sf_on and awake_ and hq["pct"] <= back2_pct,
+          f"⚠️ Solární baterie už {hq['pct']} # – přepni chatu zpátky na River",
+          f"Měla jít zpátky na River při {back_pct} #. Přepni teď na {rv_back}, ať se solární baterie zbytečně nevybíjí.",
+          4, "warning,battery", ok_title=False, cat=2)
     setr = cfg.get("baterie_setrna_pct") or 50
     bk2_ = bk_
     rvt_ = f"River {rv_short(RVl[bk2_]['name'])} ({fmt(RVl[bk2_]['soc'])} %)" if bk2_ else "River"
     W2_ = wp_now(data, now)
     start_pct = cfg.get("solar_start_pct") or 90                  # 6.7: z River na solár až skoro plná
-    if on_river and home_ and covers and (W2_["cur"] == "s" if W2_ else hq["pct"] >= start_pct):
+    if not full_offer and on_river and home_ and covers and (W2_["cur"] == "s" if W2_ else hq["pct"] >= start_pct):
         todo_add(data, 4, "přepni na solár – vyrábí víc, než chata bere", "ok")
     # 5.217 (Petr: dlaždice a rady musí sedět s plánem): plán říká teď jiný zdroj, než na kterém chata jede → přepni
     conn_ = (data.get("river_sup") or {}).get("sn")
@@ -5006,7 +5041,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         todo_add(data, 5, (f"šetrně přepni na River {rv_short(RVl[W2_['cur']]['name'])}" if res.get("ok") and on_solar else      # 5.225: solár vydrží – jen šetření
                            f"přepni na River {rv_short(RVl[W2_['cur']]['name'])} ({fmt(RVl[W2_['cur']]['soc'])} %)"), "warn",
                  "sol" if on_solar else "rv")      # 6.10 (Petr): z River na jinou River patří na dlaždici EcoFlow, ne k soláru
-    elif home_ and W2_ and W2_["cur"] == "s" and on_river and not covers:
+    elif not full_offer and home_ and W2_ and W2_["cur"] == "s" and on_river and not covers:
         todo_add(data, 3, "můžeš přepnout na solár", "ok")
     if on_river and home_ and covers and (W2_["cur"] == "s" if W2_ else hq["pct"] >= start_pct) and hq["pct"] >= alarm_soc and rise and set_ and rise <= now < set_ - timedelta(hours=1) \
             and st.get("sol_use_d") != now.strftime("%Y-%m-%d") and st.get("do_conn") != (str(int(AW[0].timestamp())) if AW else now.strftime("%Y-%m-%d")):
@@ -5040,9 +5075,9 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         free_ok = not tk and rise and now >= rise and set_ and now < set_ - timedelta(hours=2) and st.get("do_conn") != akey
         W_ = wp_now(data, now)
         plan_sol = (W_["cur"] == "s" if W_ else hq["pct"] >= (cfg.get("solar_start_pct") or 90)) and (hq["pct"] >= (cfg.get("baterie_setrna_pct") or 50) or covers)   # 5.215/5.216, 6.7
-        if res["ok"] and plan_sol and now.timestamp() < res["end"] and rise and set_ and rise <= now < set_ - timedelta(hours=2):
+        if not full_offer and res["ok"] and plan_sol and now.timestamp() < res["end"] and rise and set_ and rise <= now < set_ - timedelta(hours=2):
             todo_add(data, 3, f"můžeš přepnout na solár – vydrží do {hh}:{mm:02d}", "ok")
-        if (due or free_ok) and res["ok"] and plan_sol and now.timestamp() < res["end"]:
+        if not full_offer and (due or free_ok) and res["ok"] and plan_sol and now.timestamp() < res["end"]:
             ntfy(topic, "☀️ Dnes můžeš chatu přepnout na solární baterii",
                  f"Solární baterie ({hq['pct']} #) s dnešní výrobou podle předpovědi (~{fmt(rem_kwh, 1)} kWh, s rezervou) "
                  f"vydrží chatu (~{res['load_w']} W) do {hh}:{mm:02d}.\nVečer ti napíšu, do kdy přepnout zpátky na River.", 3, "sunny,battery")
@@ -5606,6 +5641,18 @@ def bed_time(cfg, d):
         return h, m
     except ValueError:
         return 0, 0
+
+
+def asleep(cfg, now):
+    """6.18: spím teď? Od bed_time (večer dne d, před 12:00 = po půlnoci) do wake_time následujícího rána."""
+    for d in (now.date() - timedelta(days=1), now.date()):
+        bh, bm = bed_time(cfg, d)
+        b = datetime(d.year, d.month, d.day, bh, bm, tzinfo=TZ) + (timedelta(days=1) if bh < 12 else timedelta())
+        wd = b.date() if bh < 12 else b.date() + timedelta(days=1)
+        wh, wm = wake_time(cfg, wd)
+        if b <= now < datetime(wd.year, wd.month, wd.day, wh, wm, tzinfo=TZ):
+            return True
+    return False
 
 
 def wake_time(cfg, d):
