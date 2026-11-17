@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.22 – 17. 11. 2026
+- Karta Teploty / chladnutí: pod hlavním grafem zase čísla, klidným písmem – „🔥 Zatop do 16:40 (21 °C bude ~17:40)“ a „🛏️ Ve 0:00 mít aspoň 22,3 °C (ráno 7:00 → 21 °C)“; v nadpisu „teď X °C“. Velká tučná čísla v Podrobnostech pryč (byla by dvakrát).
+- Graf: čára „minimum“ jen do spaní (popisek vlevo), „cíl ráno“ od spaní (popisek vpravo) – při stejné hodnotě (21 °C) se nápisy nepřekrývají.
+
 ## 6.21 – 17. 11. 2026
 - „při 50.0 #“ → „při 50 #“. V Nastavení „Šetrná hranice baterie“ → „Spodní hranice baterie“.
 
