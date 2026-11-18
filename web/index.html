@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.28", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.29", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -752,7 +752,10 @@ function frame(el, lo, hi, dec){
   let g=""; for(const t of niceTicks(lo,hi)){g+=`<line x1="${M.l}" x2="${W-M.r}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)"/><text x="${M.l-6}" y="${y(t)+4}" text-anchor="end">${nf(t,dec)}</text>`;}
   svg.innerHTML=g; return {svg,y};
 }
-function empty(el,msg="Zatím málo dat – graf se naplní během pár hodin."){el.innerHTML=`<div class="sub" style="padding:40px 0;text-align:center">${msg}</div>`;}
+// 6.29 (Petr: „chata jede z River, není málo dat – zásuvka je vypnutá“): grafy za měničem bez dat, když chata jede z River
+const INV_OFF = "Chata jede z River – měnič a zásuvka za ním jsou vypnuté, není co měřit (0 W). Odběr z River je v grafu Odběr chaty / Ostatní.";
+const invOff = () => { try{ return !!homeData(DATA).rvOn; }catch(_){ return false; } };
+function empty(el,msg){ msg = msg || "Zatím málo dat – graf se naplní během pár hodin.";el.innerHTML=`<div class="sub" style="padding:40px 0;text-align:center">${msg}</div>`;}
 function xLabels(svg,t0,t1,x){
   if(t1-t0 > 40*86400){   // dlouhé období: popisky po měsících (u více let jen leden = rok)
     const years = (t1-t0) > 2.2*365*86400; let s=""; const d=new Date(t0*1000); d.setDate(1); d.setHours(0,0,0,0); d.setMonth(d.getMonth()+1);
@@ -815,7 +818,7 @@ function lineChart(el, pts, key, color, o){
   else { el._lc = {pts, key, color, o};              // nová data: zapamatovat (výřez prsty zůstává, dvojí ťuknutí ho zruší)
          if(el._zw && o.t0==null) o = {...o, t0:el._zw[0], t1:el._zw[1]}; }
   if(o.t0!=null){ const a=o.t0-1200, b=o.t1+1200; pts = pts.filter(q=>q.t>=a && q.t<=b); }   // výřez času: jen body v okně
-  const p=pts.filter(q=>q[key]!=null); if(p.length<2) return empty(el);
+  const p=pts.filter(q=>q[key]!=null); if(p.length<2) return empty(el, o.emptyMsg);
   const k2=o.k2, p2=k2?pts.filter(q=>q[k2.key]!=null):[];
   const LX=(o.lines||[]).map(l=>({...l, p:pts.filter(q=>q[l.key]!=null)}));      // další vrstvy (panely nahoru, odběr dolů) k bilanci
   const lv=(l,q)=>l.neg?-q[l.key]:q[l.key];
@@ -1025,7 +1028,7 @@ function renderPlug(){
     $("plugch").textContent = "Odběr"; $("plugcs").textContent = "W · " + (PLUGR==="24" ? "posledních 24 h" : "posledních 7 dní");
     const from = Date.now()/1000 - (+PLUGR)*3600;
     const pts = (DATA.points||[]).filter(p=>p.t>=from).map(p=>({t:p.t, w: p.tp ? p.tp[PLUG] : null}));
-    lineChart($("c_plug"), pts, "w", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:+PLUGR});
+    lineChart($("c_plug"), pts, "w", css("--s1"), {emptyMsg: invOff() ? INV_OFF : undefined, unit:"W",dec:0,zero:true,area:true,hours:+PLUGR});
   }
 }
 $("plugseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;PLUGR=b.dataset.r;for(const x of $("plugseg").children)x.setAttribute("aria-pressed",x===b);renderPlug();});
@@ -1085,9 +1088,9 @@ function renderTile(){
     const cum = cumulate(pts, "mw", 1/1000);
     $("tilet").textContent = "Spotřeba chaty"; $("tiles2").textContent = `${per} ~${nf(cum.length?cum[cum.length-1].c:0,2)} kWh za měničem (vč. případného nabíjení River)`;
     $("tile1h").textContent = "Odběr za měničem"; $("tile1c").textContent = "W · zásuvka „220V měnič“ (lednice, světla, kamery, wifi, nabíjení River)";
-    lineChart($("c_tile1"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true});
+    lineChart($("c_tile1"), pts, "mw", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,modes:true, emptyMsg: invOff() ? INV_OFF : undefined});
     $("tile2h").textContent = "Jak spotřeba přibývala"; $("tile2c").textContent = "kWh od půlnoci";
-    lineChart($("c_tile2"), cum, "c", css("--s1"), {unit:"kWh",dec:2,zero:true,area:true,hours:hrs});
+    lineChart($("c_tile2"), cum, "c", css("--s1"), {unit:"kWh",dec:2,zero:true,area:true,hours:hrs, emptyMsg: invOff() ? INV_OFF : undefined});
   }
 }
 document.querySelector(".tiles").addEventListener("click",e=>{const t=e.target.closest("[data-tile]");if(!t)return;TILE=t.dataset.tile;$("tilem").classList.remove("hide");document.body.style.overflow="hidden";renderTile();});
@@ -2463,7 +2466,7 @@ function detFridge(body){
     + (rec.length ? `<div class="card"><b>Doporučení</b><div class="sub" style="margin-top:4px;line-height:1.55">${rec.join("<br>")}</div></div>` : "")
     + `<div class="sub" style="margin:0 4px 12px;line-height:1.5">Hlídač upozorní, když kompresor stojí déle než ${cfgV("lednice_ticho_h", `${d.cfg?.lednice_ticho_h ?? 3} h`)} nebo běží déle než ${cfgV("lednice_bezi_h", `${d.cfg?.lednice_bezi_h ?? 2} h`)} (hranice se přizpůsobí posledním 7 dnům), když zásuvka lednice nejde přečíst${nm?`, nebo když je v lednici tepleji než ${d.cfg?.lednice_max_C ?? 8} °C déle než 30 min`:""}.</div>`);
   if(hasT) lineChart($("dl_t"), pts.map(p=>({t:p.t, c:p.th && p.th[nm]!=null ? p.th[nm] : null})), "c", css("--s1"), {unit:"°C",dec:1,hours:TEMPH,refs:[[d.cfg?.lednice_max_C ?? 8,"--crit"]]});
-  lineChart($("dl_w"), pts.map(p=>({t:p.t, w:p.tp && p.tp[fid]!=null ? p.tp[fid] : null})), "w", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:TEMPH});
+  lineChart($("dl_w"), pts.map(p=>({t:p.t, w:p.tp && p.tp[fid]!=null ? p.tp[fid] : null})), "w", css("--s1"), {emptyMsg: invOff() ? INV_OFF : undefined, unit:"W",dec:0,zero:true,area:true,hours:TEMPH});
   { const dk = Object.keys(D).sort().filter(k=>D[k].fd!=null).slice(-30).map(k=>({k, v:D[k].fd, h:D[k].fh, n:D[k].fn, w:D[k].fw}));   // 4.73
     if(dk.length) barChart($("dl_duty"), dk, "v", css("--s1"), {unit:"%",dec:0,label:k=>dayLabel(k),
       op:q=>q.h < 20 && q.k !== dkey(Date.now()/1000) ? .45 : 1,
@@ -3461,10 +3464,11 @@ function detUse(body, src="a"){
     bars($("u_o"), "_o");
     return;
   }
-  lineChart($("u_sum"), ser("_sum"), "w", col, {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
-  if(src!=="r") lineChart($("u_220"), rows.map(r=>({t:r.t, s:r.s._sum, dc: r.s._sum!=null ? Math.round(r.s._sum/0.88 + U.idle) : null})), "s", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,k2:{key:"dc",color:css("--s1"),name:"z baterie"}});
-  for(const x of U.devs) lineChart($("u_d"+x.id), ser(x.id), "w", x.color, {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
-  lineChart($("u_o"), ser("_o"), "w", css("--muted"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands});
+  const em = invOff() ? INV_OFF : undefined, emS = src==="s" ? em : undefined;   // 6.29: za měničem (solár) při chatě na River
+  lineChart($("u_sum"), ser("_sum"), "w", col, {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,emptyMsg:emS});
+  if(src!=="r") lineChart($("u_220"), rows.map(r=>({t:r.t, s:r.s._sum, dc: r.s._sum!=null ? Math.round(r.s._sum/0.88 + U.idle) : null})), "s", css("--s2"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,k2:{key:"dc",color:css("--s1"),name:"z baterie"},emptyMsg:em});
+  for(const x of U.devs) lineChart($("u_d"+x.id), ser(x.id), "w", x.color, {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,emptyMsg:emS});
+  lineChart($("u_o"), ser("_o"), "w", css("--muted"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,emptyMsg:emS});
 }
 function tileUseTotal(d, h){
   USE_SH = null; const U = useModel(d), td = useDay(dkey(h.now), U);
@@ -4152,7 +4156,7 @@ function detBat(body){
   lineChart($("dc_vd"), pts.map(p=>({t:p.t, dv: p.ivs!=null && p.bat_v!=null && p.iv!=null ? +(p.bat_v-p.iv-off).toFixed(2) : null})), "dv", css("--s2"), {unit:"V",dec:2,hours:hrs,gap:3*3600,refs:[[0,"--muted"],[lim,"--crit"]],modes:true});
   if(d.hq) lineChart($("dc_hash"), pts.map(p=>({t:p.t, h: p.hq!=null ? Math.max(0, Math.round(100 + p.hq/d.hq.cap*100)) : null})), "h", css("--s3"), {unit:"#",dec:0,hours:hrs,bands,modes:true,refs:[[SETR(),"--serious",`${SETR()} # šetrná`],[100,"--muted"]]});
   else empty($("dc_hash"), "Spočítá se po prvních hodinách dat.");
-  lineChart($("dc_load"), lp, "ld", css("--s1"), {unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,modes:true});
+  lineChart($("dc_load"), lp, "ld", css("--s1"), {emptyMsg: invOff() ? INV_OFF : undefined, unit:"W",dec:0,zero:true,area:true,hours:hrs,bands,modes:true});
   body.insertAdjacentHTML("beforeend", srcStripHtml(d, h) + srcPiesHtml(d, h));      // 5.142 / 5.143: na co jela chata
 }
 function detNight(body){

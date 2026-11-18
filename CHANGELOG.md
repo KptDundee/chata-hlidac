@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.29 – 18. 11. 2026
+- Grafy za měničem (220 V – zásuvka za měničem, Odběr za měničem, Spotřeba chaty ze soláru, zásuvky za měničem, odběr z baterie): když chata jede z River a nejsou data, místo „Zatím málo dat“ – „Chata jede z River – měnič a zásuvka za ním jsou vypnuté, není co měřit (0 W)“.
+
 ## 6.28 – 18. 11. 2026
 - Plán River / solár: zrušeno pravidlo 5.219 „solár vybíjet jen tolik, kolik zítra panely doplní“ (v zimě by se solár nezapojil nikdy). Platí jen hranice 90 # (od ní na solár) a 50 # (spodní hranice) – stejně jako nabídka a upozornění.
 - „přepnout na solár? ne – až od 90 #“, jinak „ne – plán jede z River“.
