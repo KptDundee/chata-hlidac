@@ -5909,6 +5909,24 @@ def window_plan(data, st, now, topic, cfg):
     rd = lambda x: rel_day(x, now)
     nm = lambda c: "solár" if c == "s" else pn_(RV[c]["name"])
     pl = (found or (need or {}).get("plan"))
+    # 6.30 (diagnostika, Petr: „proč ráno ČERV, když by solár vydržel?“): když plán přejde ze soláru na River, zkusit solár dál
+    # do konce plánu – kam by baterie klesla, kdy a jestli by plán vyšel (klíč hledání: méně Wh z River = lepší)
+    if found:
+        P_ = found[1]
+        for j_ in range(1, len(P_)):
+            if P_[j_ - 1] == "s" and P_[j_] != "s":
+                L_, lo_, lo_t, why_ = None, None, None, ""
+                L_ = M["ah_now"]
+                for i_ in range(len(segs)):
+                    for k_, (pr, la, ia, lw) in enumerate(steps[i_]):
+                        c_ = "s" if (P_[i_] == "s" or i_ >= j_) else P_[i_]
+                        L_ = min(L_ + pr, top) - (la if c_ == "s" else ia)
+                        if lo_ is None or L_ < lo_:
+                            lo_, lo_t = L_, segs[i_][0] + k_ * 600
+                pc_ = lambda x: M["alarm_soc"] + x / max(1.0, M["cap"]) * 100
+                print(f"Plán – solár dál místo {nm(P_[j_])} od {hm(segs[j_][0])}: nejníž ~{pc_(lo_):.0f} # ({rd(lo_t)} {hm(lo_t)}), "
+                      f"spodní hranice {pc_(floor_s):.0f} #, konec plánu {rd(w1)} {hm(w1)}; klíč plánu {found[0]}")
+                break
     data["wplan"] = {"t": int(ts), "win": bool(in_win), "w0_end": int(w0_end), "w1": int(w1), "ok": bool(found),
                      "segs": [{"a": int(a), "b": int(b), "home": home(a), "src": pl[1][i], "name": nm(pl[1][i])} for i, (a, b) in enumerate(segs)
                               if i == 0 or pl[1][i] != pl[1][i - 1]] if pl else [],

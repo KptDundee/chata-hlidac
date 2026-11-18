@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.30 – 18. 11. 2026
+- Log (diagnostika plánu): když plán přejde ze soláru na River, řádek „Plán – solár dál místo …: nejníž ~X # …“ – kam by solární baterie klesla, kdyby jela dál.
+
 ## 6.29 – 18. 11. 2026
 - Grafy za měničem (220 V – zásuvka za měničem, Odběr za měničem, Spotřeba chaty ze soláru, zásuvky za měničem, odběr z baterie): když chata jede z River a nejsou data, místo „Zatím málo dat“ – „Chata jede z River – měnič a zásuvka za ním jsou vypnuté, není co měřit (0 W)“.
 
