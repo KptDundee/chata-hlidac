@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.33 – 18. 11. 2026
+- Spotřeba chaty: „obvykle do teď“ a procenta ze stejného zdroje jako velké číslo dlaždice (energie zásuvek – dnes denní součet, minulé dny hodinová historie zásuvek do stejné denní doby). Dřív hlídač integroval body a díry vynechal (1,03 kWh na dlaždici vs +51 % proti 0,42).
+- Když je spotřeba o 30 % a aspoň o 0,15 kWh vyšší než obvykle: řádek **„proč víc“** – 1–3 největší rozdíly nad 50 Wh (zásuvky a „ostatní (TV, telefon…)“), lednice zvýrazněná ⚠. Stejný rozpad v upozornění „Chata dnes bere víc než obvykle“.
+
 ## 6.32 – 18. 11. 2026
 - Oprava 6.31: „skoro stejně z River“ = rozdíl do 100 Wh od nejlepší varianty (dřív zaokrouhlení na 100 Wh – 220 a 256 Wh padly do různých stovek a varianta se solárem přes den prohrála).
 

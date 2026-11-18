@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.32", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.33", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3477,6 +3477,10 @@ function tileUseTotal(d, h){
   const cc = d.cons_cmp && h.now - d.cons_cmp.t < 3600 ? d.cons_cmp : null, pc = (a,b) => b ? `${a>=b?"+":"−"}${nf(Math.abs(a/b-1)*100,0)} %` : "";
   const rows = [];
   if(cc && cc.typ_wh) rows.push(["obvykle do teď", `${nf(cc.typ_wh/1000,2)} kWh · <b style="color:var(${cc.now_wh > cc.typ_wh*1.3 ? "--warn" : "--text"})">${pc(cc.now_wh, cc.typ_wh)}</b>`]);
+  // 6.33 (Petr): když je spotřeba výrazně vyšší (o 30 % a aspoň o 0,15 kWh), hned i proč – největší rozdíly proti obvyklé
+  // do stejné doby (zásuvky + ostatní); lednice zvýrazněná (může něco signalizovat), „ostatní“ = co z dat nepoznáme
+  if(cc && cc.typ_wh && cc.now_wh > cc.typ_wh*1.3 && cc.now_wh - cc.typ_wh >= 150 && (cc.why||[]).length)
+    rows.push(["proč víc", cc.why.map(w => w.id===cc.fr ? `<b style="color:var(--warn)">⚠ ${escH(w.n)} +${nf(w.d/1000,2)}</b>` : `${escH(w.n)} +${nf(w.d/1000,2)}`).join(" · ") + " kWh", 0, "w"]);
   // 6.0 (Petr): „ostatní“ (TV, telefon, PC…) = běžný provoz – hned pod součtem (a jeho „obvykle do teď“) – 6.2 (Petr): na druhém místě, ne před celkem
   if(td && td.a._o != null){ const lp = (d.points||[]).slice(-1)[0], ua = lp && h.now - lp.t < 1800 ? useAt(lp, U) : null;
     rows.push(["ostatní (TV, telefon…)", `${kWh(td.a._o)}${ua && ua.a._o != null ? ` · ${nf(ua.a._o)} W` : ""}`]); }

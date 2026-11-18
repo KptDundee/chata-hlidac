@@ -3803,13 +3803,46 @@ def cons_compare(data, st, now, topic, cfg):
     ts = now.timestamp()
     mid = now.replace(hour=0, minute=0, second=0, microsecond=0)
     sec = (now - mid).total_seconds()
-    now_wh, cov = energy(mid.timestamp(), ts)
-    typ, typ_day = [], []
+    # 6.33 (Petr: „1,03 kWh, ale +51 % proti 0,42“ – web a hlídač počítaly dnešek jinak): dnes do teď i obvykle do teď ze
+    # stejného zdroje jako dlaždice – energie, kterou si pamatují samy zásuvky (dnes: days[den].tp, minulé dny: hodinová
+    # historie tp_hist do stejné denní doby, poslední hodina poměrně). Po zásuvkách → rozpad „proč víc“ (ostatní = odběr − zásuvky).
+    import re
+    names = data.get("plug_names") or {}
+    skip_ = {mip, *rids, str(cfg.get("zasuvka_generator") or "7"), str(cfg.get("river_auto_ip") or "8")}
+    devs_ = sorted({k for k, v in names.items() if re.match(r"^\s*\(\d{1,3}\)", v or "") and re.match(r"^\d{1,3}$", k)} - skip_, key=int)
+    hist = data.get("tp_hist") or {}
+    hh_, fr_ = now.hour, now.minute / 60
+    def day_parts(dk, past):
+        """{id: Wh} do stejné denní doby; None, když chybí odběr chaty (měnič i River)."""
+        out = {}
+        for pid in [mip, *rids, *devs_]:
+            if not past:
+                v = ((data.get("days") or {}).get(dk) or {}).get("tp", {}).get(pid)
+            else:
+                arr = (hist.get(pid) or {}).get(dk)
+                v = None if not arr or len(arr) <= hh_ else sum(x or 0 for x in arr[:hh_]) + (arr[hh_] or 0) * fr_
+            if v is not None:
+                out[pid] = v
+        if mip not in out and not any(r in out for r in rids):
+            return None
+        tot = out.get(mip, 0) + sum(out.get(r, 0) for r in rids)
+        dv = {k: out[k] for k in devs_ if k in out}
+        return {"tot": tot, "dev": dv, "o": max(0.0, tot - sum(dv.values()))}
+    today_ = day_parts(mid.strftime("%Y-%m-%d"), False)
+    past_ = [x for x in (day_parts((mid - timedelta(days=i)).strftime("%Y-%m-%d"), True) for i in range(1, 8)) if x]
+    now_wh, cov = (today_["tot"], sec / 3600) if today_ else energy(mid.timestamp(), ts)
+    typ, typ_day = [x["tot"] for x in past_], []
+    why = []
+    if today_ and len(past_) >= 3:
+        cands_ = [("_o", "ostatní (TV, telefon…)", today_["o"], _stt.median([x["o"] for x in past_]))]
+        for k in devs_:
+            vs = [x["dev"][k] for x in past_ if k in x["dev"]]
+            if k in today_["dev"] and len(vs) >= 3:
+                cands_.append((k, pn_(names.get(k)) or f"zásuvka {k}", today_["dev"][k], _stt.median(vs)))
+        why = sorted([{"id": k, "n": n, "wh": round(v), "typ": round(t), "d": round(v - t)} for k, n, v, t in cands_ if v - t >= 50],
+                     key=lambda x: -x["d"])[:3]
     for i in range(1, 8):
         m_i = mid - timedelta(days=i)
-        e, c = energy(m_i.timestamp(), m_i.timestamp() + sec)
-        if sec < 3600 or c >= 0.8 * sec / 3600:
-            typ.append(e)
         e2, c2 = energy(m_i.timestamp(), (m_i + timedelta(days=1)).timestamp())
         if c2 >= 20:
             typ_day.append(e2)
@@ -3826,8 +3859,10 @@ def cons_compare(data, st, now, topic, cfg):
     cc = {"t": int(ts), "now_wh": round(now_wh), "cov": round(cov, 1), "typ_wh": round(med(typ)) if med(typ) is not None else None,
           "day_typ_wh": round(med(typ_day)) if med(typ_day) is not None else None,
           "night_wh": round(night_wh) if ncov >= 10 else None, "night_typ_wh": round(med(nights)) if med(nights) is not None else None,
-          "n": len(typ_day)}
+          "n": len(typ_day), "why": why, "fr": str(cfg.get("zasuvka_lednice") or "4")}
     data["cons_cmp"] = cc
+    if why:
+        print("Spotřeba proti obvyklé – proč víc: " + ", ".join(f"{w['n']} +{w['d']} Wh" for w in why))
     # velká odchylka → jedno upozornění za den
     day = now.strftime("%Y-%m-%d")
     t_ = cc["typ_wh"]
@@ -3835,7 +3870,8 @@ def cons_compare(data, st, now, topic, cfg):
             and st.get("cons_warn") != day:
         digest(st, "🏠 Chata dnes bere víc než obvykle",
              f"Dnes do teď {fmt(now_wh / 1000, 2)} kWh, obvykle touhle dobou {fmt(t_ / 1000, 2)} kWh (+{fmt((now_wh / t_ - 1) * 100, 0)} %). "
-             "Nezůstalo něco zapnuté?")
+             + (("Víc než obvykle: " + ", ".join(f"{w['n']} +{fmt(w['d'] / 1000, 2)} kWh" for w in why) + ". ") if why else "")
+             + "Nezůstalo něco zapnuté?")
         st["cons_warn"] = day
 
 
