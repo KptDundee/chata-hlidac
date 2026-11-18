@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.28 – 18. 11. 2026
+- Plán River / solár: zrušeno pravidlo 5.219 „solár vybíjet jen tolik, kolik zítra panely doplní“ (v zimě by se solár nezapojil nikdy). Platí jen hranice 90 # (od ní na solár) a 50 # (spodní hranice) – stejně jako nabídka a upozornění.
+- „přepnout na solár? ne – až od 90 #“, jinak „ne – plán jede z River“.
+
 ## 6.27 – 18. 11. 2026
 - EcoFlow: výdrž River slovy – „napájí chatu · vydrží ~13 h 23 min (do zítra 04:27)“, stejně „v klidu · utáhne chatu ~…“.
 - Dlaždice Solár „přepnout na solár?“: místo „ne – šetří se“ skutečný důvod plánu – „ne – zítra by ji panely nedobily“ (zítřejší přebytek < 5 Ah), jinak „ne – plán jede z River“.

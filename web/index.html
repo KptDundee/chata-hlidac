@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.27", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.28", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1356,7 +1356,7 @@ function dayFcRow(d, h){
   if(f.src==="river" && SFf && SF.offer) return ["přepnout na solár?", `<b style="color:var(--good)">ano · zpět při ${SF.back} #</b>`, 1];
   const WPl = d.wplan && d.wplan.ok && h.now - d.wplan.t <= 1800 && (d.wplan.segs||[]).length ? d.wplan : null;
   if(f.src==="river" && WPl){ const sg = WPl.segs.filter(x=>x.b > h.now), cur = sg[0], gs = sg.find(x=>x.src==="s");
-    return ["přepnout na solár?", cur && cur.src==="s" ? `<b style="color:var(--good)">ano ✓</b>` : gs ? `<b style="color:var(--good)">v ${hmT(Math.max(gs.a, h.now))}</b>` : `<span style="color:var(--text2)">ne – ${WPl.sur != null && WPl.sur < 5 ? "zítra by ji panely nedobily" : "plán jede z River"}</span>`, 1]; }
+    return ["přepnout na solár?", cur && cur.src==="s" ? `<b style="color:var(--good)">ano ✓</b>` : gs ? `<b style="color:var(--good)">v ${hmT(Math.max(gs.a, h.now))}</b>` : `<span style="color:var(--text2)">ne – ${d.hq && d.hq.pct < 90 ? "až od 90 #" : "plán jede z River"}</span>`, 1]; }
   if(f.src==="river")   // chata na River (4.26): jeden jasný řádek – můžu přepnout na solár? (rozpis v detailu)
     return ["přepnout na solár?", f.ok && f.night_ok ? `<b style="color:var(--good)">ano ✓</b>` : f.ok ? `<b style="color:var(--good)">do ${e}</b>` : `<b style="color:var(--text2)">ne</b>`, 1];
   // 5.271: když je pryč, musí solár vydržet do návratu (odjezd v ${dep}, přepnout se pak nedá) – řádek to říká

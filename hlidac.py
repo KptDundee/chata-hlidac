@@ -5331,8 +5331,9 @@ def strict_floor(M, cfg, now, floor_s):
         while t_ < zn_.timestamp():
             sur_ += max(0.0, M["prod_ah"](t_, 600) - M["load_a"](t_) * 600 / 3600)
             t_ += 600
-    top_full = (M["ah_now"] or 0) + (M["room"] or 0)
-    return (max(floor_s, top_full - sur_) if top_full else floor_s), sur_
+    # 6.28 (Petr: „v zimě se solár za den skoro nikdy nedobije – nezapojil by se nikdy; platí 50 #“): hranice vybíjení je
+    # jen spodní hranice floor_s (baterie_setrna_pct). Zítřejší přebytek se dál počítá – jen pro log a web.
+    return floor_s, sur_
 
 
 def sim_level(M, t0, t1, lvl, top, solar_until=None, step=600):
