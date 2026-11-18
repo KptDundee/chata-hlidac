@@ -5803,7 +5803,7 @@ def window_plan(data, st, now, topic, cfg):
     start_L = max(0.0, ((cfg.get("solar_start_pct") or 90) - M["alarm_soc"]) / 100 * M["cap"])
 
     def search(soc0, floor=0.0, sun=False, minrun=True, dis=None, st0=True):
-        best = [None]
+        cands, cmin = [], [float("inf")]
 
         def rec(i, L, soc, plan, used_wh, mg=100.0, dr=0.0):
             if i == len(segs):
@@ -5833,10 +5833,13 @@ def window_plan(data, st, now, topic, cfg):
                 # 6.31 (Petr: „nebylo by lepší solár ráno a přes den? i to málo, co vyrobí, jde rovnou do spotřebičů“): když
                 # dvě varianty berou z River skoro stejně (po 100 Wh), vyhraje ta, kde solár jede, když panely vyrábějí (dr = Ah
                 # výroby spotřebované rovnou, bez ztrát nabíjení a vybíjení baterie); solár do noci jen když to jinak nejde
-                key = (round(sum(used_wh.values()) / 100), short, -round(mg / 5) if short else 0, -round(dr / 0.5),
-                       round(hi_ / 20), sw, round(hi_ / 5), bal)
-                if best[0] is None or key < best[0][0]:
-                    best[0] = (key, list(plan), L, dict(soc))
+                wh_ = sum(used_wh.values())
+                rest = (short, -round(mg / 5) if short else 0, -round(dr / 0.5), round(hi_ / 20), sw, round(hi_ / 5), bal, wh_)
+                if wh_ <= cmin[0] + 100:                 # tolerance 100 Wh (ne zaokrouhlení – to dělilo skoro stejné varianty)
+                    cands.append((wh_, rest, list(plan), L, dict(soc)))
+                    if wh_ < cmin[0]:
+                        cmin[0] = wh_
+                        cands[:] = [c_ for c_ in cands if c_[0] <= wh_ + 100]
                 return
             choices = srcs if home(segs[i][0]) or home(segs[i][0] - 60) or i == 0 else [plan[-1]]   # při odjezdu ještě přepnout jde
             on_s = (plan[-1] == "s") if plan else (cur == "s")
@@ -5870,7 +5873,10 @@ def window_plan(data, st, now, topic, cfg):
                         uw[c] = uw.get(c, 0.0) + wh
                     rec(i + 1, L2, s2, plan + [c], uw, min(mg, s2[c]) if c != "s" and fixed[i] else mg, dr2)
         rec(0, M["ah_now"], dict(soc0), [], {})
-        return best[0]
+        if not cands:
+            return None
+        w_, r_, p_, l_, s_ = min((c_ for c_ in cands if c_[0] <= cmin[0] + 100), key=lambda c_: c_[1])
+        return ((round(w_), ) + r_[:-1], p_, l_, s_)
 
     soc0 = {k: v["soc"] for k, v in RV.items()}
 
