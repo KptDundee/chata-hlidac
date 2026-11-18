@@ -2386,6 +2386,7 @@ def watch_publish(data, v, st, now, topic, cfg):
     stc = int(v["status"]) if v.get("status") is not None else -1
     # Boost pod ~14,1 V = nabíjí plným proudem; nad = dobíjí (napětí drží, proud klesá – „100 %“ podle regulátoru, ale ještě ne plná)
     st_txt = {1: "nabito", 2: "dobíjí" if bv >= 14.1 else "nabíjí", 3: "vyrovnává", 0: "nenabíjí"}.get(stc, "")
+    st_txt = f"solár · {st_txt}" if st_txt else "solár"   # 6.34: v aplikaci hodinek je pak jasné, že první řádky jsou solární baterie
     f = data.get("forecast")
     fc = ""
     if f and f.get("until"):
@@ -2405,20 +2406,30 @@ def watch_publish(data, v, st, now, topic, cfg):
         t0 = datetime.fromtimestamp(rs["t0"], TZ)
         od = t0.strftime("%H:%M") if t0.date() == now.date() else f"{rel_day(rs['t0'], now)} {t0.strftime('%H:%M')}"
         fc = f"🔋 {rs['name']} · {rs['now']} W\nod {od} · {fmt(rs['wh'] / 1000, 2)} kWh"
-    elif rs:
-        hh = fmt_h(rs["h"]) if rs["h"] >= 1.5 else f"{rs['h'] * 60:.0f} min"
-        fc = f"🔋 River {rs['soc']} % · ~{hh}\ndo {rel_day(rs['until'], now)} {datetime.fromtimestamp(rs['until'], TZ).strftime('%H:%M')}"
-        if rs["soc"] <= (cfg["river_vymenit_pod"] or 15):
-            lvl = max(lvl, 1)
     rv_ok = None                            # River vydrží do rána (jen s EcoFlow – známe % a výdrž)
     if rs and rs.get("until"):
         r_, s_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
         mor = r_ if r_ and now < r_ else sun_times(cfg["sirka"], cfg["delka"], now.date() + timedelta(days=1))[0]
         rv_ok = bool(mor and rs["until"] >= mor.timestamp())
+    if rs and not rs.get("plug"):
+        # 6.34 (Petr: aplikace hodinek po ťuknutí „není uspořádaná, aby dávala smysl“): River jako jeden blok stejnými slovy
+        # jako web a okno hodinek – výdrž slovy, do kdy, odběr chaty (samostatný řádek „🏠 odběr“ se pak neposílá)
+        m_ = max(0, round(rs["h"] * 60))
+        dur_ = f"{m_ // 60} h {m_ % 60} min" if m_ >= 60 and m_ % 60 else f"{m_ // 60} h" if m_ >= 60 else f"{m_} min"
+        u_ = datetime.fromtimestamp(rs["until"], TZ)
+        fc = (f"🔋 {rv_short(rs['name'])} {rs['soc']} % · vydrží {dur_}\n"
+              f"do {rel_day(rs['until'], now)} {u_.strftime('%H:%M')}{'' if rv_ok is None else ' ✓' if rv_ok else ' ✗'}")
+        if rs.get("now") is not None:
+            t0_ = datetime.fromtimestamp(rs["t0"], TZ) if rs.get("t0") else None
+            od_ = "" if not t0_ else f" · od {t0_.strftime('%H:%M') if t0_.date() == now.date() else rel_day(rs['t0'], now) + ' ' + t0_.strftime('%H:%M')}"
+            fc += f"\n🏠 {rs['now']} W{od_}" + (f" · {fmt(rs['wh'] / 1000, 2)} kWh" if rs.get("wh") is not None else "")
+        if rs["soc"] <= (cfg["river_vymenit_pod"] or 15):
+            lvl = max(lvl, 1)
     hq = data.get("hq") or {}               # nabití # (z Ah): hodinky 1.7+ ho ukazují jako samostatný výrazný řádek
     body = {"t": int(now.timestamp()), "v": round(bv, 2), "soc": None if hq.get("pct") is not None else v.get("bat_soc"),
             "pv": round(v["pv_w"]) if v.get("pv_w") is not None else None,
-            "w": (round((inv.get("mw") or 0) + (inv.get("rw") or 0)) if fresh and (inv.get("mw") is not None or inv.get("rw") is not None) else None),   # celá chata: solár + River
+            "w": (None if rs and not rs.get("plug") else   # 6.34: na River je odběr v bloku River (fc)
+                  round((inv.get("mw") or 0) + (inv.get("rw") or 0)) if fresh and (inv.get("mw") is not None or inv.get("rw") is not None) else None),   # celá chata: solár + River
             "st": st_txt, "fc": fc, "lvl": lvl, "day": v.get("day_kwh"), "hq": hq.get("pct"),
             "ra": bool((data.get("river_auto") or {}).get("on")), "vmin": cfg["odpojeni_V"] or 11.6,
             "lat": cfg["sirka"], "lon": cfg["delka"],
@@ -2426,7 +2437,7 @@ def watch_publish(data, v, st, now, topic, cfg):
             "ven": (data.get("cool") or {}).get("out_meas"),    # 6.16: venku u chaty z teploměru OUTDOOR (jen čerstvé, do 30 min)
             "rv": ({"s": rs.get("soc"), "h": rs.get("h"), "w": rs["w"], "u": rs.get("until"), "n": rs["name"],
                     "now": rs.get("now"), "t0": rs.get("t0"), "wh": rs.get("wh"), "ok": rv_ok} if rs else None)}           # poloha chaty – hodinky z ní počítají východ / západ slunce
-    print(f"Hodinky: venku (OUTDOOR) {body['ven']}, pokoj {body['pk']}")   # 6.17: kontrola, co jde do komplikace teploty
+    print(f"Hodinky: venku (OUTDOOR) {body['ven']}, pokoj {body['pk']}; stav „{body['st']}“, blok: {body['fc']!r}")   # 6.17: kontrola, co jde do komplikace teploty
     try:
         req = urllib.request.Request(f"https://ntfy.sh/{topic}-hodinky", data=json.dumps(body).encode(),
                                      headers={"Title": "chata", "Priority": "1"}, method="POST")
