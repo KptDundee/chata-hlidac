@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.26", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.27", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1356,7 +1356,7 @@ function dayFcRow(d, h){
   if(f.src==="river" && SFf && SF.offer) return ["přepnout na solár?", `<b style="color:var(--good)">ano · zpět při ${SF.back} #</b>`, 1];
   const WPl = d.wplan && d.wplan.ok && h.now - d.wplan.t <= 1800 && (d.wplan.segs||[]).length ? d.wplan : null;
   if(f.src==="river" && WPl){ const sg = WPl.segs.filter(x=>x.b > h.now), cur = sg[0], gs = sg.find(x=>x.src==="s");
-    return ["přepnout na solár?", cur && cur.src==="s" ? `<b style="color:var(--good)">ano ✓</b>` : gs ? `<b style="color:var(--good)">v ${hmT(Math.max(gs.a, h.now))}</b>` : `<span style="color:var(--text2)">ne – šetří se</span>`, 1]; }
+    return ["přepnout na solár?", cur && cur.src==="s" ? `<b style="color:var(--good)">ano ✓</b>` : gs ? `<b style="color:var(--good)">v ${hmT(Math.max(gs.a, h.now))}</b>` : `<span style="color:var(--text2)">ne – ${WPl.sur != null && WPl.sur < 5 ? "zítra by ji panely nedobily" : "plán jede z River"}</span>`, 1]; }
   if(f.src==="river")   // chata na River (4.26): jeden jasný řádek – můžu přepnout na solár? (rozpis v detailu)
     return ["přepnout na solár?", f.ok && f.night_ok ? `<b style="color:var(--good)">ano ✓</b>` : f.ok ? `<b style="color:var(--good)">do ${e}</b>` : `<b style="color:var(--text2)">ne</b>`, 1];
   // 5.271: když je pryč, musí solár vydržet do návratu (odjezd v ${dep}, přepnout se pak nedá) – řádek to říká
@@ -3537,11 +3537,13 @@ const socOld = q => `<span style="color:var(--muted)">${nf(q.soc)}<small>%</smal
 /* 5.266 (Petr: psát, že na vypnuté River není vidět zásuvka, je hloupost): o zásuvce na výstupu River dlaždice nemluví vůbec */
 const rvPlugBad = x => false;
 /* 5.265 (Petr: „vypnutá · EcoFlow ji nevidí“ = info na nic): River v klidu → na jak dlouho by chatu utáhla */
+// 6.27 (Petr: „co to psát takto: vydrží 13 h 23 min … do 4:27“): délka vždy slovy h / min, čas zvlášť
+const durHM = sec => { const m = Math.max(0, Math.round(sec/60)), H = Math.floor(m/60), mm = m%60; return H ? (mm ? `${H} h ${mm} min` : `${H} h`) : `${mm} min`; };
 function rvIdle(x){
   // 5.267: výdrž počítá hlídač (obvyklý odběr chaty den / noc – stejně jako „vydrží do“), web ji jen ukáže
   const k6 = x.ef ? String(x.ef.sn||"").slice(-6) : "", u = (DATA.rv_run||{})[k6];
   // 6.11 (Petr): i kolik hodin a – když ji plán chystá na později – od kdy do kdy
-  const dur = a => { const m = Math.max(0, Math.round(a/60)); return `${Math.floor(m/60)}:${String(m%60).padStart(2,"0")} h`; };
+  const dur = durHM;
   const pp = (DATA.rv_run_plan||{})[k6], now = Date.now()/1000;
   if(!u) return "v klidu";
   return `v klidu · utáhne chatu ~${dur(u - now)} (do ${relDay(u)} ${hmT(u)})` + (pp ? `<br>podle plánu od ${hmT(pp[0])} → do ${relDay(pp[1])} ${hmT(pp[1])} (~${dur(pp[1]-pp[0])})` : "");
@@ -3565,7 +3567,7 @@ function rivState(x, h, M){
     const k6 = x.ef ? String(x.ef.sn||"").slice(-6) : "", u = (DATA.rv_run||{})[k6] || ((DATA.river_sup||{}).until), now = Date.now()/1000;
     if(!u || u <= now) return "napájí chatu";
     const m = Math.round((u - now)/60);
-    return `napájí chatu · vydrží ~${Math.floor(m/60)}:${String(m%60).padStart(2,"0")} h (do ${relDay(u)} ${hmT(u)})`; }
+    return `napájí chatu · vydrží ~${durHM(u - now)} (do ${relDay(u)} ${hmT(u)})`; }
   // 4.78: zdroj jen generátor (když opravdu běží); nabíjení z jiné River je výjimka – bez udání zdroje
   // 4.81: stáří údaje z EcoFlow (čte se s každým během hlídače) – ať je vidět, že 150 W může být z doby před 10 min
   const efAge = DATA.rivers_t ? Math.round((Date.now()/1000 - DATA.rivers_t)/60) : null, agoT = efAge!=null && efAge >= 5 ? ` · před ${efAge} min` : "";

@@ -5911,7 +5911,8 @@ def window_plan(data, st, now, topic, cfg):
     data["wplan"] = {"t": int(ts), "win": bool(in_win), "w0_end": int(w0_end), "w1": int(w1), "ok": bool(found),
                      "segs": [{"a": int(a), "b": int(b), "home": home(a), "src": pl[1][i], "name": nm(pl[1][i])} for i, (a, b) in enumerate(segs)
                               if i == 0 or pl[1][i] != pl[1][i - 1]] if pl else [],
-                     "need": {k_: v_ for k_, v_ in (need or {}).items() if k_ != "plan"} or None}
+                     "need": {k_: v_ for k_, v_ in (need or {}).items() if k_ != "plan"} or None,
+                     "sur": round(sur_, 1)}   # 6.27: zítřejší přebytek Ah – web z něj říká, proč plán solár nebere
     charging = any(((r.get("ac_in_w") if r.get("ac_in_w") is not None else r.get("in_w")) or 0) > 20
                    for r in data.get("rivers") or [] if r.get("online") and not r.get("gen"))
     act = in_win and not found and not charging
