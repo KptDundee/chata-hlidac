@@ -5805,7 +5805,7 @@ def window_plan(data, st, now, topic, cfg):
     def search(soc0, floor=0.0, sun=False, minrun=True, dis=None, st0=True):
         best = [None]
 
-        def rec(i, L, soc, plan, used_wh, mg=100.0):
+        def rec(i, L, soc, plan, used_wh, mg=100.0, dr=0.0):
             if i == len(segs):
                 sw = sum(1 for j in range(1, len(plan)) if plan[j] != plan[j - 1]) + (1 if cur and plan and plan[0] != cur else 0)
                 # 5.217 (Petr): jedna River ať zůstane co nejplnější (na noc / odjezd, kdy přepnout nejde) – nejdřív se bere ta načatá
@@ -5830,7 +5830,11 @@ def window_plan(data, st, now, topic, cfg):
                 mg_min = float(cfg.get("river_rezerva_noc_pct") or 15)
                 short = max(0, round((mg_min - mg) / 5 + 0.49)) if mg < mg_min else 0
                 hi_ = max(soc.values()) if soc else 0
-                key = (round(sum(used_wh.values()) / 50), short, -round(mg / 5) if short else 0, round(hi_ / 20), sw, round(hi_ / 5), bal)
+                # 6.31 (Petr: „nebylo by lepší solár ráno a přes den? i to málo, co vyrobí, jde rovnou do spotřebičů“): když
+                # dvě varianty berou z River skoro stejně (po 100 Wh), vyhraje ta, kde solár jede, když panely vyrábějí (dr = Ah
+                # výroby spotřebované rovnou, bez ztrát nabíjení a vybíjení baterie); solár do noci jen když to jinak nejde
+                key = (round(sum(used_wh.values()) / 100), short, -round(mg / 5) if short else 0, -round(dr / 0.5),
+                       round(hi_ / 20), sw, round(hi_ / 5), bal)
                 if best[0] is None or key < best[0][0]:
                     best[0] = (key, list(plan), L, dict(soc))
                 return
@@ -5841,9 +5845,10 @@ def window_plan(data, st, now, topic, cfg):
             if sun and i == 0 and (on_s or not st0 or L >= start_L):
                 choices = ["s"]                          # 5.217: dokud solár stačí, jede solár
             for c in choices:
-                L2, s2, ok, wh = L, dict(soc), True, 0.0
+                L2, s2, ok, wh, dr2 = L, dict(soc), True, 0.0, dr
                 for pr, la, ia, lw in steps[i]:
                     if c == "s":
+                        dr2 += min(pr, la)
                         Lp_ = L2
                         L2 = min(L2 + pr, top) - la
                         # 5.216/5.219/5.220: pod hranicí jen když se nabíjí; „zítřejší přebytek“ (dis) jen když panely kryjí míň
@@ -5863,7 +5868,7 @@ def window_plan(data, st, now, topic, cfg):
                     uw = dict(used_wh)
                     if c != "s":
                         uw[c] = uw.get(c, 0.0) + wh
-                    rec(i + 1, L2, s2, plan + [c], uw, min(mg, s2[c]) if c != "s" and fixed[i] else mg)
+                    rec(i + 1, L2, s2, plan + [c], uw, min(mg, s2[c]) if c != "s" and fixed[i] else mg, dr2)
         rec(0, M["ah_now"], dict(soc0), [], {})
         return best[0]
 
