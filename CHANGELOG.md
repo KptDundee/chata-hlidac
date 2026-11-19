@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.38 – 19. 11. 2026
+- Plán: „teď přepnout“ jen když jsem doma a vzhůru – pryč nebo ve spánku plán počítá s tím, z čeho chata jede (dřív v 6:04 po odjezdu „přepnout na solár? ano ✓“).
+
 ## 6.37 – 19. 11. 2026
 - Rada a upozornění „před odjezdem / spaním (do HH:MM) přepni na …“ obecně: když plán na začátku dalšího úseku, kdy jsem pryč nebo spím, chce jiný zdroj (solár ↔ River, River ↔ River), než ze kterého chata teď jede. Upozornění 30 min předem. Dřív jen když napájecí River do té doby dojde.
 

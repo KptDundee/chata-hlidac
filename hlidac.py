@@ -5901,7 +5901,9 @@ def window_plan(data, st, now, topic, cfg):
                         cmin[0] = wh_
                         cands[:] = [c_ for c_ in cands if c_[0] <= wh_ + 100]
                 return
-            choices = srcs if home(segs[i][0]) or home(segs[i][0] - 60) or i == 0 else [plan[-1]]   # při odjezdu ještě přepnout jde
+            # 6.37: „teď“ (i == 0) přepnout jde, jen když jsem doma a vzhůru – pryč / ve spánku jede chata dál z toho, z čeho jede
+            choices = srcs if home(segs[i][0]) or home(segs[i][0] - 60) or (i == 0 and cur not in srcs) else \
+                [plan[-1]] if plan else [cur]   # při odjezdu ještě přepnout jde
             on_s = (plan[-1] == "s") if plan else (cur == "s")
             if st0 and not on_s and L < start_L:
                 choices = [c_ for c_ in choices if c_ != "s"] or choices      # 6.7: z River na solár až od solar_start_pct
