@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.46", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.47", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2548,7 +2548,10 @@ function genPlanHtml(d){
   // 2) Průběh
   if(run){
     h += card("📊 Průběh", (P.wait ? `<div class="sub" style="margin-bottom:4px">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
-      + rowI("Generátor", `${P.gw!=null ? nf(P.gw)+" W z " : "max "}${nf(P.gmax)} W${P.gd && P.gd.fuel!=null && P.fuel==="benzin" ? ` · benzín v nádrži ${nf(P.gd.fuel)} %` : ""}`)
+      // 6.47 (Petr: „397 W z 600 W – co to znamená?“): zvlášť kolik generátor teď dává a kolik je pro River nastaveno
+      + rowI("Generátor teď dává", P.gw!=null ? `${nf(P.gw)} W` : "–")
+      + rowI("Pro River nastaveno", `${nf(P.man_w || P.budget || P.gmax)} W${P.man_w ? " (ručně)" : ` (automaticky, ${P.fuel==="lpg" ? "plyn" : "benzín"})`}`)
+      + rowI("Palivo", `${P.fuel==="lpg" ? "plyn" : "benzín"}${P.gd && P.gd.fuel!=null && P.fuel==="benzin" ? ` · v nádrži ${nf(P.gd.fuel)} %` : ""}`)
       + (P.small ? rowI("Malá River (neovládaná)", `bere ~${nf(P.small)} W${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}`) : "")
       + P.rv.map(r=>rowI(`<b>${escH(r.n||"River")}</b>`, `${nf(r.soc)} % · ${r.w?`nastaveno ${nf(r.w)} W`:"200 W"} (bere ${nf(r.in)} W) · plná ${relDay(r.fin)} ~${hmT(r.fin)}`)).join("")
       + rowI("Celkem do River", `${nf(P.tot_in)} W · za toto nabíjení ${kWh(P.wh)} (od ${hmT(P.t_on)})`)
@@ -2577,10 +2580,11 @@ function manHtml(P, run, gmax){
   const ins = `font:inherit;width:96px;padding:9px;border-radius:10px;border:1px solid var(--btnline);background:var(--bg);color:var(--text)`;
   let w0 = mw || 1200; try{ w0 = mw || +localStorage.getItem("manW") || 1200; }catch(_){}
   return `<h2 style="margin:0 0 6px">⚡ Výkon generátoru${mw ? ` <span style="color:var(--warn)">· ručně ${nf(mw)} W</span>` : P && P.manual ? ` <span style="color:var(--warn)">· nastavuješ v EcoFlow</span>` : ` <span class="sub" style="font-weight:400">· automaticky ${nf(gmax)} W</span>`}</h2>
-    <div class="sub" style="margin:0 0 8px">Dochází lahev a generátor nedá plný výkon? Zadej, kolik mají River dostat dohromady – hlídač to do půl minuty rozdělí mezi River, které se nabíjejí (každá má minimum: velká 200 W, malá 100 W; River, která přes 2 min nic nebere, podíl nedostane). Ubrání pro jiný spotřebič se tím zruší. Platí do konce ${run ? "tohoto" : "příštího"} nabíjení.</div>
+
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="man_w" type="number" inputmode="numeric" min="300" max="2500" step="50" value="${w0}" style="${ins}"> W
       <button onclick="genManual(+$('man_w').value, this)" style="${bs}">Nastavit</button>
-      ${mw || (P && P.manual) ? `<button onclick="genManual(0, this)" style="${bs}">↩︎ Automaticky</button>` : ""}</div>`;
+      ${mw || (P && P.manual) ? `<button onclick="genManual(0, this)" style="${bs}">↩︎ Automaticky</button>` : ""}</div>
+    <div class="sub" style="margin:8px 0 0">Dochází lahev a generátor nedá plný výkon? Zadej, kolik mají River dostat dohromady – hlídač to do půl minuty rozdělí mezi River, které se nabíjejí (každá má minimum: velká 200 W, malá 100 W; River, která přes 2 min nic nebere, podíl nedostane). Ubrání pro jiný spotřebič se tím zruší. Platí do konce ${run ? "tohoto" : "příštího"} nabíjení.</div>`;
 }
 async function genManual(v, el){
   const tok = store.get("ghtok");

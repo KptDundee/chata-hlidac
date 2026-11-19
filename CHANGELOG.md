@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.47 – 19. 11. 2026
+- Generátor → Průběh: místo „Generátor 397 W z 600 W“ dva řádky – „Generátor teď dává 397 W“ a „Pro River nastaveno 600 W (ručně / automaticky)“, palivo zvlášť.
+- ⚡ Výkon generátoru: nejdřív zadání a tlačítka, vysvětlení pod nimi.
+
 ## 6.46 – 19. 11. 2026
 - Nabíjení z generátoru: River, která přes 2 min nic nebere, i když má nastavený výkon (nezapojená do generátoru), nedostane podíl – dostanou ho ostatní. Jakmile začne brát, zase se počítá. (Malá dostávala 200 W a brala 0 W → velké jen 2× 200 W.)
 
