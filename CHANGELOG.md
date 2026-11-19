@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.36 – 19. 11. 2026
+- Oprava: plán posílal sloučené úseky s koncem prvního z nich (solár 05:50–06:00 místo do 10:00) → po 06:00 dlaždice psala „přepnout na solár? ne – plán jede z River“ a vedle rada „můžeš přepnout na solár“.
+- Dlaždice Solární baterie: bez řádku „nabití %“ od regulátoru (vedle # matl, je v detailu); rada o přepnutí na solár se neopakuje, když ji už říká řádek „přepnout na solár?“.
+
 ## 6.35 – 19. 11. 2026
 - River „se vypnula“: když chata už jede z jiné River nebo ze soláru, upozornění se zruší (✓ … chata už jede z …) – dřív zůstalo červené, i když bylo vyřešeno. Dokud vyřešené není, titulek i řádek na dlaždici EcoFlow rovnou říkají řešení: „– přepoj chatu na River X“ / „– přepni chatu na solár“ / „– pusť generátor a nabij River“.
 

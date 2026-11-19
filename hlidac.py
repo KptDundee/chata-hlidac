@@ -5365,6 +5365,19 @@ def energy_model(data, cfg, now):
             "room": ((100 - hq["pct"]) / 100 * cap) if hq.get("pct") is not None else None}
 
 
+def wp_merge(segs, P, home, nm):
+    """6.36: po sobě jdoucí úseky se stejným zdrojem sloučit – konec (b) = konec posledního z nich. Dřív zůstal konec
+    prvního úseku (05:50–06:00 solár), web po 06:00 neviděl žádný aktuální úsek a psal „ne – plán jede z River“,
+    i když plán říkal solár až do 10:00."""
+    out = []
+    for i, (a, b) in enumerate(segs):
+        if out and P[i] == out[-1]["src"]:
+            out[-1]["b"] = int(b)
+        else:
+            out.append({"a": int(a), "b": int(b), "home": home(a), "src": P[i], "name": nm(P[i])})
+    return out
+
+
 def strict_floor(M, cfg, now, floor_s):
     """5.219: kam nejníž solární baterii vybíjet (Ah nad alarmem): plná − zítřejší přebytek (co panely zítra vyrobí navíc
     nad spotřebu chaty přes den), aspoň šetrná hranice floor_s. Vrací (hranice, přebytek Ah)."""
@@ -5986,8 +5999,7 @@ def window_plan(data, st, now, topic, cfg):
                       f"spodní hranice {pc_(floor_s):.0f} #, konec plánu {rd(w1)} {hm(w1)}; klíč plánu {found[0]}")
                 break
     data["wplan"] = {"t": int(ts), "win": bool(in_win), "w0_end": int(w0_end), "w1": int(w1), "ok": bool(found),
-                     "segs": [{"a": int(a), "b": int(b), "home": home(a), "src": pl[1][i], "name": nm(pl[1][i])} for i, (a, b) in enumerate(segs)
-                              if i == 0 or pl[1][i] != pl[1][i - 1]] if pl else [],
+                     "segs": wp_merge(segs, pl[1], home, nm) if pl else [],
                      "need": {k_: v_ for k_, v_ in (need or {}).items() if k_ != "plan"} or None,
                      "sur": round(sur_, 1)}   # 6.27: zítřejší přebytek Ah – web z něj říká, proč plán solár nebere
     charging = any(((r.get("ac_in_w") if r.get("ac_in_w") is not None else r.get("in_w")) or 0) > 20
