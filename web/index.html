@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.43", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.44", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2542,6 +2542,9 @@ function genPlanHtml(d){
   const how = `<details style="margin-top:10px"><summary class="sub" style="cursor:pointer">Jak na to</summary><div class="sub" style="margin-top:6px;line-height:1.5">
       <b>Postup:</b> 1) zmáčkni palivo (Benzín / Plyn) – tím se nabíjení spustí, klidně před startem · 2) nastartuj generátor a zapoj River, nech ho 1–2 min zahřát · 3) v aplikaci Tapo zapni zásuvku (7) · 4) za 30 s hlídač nastaví výkony sám · konec: vypni generátor. Po novém startu generátoru zmáčkni palivo, na které jede – spustí se znovu.<br><br>zmáčkni Spustit → nastartuj generátor a zapoj River. Mimo nabíjení mají velké River ${cfgV("gen_po_behu_W", `${nf(c.gen_po_behu_W ?? 200)} W`)} a malá ${cfgV("gen_mala_po_behu_W", `${nf(c.gen_mala_po_behu_W ?? 100)} W`)}, takže start generátoru nic nepřetíží. 30 s po začátku nabíjení hlídač nastaví výkony: palivo <b>${fl}</b> – max. ${cfgV(fuel==="lpg" ? "gen_max_lpg_W" : "gen_max_benzin_W", `${nf(gmax)} W`)} − rezerva ${cfgV("gen_rezerva_W", `${nf(c.gen_rezerva_W ?? 100)} W`)} − co bere malá River, rozdělí mezi River podle toho, kolik které chybí, aby se nabily zároveň (velká 200–940 W, malá 100–360 W). Jakmile je některá plná (přestane brát), vrátí jí klidový výkon. Konec: tlačítko, nebo 10 min nic nenabíjí. Palivo změníš v Nastavení → Generátor.</div></details>`;
   let h = card("⛽ Nabíjení z generátoru", stat + warn + ctl + how);
+  // 6.44 (Petr): ovládání nahoru – Jiný spotřebič, Výkon generátoru; Průběh (info) až pod tím
+  if(run) h += `<div class="card">${jineHtml(P)}</div>`;
+  h += `<div class="card">${manHtml(P, run, gmax)}</div>`;
   // 2) Průběh
   if(run){
     h += card("📊 Průběh", (P.wait ? `<div class="sub" style="margin-bottom:4px">Nabíjení začalo – za 30 s nastavím výkony.</div>` : "")
@@ -2554,8 +2557,6 @@ function genPlanHtml(d){
       + `<div class="sub" style="margin-top:6px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s${P.set && P.set.length ? `<br>Naposledy nastaveno: ${escH(P.set.join(", "))}` : ""}</div>`);
   }
   // 3) Jiný spotřebič, 4) Ruční výkon
-  h += `<div class="card">${manHtml(P, run, gmax)}</div>`;   // 6.42: výkon generátoru vždy, hned pod Nabíjení / Průběh
-  if(run) h += `<div class="card">${jineHtml(P)}</div>`;
   else { const jv = String(c.gen_jine||"").split(":"), jw = +jv[0]||0, jt = +jv[1]||0;
     h += `<div class="card">${jineHtml({jine: jw && Date.now()/1000 - jt < 6*3600 ? jw : 0, pre:true})}</div>`; }
   // 5) Lahev a palivo
