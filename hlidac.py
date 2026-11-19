@@ -7613,11 +7613,23 @@ def check_river(r, st, topic, cfg, data=None, rivers=None):
         what = (f"Přepoj chatu na River {oth['name']} ({fmt(oth.get('soc'))} %) a tuhle nabij." if oth
                 else "Přepni chatu na solár a River nabij." if sol_
                 else "Druhá River je taky skoro prázdná – pusť generátor a nabij je.")
-        title = f"🔴 River {name} se vypnula ({fmt(soc)} %)" if died else f"🔄 River {name} má jen {fmt(soc)} % – " + \
-            ("přepoj chatu" if oth or sol_ else "nabij")
+        # 6.35 (Petr: „červené, ale neuvádí řešení“): i „vypnula se“ hned s tím, co udělat
+        title = (f"🔴 River {name} se vypnula ({fmt(soc)} %) – " + (f"přepoj chatu na River {oth['name']}" if oth
+                 else "přepni chatu na solár" if sol_ else "pusť generátor a nabij River")) if died \
+            else f"🔄 River {name} má jen {fmt(soc)} % – " + ("přepoj chatu" if oth or sol_ else "nabij")
         msg = (f"{io}.\nRiver přestala dodávat – pokud z ní jela chata, je teď bez 230 V (lednice, Wi‑Fi, Flip)." if died
                else f"{io}.{rest}\n{what}")
         # 5.251: generátor právě startuje na nabíjení (povel do 15 min) → nehlásit, nabíjení se řeší
+        # 6.35 (Petr: „píše, že se River vypnula, a já to už vyřešil“): vypnutá River, ale chata už jede z jiné River
+        # nebo ze soláru → vyřešeno, upozornění se zruší (nabití hlídá plán nabíjení)
+        if died:
+            other_ = next((o for o in rivers or [] if o is not r and o.get("online") and (o.get("wh") or 768) >= 500
+                           and (o.get("out_w") or 0) > 20 and (o.get("in_w") or 0) <= 20), None)
+            inv_ = (data or {}).get("inverter") or {}
+            if other_ or (time.time() - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) == "s"):
+                alarm(st, topic, k, False, ok_title=f"✓ {name} vypnutá ({fmt(soc)} %), chata už jede z "
+                      f"{'River ' + other_['name'] if other_ else 'soláru'} – {name} se nabije podle plánu")
+                return
         gp_ = str(cfg.get("gen_povel") or "").split(":")
         if not died and len(gp_) >= 2 and gp_[0] == "start" and gp_[-1].isdigit() and time.time() - int(gp_[-1]) < 900:
             active = active and was

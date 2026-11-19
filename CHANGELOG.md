@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.35 – 19. 11. 2026
+- River „se vypnula“: když chata už jede z jiné River nebo ze soláru, upozornění se zruší (✓ … chata už jede z …) – dřív zůstalo červené, i když bylo vyřešeno. Dokud vyřešené není, titulek i řádek na dlaždici EcoFlow rovnou říkají řešení: „– přepoj chatu na River X“ / „– přepni chatu na solár“ / „– pusť generátor a nabij River“.
+
 ## 6.34 – 18. 11. 2026
 - Hodinky (bez nové instalace – mění se jen, co hlídač posílá): stav „solár · nabito“ (je jasné, že první řádky jsou solární baterie); když chata jede z River, jeden blok stejnými slovy jako web a okno: „🔋 ŽLUT 85 % · vydrží 13 h 23 min / do zítra 04:27 ✓ / 🏠 30 W · od 15:46 · 0,42 kWh“ a samostatný řádek „🏠 odběr“ se neposílá.
 
