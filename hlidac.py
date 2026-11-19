@@ -7327,7 +7327,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # 5.276 (Petr): „max“ generátoru je nastavení pro jiný provoz (DC / nadmořská výška), pro nabíjení River nic neříká
         # (11. 11. hlásil 1100 W a dával 1581 W) → nepoužívá se; strop = gen_max_benzin_W / gen_max_lpg_W
         gmax_eff = gs.get("man_w") or gmax                 # 6.42: výkon zadaný z webu
-        budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0) - (gs.get("jine") or 0)   # 5.182: ubráno pro jiný spotřebič
+        # 6.45 (Petr: „nastavil jsem 600, jede na 400“): zadaný výkon = kolik dostanou River dohromady – bez rezervy
+        budget_eff = (gs["man_w"] if gs.get("man_w") else gmax_eff - (cfg.get("gen_rezerva_W") or 0)) - (gs.get("jine") or 0)   # 5.182: ubráno pro jiný spotřebič
         avail = max(0.0, budget_eff - small_w)
         print(f"Nabíjení z generátoru: generátor {gw} W, hlásí max {gm} W → rozpočet {round(budget_eff)} W, nabíjí {[byid(r['sn']).get('name') for r in con]}, ručně {bool(gs.get('manual'))}, zadaný výkon {gs.get('man_w')}")
         # 5.169 (Petr): co chybí do plna podle naměřených Wh na 1 % v pásmech (rv_cap.chg.bins; poslední procenta stojí víc)

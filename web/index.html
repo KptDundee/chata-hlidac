@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.44", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.45", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2577,7 +2577,7 @@ function manHtml(P, run, gmax){
   const ins = `font:inherit;width:96px;padding:9px;border-radius:10px;border:1px solid var(--btnline);background:var(--bg);color:var(--text)`;
   let w0 = mw || 1200; try{ w0 = mw || +localStorage.getItem("manW") || 1200; }catch(_){}
   return `<h2 style="margin:0 0 6px">⚡ Výkon generátoru${mw ? ` <span style="color:var(--warn)">· ručně ${nf(mw)} W</span>` : P && P.manual ? ` <span style="color:var(--warn)">· nastavuješ v EcoFlow</span>` : ` <span class="sub" style="font-weight:400">· automaticky ${nf(gmax)} W</span>`}</h2>
-    <div class="sub" style="margin:0 0 8px">Dochází lahev a generátor nedá plný výkon? Zadej, kolik dá – hlídač ho do půl minuty rozdělí mezi River (ubrání pro jiný spotřebič se tím zruší). Platí do konce ${run ? "tohoto" : "příštího"} nabíjení.</div>
+    <div class="sub" style="margin:0 0 8px">Dochází lahev a generátor nedá plný výkon? Zadej, kolik mají River dostat dohromady – hlídač to do půl minuty rozdělí mezi všechny připojené River, které nejsou plné (i malou, každá má minimum: velká 200 W, malá 100 W). Ubrání pro jiný spotřebič se tím zruší. Platí do konce ${run ? "tohoto" : "příštího"} nabíjení.</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="man_w" type="number" inputmode="numeric" min="300" max="2500" step="50" value="${w0}" style="${ins}"> W
       <button onclick="genManual(+$('man_w').value, this)" style="${bs}">Nastavit</button>
       ${mw || (P && P.manual) ? `<button onclick="genManual(0, this)" style="${bs}">↩︎ Automaticky</button>` : ""}</div>`;
