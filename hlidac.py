@@ -7146,7 +7146,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             gs.pop("man_w", None)
         if gs.get("jine") and ts0 - (gs.get("jine_t") or 0) > 6 * 3600:
             gs.pop("jine", None)                          # 5.185: staré ubrání (bez nabíjení) se nepřenáší
-        gs.update({"btn": ts0, "first": None, "idle": None, "t_on": ts0, "active": True, "idle_warned": False, "ever": False,
+        gs.update({"btn": ts0, "first": None, "nodraw": {}, "idle": None, "t_on": ts0, "active": True, "idle_warned": False, "ever": False,
                    "restart": True})
         gs.pop("stop", None)
         for k_ in ("con", "low", "chg_t", "sig", "wh", "e_t", "e_w"):
@@ -7258,6 +7258,19 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # 5.137: jednoduše – nabíjí se každá připojená River, která není plná (Petr: žádné složitosti). Dřív jen ty, které
         # „viditelně braly“ – jedna z výpočtu vypadla a druhá dostala všechno (940 W vs. 200 W, generátor na 1150 W).
         con = [r for r in ctl if soc_(r) < 100 or acw(r) > 20]
+        # 6.46 (Petr: „nastavil jsem 600, jede na 400“ – malá dostala 200 W a brala 0 W): River, která přes 2 min nic nebere,
+        # i když má nastavený výkon, do generátoru zapojená není → její podíl dostanou ostatní. Jakmile začne brát, zase se počítá.
+        nd_ = gs.setdefault("nodraw", {})
+        if gs.get("first") and tnow - gs["first"] >= 120:
+            for r in con:
+                if acw(r) > 20:
+                    nd_.pop(r["sn"], None)
+                else:
+                    nd_.setdefault(r["sn"], tnow)
+            out_ = [r for r in con if tnow - nd_.get(r["sn"], tnow) >= 120]
+            if out_ and len(out_) < len(con):
+                print(f"Nabíjení z generátoru: nebere přes 2 min (nezapojená?) → bez podílu: {[byid(r['sn']).get('name') for r in out_]}")
+                con = [r for r in con if r not in out_]
         con_in = sum(acw(r) for r in con)
         gd = next((x.get("gd") for x in gens if x.get("gd")), None) or {}
         gw = g.get("w") if g.get("w") is not None else gd.get("w")
@@ -7296,7 +7309,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             print(f"Nabíjení z generátoru: přestala se nabíjet {[byid(sn).get('name') for sn in idle_pros]} → klidový výkon")
             out += apply(idle_pros)
         if not gs.get("active") and charging:              # relace sama (bez tlačítka) – River se nabíjejí
-            gs.update({"active": True, "first": None, "idle": None, "t_on": tnow, "idle_warned": False})
+            gs.update({"active": True, "first": None, "nodraw": {}, "idle": None, "t_on": tnow, "idle_warned": False})
             log("ev", "Nabíjení z generátoru: začátek (River se nabíjejí)")
         if not gs.get("active"):
             return False
@@ -7557,7 +7570,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w", "nodraw"):
                 gs.pop(k, None)
             return False
         return True
