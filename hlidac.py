@@ -7123,6 +7123,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             if v_ >= 300:
                 gs["man_w"] = min(2500, v_)
                 gs.pop("manual", None)
+                if gs.pop("jine", None):                # 6.43: zadaný výkon = kolik River dostanou celkem → ubrání pro jiný spotřebič pryč
+                    log("ev", "Nabíjení z generátoru: ubrání pro jiný spotřebič zrušeno (zadaný výkon)")
                 gs.pop("sig", None)                     # hned přepočítat
                 log("ev", f"Nabíjení z generátoru: ruční výkon {gs['man_w']} W (do konce nabíjení)")
             elif v_ == 1:
