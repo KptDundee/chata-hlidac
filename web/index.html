@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.41", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.42", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2554,7 +2554,8 @@ function genPlanHtml(d){
       + `<div class="sub" style="margin-top:6px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s${P.set && P.set.length ? `<br>Naposledy nastaveno: ${escH(P.set.join(", "))}` : ""}</div>`);
   }
   // 3) Jiný spotřebič, 4) Ruční výkon
-  if(run) h += `<div class="card">${manHtml(P)}</div><div class="card">${jineHtml(P)}</div>`;   // 6.41 (Petr: „nemůžu najít ruční výkon“): hned pod Průběh
+  h += `<div class="card">${manHtml(P, run, gmax)}</div>`;   // 6.42: výkon generátoru vždy, hned pod Nabíjení / Průběh
+  if(run) h += `<div class="card">${jineHtml(P)}</div>`;
   else { const jv = String(c.gen_jine||"").split(":"), jw = +jv[0]||0, jt = +jv[1]||0;
     h += `<div class="card">${jineHtml({jine: jw && Date.now()/1000 - jt < 6*3600 ? jw : 0, pre:true})}</div>`; }
   // 5) Lahev a palivo
@@ -2568,20 +2569,26 @@ function genPlanHtml(d){
 /* 4.87 / 4.91: tlačítka nabíjení z generátoru. „start:benzin“ / „start:lpg“ = zapsat palivo do nastavení + spustit,
    „fuel:…“ = jen změnit palivo (hlídač ho načte do 30 s i během nabíjení), „stop“ = ukončit. */
 /* 5.197 (Petr): ruční výkon – když dochází lahev, hlídač River nenastavuje výkon (nastavíš v aplikaci EcoFlow), měří dál */
-function manHtml(P){
-  const on = !!P.manual, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
-  return `<div style="margin:4px 0">
-    <h2 style="margin:0 0 8px">✋ Ruční výkon${on ? ` <span style="color:var(--warn)">· zapnutý</span>` : ""}</h2>
-    <div class="sub" style="margin:4px 0">${on ? "Hlídač teď River výkon nenastavuje – nastav ho v aplikaci EcoFlow. Měření, spotřeba i cena běží dál. Platí do konce nabíjení, pak River dostanou klidový výkon jako vždy."
-      : "Dochází lahev a generátor nedá plný výkon? Vypni automatiku a nastav River výkon sám v aplikaci EcoFlow. Měření běží dál, platí do konce tohoto nabíjení."}</div>
-    <button onclick="genManual(${on ? 0 : 1}, this)" style="${bs}">${on ? "↩︎ Zpět na automatiku" : "✋ Ruční výkon"}</button></div>`;
+function manHtml(P, run, gmax){
+  // 6.42 (Petr: „chtěl bych ho v Výroba / Generátor, stále, a rovnou zadat výkon“): zadaný výkon generátoru – hlídač ho
+  // rozdělí mezi River sám (do půl minuty, do konce nabíjení). Vidět vždy; když se nenabíjí, platí pro příští nabíjení (6 h).
+  const mw = P && P.man_w, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
+  const ins = `font:inherit;width:96px;padding:9px;border-radius:10px;border:1px solid var(--btnline);background:var(--bg);color:var(--text)`;
+  let w0 = mw || 1200; try{ w0 = mw || +localStorage.getItem("manW") || 1200; }catch(_){}
+  return `<h2 style="margin:0 0 6px">⚡ Výkon generátoru${mw ? ` <span style="color:var(--warn)">· ručně ${nf(mw)} W</span>` : P && P.manual ? ` <span style="color:var(--warn)">· nastavuješ v EcoFlow</span>` : ` <span class="sub" style="font-weight:400">· automaticky ${nf(gmax)} W</span>`}</h2>
+    <div class="sub" style="margin:0 0 8px">Dochází lahev a generátor nedá plný výkon? Zadej, kolik dá – hlídač ho do půl minuty rozdělí mezi River. Platí do konce ${run ? "tohoto" : "příštího"} nabíjení.</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="man_w" type="number" inputmode="numeric" min="300" max="2500" step="50" value="${w0}" style="${ins}"> W
+      <button onclick="genManual(+$('man_w').value, this)" style="${bs}">Nastavit</button>
+      ${mw || (P && P.manual) ? `<button onclick="genManual(0, this)" style="${bs}">↩︎ Automaticky</button>` : ""}</div>`;
 }
 async function genManual(v, el){
   const tok = store.get("ghtok");
   if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
+  if(v && (!(v >= 300) || v > 2500)){ el.textContent = "300–2500 W"; return; }
+  try{ if(v) localStorage.setItem("manW", String(v)); }catch(_){}
   el.disabled = true; el.textContent = "Ukládám…";
   try{ await setCfgKey(tok, "gen_rucne", `${v}:${Math.floor(Date.now()/1000)}`);
-    el.textContent = v ? "✓ ruční výkon – do půl minuty" : "✓ zpět na automatiku – do půl minuty";
+    el.textContent = v ? `✓ ${nf(v)} W – hlídač nastaví do půl minuty` : "✓ automaticky – do půl minuty";
   }catch(e){ el.disabled = false; el.textContent = e.message; }
 }
 /* 5.182 (Petr): ubrat výkon River pro jiný spotřebič zapojený přímo do generátoru – jen pro toto nabíjení */

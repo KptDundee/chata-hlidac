@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.42 – 19. 11. 2026
+- Výroba → Generátor → ▶️ Start: karta **⚡ Výkon generátoru** vždy vidět (i když se nenabíjí). Výkon se zadá rovnou (W) a hlídač ho do půl minuty rozdělí mezi River – už se nenastavuje v aplikaci EcoFlow. Platí do konce nabíjení (když se nenabíjí, pro příští nabíjení do 6 h); „↩︎ Automaticky“ vrátí gen_max_*. Nastavení `gen_rucne` = „W:čas“.
+
 ## 6.41 – 19. 11. 2026
 - Generátor: karta ✋ Ruční výkon hned pod Průběh (před Jiný spotřebič), ať se při docházející lahvi dá rychle najít.
 

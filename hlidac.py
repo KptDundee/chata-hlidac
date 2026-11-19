@@ -7111,13 +7111,25 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         """5.197 (Petr): „✋ Ruční výkon“ – gen_rucne = „1:čas“ / „0:čas“. Hlídač River nenastavuje výkon (Petr ho
         nastaví v aplikaci EcoFlow, třeba když dochází lahev a generátor nedá plný výkon), měření běží dál. Jen do konce
         tohoto nabíjení; na konci klidový výkon jako vždy."""
+        # 6.42 (Petr: „rovnou zadat ten výkon“): „W:čas“ s W ≥ 300 = výkon generátoru zadaný z webu – hlídač ho rozdělí
+        # mezi River sám (místo gen_max_*), do konce nabíjení; „1:čas“ = hlídač výkon nenastavuje (staré), „0:čas“ = automatika
         rv_ = str(cfg.get("gen_rucne") or "").strip().split(":")
         if len(rv_) == 2 and rv_[1].isdigit() and int(rv_[1]) > (gs.get("man_t") or 0) and now.timestamp() - int(rv_[1]) < 6 * 3600:
             gs["man_t"] = int(rv_[1])
-            if rv_[0] == "1":
+            try:
+                v_ = int(float(rv_[0] or 0))
+            except ValueError:
+                v_ = 0
+            if v_ >= 300:
+                gs["man_w"] = min(2500, v_)
+                gs.pop("manual", None)
+                gs.pop("sig", None)                     # hned přepočítat
+                log("ev", f"Nabíjení z generátoru: ruční výkon {gs['man_w']} W (do konce nabíjení)")
+            elif v_ == 1:
                 gs["manual"] = True
+                gs.pop("man_w", None)
                 log("ev", "Nabíjení z generátoru: ruční výkon – automatika vypnutá do konce nabíjení")
-            elif gs.pop("manual", None):
+            elif gs.pop("manual", None) is not None or gs.pop("man_w", None) is not None:
                 gs.pop("sig", None)                     # zpět na automatiku → hned přepočítat
                 log("ev", "Nabíjení z generátoru: zpět na automatiku")
     rucne_cmd()
@@ -7127,8 +7139,9 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             cfg["gen_palivo"] = f_
     ts0 = int(now.timestamp())
     if cmd == "start":                                   # i během nabíjení = nový start (např. po přepnutí na plyn)
-        if gs.get("manual") and ts0 - (gs.get("man_t") or 0) > 6 * 3600:
+        if (gs.get("manual") or gs.get("man_w")) and ts0 - (gs.get("man_t") or 0) > 6 * 3600:
             gs.pop("manual", None)
+            gs.pop("man_w", None)
         if gs.get("jine") and ts0 - (gs.get("jine_t") or 0) > 6 * 3600:
             gs.pop("jine", None)                          # 5.185: staré ubrání (bez nabíjení) se nepřenáší
         gs.update({"btn": ts0, "first": None, "idle": None, "t_on": ts0, "active": True, "idle_warned": False, "ever": False,
@@ -7311,10 +7324,10 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             gm = None
         # 5.276 (Petr): „max“ generátoru je nastavení pro jiný provoz (DC / nadmořská výška), pro nabíjení River nic neříká
         # (11. 11. hlásil 1100 W a dával 1581 W) → nepoužívá se; strop = gen_max_benzin_W / gen_max_lpg_W
-        gmax_eff = gmax
+        gmax_eff = gs.get("man_w") or gmax                 # 6.42: výkon zadaný z webu
         budget_eff = gmax_eff - (cfg.get("gen_rezerva_W") or 0) - (gs.get("jine") or 0)   # 5.182: ubráno pro jiný spotřebič
         avail = max(0.0, budget_eff - small_w)
-        print(f"Nabíjení z generátoru: generátor {gw} W, hlásí max {gm} W → rozpočet {round(budget_eff)} W, nabíjí {[byid(r['sn']).get('name') for r in con]}, ručně {bool(gs.get('manual'))}")
+        print(f"Nabíjení z generátoru: generátor {gw} W, hlásí max {gm} W → rozpočet {round(budget_eff)} W, nabíjí {[byid(r['sn']).get('name') for r in con]}, ručně {bool(gs.get('manual'))}, zadaný výkon {gs.get('man_w')}")
         # 5.169 (Petr): co chybí do plna podle naměřených Wh na 1 % v pásmech (rv_cap.chg.bins; poslední procenta stojí víc)
         # a nikdy méně než 3 % – skoro plná River jinak spadla na 200 W a dobíjela se o 10 min déle než ostatní
         rvc_ = data.get("rv_cap") or {}
@@ -7485,7 +7498,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gp_.append([tnow, round(gw) if gw is not None else None, tot_in])
         gp_[:] = [x for x in gp_ if x[0] >= tnow - 7 * 86400][-3000:]
         data["gen_plan"] = {"t": tnow, "fuel": fuel, "tot_in": tot_in, "wh": round(gs.get("wh", 0.0)), "gmax": gmax_eff, "gmax_set": gmax, "gmax_gen": gm if gm and 1400 <= gm <= 2500 else None, "budget": budget_eff, "gw": round(gw) if gw is not None else None,
-                            "jine": gs.get("jine") or 0, "manual": bool(gs.get("manual")), "xwh": round(gs.get("xwh") or 0), "x_w": round(gs.get("x_w") or 0),
+                            "jine": gs.get("jine") or 0, "manual": bool(gs.get("manual")), "man_w": gs.get("man_w"), "xwh": round(gs.get("xwh") or 0), "x_w": round(gs.get("x_w") or 0),
                             "small": round(small_w), "small_soc": round(small["soc"]) if small and small.get("soc") is not None else None,
                             "avail": round(avail), "rv": rv, "fin": int(max(fins)) if fins else None, "t_on": gs.get("t_on"),
                             "btn": bool(gs.get("btn")), "wait": bool(con) and tnow - gs["first"] < 30,
@@ -7541,7 +7554,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w"):
                 gs.pop(k, None)
             return False
         return True
