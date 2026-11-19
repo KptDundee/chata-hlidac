@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.40", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.41", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2554,7 +2554,7 @@ function genPlanHtml(d){
       + `<div class="sub" style="margin-top:6px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s${P.set && P.set.length ? `<br>Naposledy nastaveno: ${escH(P.set.join(", "))}` : ""}</div>`);
   }
   // 3) Jiný spotřebič, 4) Ruční výkon
-  if(run) h += `<div class="card">${jineHtml(P)}</div><div class="card">${manHtml(P)}</div>`;
+  if(run) h += `<div class="card">${manHtml(P)}</div><div class="card">${jineHtml(P)}</div>`;   // 6.41 (Petr: „nemůžu najít ruční výkon“): hned pod Průběh
   else { const jv = String(c.gen_jine||"").split(":"), jw = +jv[0]||0, jt = +jv[1]||0;
     h += `<div class="card">${jineHtml({jine: jw && Date.now()/1000 - jt < 6*3600 ? jw : 0, pre:true})}</div>`; }
   // 5) Lahev a palivo
