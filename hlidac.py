@@ -5123,9 +5123,12 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         free_ok = not tk and rise and now >= rise and set_ and now < set_ - timedelta(hours=2) and st.get("do_conn") != akey
         W_ = wp_now(data, now)
         plan_sol = (W_["cur"] == "s" if W_ else hq["pct"] >= (cfg.get("solar_start_pct") or 90)) and (hq["pct"] >= (cfg.get("baterie_setrna_pct") or 50) or covers)   # 5.215/5.216, 6.7
-        if not full_offer and res["ok"] and plan_sol and now.timestamp() < res["end"] and rise and set_ and rise <= now < set_ - timedelta(hours=2):
+        # 6.39 (Petr: v 6:03, už po odjezdu, „Dnes můžeš chatu přepnout na solár“): nabídka a rada jen doma a vzhůru.
+        # Odjezd z kalendáře (due) už nabídku neposílá – „před odjezdem (do …) přepni“ dává 30 min předem plán (6.37)
+        awake_now = home_ and not asleep(cfg, now)
+        if awake_now and not full_offer and res["ok"] and plan_sol and now.timestamp() < res["end"] and rise and set_ and rise <= now < set_ - timedelta(hours=2):
             todo_add(data, 3, f"můžeš přepnout na solár – vydrží do {hh}:{mm:02d}", "ok")
-        if not full_offer and (due or free_ok) and res["ok"] and plan_sol and now.timestamp() < res["end"]:
+        if awake_now and not full_offer and free_ok and res["ok"] and plan_sol and now.timestamp() < res["end"]:
             ntfy(topic, "☀️ Dnes můžeš chatu přepnout na solární baterii",
                  f"Solární baterie ({hq['pct']} #) s dnešní výrobou podle předpovědi (~{fmt(rem_kwh, 1)} kWh, s rezervou) "
                  f"vydrží chatu (~{res['load_w']} W) do {hh}:{mm:02d}.\nVečer ti napíšu, do kdy přepnout zpátky na River.", 3, "sunny,battery")
