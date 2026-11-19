@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.37 – 19. 11. 2026
+- Rada a upozornění „před odjezdem / spaním (do HH:MM) přepni na …“ obecně: když plán na začátku dalšího úseku, kdy jsem pryč nebo spím, chce jiný zdroj (solár ↔ River, River ↔ River), než ze kterého chata teď jede. Upozornění 30 min předem. Dřív jen když napájecí River do té doby dojde.
+
 ## 6.36 – 19. 11. 2026
 - Oprava: plán posílal sloučené úseky s koncem prvního z nich (solár 05:50–06:00 místo do 10:00) → po 06:00 dlaždice psala „přepnout na solár? ne – plán jede z River“ a vedle rada „můžeš přepnout na solár“.
 - Dlaždice Solární baterie: bez řádku „nabití %“ od regulátoru (vedle # matl, je v detailu); rada o přepnutí na solár se neopakuje, když ji už říká řádek „přepnout na solár?“.

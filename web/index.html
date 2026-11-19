@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.36", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.37", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1471,7 +1471,7 @@ function tileSolar(d, h){
     // rada o přepnutí na solár se neopakuje, když totéž už říká řádek „přepnout na solár?“
     rows:[["☀ panely", h.pv!=null ? `${nf(h.pv)} W` : "–"], ...(off ? [] : [["🔋 z baterie", odb]]),
       ...(dayFcRow(d, h) ? [dayFcRow(d, h)] : []), ...nightRows2(d, h),
-      ...(todoRow(d, h) && !(dayFcRow(d, h) && dayFcRow(d, h)[0]==="přepnout na solár?" && /na solár/.test(todoRow(d, h)[1])) ? [todoRow(d, h)] : []),
+      ...(todoRow(d, h) && !(dayFcRow(d, h) && dayFcRow(d, h)[0]==="přepnout na solár?" && /^můžeš/.test(todoRow(d, h)[1])) ? [todoRow(d, h)] : []),
       // 6.6 (Petr): mráz a vybitá baterie → na kolik nabít
       ...(d.frost && d.frost.risk ? [["❄ mráz", `<b style="color:var(--crit)">nabij aspoň na ${d.frost.tgt} #</b>`]] : [])]};
 }

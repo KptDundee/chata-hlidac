@@ -6064,6 +6064,23 @@ def window_plan(data, st, now, topic, cfg):
           f"River {sup_.get('name', '')} ({sup_.get('soc')} %) vydrží jen do ~{hm(U_) if U_ else '?'}, "
           f"to {'spíš' if is_sleep else 'budeš pryč'} ({rd(cut_[0]) if cut_ else ''} {hm(cut_[0]) if cut_ else ''}–{hm(cut_[1]) if cut_ else ''}). "
           f"Přepni chatu {when_} na {seg0['name'] if seg0 else ''}." if need_sw else "", 4, "arrows_counterclockwise", ok_title=False, cat=1)
+    # 6.37 (Petr: „nikde nevidím radu před odjezdem přepni na solár, naopak říká nepřepínej“): obecně – když plán na začátku
+    # dalšího úseku, kdy jsem pryč / spím, chce jiný zdroj, než ze kterého chata teď jede, rada „před odjezdem / spaním
+    # (do HH:MM) přepni na …“ a 30 min předem upozornění. Dřív jen když napájecí River do té doby dojde (wp_sw výš).
+    inv_w = data.get("inverter") or {}
+    cur_w = "s" if (ts - inv_w.get("t", 0) < 1800 and inv_src(inv_w, cfg) == "s") else sup_.get("sn")
+    nb_ = next(((a, b) for a, b in blk_ if a > ts), None) if home(ts) else None
+    tgt_ = next((sg for sg in data["wplan"]["segs"] if sg["a"] <= nb_[0] < sg["b"]), None) if nb_ and found else None
+    sl2_ = bool(nb_ and any(abs(nb_[0] - a) < 60 for a, b in SL))
+    when2 = (("před spaním (do " if sl2_ else "před odjezdem (do ") + hm(nb_[0]) + ")") if nb_ else ""
+    plan_sw = bool(tgt_ and cur_w and tgt_["src"] != cur_w and not need_sw)
+    to_ = ("solár" if tgt_["src"] == "s" else f"River {rv_short(tgt_['name'])}") if tgt_ else ""
+    if plan_sw:
+        print(f"Přepnutí podle plánu: {when2} na {to_} (teď {'solár' if cur_w == 's' else sup_.get('name')}), upozornění od {hm(nb_[0] - 1800)}")
+        todo_add(data, 6, f"{when2} přepni na {to_}", "warn", "sol" if tgt_["src"] == "s" or cur_w == "s" else "rv")
+    alarm(st, topic, "wp_sw2", plan_sw and ts >= nb_[0] - 1800, f"🔁 {when2[:1].upper() + when2[1:]} přepni chatu na {to_}",
+          (f"Podle plánu má chata od {hm(nb_[0])} jet z {'soláru' if to_ == 'solár' else to_} – {'spíš' if sl2_ else 'budeš pryč'} "
+           f"do {rd(nb_[1])} {hm(nb_[1])} a přepnout pak nepůjde." if plan_sw else ""), 3, "arrows_counterclockwise", ok_title=False, cat=2)
     print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, zítra přebytek ~{sur_:.0f} Ah → vybíjet nejníž "
           f"na ~{M['alarm_soc'] + floor_x / max(1.0, M['cap']) * 100:.0f} #, "
           + ("vyjde: " + " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data['wplan']['segs']) if found
