@@ -73,11 +73,36 @@ def set_quota(host, ak, sk, body):
     return json.loads(urllib.request.urlopen(req, timeout=30).read())
 
 
+AC_VARIANT = {}   # 6.48: sn → index tvaru příkazu, který EcoFlow naposledy vzal
+
+
 def set_ac_charge(host, ak, sk, sn, watts):
-    """River 2 Pro: nabíjecí výkon ze sítě (AC) ve W."""
-    body = {"id": int(time.time() * 1000) % 1000000000, "version": "1.0", "sn": sn, "moduleType": 5,
-            "operateType": "acChgCfg", "params": {"chgWatts": int(watts), "chgPauseFlag": 0}}
-    return set_quota(host, ak, sk, body)
+    """River 2 Pro: nabíjecí výkon ze sítě (AC) ve W.
+    6.48: 20. 11. EcoFlow začal původní tvar odmítat („request fail, please check your params“) – zkusit i další tvary
+    (pauza 255 jako aplikace, bez pauzy, id jako řetězec) a zapamatovat si ten, který projde."""
+    w = int(watts)
+    variants = [
+        {"params": {"chgWatts": w, "chgPauseFlag": 0}},
+        {"params": {"chgWatts": w, "chgPauseFlag": 255}},
+        {"params": {"chgWatts": w}},
+        {"params": {"chgWatts": w, "chgPauseFlag": 0}, "id_str": True},
+    ]
+    order = [AC_VARIANT.get(sn, 0)] + [i for i in range(len(variants)) if i != AC_VARIANT.get(sn, 0)]
+    first = None
+    for i in order:
+        v = variants[i]
+        mid = int(time.time() * 1000) % 1000000000
+        body = {"id": str(mid) if v.get("id_str") else mid, "version": "1.0", "sn": sn, "moduleType": 5,
+                "operateType": "acChgCfg", "params": v["params"]}
+        res = set_quota(host, ak, sk, body)
+        if str(res.get("code")) == "0":
+            if i != 0 or AC_VARIANT.get(sn, 0) != i:
+                print(f"EcoFlow nastavení výkonu {sn[-4:]}: prošel tvar {i} {v['params']}")
+            AC_VARIANT[sn] = i
+            return res
+        print(f"EcoFlow nastavení výkonu {sn[-4:]} {w} W, tvar {i} {v['params']}: {res.get('code')} {str(res.get('message'))[:80]}")
+        first = first or res
+    return first
 
 
 # 4.67: zkouška jiných cest pro zařízení, kde quota/all vrací 1006 (generátor, malá River 2)

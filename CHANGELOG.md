@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.48 – 20. 11. 2026
+- EcoFlow od 20. 11. odmítá nastavení nabíjecího výkonu velkých River („request fail, please check your params“) – automatika ani návrat po nabíjení nefungovaly. Zkouší se i další tvary příkazu (pauza 255 jako aplikace, bez pauzy, id jako řetězec), ten, který projde, si hlídač pamatuje; v záznamu běhu je vidět, co EcoFlow vrací.
+
 ## 6.47 – 19. 11. 2026
 - Generátor → Průběh: místo „Generátor 397 W z 600 W“ dva řádky – „Generátor teď dává 397 W“ a „Pro River nastaveno 600 W (ručně / automaticky)“, palivo zvlášť.
 - ⚡ Výkon generátoru: nejdřív zadání a tlačítka, vysvětlení pod nimi.

@@ -7201,7 +7201,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 sets[sn] = w
                 done.append(f"{nm} {w} W")
             else:
-                done.append(f"{nm}: chyba {str(res.get('message'))[:60]}")
+                done.append(f"{nm} {w} W: chyba {str(res.get('message'))[:60]}")
         if done:
             log("ev", "Nabíjení z generátoru: " + ", ".join(done))
             print("Nabíjení z generátoru – nastaveno: " + ", ".join(done))     # 5.274: ať je to vidět v záznamu běhu
