@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.50", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.51", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2580,10 +2580,13 @@ function manHtml(P, run, gmax){
   // na automatiku sám – ukončený plán ruční výkon už neukazuje. Mimo nabíjení jen čerstvě zadaný pro příští nabíjení (do 6 h).
   const rc_ = String((DATA && DATA.cfg && DATA.cfg.gen_rucne) || "").split(":"), rcW = +rc_[0], rcT = +rc_[1] || 0;
   const pend_ = !run && rcW >= 300 && Date.now()/1000 - rcT < 6*3600 && (!P || !P.end || rcT > P.end) ? rcW : null;
-  const mw = run ? P.man_w : pend_, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
+  // 6.51: data z hlídače chodí po skončení jeho běhu (~3 min) – právě zadaný výkon ukázat hned, dokud data nedoženou
+  let lw_ = null; try{ lw_ = JSON.parse(localStorage.getItem("manSet") || "null"); }catch(_){}
+  const fresh_ = lw_ && Date.now()/1000 - lw_.t < 600 && (!P || !P.t || lw_.t > P.t) ? lw_ : null;
+  const mw = fresh_ ? (fresh_.w || null) : run ? P.man_w : pend_, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
   const ins = `font:inherit;width:96px;padding:9px;border-radius:10px;border:1px solid var(--btnline);background:var(--bg);color:var(--text)`;
   let w0 = mw || 1200; try{ w0 = mw || +localStorage.getItem("manW") || 1200; }catch(_){}
-  return `<h2 style="margin:0 0 6px">⚡ Výkon generátoru${mw ? ` <span style="color:var(--warn)">· ručně ${nf(mw)} W${run ? "" : " (příští nabíjení)"}</span>` : run && P.manual ? ` <span style="color:var(--warn)">· nastavuješ v EcoFlow</span>` : ` <span class="sub" style="font-weight:400">· automaticky ${nf(gmax)} W</span>`}</h2>
+  return `<h2 style="margin:0 0 6px">⚡ Výkon generátoru${mw ? ` <span style="color:var(--warn)">· ručně ${nf(mw)} W${fresh_ ? " (nastavuje se)" : run ? "" : " (příští nabíjení)"}</span>` : fresh_ ? ` <span class="sub" style="font-weight:400">· automaticky (nastavuje se)</span>` : run && P.manual ? ` <span style="color:var(--warn)">· nastavuješ v EcoFlow</span>` : ` <span class="sub" style="font-weight:400">· automaticky ${nf(gmax)} W</span>`}</h2>
 
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="man_w" type="number" inputmode="numeric" min="300" max="2500" step="50" value="${w0}" style="${ins}"> W
       <button onclick="genManual(+$('man_w').value, this)" style="${bs}">Nastavit</button>
@@ -2594,7 +2597,7 @@ async function genManual(v, el){
   const tok = store.get("ghtok");
   if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
   if(v && (!(v >= 300) || v > 2500)){ el.textContent = "300–2500 W"; return; }
-  try{ if(v) localStorage.setItem("manW", String(v)); }catch(_){}
+  try{ if(v) localStorage.setItem("manW", String(v)); localStorage.setItem("manSet", JSON.stringify({w:v, t:Math.floor(Date.now()/1000)})); }catch(_){}
   el.disabled = true; el.textContent = "Ukládám…";
   try{ await setCfgKey(tok, "gen_rucne", `${v}:${Math.floor(Date.now()/1000)}`);
     el.textContent = v ? `✓ ${nf(v)} W – hlídač nastaví do půl minuty` : "✓ automaticky – do půl minuty";
