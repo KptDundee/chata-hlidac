@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.54 – 20. 11. 2026
+- Generátor → graf Výkon generátoru: místo 48 h jen poslední (nebo běžící) nabíjení po 30 s – generátor i do River, bez zvětšování.
+
 ## 6.53 – 20. 11. 2026
 - Generátor → Průběh: graf **od začátku tohoto nabíjení po 30 s** – kolik generátor dává a kolik jde do River (místo hledání v grafu za 48 h).
 

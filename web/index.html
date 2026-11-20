@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.53", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.54", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -4437,7 +4437,7 @@ function detGen(body){
     if((P_ && !P_.end && nw_ - P_.t < 900) || (d.gen_stop && nw_ - d.gen_stop.t < 3*3600)){ GT.cur = "start"; GT.html = GT.html.replace(/data-t="data" aria-pressed="true"/, 'data-t="data" aria-pressed="false"').replace(/data-t="cena" aria-pressed="true"/, 'data-t="cena" aria-pressed="false"').replace(/data-t="start" aria-pressed="false"/, 'data-t="start" aria-pressed="true"'); } }
   body.insertAdjacentHTML("beforeend", GT.html + `<div id="gn_tab_start"${vis("start")}>` + genPlanHtml(d) + `</div><div id="gn_tab_lahve"${vis("lahve")}>` + bottlesHtml(d) + `</div><div id="gn_tab_cena"${vis("cena")}>` + (()=>{ const CT = tabsHead("gn_ctab", [["lpg","🔥 Plyn"],["benzin","⛽ Benzín"],["graf","📈 Grafy"]]), cv = k => CT.cur===k ? "" : ' style="display:none"';
       return CT.html + `<div id="gn_ctab_lpg"${cv("lpg")}>` + costHtml(d,"lpg") + fuelHtml(d,"lpg") + `</div><div id="gn_ctab_benzin"${cv("benzin")}>` + costHtml(d,"benzin") + fuelHtml(d,"benzin") + `</div><div id="gn_ctab_graf"${cv("graf")}>` + costGraphsHtml() + `</div>`; })() + `</div><div id="gn_tab_data"${vis("data")}>`
-    + chartCard("dg_w", "Výkon generátoru", "W · 48 h · zásuvka (7), během nabíjení i z EcoFlow")
+    + chartCard("dg_w", "Výkon generátoru", (GPs => GPs ? `W · nabíjení ${relDay(GPs.t_on)} ${hmT(GPs.t_on)}–${GPs.end ? hmT(GPs.end) : "teď"} · po 30 s · <span style="color:var(--s7)">━</span> generátor · <span style="color:var(--s1)">┅</span> do River` : "W · 48 h · zásuvka (7)")(d.gen_plan && d.gen_plan.t_on ? d.gen_plan : null))
     + chartCard("dg_rv", "Co se nabilo do které River", `kWh za den · příjem River podle EcoFlow (od 5.85 během nabíjení po ~30 s, dřív jen při čtení hlídače) · ${efs.map(e=>`<span style="color:${e.color}">■</span> ${escH(e.name)}`).join(" · ")}`)
     + chartCard("dg_d", "Dodal po dnech", "kWh za den · 14 dní")
     + `<div class="card"><h2 style="margin:0 0 4px">Běhy generátoru</h2>${rows || '<span class="sub">Zatím žádný zaznamenaný běh generátoru.</span>'}</div>`
@@ -4460,7 +4460,11 @@ function detGen(body){
   const GP = d.gen_plan;   // 6.53: průběh tohoto (posledního) nabíjení po 30 s
   if($("gp_ser") && GP && GP.t_on){ const t1 = GP.end || GP.t, ss = (d.gen_pts||[]).filter(x=>x[0] >= GP.t_on - 60 && x[0] <= t1 + 60).map(x=>({t:x[0], w:x[1], i:x[2]}));
     lineChart($("gp_ser"), ss, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,t0:GP.t_on,t1:Math.max(t1, GP.t_on + 900),k2:{key:"i",color:css("--s1"),name:"do River"}}); }
-  lineChart($("dg_w"), gsr, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
+  // 6.54 (Petr: „graf je pořád za 48 h, musím strašně zvětšovat“): výkon generátoru jen za poslední (běžící) nabíjení
+  const GPw = d.gen_plan && d.gen_plan.t_on ? d.gen_plan : null;
+  if(GPw){ const t1w = GPw.end || GPw.t, sw = (d.gen_pts||[]).filter(x=>x[0] >= GPw.t_on - 60 && x[0] <= t1w + 60).map(x=>({t:x[0], w:x[1], i:x[2]}));
+    lineChart($("dg_w"), sw, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,t0:GPw.t_on - 120,t1:Math.max(t1w + 120, GPw.t_on + 900),k2:{key:"i",color:css("--s1"),name:"do River"}}); }
+  else lineChart($("dg_w"), gsr, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
   stackBars($("dg_rv"), dd.map(k=>({k, v:Object.fromEntries(efs.map(e=>[e.id, (x=>x.gi ?? x.i ?? 0)((((d.days||{})[k]||{}).rv||{})[e.id]||{})]))})), efs, {});
   barChart($("dg_d"), dd.map(k=>({k, v:genWh(k)/1000})), "v", css("--s7"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
 }
