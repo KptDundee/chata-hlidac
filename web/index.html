@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.49", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.50", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2576,14 +2576,18 @@ function genPlanHtml(d){
 function manHtml(P, run, gmax){
   // 6.42 (Petr: „chtěl bych ho v Výroba / Generátor, stále, a rovnou zadat výkon“): zadaný výkon generátoru – hlídač ho
   // rozdělí mezi River sám (do půl minuty, do konce nabíjení). Vidět vždy; když se nenabíjí, platí pro příští nabíjení (6 h).
-  const mw = P && P.man_w, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
+  // 6.50 (Petr: „pořád jsem viděl ruční řízení 600 W“): ruční výkon z běžícího nabíjení; po konci nabíjení se hlídač vrací
+  // na automatiku sám – ukončený plán ruční výkon už neukazuje. Mimo nabíjení jen čerstvě zadaný pro příští nabíjení (do 6 h).
+  const rc_ = String((DATA && DATA.cfg && DATA.cfg.gen_rucne) || "").split(":"), rcW = +rc_[0], rcT = +rc_[1] || 0;
+  const pend_ = !run && rcW >= 300 && Date.now()/1000 - rcT < 6*3600 && (!P || !P.end || rcT > P.end) ? rcW : null;
+  const mw = run ? P.man_w : pend_, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
   const ins = `font:inherit;width:96px;padding:9px;border-radius:10px;border:1px solid var(--btnline);background:var(--bg);color:var(--text)`;
   let w0 = mw || 1200; try{ w0 = mw || +localStorage.getItem("manW") || 1200; }catch(_){}
-  return `<h2 style="margin:0 0 6px">⚡ Výkon generátoru${mw ? ` <span style="color:var(--warn)">· ručně ${nf(mw)} W</span>` : P && P.manual ? ` <span style="color:var(--warn)">· nastavuješ v EcoFlow</span>` : ` <span class="sub" style="font-weight:400">· automaticky ${nf(gmax)} W</span>`}</h2>
+  return `<h2 style="margin:0 0 6px">⚡ Výkon generátoru${mw ? ` <span style="color:var(--warn)">· ručně ${nf(mw)} W${run ? "" : " (příští nabíjení)"}</span>` : run && P.manual ? ` <span style="color:var(--warn)">· nastavuješ v EcoFlow</span>` : ` <span class="sub" style="font-weight:400">· automaticky ${nf(gmax)} W</span>`}</h2>
 
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="man_w" type="number" inputmode="numeric" min="300" max="2500" step="50" value="${w0}" style="${ins}"> W
       <button onclick="genManual(+$('man_w').value, this)" style="${bs}">Nastavit</button>
-      ${mw || (P && P.manual) ? `<button onclick="genManual(0, this)" style="${bs}">↩︎ Automaticky</button>` : ""}</div>
+      ${mw || (run && P.manual) ? `<button onclick="genManual(0, this)" style="${bs}">↩︎ Automaticky</button>` : ""}</div>
     <div class="sub" style="margin:8px 0 0">Dochází lahev a generátor nedá plný výkon? Zadej, kolik mají River dostat dohromady – hlídač to do půl minuty rozdělí mezi River, které se nabíjejí (každá má minimum: velká 200 W, malá 100 W; River, která přes 2 min nic nebere, podíl nedostane). Ubrání pro jiný spotřebič se tím zruší. Platí do konce ${run ? "tohoto" : "příštího"} nabíjení.</div>`;
 }
 async function genManual(v, el){
