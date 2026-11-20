@@ -145,7 +145,7 @@ plne_nabiti_od_dni = 7          # od kolika dní bez plného nabití (Float) pl�
 plne_nabiti_dni = 14            # dobíjení do plna musí začít nejpozději tento den bez Floatu; i připomenutí – AGM nemá dlouho stát nedobitá
 teplomer_baterie = Baterie        # jméno teploměru Xiaomi u solární baterie (jak je zadané ve Flipu) – teplota pro mráz a kapacitu v chladu
 teplomer_lednice = Lednice        # jméno teploměru Xiaomi v lednici
-lednice_max_C = 8                # upozornit, když je v lednici tepleji déle než 30 min
+lednice_max_C = 9                # upozornit, když je v lednici tepleji déle než 30 min
 river_sn =                       # spárování zásuvek River s EcoFlow: „číslo zásuvky:konec SN“, např. 2:AB12, 3:CD34, 6:EF56 (konec SN viz detail EcoFlow)
 brana_restart = 22:10            # denní restart Brány (Bluetooth, zásuvky); vypnuto = bez restartu
 flip_min_pct = 30                # pod tímhle % se Flip dobíjí vždy (i v noci a z River), jen do slunce
