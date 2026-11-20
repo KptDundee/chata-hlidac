@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.52", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.53", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2555,6 +2555,8 @@ function genPlanHtml(d){
       + (P.small ? rowI("Malá River (neovládaná)", `bere ~${nf(P.small)} W${P.small_soc!=null?` · ${nf(P.small_soc)} %`:""}`) : "")
       + P.rv.map(r=>rowI(`<b>${escH(r.n||"River")}</b>`, `${nf(r.soc)} % · ${r.w?`nastaveno ${nf(r.w)} W`:"200 W"} (bere ${nf(r.in)} W) · plná ${relDay(r.fin)} ~${hmT(r.fin)}`)).join("")
       + rowI("Celkem do River", `${nf(P.tot_in)} W · za toto nabíjení ${kWh(P.wh)} (od ${hmT(P.t_on)})`)
+      // 6.53 (Petr: „48 h pro W je na nic – potřebuju průběh jen tohoto nabíjení“): graf od začátku nabíjení po 30 s
+      + `<div class="cs" style="margin-top:8px">W od ${hmT(P.t_on)} · <span style="color:var(--s7)">━</span> generátor dává · <span style="color:var(--s1)">┅</span> do River · po 30 s</div><div id="gp_ser"></div>`
       + (P.fin ? rowI("Generátor můžeš vypnout", `<b>${relDay(P.fin)} ~${hmT(P.fin)}</b>`) : "")
       + (P.rv.length ? "" : `<div class="sub">Velké River se zatím nenabíjejí – zapoj je do generátoru.</div>`)
       + `<div class="sub" style="margin-top:6px">Aktualizace ${relDay(P.t)} ${hmT(P.t)} · hlídač čte EcoFlow každých 30 s${P.set && P.set.length ? `<br>Naposledy nastaveno: ${escH(P.set.join(", "))}` : ""}</div>`);
@@ -4455,6 +4457,9 @@ function detGen(body){
   tabsWire("gn_tab", ["data","start","cena","lahve"]);
   tabsWire("gn_ctab", ["lpg","benzin","graf"]); costGraphsDraw(d);
   const gsr = pts.map(p=>({t:p.t, w:p.gw ?? (p.tp ? p.tp[U.gen] ?? null : null)})).concat((d.gen_pts||[]).map(x=>({t:x[0], w:x[1] ?? x[2]}))).sort((a,b)=>a.t-b.t);
+  const GP = d.gen_plan;   // 6.53: průběh tohoto (posledního) nabíjení po 30 s
+  if($("gp_ser") && GP && GP.t_on){ const t1 = GP.end || GP.t, ss = (d.gen_pts||[]).filter(x=>x[0] >= GP.t_on - 60 && x[0] <= t1 + 60).map(x=>({t:x[0], w:x[1], i:x[2]}));
+    lineChart($("gp_ser"), ss, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,t0:GP.t_on,t1:Math.max(t1, GP.t_on + 900),k2:{key:"i",color:css("--s1"),name:"do River"}}); }
   lineChart($("dg_w"), gsr, "w", css("--s7"), {unit:"W",dec:0,zero:true,area:true,hours:48});
   stackBars($("dg_rv"), dd.map(k=>({k, v:Object.fromEntries(efs.map(e=>[e.id, (x=>x.gi ?? x.i ?? 0)((((d.days||{})[k]||{}).rv||{})[e.id]||{})]))})), efs, {});
   barChart($("dg_d"), dd.map(k=>({k, v:genWh(k)/1000})), "v", css("--s7"), {unit:"kWh",dec:2,label:k=>dayLabel(k),tip:q=>`${dTxt(q.k)}<br><b>${nf(q.v,2)} kWh</b>`});
