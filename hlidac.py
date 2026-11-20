@@ -7192,7 +7192,14 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                     import ecoflow_app
                     res = ecoflow_app.set_ac_charge(st.get("efp") or {}, sn, w) if st.get("efp") else {"code": "?", "message": "bez přihlášení aplikace"}
                 else:
-                    res = ecoflow.set_ac_charge(host, ak, sk, sn, w)
+                    res = ecoflow.set_ac_charge(host, ak, sk, sn, w) if (ak and sk and host) else {"code": "?"}
+                    # 6.49: vývojářské rozhraní od 20. 11. vrací 1008 → stejná cesta jako u malé (přihlášení aplikace)
+                    if str(res.get("code")) != "0" and st.get("efp"):
+                        import ecoflow_app
+                        res2 = ecoflow_app.set_ac_charge(st["efp"], sn, w)
+                        print(f"EcoFlow nastavení výkonu {sn[-4:]} {w} W přes aplikaci: {res2.get('code')} {str(res2.get('message') or '')[:60]}")
+                        if str(res2.get("code")) == "0":
+                            res = res2
                 ok = str(res.get("code")) == "0"
             except Exception as e:
                 ok, res = False, {"message": str(e)[:80]}
