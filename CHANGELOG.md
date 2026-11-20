@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.52 – 20. 11. 2026
+- ⚡ Výkon generátoru: za políčkem „W · min 400 W“ (2 velké River × minimum 200 W); méně než 400 W web nepustí.
+
 ## 6.51 – 20. 11. 2026
 - ⚡ Výkon generátoru: právě zadaný výkon (nebo Automaticky) se v nadpisu ukáže hned s „(nastavuje se)“ – data z hlídače přijdou až po skončení jeho běhu (~3 min), do té doby karta ukazovala předchozí hodnotu.
 

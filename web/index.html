@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.51", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.52", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2588,7 +2588,7 @@ function manHtml(P, run, gmax){
   let w0 = mw || 1200; try{ w0 = mw || +localStorage.getItem("manW") || 1200; }catch(_){}
   return `<h2 style="margin:0 0 6px">⚡ Výkon generátoru${mw ? ` <span style="color:var(--warn)">· ručně ${nf(mw)} W${fresh_ ? " (nastavuje se)" : run ? "" : " (příští nabíjení)"}</span>` : fresh_ ? ` <span class="sub" style="font-weight:400">· automaticky (nastavuje se)</span>` : run && P.manual ? ` <span style="color:var(--warn)">· nastavuješ v EcoFlow</span>` : ` <span class="sub" style="font-weight:400">· automaticky ${nf(gmax)} W</span>`}</h2>
 
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="man_w" type="number" inputmode="numeric" min="300" max="2500" step="50" value="${w0}" style="${ins}"> W
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="man_w" type="number" inputmode="numeric" min="400" max="2500" step="50" value="${w0}" style="${ins}"> W <span class="sub">min 400 W</span>
       <button onclick="genManual(+$('man_w').value, this)" style="${bs}">Nastavit</button>
       ${mw || (run && P.manual) ? `<button onclick="genManual(0, this)" style="${bs}">↩︎ Automaticky</button>` : ""}</div>
     <div class="sub" style="margin:8px 0 0">Dochází lahev a generátor nedá plný výkon? Zadej, kolik mají River dostat dohromady – hlídač to do půl minuty rozdělí mezi River, které se nabíjejí (každá má minimum: velká 200 W, malá 100 W; River, která přes 2 min nic nebere, podíl nedostane). Ubrání pro jiný spotřebič se tím zruší. Platí do konce ${run ? "tohoto" : "příštího"} nabíjení.</div>`;
@@ -2596,7 +2596,7 @@ function manHtml(P, run, gmax){
 async function genManual(v, el){
   const tok = store.get("ghtok");
   if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
-  if(v && (!(v >= 300) || v > 2500)){ el.textContent = "300–2500 W"; return; }
+  if(v && (!(v >= 400) || v > 2500)){ el.textContent = "400–2500 W"; return; }   // 6.52: 2 velké River × minimum 200 W
   try{ if(v) localStorage.setItem("manW", String(v)); localStorage.setItem("manSet", JSON.stringify({w:v, t:Math.floor(Date.now()/1000)})); }catch(_){}
   el.disabled = true; el.textContent = "Ukládám…";
   try{ await setCfgKey(tok, "gen_rucne", `${v}:${Math.floor(Date.now()/1000)}`);
