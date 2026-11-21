@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.58", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.59", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2593,7 +2593,20 @@ function manHtml(P, run, gmax){
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="man_w" type="number" inputmode="numeric" min="400" max="2500" step="50" value="${w0}" style="${ins}"> W <span class="sub">min 400 W</span>
       <button onclick="genManual(+$('man_w').value, this)" style="${bs}">Nastavit</button>
       ${mw || (run && P.manual) ? `<button onclick="genManual(0, this)" style="${bs}">↩︎ Automaticky</button>` : ""}</div>
+    ${run && (P.off||[]).length ? P.off.map(o=>`<div style="margin-top:10px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--crit) 12%,transparent)">
+      <b>${escH(o.n)}</b> bez spojení s EcoFlow – jede na <b>${nf(o.w)} W</b> (naposledy nastaveno). Nastavil jsi jí jinak přes Bluetooth?
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px"><input id="off_${o.sn}" type="number" inputmode="numeric" min="100" max="1200" step="10" value="${o.w}" style="${ins}"> W
+      <button onclick="genOff('${o.sn}', +$('off_${o.sn}').value, this)" style="${bs}">Nastavil jsem</button></div></div>`).join("") : ""}
     <div class="sub" style="margin:8px 0 0">Dochází lahev a generátor nedá plný výkon? Zadej, kolik mají River dostat dohromady – hlídač to do půl minuty rozdělí mezi River, které se nabíjejí (každá má minimum: velká 200 W, malá 100 W; River, která přes 2 min nic nebere, podíl nedostane). Ubrání pro jiný spotřebič se tím zruší. Platí do konce ${run ? "tohoto" : "příštího"} nabíjení.</div>`;
+}
+// 6.59: River bez spojení s EcoFlow – výkon nastavený ručně přes Bluetooth (gen_off = „sn:W:čas“)
+async function genOff(sn, w, el){
+  const tok = store.get("ghtok");
+  if(!tok){ $("tokbox").classList.remove("hide"); $("tok").focus(); return; }
+  if(!(w >= 100) || w > 1200){ el.textContent = "100–1200 W"; return; }
+  el.disabled = true; el.textContent = "Ukládám…";
+  try{ await setCfgKey(tok, "gen_off", `${sn}:${w}:${Math.floor(Date.now()/1000)}`); el.textContent = `✓ počítám s ${nf(w)} W`; }
+  catch(e){ el.disabled = false; el.textContent = "Chyba – zkus znovu"; }
 }
 async function genManual(v, el){
   const tok = store.get("ghtok");

@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.59 – 21. 11. 2026
+- River bez spojení s EcoFlow při nabíjení z generátoru: hlídač počítá s jejím posledním nastavením (sám ho zná) jako s pevným odběrem, ostatním dá jen zbytek; upozornění každou minutu říká, na kolik jede. Když jí výkon nastavíš jinak přes Bluetooth, zadáš ho v kartě ⚡ Výkon generátoru („Nastavil jsem“, `gen_off`).
+- Generátor běží (motor) bez zátěže a River nic neberou → po 1 min hlídač zapne zásuvku generátoru (7) přes Flip („🔌 Zapínám zásuvku 7“); když se do 4 min nic nezmění, naléhavě každou minutu „🚨 Generátor běží, ale nic nenabíjí – zapni zásuvku 7“. Jen během nabíjení (po ▶️ Start).
+
 ## 6.58 – 21. 11. 2026
 - Oprava 6.57: falešné „🚨 generátor – bez spojení s EcoFlow“ – generátor má v datech dva záznamy a ten z vývojářského rozhraní (nepovolený) se tvářil jako offline. Teď jen když není online žádný a výkon generátoru neznáme.
 

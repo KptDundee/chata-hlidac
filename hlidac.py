@@ -7309,6 +7309,31 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # nenabíjí déle než 90 s nebo motor stojí / generátor je offline. Skutečný start (motor nově naskočil) beze změny:
         # nejdřív klidový výkon, výpočet po 30 s nabíjení.
         motor_on = str(gd.get("motor")) in ("1", "True") and gd.get("w") is not None
+        # 6.59 (Petr: „pustil jsem generátor, zapomněl zapnout zásuvku 7 – nenabíjelo se“): generátor běží (motor), nic nedává
+        # a River nic neberou → po 1 min (zahřátí bez zátěže) zapnout zásuvku generátoru přes Flip; když se do 4 min nic
+        # nezmění, naléhavě každou minutu
+        p7 = str(cfg.get("zasuvka_generator") or "7")
+        if gs.get("active") and motor_on and (gw or 0) < 20 and not rv_take and any((soc_(r) if soc_(r) is not None else 0) < 99 for r in ctl):
+            gs["p7_t"] = gs.get("p7_t") or tnow
+            el_ = tnow - gs["p7_t"]
+            print(f"Nabíjení z generátoru: generátor běží {el_} s bez zátěže – zásuvka {p7} vypnutá?")
+            if el_ >= 60 and tnow - (gs.get("p7_cmd") or 0) >= 180:
+                gs["p7_cmd"] = tnow
+                send_cmd(topic, p7, True, "generátor běží 1 min bez zátěže")
+                if not gs.get("p7_sent"):
+                    gs["p7_sent"] = 1
+                    ntfy(topic, f"🔌 Zapínám zásuvku {p7} – generátor běží bez zátěže",
+                         f"Generátor běží 1 min a River nic neberou – zásuvka {p7} je asi vypnutá. Zapínám ji přes Flip.", 3, "electric_plug")
+            if el_ >= 240 and tnow - (gs.get("p7_al") or 0) >= 60:
+                gs["p7_al"] = tnow
+                ntfy(topic, f"🚨 Generátor běží, ale nic nenabíjí – zapni zásuvku {p7}",
+                     f"Generátor běží {el_ // 60} min bez zátěže a zapnout zásuvku {p7} se nepovedlo. Zapni ji ručně "
+                     f"(a zkontroluj, že jsou River zapojené). Opakuju každou minutu.", 5, "rotating_light")
+        elif gs.get("p7_t"):
+            if gs.get("p7_al") or gs.get("p7_sent"):
+                ntfy(topic, "✓ Nabíjení z generátoru běží", f"Zásuvka {p7} je zapnutá, River se nabíjejí.", 2, "white_check_mark")
+            for k_ in ("p7_t", "p7_cmd", "p7_sent", "p7_al"):
+                gs.pop(k_, None)
         if not charging and gs.get("active") and gs.get("first") and motor_on and tnow - (gs.get("dip") or tnow) < 90:
             if not gs.get("dip"):
                 gs["dip"] = tnow
@@ -7366,20 +7391,35 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # 6.58: generátor má víc záznamů (jeden přes vývojářské rozhraní hlásí „nepovoleno“ → offline) – bez spojení jen,
         # když není online žádný záznam generátoru a jeho výkon neznáme
         off_g = [] if any(x.get("online") for x in gens) or gw is not None else [x for x in gens if x.get("online") is False][:1]
-        off_w = 0.0
-        if [r for r in off_rv if not is_small(r)] and gw is not None and gw - sum(acw(r) for r in rivers if r.get("online")) > 120:
-            off_w = float(cfg.get("gen_po_behu_W") or 200) * len([r for r in off_rv if not is_small(r)])
-            print(f"Nabíjení z generátoru: offline {[r.get('name') for r in off_rv]} – počítám s nimi {off_w:.0f} W")
+        # 6.59 (Petr): offline River jede na posledním nastavení – hlídač ho zná (sets) a počítá s ním jako s pevným
+        # odběrem; když jí Petr výkon nastaví ručně přes Bluetooth a zadá ho na webu (gen_off = „sn:W:čas“), platí ten
+        go_ = str(cfg.get("gen_off") or "").split(":")
+        off_map = {}
+        for r in off_rv:
+            if is_small(r):
+                continue
+            w_ = sets.get(r["sn"]) or float(cfg.get("gen_po_behu_W") or 200)
+            if len(go_) == 3 and go_[0] == r["sn"][-6:] and go_[2].isdigit() and tnow - int(go_[2]) < 6 * 3600:
+                try:
+                    w_ = float(go_[1])
+                except ValueError:
+                    pass
+            off_map[r["sn"]] = w_
+        off_w = sum(off_map.values())
+        gs["off_map"] = off_map
+        if off_map:
+            print(f"Nabíjení z generátoru: offline {[byid(k).get('name') for k in off_map]} – počítám s posledním nastavením {off_map}")
         off_all = [pn_(r.get("name")) for r in off_rv] + ["generátor" for _ in off_g]
         if off_all and gs.get("active"):
             if tnow - (gs.get("off_note") or 0) >= 60:
                 gs["off_note"] = tnow
                 gs["off_names"] = off_all
                 nm_ = ", ".join(off_all)
+                det_ = "; ".join(f"{pn_(byid(k).get('name'))} jede na {w_:.0f} W (naposledy nastaveno)" for k, w_ in off_map.items())
                 ntfy(topic, f"🚨 {nm_} – bez spojení s EcoFlow, oprav hned",
-                     f"Nabíjí se z generátoru, ale {nm_} není online v EcoFlow – hlídač {'jí' if len(off_all) == 1 else 'jim'} nemůže "
-                     f"nastavit výkon a ostatním ho rozdělí špatně. Zkontroluj Wi-Fi, případně vypni a zapni. "
-                     f"Opakuju každou minutu, dokud se nepřipojí.", 5, "rotating_light")
+                     f"Nabíjí se z generátoru, ale {nm_} není online v EcoFlow. " + (f"{det_} – ostatním dávám jen zbytek. " if det_ else "")
+                     + "Zkontroluj Wi-Fi, případně vypni a zapni. Když jí výkon nastavíš jinak přes Bluetooth, zadej ho v kartě ⚡ Výkon generátoru. "
+                     "Opakuju každou minutu, dokud se nepřipojí.", 5, "rotating_light")
         elif gs.get("off_names"):
             ntfy(topic, f"✓ {', '.join(gs['off_names'])} – zase spojení s EcoFlow", "Výkon zase nastavuje hlídač.", 3, "white_check_mark")
             gs.pop("off_names", None)
@@ -7556,7 +7596,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         gp_.append([tnow, round(gw) if gw is not None else None, tot_in])
         gp_[:] = [x for x in gp_ if x[0] >= tnow - 7 * 86400][-3000:]
         data["gen_plan"] = {"t": tnow, "fuel": fuel, "tot_in": tot_in, "wh": round(gs.get("wh", 0.0)), "gmax": gmax_eff, "gmax_set": gmax, "gmax_gen": gm if gm and 1400 <= gm <= 2500 else None, "budget": budget_eff, "gw": round(gw) if gw is not None else None,
-                            "jine": gs.get("jine") or 0, "manual": bool(gs.get("manual")), "man_w": gs.get("man_w"), "xwh": round(gs.get("xwh") or 0), "x_w": round(gs.get("x_w") or 0),
+                            "jine": gs.get("jine") or 0, "manual": bool(gs.get("manual")), "man_w": gs.get("man_w"),
+                            "off": [{"sn": k[-6:], "n": pn_(byid(k).get("name")), "w": round(v)} for k, v in (gs.get("off_map") or {}).items()], "xwh": round(gs.get("xwh") or 0), "x_w": round(gs.get("x_w") or 0),
                             "small": round(small_w), "small_soc": round(small["soc"]) if small and small.get("soc") is not None else None,
                             "avail": round(avail), "rv": rv, "fin": int(max(fins)) if fins else None, "t_on": gs.get("t_on"),
                             "btn": bool(gs.get("btn")), "wait": bool(con) and tnow - gs["first"] < 30,
@@ -7612,7 +7653,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w", "nodraw", "off_note", "off_names"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w", "nodraw", "off_note", "off_names", "off_map", "p7_t", "p7_cmd", "p7_sent", "p7_al"):
                 gs.pop(k, None)
             return False
         return True
