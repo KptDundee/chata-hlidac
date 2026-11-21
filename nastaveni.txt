@@ -186,4 +186,4 @@ gen_jine =                       0:1795087811# ubrat výkon River pro jiný spot
 gen_rucne =                      400:1795195085# ruční výkon River při nabíjení z generátoru „1/0:čas“ (zapisuje web – neměnit)
 gen_spotrebice = Kolobezka=80; RoboVysavac=70; Autonabijecka 12V=50
 kanystry = šedý 5:1, černý 5:0, velký 10:10
-lahve_pb = 10:0, 10:?
+lahve_pb = 10:0, 10:0
