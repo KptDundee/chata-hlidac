@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.57 – 21. 11. 2026
+- Během nabíjení z generátoru: River nebo generátor bez spojení s EcoFlow → naléhavé „🚨 … – bez spojení s EcoFlow, oprav hned“ **každou minutu**, dokud se nepřipojí; pak „✓ … zase spojení s EcoFlow“.
+
 ## 6.56 – 21. 11. 2026
 - Nabíjení z generátoru: velká River bez spojení s EcoFlow (offline) se ovládat nedá a jede na posledním nastavení (200 W) – hlídač s ní teď počítá jako s pevným odběrem (ostatním nedá celý výkon) a jednou pošle „⚠️ ŽLUT nemá spojení s EcoFlow – výkon jí nenastavím“. (21. 11.: ŽLUT offline → ČERV dostala celý výkon, ŽLUT zůstala na 200 W.)
 

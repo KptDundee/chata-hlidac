@@ -7359,20 +7359,28 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         budget_eff = (gs["man_w"] if gs.get("man_w") else gmax_eff - (cfg.get("gen_rezerva_W") or 0)) - (gs.get("jine") or 0)   # 5.182: ubráno pro jiný spotřebič
         # 6.56 (Petr: „žlutá 200 W, červená 850 W – proč?“): velká River bez spojení s EcoFlow (offline) se ovládat nedá –
         # jede dál na posledním nastavení (po nabíjení 200 W). Když generátor dává víc, než berou ovládané River, počítat
-        # s ní jako s pevným odběrem a upozornit, ať se jí výkon nastaví ručně / spraví spojení.
-        off_rv = [r for r in rivers if not is_small(r) and not r.get("online") and (soc_(r) is None or soc_(r) < 99)]
+        # s ní jako s pevným odběrem.
+        # 6.57 (Petr: „příště hned důrazné varování, opakovat klidně po minutě – musím to hned napravit“): během nabíjení
+        # River nebo generátor bez spojení s EcoFlow → naléhavé upozornění každou minutu, dokud se nepřipojí.
+        off_rv = [r for r in rivers if not r.get("online") and (soc_(r) is None or soc_(r) < 99)]
+        off_g = [x for x in gens if x.get("online") is False]
         off_w = 0.0
-        if off_rv and gw is not None and gw - sum(acw(r) for r in rivers if r.get("online")) > 120:
-            off_w = float(cfg.get("gen_po_behu_W") or 200) * len(off_rv)
-            if not gs.get("off_note"):
-                gs["off_note"] = tnow
-                names_ = ", ".join(pn_(r.get("name")) for r in off_rv)
-                ntfy(topic, f"⚠️ {names_} nemá spojení s EcoFlow – výkon jí nenastavím",
-                     f"Nabíjí se z generátoru, ale {names_} není online v EcoFlow (Wi-Fi?). Jede na posledním nastavení "
-                     f"(asi {int(cfg.get('gen_po_behu_W') or 200)} W). Nastav jí výkon ručně v aplikaci nebo na displeji, "
-                     f"nebo ji vypni a zapni, ať se připojí. Ostatním River počítám výkon bez ní.", 4, "warning")
+        if [r for r in off_rv if not is_small(r)] and gw is not None and gw - sum(acw(r) for r in rivers if r.get("online")) > 120:
+            off_w = float(cfg.get("gen_po_behu_W") or 200) * len([r for r in off_rv if not is_small(r)])
             print(f"Nabíjení z generátoru: offline {[r.get('name') for r in off_rv]} – počítám s nimi {off_w:.0f} W")
-        elif not off_rv:
+        off_all = [pn_(r.get("name")) for r in off_rv] + ["generátor" for _ in off_g]
+        if off_all and gs.get("active"):
+            if tnow - (gs.get("off_note") or 0) >= 60:
+                gs["off_note"] = tnow
+                gs["off_names"] = off_all
+                nm_ = ", ".join(off_all)
+                ntfy(topic, f"🚨 {nm_} – bez spojení s EcoFlow, oprav hned",
+                     f"Nabíjí se z generátoru, ale {nm_} není online v EcoFlow – hlídač {'jí' if len(off_all) == 1 else 'jim'} nemůže "
+                     f"nastavit výkon a ostatním ho rozdělí špatně. Zkontroluj Wi-Fi, případně vypni a zapni. "
+                     f"Opakuju každou minutu, dokud se nepřipojí.", 5, "rotating_light")
+        elif gs.get("off_names"):
+            ntfy(topic, f"✓ {', '.join(gs['off_names'])} – zase spojení s EcoFlow", "Výkon zase nastavuje hlídač.", 3, "white_check_mark")
+            gs.pop("off_names", None)
             gs.pop("off_note", None)
         avail = max(0.0, budget_eff - small_w - off_w)
         print(f"Nabíjení z generátoru: generátor {gw} W, hlásí max {gm} W → rozpočet {round(budget_eff)} W, nabíjí {[byid(r['sn']).get('name') for r in con]}, ručně {bool(gs.get('manual'))}, zadaný výkon {gs.get('man_w')}")
@@ -7602,7 +7610,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w", "nodraw", "off_note"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w", "nodraw", "off_note", "off_names"):
                 gs.pop(k, None)
             return False
         return True
