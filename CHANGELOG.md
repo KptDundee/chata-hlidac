@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.56 – 21. 11. 2026
+- Nabíjení z generátoru: velká River bez spojení s EcoFlow (offline) se ovládat nedá a jede na posledním nastavení (200 W) – hlídač s ní teď počítá jako s pevným odběrem (ostatním nedá celý výkon) a jednou pošle „⚠️ ŽLUT nemá spojení s EcoFlow – výkon jí nenastavím“. (21. 11.: ŽLUT offline → ČERV dostala celý výkon, ŽLUT zůstala na 200 W.)
+
 ## 6.55 – 21. 11. 2026
 - Částečná lahev plynu (Petr: „cenu zadávám vždy za celou lahev, množství jen odhaduju“): cena 1 kWh = cena celé lahve ÷ 10 kg × spotřeba g/kWh ze spotřebovaných plných lahví. Odhad kg se do ceny ani do kalibrace nepočítá; v přehledu lahví „bylo v ní asi X kg (podle výroby)“. Dřív cena celé lahve ÷ kWh z částečné (103 Kč/kWh).
 
