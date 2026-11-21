@@ -7363,7 +7363,9 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # 6.57 (Petr: „příště hned důrazné varování, opakovat klidně po minutě – musím to hned napravit“): během nabíjení
         # River nebo generátor bez spojení s EcoFlow → naléhavé upozornění každou minutu, dokud se nepřipojí.
         off_rv = [r for r in rivers if not r.get("online") and (soc_(r) is None or soc_(r) < 99)]
-        off_g = [x for x in gens if x.get("online") is False]
+        # 6.58: generátor má víc záznamů (jeden přes vývojářské rozhraní hlásí „nepovoleno“ → offline) – bez spojení jen,
+        # když není online žádný záznam generátoru a jeho výkon neznáme
+        off_g = [] if any(x.get("online") for x in gens) or gw is not None else [x for x in gens if x.get("online") is False][:1]
         off_w = 0.0
         if [r for r in off_rv if not is_small(r)] and gw is not None and gw - sum(acw(r) for r in rivers if r.get("online")) > 120:
             off_w = float(cfg.get("gen_po_behu_W") or 200) * len([r for r in off_rv if not is_small(r)])
