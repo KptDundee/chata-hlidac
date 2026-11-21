@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.55 – 21. 11. 2026
+- Částečná lahev plynu (Petr: „cenu zadávám vždy za celou lahev, množství jen odhaduju“): cena 1 kWh = cena celé lahve ÷ 10 kg × spotřeba g/kWh ze spotřebovaných plných lahví. Odhad kg se do ceny ani do kalibrace nepočítá; v přehledu lahví „bylo v ní asi X kg (podle výroby)“. Dřív cena celé lahve ÷ kWh z částečné (103 Kč/kWh).
+
 ## 6.54 – 20. 11. 2026
 - Generátor → graf Výkon generátoru: místo 48 h jen poslední (nebo běžící) nabíjení po 30 s – generátor i do River, bez zvětšování.
 

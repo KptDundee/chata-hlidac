@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.54", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.55", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2508,7 +2508,7 @@ function bottlesHtml(d){
   const e = hBars(L.map(b=>({lab:lab(b), est:!b.closed, v:{g:b.wh/1000, r:b.rv_wh/1000, c:b.ch_wh/1000}})), SE, "kWh", 2);
   const SC = [{key:"g",name:"1 kWh z generátoru",color:"var(--s2)"},{key:"c",name:"1 kWh v chatě",color:"var(--s3)"}];
   const c = hBars(L.filter(b=>b.czk_kwh || b.czk_ch).map(b=>({lab:lab(b), est:!b.closed || b.est, v:{g:b.czk_kwh, c:b.czk_ch}})), SC, "Kč", 1);
-  const n = L.map(b=>`<div style="padding:6px 0;border-top:1px solid var(--line);font-size:13.5px"><b>${lab(b)}</b><br><span class="sub">${b.runs}× nabíjení · ${b.rivers}× River${b.g_kwh ? ` · skutečně ${nf(b.g_kwh)} g/kWh` : ""}${b.closed ? "" : " · lahev ještě jede – čísla průběžná"}</span></div>`).join("");
+  const n = L.map(b=>`<div style="padding:6px 0;border-top:1px solid var(--line);font-size:13.5px"><b>${lab(b)}</b><br><span class="sub">${b.runs}× nabíjení · ${b.rivers}× River${b.g_kwh ? ` · skutečně ${nf(b.g_kwh)} g/kWh` : ""}${b.kg_est ? ` · částečná – bylo v ní asi ${nf(b.kg_est,1)} kg (podle výroby)` : ""}${b.czk_kwh ? ` · ~${nf(b.czk_kwh,0)} Kč/kWh` : ""}${b.closed ? "" : " · lahev ještě jede – čísla průběžná"}</span></div>`).join("");
   // lahve po měsících (rozpálená lahev jako zlomek podle odhadu)
   const B = d.lpg_bottle, M = {};
   for(const b of L){ const k = new Date(b.t0*1000), key = `${k.getFullYear()}-${String(k.getMonth()+1).padStart(2,"0")}`;

@@ -4162,7 +4162,12 @@ def fuel_stats(data, st, now, cfg):
                 x["czk_l"] = round(x["price"], 2) if x.get("price") else None
                 x["czk_kwh"], x["est"] = (round(x["czk_l"] * lpk, 1), True) if x["czk_l"] and lpk else (None, True)
                 continue
-            if x["closed"] and x["full"] and x["wh"] > 100:
+            if not x["full"] and gpk:
+                # 6.55 (Petr: „cenu zadávám vždy za celou lahev, množství jen odhaduju – jako kalibrační data k ničemu“):
+                # částečná lahev – Kč za kg z ceny celé lahve (10 kg), spotřeba g/kWh ze spotřebovaných plných lahví;
+                # odhad kg se do ceny ani do kalibrace nepočítá
+                x["czk_kwh"], x["est"] = round(x["price"] / 10.0 * gpk / 1000, 1), True
+            elif x["closed"] and x["full"] and x["wh"] > 100:
                 x["czk_kwh"], x["est"] = round(x["price"] / (x["wh"] / 1000), 1), False
             elif avg_kwh and x["full"]:
                 x["czk_kwh"], x["est"] = round(x["price"] / avg_kwh, 1), True
@@ -4205,16 +4210,19 @@ def fuel_stats(data, st, now, cfg):
         nb_ = {"t0": t0_, "t1": x["t1"], "price": x["price"], "kg": x.get("kg"), "full": x["full"], "closed": x["closed"],
                "wh": x["wh"], "runs": len(rs_), "rivers": sum(len([v for v in (r.get("rv") or {}).values() if v > 50]) for r in rs_),
                "rv_wh": round(rv_), "ch_wh": round(ch_), "czk_kwh": x.get("czk_kwh"), "est": x.get("est")}
-        if x["closed"] and x.get("kg") and x["wh"] > 1000:
+        if x["closed"] and x["full"] and x.get("kg") and x["wh"] > 1000:          # 6.55: jen plná lahev (kg známe)
             nb_["g_kwh"] = round(x["kg"] * 1e6 / x["wh"])
+        elif not x["full"] and (out.get("lpg") or {}).get("gpk"):
+            nb_["kg_est"] = round(x["wh"] / 1000 * out["lpg"]["gpk"] / 1000, 1)   # 6.55: kolik v ní asi bylo (z výroby)
         if x["price"] and ch_ > 100:
-            nb_["czk_ch"] = round(x["price"] / (ch_ / 1000), 1) if x["closed"] else None
+            nb_["czk_ch"] = round(x["price"] / (ch_ / 1000), 1) if x["closed"] and x["full"] else None
         bots.append(nb_)
     out.setdefault("lpg", {})["bottles"] = bots
     for b_ in bots[-2:]:
         print(f"Lahev {datetime.fromtimestamp(b_['t0'], TZ).strftime('%-d. %-m.')}–{datetime.fromtimestamp(b_['t1'], TZ).strftime('%-d. %-m.') if b_['t1'] else 'teď'}: "
               f"{b_['runs']}× nabíjení, {b_['rivers']}× River, z generátoru {b_['wh'] / 1000:.2f} kWh, do River {b_['rv_wh'] / 1000:.2f} kWh, "
-              f"v chatě {b_['ch_wh'] / 1000:.2f} kWh, {b_.get('g_kwh') or '?'} g/kWh, {b_.get('czk_kwh') or '?'} Kč/kWh gen, {b_.get('czk_ch') or '?'} Kč/kWh chata")
+              f"v chatě {b_['ch_wh'] / 1000:.2f} kWh, {b_.get('g_kwh') or '?'} g/kWh, {b_.get('czk_kwh') or '?'} Kč/kWh gen, {b_.get('czk_ch') or '?'} Kč/kWh chata"
+              + (f", částečná – bylo v ní asi {b_['kg_est']} kg" if b_.get("kg_est") else ""))
     for r in data.get("fuel_runs") or []:
         if r.get("c0") and r.get("c1"):
             # 5.136: každé palivo zvlášť a v rámci něj po lahvích – část nabíjení ze staré lahve a část z nové
