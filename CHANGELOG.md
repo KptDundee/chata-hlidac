@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.61 – 22. 11. 2026
+- Pojistka „River jen na 200 W“: když se nabíjí, River není plná, hlídač pro ni chce ≥ 350 W a ona přes 2 min bere jen ~200 W → naléhavě každou minutu „🚨 River nabíjejí jen na ~200 W – nastavení se nedaří“ (s poslední chybou EcoFlow); po nápravě „✓ River zase nabíjejí plným výkonem“.
+- Vypnutý generátor (došlo palivo, vypnul jsem ho) se v EcoFlow tváří jako offline → už nechodí „🚨 generátor – bez spojení s EcoFlow“; to jen když River dál berou (generátor jede, jen o něm EcoFlow neví). Text u generátoru bez věty o River a Bluetooth.
+
 ## 6.60 – 22. 11. 2026
 - **Oprava: River na 200 W uprostřed nabíjení.** Generátor (EcoFlow) občas hlásí 0 W, i když River berou 1400 W → hlídač usoudil „nenabíjí se“ a po 90 s stáhl všechny na 200 W. Teď se nabíjí, když generátor dává > 100 W **nebo** River berou dohromady > 150 W.
 - Konec dřív: River na ≥ 99 %, která dobírá už jen < 100 W, se počítá jako plná → „⛽ Nabíjení skončilo – vypni generátor“ hned, když jsou takové všechny (dřív až když přestaly brát úplně, i 10–20 min).

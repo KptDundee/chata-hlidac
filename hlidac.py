@@ -7400,6 +7400,11 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # 6.58: generátor má víc záznamů (jeden přes vývojářské rozhraní hlásí „nepovoleno“ → offline) – bez spojení jen,
         # když není online žádný záznam generátoru a jeho výkon neznáme
         off_g = [] if any(x.get("online") for x in gens) or gw is not None else [x for x in gens if x.get("online") is False][:1]
+        # 6.61 (Petr: „zastavil jsem generátor, došel benzín – a přišlo ‚generátor není online‘“): vypnutý generátor se v EcoFlow
+        # tváří jako offline (a zásuvka 7 bez proudu taky). Když River nic neberou, generátor stojí → žádné upozornění na spojení
+        # (konec nabíjení řeší „Nabíjení skončilo“). Bez spojení jen když River dál berou (generátor jede, jen o něm nevíme).
+        if off_g and rv_sum <= 150:
+            off_g = []
         # 6.59 (Petr): offline River jede na posledním nastavení – hlídač ho zná (sets) a počítá s ním jako s pevným
         # odběrem; když jí Petr výkon nastaví ručně přes Bluetooth a zadá ho na webu (gen_off = „sn:W:čas“), platí ten
         go_ = str(cfg.get("gen_off") or "").split(":")
@@ -7427,8 +7432,10 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 det_ = "; ".join(f"{pn_(byid(k).get('name'))} jede na {w_:.0f} W (naposledy nastaveno)" for k, w_ in off_map.items())
                 ntfy(topic, f"🚨 {nm_} – bez spojení s EcoFlow, oprav hned",
                      f"Nabíjí se z generátoru, ale {nm_} není online v EcoFlow. " + (f"{det_} – ostatním dávám jen zbytek. " if det_ else "")
-                     + "Zkontroluj Wi-Fi, případně vypni a zapni. Když jí výkon nastavíš jinak přes Bluetooth, zadej ho v kartě ⚡ Výkon generátoru. "
-                     "Opakuju každou minutu, dokud se nepřipojí.", 5, "rotating_light")
+                     + "Zkontroluj Wi-Fi, případně vypni a zapni. "
+                     + ("Když River výkon nastavíš jinak přes Bluetooth, zadej ho v kartě ⚡ Výkon generátoru. " if off_map else
+                        "Nabíjení běží dál – výkon River řídím podle toho, kolik berou. ")
+                     + "Opakuju každou minutu, dokud se nepřipojí.", 5, "rotating_light")
         elif gs.get("off_names"):
             ntfy(topic, f"✓ {', '.join(gs['off_names'])} – zase spojení s EcoFlow", "Výkon zase nastavuje hlídač.", 3, "white_check_mark")
             gs.pop("off_names", None)
@@ -7491,11 +7498,32 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             if gs.get("manual"):
                 plan_go = {}                            # 5.197: ruční výkon – hlídač River nenastavuje
             res_ = apply(plan_go)
+            if any("chyba" in x for x in res_):
+                gs["last_err"] = "; ".join(x for x in res_ if "chyba" in x)[:160]
             if plan_go and all(sets.get(sn) == w for sn, w in plan_go.items()):
                 if gs.get("sig") != sig:
                     gs["plan_t"] = tnow
                 gs["sig"] = sig
             out += res_
+        # 6.61 (Petr: „příště se nezasekne na 200 W?“): pojistka na výsledek, ne na příčinu – nabíjí se, River není plná,
+        # hlídač pro ni chce ≥ 350 W, a ona přes 2 min bere jen ~200 W → naléhavě každou minutu (s posledním důvodem)
+        lw_ = [r for r in con if r.get("online") and (soc_(r) or 0) < 95 and acw(r) < 260 and (plan.get(r["sn"]) or 0) >= 350] \
+            if gs.get("active") and charging and gs.get("first") and tnow - gs["first"] >= 120 and not gs.get("manual") else []
+        if lw_:
+            gs["w200_t"] = gs.get("w200_t") or tnow
+            if tnow - gs["w200_t"] >= 120 and tnow - (gs.get("w200_al") or 0) >= 60:
+                gs["w200_al"] = tnow
+                nm_ = ", ".join(f"{pn_(byid(r['sn']).get('name'))} bere {acw(r):.0f} W (chci {plan[r['sn']]:.0f} W)" for r in lw_)
+                ntfy(topic, "🚨 River nabíjejí jen na ~200 W – nastavení se nedaří",
+                     f"{nm_}. " + (f"Poslední chyba: {gs['last_err']}. " if gs.get("last_err") else "")
+                     + "Nastav výkon v aplikaci EcoFlow (nebo zadej výkon v kartě ⚡ Výkon generátoru). Opakuju každou minutu.",
+                     5, "rotating_light")
+                print(f"Nabíjení z generátoru: POJISTKA 200 W – {nm_}")
+        elif gs.get("w200_t"):
+            if gs.get("w200_al"):
+                ntfy(topic, "✓ River zase nabíjejí plným výkonem", "Nastavení výkonu zase funguje.", 2, "white_check_mark")
+            for k_ in ("w200_t", "w200_al"):
+                gs.pop(k_, None)
         rv, fins = [], []
         for r in con:
             w = sets.get(r["sn"]) or plan.get(r["sn"])
@@ -7668,7 +7696,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w", "nodraw", "off_note", "off_names", "off_map", "p7_t", "p7_cmd", "p7_sent", "p7_al", "soon"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w", "nodraw", "off_note", "off_names", "off_map", "p7_t", "p7_cmd", "p7_sent", "p7_al", "soon", "w200_t", "w200_al", "last_err"):
                 gs.pop(k, None)
             return False
         return True
