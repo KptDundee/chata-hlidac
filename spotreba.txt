@@ -11,3 +11,4 @@
 2026-05-25 12:00 | voda | 313
 2026-11-07 20:14 | varic | 498
 2026-11-17 16:05 | voda | 323.4
+2026-11-14 12:00 | voda_vyp | 0   # Petr: voda zavřená na zimu (spotřeba do 14. 11.), pustí se v březnu

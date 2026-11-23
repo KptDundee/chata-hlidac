@@ -2042,6 +2042,7 @@ def main():
                          ("Zásoba paliva", lambda: fuel_reserve(data, st, now, cfg)),
                          ("Plyn a voda v chatě", lambda: util_entries(data)),
                          ("Jednorázové výdaje", lambda: vydaje_entries(data)),
+                         ("Voda – připomínky", lambda: water_remind(data, st, now, topic)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Co teď udělat", lambda: build_todo(data, st, now)),
@@ -3894,6 +3895,34 @@ UTIL_FILE = "spotreba.txt"
 VYD_FILE = "vydaje.txt"
 
 
+def water_remind(data, st, now, topic):
+    """6.66 (Petr): voda v chatě teče od jara (pustí se podle počasí, obvykle v březnu, v sobotu) do podzimu (listopad).
+    • voda zavřená (poslední záznam voda_vyp): od 1. 3. každou sobotu v 9:00 „Je voda puštěná?“, dokud nepotvrdím
+    • voda puštěná: každý měsíc od 1. dne denně v 9:00 „Zadej stav vodoměru“, dokud v tom měsíci odečet není"""
+    U = data.get("util") or []
+    E = [e for e in U if e[1] in ("voda_zap", "voda_vyp")]
+    on = not E or E[-1][1] == "voda_zap"
+    day = now.strftime("%Y-%m-%d")
+    ws = st.setdefault("water", {})
+    if not on and 3 <= now.month <= 10 and now.weekday() == 5:
+        todo_add(data, 2, "je voda puštěná? → Plyn a voda „💧 Voda puštěná“", "ok")
+    if now.hour < 9 or ws.get("d") == day:
+        return
+    if not on:
+        if 3 <= now.month <= 10 and now.weekday() == 5:
+            ws["d"] = day
+            ntfy(topic, "💧 Je voda v chatě puštěná?",
+                 "Až vodu pustíš, dej v Plyn a voda „💧 Voda puštěná“ a zadej stav vodoměru. Připomínám každou sobotu, dokud to nepotvrdíš.",
+                 3, "droplet")
+    else:
+        m0 = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
+        if not any(e[1] == "voda" and e[0] >= m0 for e in U) and not (E and E[-1][0] >= m0):
+            ws["d"] = day
+            ntfy(topic, "💧 Zadej stav vodoměru",
+                 "Tento měsíc ještě není odečet vody. Plyn a voda → „💧 Odečet vody“. Připomínám denně, dokud ho nezadáš. "
+                 "Na zimu vodu zavřeš tlačítkem „🚱 Voda zavřená“ (s posledním odečtem).", 3, "droplet")
+
+
 def vydaje_entries(data):
     """6.62 (Petr: statistika výdajů – komponenty, opravy, náhradní díly): vydaje.txt „datum | kategorie | popis | Kč“
     (zapisuje web). Hlídač jen předá záznamy, součty a grafy počítá web (karta 💰 Náklady)."""
@@ -3917,7 +3946,7 @@ def vydaje_entries(data):
     out.sort(key=lambda x: x[0])
     data["vydaje"] = out
 
-UTIL_KINDS = ("varic", "primotop", "sprcha", "voda", "cena_vody")
+UTIL_KINDS = ("varic", "primotop", "sprcha", "voda", "cena_vody", "voda_zap", "voda_vyp")
 
 
 def util_entries(data):

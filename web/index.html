@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.65", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.66", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1995,6 +1995,14 @@ function uSpread(M, kind, t0, t1, qty, kc, est, priceOf){
     a = b;
   }
 }
+/* 6.66 (Petr: „přes zimu voda neteče – spotřeba skončila posledním odečtem, pustí se v březnu“): voda_vyp / voda_zap –
+   spotřeba mezi odečty se rozpočítá jen na dny, kdy voda tekla */
+function utilWaterOff(d){
+  const E = (d.util||[]).filter(e=>e[1]==="voda_vyp" || e[1]==="voda_zap").sort((a,b)=>a[0]-b[0]), out = [];
+  for(const e of E){ if(e[1]==="voda_vyp") out.push([e[0], Infinity]); else if(out.length && out[out.length-1][1]===Infinity) out[out.length-1][1] = e[0]; }
+  return out;
+}
+function utilWaterOn(d){ const E = (d.util||[]).filter(e=>e[1]==="voda_vyp" || e[1]==="voda_zap").sort((a,b)=>a[0]-b[0]); return !E.length || E[E.length-1][1]==="voda_zap"; }
 function utilCalc(d){
   const U = d.util || [], now = Date.now()/1000, M = {}, info = {};
   for(const kind of UGAS){
@@ -2014,7 +2022,12 @@ function utilCalc(d){
   const priceOf = y => { const ex = PR.filter(p=>p.y===y).pop(); if(ex) return {v:ex.v, est:false};
     const prev = PR.filter(p=>p.y<y).pop(), nxt = PR.find(p=>p.y>y), p = prev || nxt; return p ? {v:p.v, est:true} : null; };
   const W = U.filter(e=>e[1]==="voda");
-  for(let i=1;i<W.length;i++){ const q = W[i][2]-W[i-1][2]; if(q >= 0) uSpread(M, "voda", W[i-1][0], W[i][0], q, null, false, priceOf); }
+  const OFF = utilWaterOff(d);
+  for(let i=1;i<W.length;i++){ const q = W[i][2]-W[i-1][2]; if(!(q >= 0)) continue;
+    let parts = [[W[i-1][0], W[i][0]]];                       // úseky, kdy voda tekla (bez zimních přestávek)
+    for(const [a, b] of OFF) parts = parts.flatMap(([x, y]) => b <= x || a >= y ? [[x, y]] : [[x, Math.min(y, a)], [Math.max(x, b), y]].filter(([u, v]) => v > u));
+    const tot = parts.reduce((s_, [x, y]) => s_ + (y - x), 0) || 1;
+    for(const [x, y] of parts) uSpread(M, "voda", x, y, q*(y-x)/tot, null, false, priceOf); }
   info.voda = {n:W.length, last:W[W.length-1]};
   return {M, info, PR, priceOf};
 }
@@ -2076,7 +2089,7 @@ const uLab = (k, per, long) => per==="y" ? k : new Date(uMonthStart(k)*1000).toL
 function detUtil(body){
   const d = DATA, U = d.util || [], {info, PR, priceOf} = utilCalc(d), Sm = utilSummary(d), now = Date.now()/1000;
   const bs = `font:inherit;font-weight:600;padding:10px 8px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn);flex:1;min-width:30%`;
-  const btns = `<div style="display:flex;gap:6px;flex-wrap:wrap">${UGAS.map(k=>`<button onclick="utilAdd('${k}')" style="${bs}">🔄 ${UK[k].n}</button>`).join("")}<button onclick="utilAdd('voda')" style="${bs}">💧 Odečet vody</button></div>`;
+  const btns = `<div style="display:flex;gap:6px;flex-wrap:wrap">${UGAS.map(k=>`<button onclick="utilAdd('${k}')" style="${bs}">🔄 ${UK[k].n}</button>`).join("")}<button onclick="utilAdd('voda')" style="${bs}">💧 Odečet vody</button>${utilWaterOn(d) ? `<button onclick="utilAdd('voda','vyp')" style="${bs}">🚱 Voda zavřená</button>` : `<button onclick="utilAdd('voda','zap')" style="${bs}">💧 Voda puštěná</button>`}</div>`;
   const kRow = k => { const I = info[k];
     if(k==="voda"){ const L = I.last; return rowI(`${UK.voda.ic} Voda`, L ? `poslední odečet ${dTxt(dkey(L[0]))}: <b>${nf(L[2],1)} m³</b>` : `<span class="sub">zatím žádný odečet</span>`); }
     const L = I.last; if(!L) return rowI(`${UK[k].ic} ${UK[k].n} <span class="sub">(${UK[k].kg} kg)</span>`, `<span class="sub">zatím nic</span>`);
@@ -2090,7 +2103,7 @@ function detUtil(body){
   const priceT = yrs.map(y=>{ const P = PR.filter(p=>p.y===y).pop(), E = priceOf(y);
     return `<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0"><span>${y}</span><span>${P ? `<b>${nf(P.v,1)} Kč/m³</b>` : E ? `<span class="sub">${nf(E.v,1)} Kč/m³ (převezme ${E.v===((PR.filter(p=>p.y<y).pop()||{}).v) ? "z minulého roku" : "z dalšího roku"})</span>` : `<span class="sub">nezadáno</span>`} · <a href="#" onclick="event.preventDefault();utilPrice(${y})">${P ? "✎" : "zadat"}</a></span></div>`; }).join("");
   const ent = U.filter(e=>e[1]!=="cena_vody").slice(-30).reverse();
-  const entT = ent.length ? ent.map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--line);font-size:13.5px"><span>${dTxt(dkey(e[0]))} · ${UK[e[1]].ic} ${UK[e[1]].n}</span><span>${e[1]==="voda" ? `${nf(e[2],1)} m³` : `${nf(e[2],0)} Kč`} · <a href="#" onclick="event.preventDefault();utilEdit(${e[0]},'${e[1]}')">✎</a> <a href="#" onclick="event.preventDefault();utilEdit(${e[0]},'${e[1]}',true)">🗑</a></span></div>`).join("") : `<span class="sub">Zatím nic. Klidně doplň i starší výměny a odečty (datum se zadává).</span>`;
+  const entT = ent.length ? ent.map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--line);font-size:13.5px"><span>${dTxt(dkey(e[0]))} · ${e[1]==="voda_vyp" ? "🚱 Voda zavřená" : e[1]==="voda_zap" ? "💧 Voda puštěná" : `${UK[e[1]].ic} ${UK[e[1]].n}`}</span><span>${e[1]==="voda_vyp" || e[1]==="voda_zap" ? "" : e[1]==="voda" ? `${nf(e[2],1)} m³` : `${nf(e[2],0)} Kč`} · <a href="#" onclick="event.preventDefault();utilEdit(${e[0]},'${e[1]}')"${e[1].startsWith("voda_") ? ' hidden' : ''}>✎</a> <a href="#" onclick="event.preventDefault();utilEdit(${e[0]},'${e[1]}',true)">🗑</a></span></div>`).join("") : `<span class="sub">Zatím nic. Klidně doplň i starší výměny a odečty (datum se zadává).</span>`;
   const leg = Object.keys(UK).map(k=>`<span style="color:${UK[k].c}">■</span> ${UK[k].n}`).join(" · ");
   body.insertAdjacentHTML("beforeend", `<div class="card"><h2 style="margin:0 0 8px">Zapsat</h2>${btns}<div style="margin-top:8px">${[...UGAS,"voda"].map(kRow).join("")}</div></div>
     <div class="card"><h2 style="margin:0 0 6px">Kolik to stojí</h2>${sumT}</div>
@@ -2146,7 +2159,7 @@ async function utilWrite(fn, msg){
   try{ await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{method:"POST",
     headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"}, body:JSON.stringify({ref:"main",inputs:{test:false,wake:false}})}); }catch(_){}
 }
-function utilAdd(kind){
+function utilAdd(kind, mode){   // 6.66: mode „zap“ / „vyp“ = voda puštěná / zavřená (s odečtem vodoměru)
   const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
   const old = $("utilDlg"); if(old) old.remove();
   const pad = n => String(n).padStart(2,"0"), today = dkey(Date.now()/1000);
@@ -2155,7 +2168,7 @@ function utilAdd(kind){
   const d = document.createElement("div"); d.id = "utilDlg";
   d.style.cssText = "position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center";
   d.innerHTML = `<form style="background:var(--surface);color:var(--text);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px">
-    <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:18px">${UK[kind].ic} ${isW ? "Odečet vody" : `${UK[kind].n} – nová lahev (${UK[kind].kg} kg)`}</b><button type="button" data-x style="font:inherit;font-size:22px;background:none;border:0;color:var(--text);cursor:pointer">✕</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:18px">${mode==="zap" ? "💧 Voda puštěná" : mode==="vyp" ? "🚱 Voda zavřená na zimu" : `${UK[kind].ic} ${isW ? "Odečet vody" : `${UK[kind].n} – nová lahev (${UK[kind].kg} kg)`}`}</b><button type="button" data-x style="font:inherit;font-size:22px;background:none;border:0;color:var(--text);cursor:pointer">✕</button></div>
     <label>Datum<input type="date" name="dt" value="${today}" max="${today}" style="${inp}"></label>
     <label>${isW ? "Stav vodoměru v m³" : "Cena lahve v Kč"}<input name="v" inputmode="decimal" value="${!isW && L ? L[2] : ""}" style="${inp}"></label>
     ${isW && L ? `<div class="sub">Minulý odečet ${dTxt(dkey(L[0]))}: ${nf(L[2],1)} m³</div>` : ""}
@@ -2167,7 +2180,7 @@ function utilAdd(kind){
     const v = parseFloat(fm.v.value.replace(",",".").replace(/\s/g,"")); if(!(v >= 0)) { msg.innerHTML = `<b style="color:var(--crit)">Zadej číslo.</b>`; return; }
     if(isW && L && fm.dt.value > dkey(L[0]) && v < L[2]) { msg.innerHTML = `<b style="color:var(--crit)">Menší než minulý odečet (${nf(L[2],1)} m³).</b>`; return; }
     const now_ = new Date(), tm = fm.dt.value === today ? `${pad(now_.getHours())}:${pad(now_.getMinutes())}` : "12:00";
-    const line = `${fm.dt.value} ${tm} | ${kind} | ${v}`;
+    const line = (mode ? `${fm.dt.value} ${tm} | voda_${mode} | 0\n` : "") + `${fm.dt.value} ${tm} | ${kind} | ${v}`;
     msg.textContent = "Zapisuji…";
     try{ await utilWrite(t => t.replace(/\n?$/,"\n") + line + "\n", line);
       fm.innerHTML = `<b style="font-size:18px">Zapsáno ✓</b><div>Do přehledu se dostane za minutu (po běhu hlídače).</div><button type="button" onclick="this.closest('#utilDlg').remove()" style="font:inherit;font-weight:700;padding:12px;border-radius:12px;border:1px solid var(--btnline);background:var(--btn);color:var(--text)">Zavřít</button>`;
@@ -2178,7 +2191,7 @@ async function utilEdit(ts, kind, del){
   const key = fuelTs(ts), isW = kind==="voda";
   const e = (DATA.util||[]).find(x=>x[0]===ts && x[1]===kind); if(!e) return;
   let nv = null;
-  if(del){ if(!confirm(`Smazat zápis ${dTxt(dkey(ts))} · ${UK[kind].n}?`)) return; }
+  if(del){ if(!confirm(`Smazat zápis ${dTxt(dkey(ts))} · ${UK[kind] ? UK[kind].n : kind==="voda_vyp" ? "Voda zavřená" : "Voda puštěná"}?`)) return; }
   else { nv = prompt(`${UK[kind].n} ${dTxt(dkey(ts))} – ${isW ? "stav v m³" : "cena v Kč"}:`, String(e[2])); if(nv===null || !nv.trim()) return; nv = parseFloat(nv.replace(",",".")); if(!(nv>=0)) return alert("Zadej číslo."); }
   try{ await utilWrite(t => t.split("\n").map(l => { const b = l.split("#")[0].split("|").map(x=>x.trim());
       if(b.length>=3 && b[0]===key && b[1].toLowerCase()===kind) return del ? null : `${b[0]} | ${b[1]} | ${nv}`; return l; }).filter(l=>l!==null).join("\n"), `${del?"smazáno":"upraveno"} ${key} ${kind}`);

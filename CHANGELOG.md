@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.66 – 23. 11. 2026
+- Voda přes zimu: záznamy „voda_vyp“ / „voda_zap“ (tlačítka 🚱 Voda zavřená / 💧 Voda puštěná v Plyn a voda, s odečtem vodoměru). Spotřeba mezi odečty se rozpočítá jen na dny, kdy voda tekla; přes zimu 0. Zapsáno: zavřeno 14. 11. 2026.
+- Připomínky: voda zavřená → od 1. 3. každou sobotu v 9:00 „💧 Je voda v chatě puštěná?“, dokud nepotvrdíš; voda puštěná → každý měsíc od 1. dne denně v 9:00 „💧 Zadej stav vodoměru“, dokud v tom měsíci odečet není.
+
 ## 6.65 – 23. 11. 2026
 - Lednice v teple (Petr: „neutáhne to, není to porucha, nic s tím neudělám“): když je v pokoji ≥ 25 °C (`lednice_teplo_C`), „běží bez přestávky“ a „teplá lednice“ se nehlásí – dlaždice jen oranžově „nestíhá – v pokoji X °C (teplem)“. Upozornění v teple jen když je v lednici nad 11 °C (`lednice_kriticka_C`) déle než 1 h, nebo kompresor stojí / zásuvka bez proudu. Pod 25 °C v pokoji beze změny.
 
