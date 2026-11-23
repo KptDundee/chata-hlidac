@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.65 – 23. 11. 2026
+- Lednice v teple (Petr: „neutáhne to, není to porucha, nic s tím neudělám“): když je v pokoji ≥ 25 °C (`lednice_teplo_C`), „běží bez přestávky“ a „teplá lednice“ se nehlásí – dlaždice jen oranžově „nestíhá – v pokoji X °C (teplem)“. Upozornění v teple jen když je v lednici nad 11 °C (`lednice_kriticka_C`) déle než 1 h, nebo kompresor stojí / zásuvka bez proudu. Pod 25 °C v pokoji beze změny.
+
 ## 6.64 – 23. 11. 2026
 - Řádek „na 50 #“ i když chata jede z River – „ze soláru na 50 # ~HH:MM“ (kdyby se teď přepnulo); před odjezdem / během nepřítomnosti s porovnáním „do návratu HH:MM ✓ / ne“.
 

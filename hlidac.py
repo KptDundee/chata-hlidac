@@ -4346,6 +4346,9 @@ def fridge_check(data, st, now, topic, cfg):
     Každý stav jednou, při návratu do normálu zpráva „zase v pořádku“."""
     if not cfg.get("lednice_hlidat", True):
         return
+    # 6.65: teplo v chatě (náhrada za kuchyň: teplota v pokoji z chladnutí, jen čerstvá)
+    room_ = (data.get("cool") or {}).get("T_now")
+    warm_ = room_ is not None and room_ >= (cfg.get("lednice_teplo_C") or 25)
     # 1.5: teploměr v lednici – teplota nad lednice_max_C déle než 30 min
     nm = str(cfg.get("teplomer_lednice") or "").strip()
     if nm:
@@ -4354,7 +4357,20 @@ def fridge_check(data, st, now, topic, cfg):
         ts_ = now.timestamp()
         tp_ = [(p["t"], p["th"][nm]) for p in data.get("points", []) if p["t"] >= ts_ - 3 * 3600 and nm in (p.get("th") or {})]
         lim_c = cfg.get("lednice_max_C") or 8
-        if tp_ and ts_ - tp_[-1][0] < 1800:
+        # 6.65 (Petr: „když je v chatě teplo, lednice to neutáhne – není to porucha, nic s tím neudělám“): v pokoji
+        # ≥ lednice_teplo_C (25 °C) → teplá lednice se hlásí až nad lednice_kriticka_C (11 °C) déle než 1 h (jídlo)
+        if warm_:
+            w1 = [x for x in tp_ if x[0] >= ts_ - 3600]
+            cov1 = len(w1) >= 3 and w1[0][0] <= ts_ - 3600 + 1200
+            crit_c = cfg.get("lednice_kriticka_C") or 11
+            if tp_ and ts_ - tp_[-1][0] < 1800 and cov1 and all(v > crit_c for _, v in w1):
+                fz["hot"], fz["c"], fz["crit"] = True, tp_[-1][1], 1
+            elif fz.get("hot") and tp_ and tp_[-1][1] <= crit_c - 1:
+                fz["hot"] = False
+            elif fz.get("hot") and not fz.get("crit"):
+                fz["hot"] = False                                   # obyčejné „teplá“ v teple neplatí
+        elif tp_ and ts_ - tp_[-1][0] < 1800:
+            fz.pop("crit", None)
             w2 = [x for x in tp_ if x[0] >= ts_ - 2 * 3600]
             covered_2h = len(w2) >= 4 and w2[0][0] <= ts_ - 2 * 3600 + 1800
             last_h = [v for t, v in tp_ if t >= ts_ - 3600]
@@ -4364,8 +4380,10 @@ def fridge_check(data, st, now, topic, cfg):
             elif fz.get("hot") and (tp_[-1][1] <= lim_c - 1 or falling):
                 fz["hot"] = False
     t_hot = bool(nm and (st.get("fridge_t") or {}).get("hot"))
-    t_msg = (f"Teplota v lednici {fmt((st.get('fridge_t') or {}).get('c'), 1)} °C – přes {fmt(cfg.get('lednice_max_C') or 8, 0)} °C už přes 2 h a neklesá. "
-             "Otevřené dveře, porucha, nebo lednice bez proudu?") if t_hot else ""
+    t_msg = ((f"Teplota v lednici {fmt((st.get('fridge_t') or {}).get('c'), 1)} °C – přes {fmt(cfg.get('lednice_kriticka_C') or 11, 0)} °C už přes hodinu. "
+              f"V pokoji je {fmt(room_, 1)} °C, ale tohle už je moc – jídlo se může kazit.") if (st.get("fridge_t") or {}).get("crit") else
+             (f"Teplota v lednici {fmt((st.get('fridge_t') or {}).get('c'), 1)} °C – přes {fmt(cfg.get('lednice_max_C') or 8, 0)} °C už přes 2 h a neklesá. "
+              "Otevřené dveře, porucha, nebo lednice bez proudu?")) if t_hot else ""
     fid = str(cfg.get("zasuvka_lednice") or "").strip()
     if not fid:
         alarm(st, topic, "fridge", t_hot, "🧊 Lednice nechladí", t_msg, 4, "warning", ok_title="✓ Lednice zase chladí")
@@ -4406,7 +4424,8 @@ def fridge_check(data, st, now, topic, cfg):
         if not cur[0] and dur >= lim_off:
             state, info = "off", {"od": cur[1], "h": round(dur / 3600, 1), "lim": round(lim_off / 3600, 1)}
         elif cur[0] and dur >= lim_on:
-            state, info = "on", {"od": cur[1], "h": round(dur / 3600, 1), "lim": round(lim_on / 3600, 1)}
+            # 6.65: v teple (pokoj ≥ 25 °C) kompresor běží bez přestávky, protože nestíhá – není to porucha → bez upozornění
+            state, info = ("warm" if warm_ else "on"), {"od": cur[1], "h": round(dur / 3600, 1), "lim": round(lim_on / 3600, 1)}
     # 5.95: jedno upozornění „Lednice nechladí“ – teplota nebo kompresor (bez proudu hlásí „(4) není vidět“)
     hm = lambda t: f"{rel_day(t, now)} {datetime.fromtimestamp(t, TZ).strftime('%H:%M')}"
     if state == "off":
@@ -4421,7 +4440,7 @@ def fridge_check(data, st, now, topic, cfg):
           "🧊 Lednice nechladí" if t_hot or state == "off" else "🧊 Lednice běží bez přestávky",
           "\n".join(x for x in (t_msg, c_msg) if x), 4, "warning", ok_title="✓ Lednice zase normálně chladí")
     fs["state"] = state
-    data["fridge"] = {"state": state, **info, "max_off_h": round(max_off / 3600, 1), "max_on_h": round(max_on / 3600, 1),
+    data["fridge"] = {"state": state, **info, "room": round(room_, 1) if room_ is not None else None, "warm": bool(warm_), "max_off_h": round(max_off / 3600, 1), "max_on_h": round(max_on / 3600, 1),
                       "now_on": bool(cur and cur[0]) if cur else None, "since": cur[1] if cur else None}
 
 
