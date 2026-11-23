@@ -5019,9 +5019,15 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     w = [max(0.0, frac(t + 600) - frac(t)) for t in steps]
     wsum = sum(w) or 1
     t_empty, t_empty_n, lvl = None, None, ah
+    # 6.63 (Petr: „u solární baterie chybí, do kdy vydrží na 50 #“): kdy klesne na spodní hranici (baterie_setrna_pct)
+    fl_pct = round(cfg.get("baterie_setrna_pct") or 50)
+    fl_ah = (fl_pct - alarm_soc) / 100 * cap
+    t50 = int(ts) if hq["pct"] <= fl_pct else None
     for t, wi in zip(steps, w):
         prod_a_h = rem_kwh * 1000 * wi / wsum / 13.0 * 0.9                 # Ah do baterie v tomhle kroku
         lvl = min(lvl + prod_a_h, ah + room) - (load_a if t < set_ts else load_n) * 600 / 3600
+        if t50 is None and lvl <= fl_ah:
+            t50 = int(t)
         if lvl <= 0:
             t_empty_n = t
             if t < end.timestamp():
@@ -5036,11 +5042,13 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "load_n_w": round(load_n * 12.4), "night_ah": round(load_n * max(0.0, end2 - max(ts, set_ts)) / 3600, 1),
            "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_, "cf": round(cf, 2),
            # 5.271 (Petr: „proč do 18:30, odjíždím v 16“): konec výhledu = návrat z nepřítomnosti → web píše „do návratu“
-           "dep": int(AW[0].timestamp()) if AW else None, "ret": 1 if AW else 0}
+           "dep": int(AW[0].timestamp()) if AW else None, "ret": 1 if AW else 0,
+           "t50": t50, "fl": fl_pct, "end2": int(end2)}
     data["day_fc"] = res
     # 5.201 (Petr): chata jede ze soláru a solární baterie je už pod alarmem (v #) → akutně, kdykoli (i doma, i když
     # napětí při nabíjení vypadá dobře). Konec, až chata jede z River nebo # stoupne aspoň 5 # nad alarm.
-    print(f"Výhled dne: zdroj {cs_}, {hq['pct']} # (alarm {round(alarm_soc)} #), do {hh}:{mm:02d} {'vydrží' if res['ok'] else 'nevydrží'}")
+    print(f"Výhled dne: zdroj {cs_}, {hq['pct']} # (alarm {round(alarm_soc)} #), do {hh}:{mm:02d} {'vydrží' if res['ok'] else 'nevydrží'}"
+          f", na {fl_pct} # {datetime.fromtimestamp(t50, TZ).strftime('%d.%m. %H:%M') if t50 else 'do rána ne'}")
     k_low = "sol_low"
     was_low = k_low in (st.get("al") or {})
     low = on_solar and hq["pct"] < alarm_soc + (5 if was_low else 0)

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.62", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.63", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1454,6 +1454,13 @@ function batOutlook(d, h){
   if(F.night_ok === false) return "warn";
   return "ok";
 }
+// 6.63 (Petr): do kdy vydrží na spodní hranici 50 # – když chata jede ze soláru
+function t50Row(d, h){
+  const F = d.day_fc; if(!F || F.src!=="solar" || h.now - F.t > 1800 || F.fl==null) return [];
+  if(F.t50 && F.t50 <= F.t + 60) return [[`na ${F.fl} #`, `<b style="color:var(--warn)">už pod ${F.fl} #</b>`]];
+  if(!F.t50) return [[`na ${F.fl} #`, `<span style="color:var(--good)">do rána ne</span>`]];
+  return [[`na ${F.fl} #`, `~${relDay(F.t50)==="dnes" ? "" : relDay(F.t50)+" "}${hmT(F.t50)} <span class="sub">(za ${durHM(F.t50 - h.now)})</span>`]];
+}
 function tileSolar(d, h){
   const t = {k:"bat", icon:"🔆", label:"Solární baterie"};
   if(h.bv==null) return {...t, cls:"na", v:"–", st:"Bez dat z regulátoru"};
@@ -1473,7 +1480,7 @@ function tileSolar(d, h){
     // 6.36 (Petr: „zmatené a nevejde se“): bez řádku „nabití %“ od regulátoru (počítá z napětí, vedle # mate – je v detailu);
     // rada o přepnutí na solár se neopakuje, když totéž už říká řádek „přepnout na solár?“
     rows:[["☀ panely", h.pv!=null ? `${nf(h.pv)} W` : "–"], ...(off ? [] : [["🔋 z baterie", odb]]),
-      ...(dayFcRow(d, h) ? [dayFcRow(d, h)] : []), ...nightRows2(d, h),
+      ...(dayFcRow(d, h) ? [dayFcRow(d, h)] : []), ...t50Row(d, h), ...nightRows2(d, h),
       ...(todoRow(d, h) && !(dayFcRow(d, h) && dayFcRow(d, h)[0]==="přepnout na solár?" && /^můžeš/.test(todoRow(d, h)[1])) ? [todoRow(d, h)] : []),
       // 6.6 (Petr): mráz a vybitá baterie → na kolik nabít
       ...(d.frost && d.frost.risk ? [["❄ mráz", `<b style="color:var(--crit)">nabij aspoň na ${d.frost.tgt} #</b>`]] : [])]};
