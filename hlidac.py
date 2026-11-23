@@ -5043,7 +5043,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_, "cf": round(cf, 2),
            # 5.271 (Petr: „proč do 18:30, odjíždím v 16“): konec výhledu = návrat z nepřítomnosti → web píše „do návratu“
            "dep": int(AW[0].timestamp()) if AW else None, "ret": 1 if AW else 0,
-           "t50": t50, "fl": fl_pct, "end2": int(end2)}
+           "t50": t50, "fl": fl_pct, "end2": int(end2), "ret_t": int(AW[1].timestamp()) if AW else None}
     data["day_fc"] = res
     # 5.201 (Petr): chata jede ze soláru a solární baterie je už pod alarmem (v #) → akutně, kdykoli (i doma, i když
     # napětí při nabíjení vypadá dobře). Konec, až chata jede z River nebo # stoupne aspoň 5 # nad alarm.

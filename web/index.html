@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.63", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.64", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1454,12 +1454,16 @@ function batOutlook(d, h){
   if(F.night_ok === false) return "warn";
   return "ok";
 }
-// 6.63 (Petr): do kdy vydrží na spodní hranici 50 # – když chata jede ze soláru
+// 6.63 (Petr): do kdy vydrží na spodní hranici 50 #. 6.64: i když chata jede z River („jedu pryč – vyplatí se přepnout,
+// vydrží to do návratu?“) – pak „ze soláru na 50 #“ a porovnání s návratem z nepřítomnosti
 function t50Row(d, h){
-  const F = d.day_fc; if(!F || F.src!=="solar" || h.now - F.t > 1800 || F.fl==null) return [];
-  if(F.t50 && F.t50 <= F.t + 60) return [[`na ${F.fl} #`, `<b style="color:var(--warn)">už pod ${F.fl} #</b>`]];
-  if(!F.t50) return [[`na ${F.fl} #`, `<span style="color:var(--good)">do rána ne</span>`]];
-  return [[`na ${F.fl} #`, `~${relDay(F.t50)==="dnes" ? "" : relDay(F.t50)+" "}${hmT(F.t50)} <span class="sub">(za ${durHM(F.t50 - h.now)})</span>`]];
+  const F = d.day_fc; if(!F || h.now - F.t > 1800 || F.fl==null) return [];
+  const lab = F.src==="solar" ? `na ${F.fl} #` : `ze soláru na ${F.fl} #`;
+  const ret = F.ret_t && F.ret_t > h.now ? (!F.t50 || F.t50 >= F.ret_t
+    ? ` · <span style="color:var(--good)">do návratu ${hmT(F.ret_t)} ✓</span>` : ` · <span style="color:var(--warn)">do návratu ${hmT(F.ret_t)} ne</span>`) : "";
+  if(F.t50 && F.t50 <= F.t + 60) return [[lab, `<b style="color:var(--warn)">už pod ${F.fl} #</b>`]];
+  if(!F.t50) return [[lab, `<span style="color:var(--good)">do rána ne</span>${ret}`]];
+  return [[lab, `~${relDay(F.t50)==="dnes" ? "" : relDay(F.t50)+" "}${hmT(F.t50)} <span class="sub">(za ${durHM(F.t50 - h.now)})</span>${ret}`]];
 }
 function tileSolar(d, h){
   const t = {k:"bat", icon:"🔆", label:"Solární baterie"};
