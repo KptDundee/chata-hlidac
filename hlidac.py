@@ -2041,6 +2041,7 @@ def main():
                          ("Lahev PB u generátoru", lambda: lpg_bottle(data, st, now, topic, cfg)),
                          ("Zásoba paliva", lambda: fuel_reserve(data, st, now, cfg)),
                          ("Plyn a voda v chatě", lambda: util_entries(data)),
+                         ("Jednorázové výdaje", lambda: vydaje_entries(data)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Co teď udělat", lambda: build_todo(data, st, now)),
@@ -3890,6 +3891,32 @@ FUEL_FILE = "palivo.txt"
 
 
 UTIL_FILE = "spotreba.txt"
+VYD_FILE = "vydaje.txt"
+
+
+def vydaje_entries(data):
+    """6.62 (Petr: statistika výdajů – komponenty, opravy, náhradní díly): vydaje.txt „datum | kategorie | popis | Kč“
+    (zapisuje web). Hlídač jen předá záznamy, součty a grafy počítá web (karta 💰 Náklady)."""
+    try:
+        lines = open(VYD_FILE, encoding="utf-8").read().splitlines()
+    except OSError:
+        lines = []
+    out = []
+    for ln in lines:
+        if ln.lstrip().startswith("#"):
+            continue
+        b = [x.strip() for x in ln.split("|")]
+        if len(b) < 4:
+            continue
+        try:
+            t = int(datetime.strptime(b[0][:10], "%Y-%m-%d").replace(hour=12, tzinfo=TZ).timestamp())
+            kc = float(b[3].replace(",", ".").replace(" ", "").replace("Kč", ""))
+        except ValueError:
+            continue
+        out.append([t, b[1].lower(), b[2][:80], kc])
+    out.sort(key=lambda x: x[0])
+    data["vydaje"] = out
+
 UTIL_KINDS = ("varic", "primotop", "sprcha", "voda", "cena_vody")
 
 

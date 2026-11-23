@@ -415,3 +415,8 @@ Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River
 - **Zápis:** „🔄 Vaření / Primotop / Sprcha“ = **zapojil jsem novou lahev** (cena lahve v Kč) – ne nákup do zásoby. „💧 Odečet vody“ = stav vodoměru v m³.
 - **Kolik to stojí:** Kč za měsíc a za období, graf Kč (Měsíce / Roky).
 - **Spotřeba (6.26):** záložky 🍳 / 🔥 / 🚿 / 💧. Voda **po rocích v m³** (odečty jsou řídké, po měsících by to nedávalo smysl; neúplný rok světlejší). Plyn **po měsících nebo rocích v kg** – lahev se rozpočítá rovnoměrně na dny, které vydržela; lahev, která ještě nedošla, je světlejší odhad. Pod grafem: jak dlouho lahev obvykle vydrží a kolik lahví letos.
+
+### 💰 Náklady (sekce Spotřeba, od 6.62)
+- **⚡ Jen elektřina:** každý den kolik chata vzala z River × kolik stála 1 kWh v chatě z nabíjení generátorem (cena paliva ÷ energie, kterou chata z nabití opravdu využila; průměr nabíjení za posledních 60 dní). Ze soláru 0 Kč. Počítá se i zpětně.
+- **💰 Celkem:** elektřina + plyn a voda (z karty Plyn a voda) + jednorázové výdaje. Období Týden, 4 týdny (po dnech), Rok (po měsících), Vše (po rocích); tabulka po rocích.
+- **🔧 Jednorázové výdaje:** komponenty, opravy, náhradní díly, jiné – tlačítko ＋ Výdaj (datum, kategorie, co, Kč), soubor `vydaje.txt`.

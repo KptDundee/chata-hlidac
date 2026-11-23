@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.62 – 23. 11. 2026
+- Nová dlaždice a karta **💰 Náklady** (sekce Spotřeba): **⚡ Jen elektřina** – každý den kolik chata vzala z River × cena 1 kWh v chatě z nabíjení generátorem (cena paliva ÷ využitelná energie, průměr za posledních 60 dní; ze soláru 0 Kč; i zpětně). **💰 Celkem** – elektřina + plyn a voda + jednorázové výdaje. Období Týden / 4 týdny (po dnech) / Rok (po měsících) / Vše (po rocích), tabulka **Po rocích**.
+- **🔧 Jednorázové výdaje** (komponenty, opravy, náhradní díly, jiné) – zápis tlačítkem ＋ Výdaj, ukládá se do `vydaje.txt`.
+
 ## 6.61 – 22. 11. 2026
 - Pojistka „River jen na 200 W“: když se nabíjí, River není plná, hlídač pro ni chce ≥ 350 W a ona přes 2 min bere jen ~200 W → naléhavě každou minutu „🚨 River nabíjejí jen na ~200 W – nastavení se nedaří“ (s poslední chybou EcoFlow); po nápravě „✓ River zase nabíjejí plným výkonem“.
 - Vypnutý generátor (došlo palivo, vypnul jsem ho) se v EcoFlow tváří jako offline → už nechodí „🚨 generátor – bez spojení s EcoFlow“; to jen když River dál berou (generátor jede, jen o něm EcoFlow neví). Text u generátoru bez věty o River a Bluetooth.

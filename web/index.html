@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.61", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.62", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2871,6 +2871,141 @@ function runUse(d, r, ratio){
   }
   return {use: ratio ? wh/ratio : null, eff:null, meas:false};
 }
+/* 6.62 (Petr: „chybí statistika výdajů – komponenty, opravy, díly; a kolik stojí provoz chaty – cena vyrobené energie ×
+   množství; týden / 4 týdny po dnech / rok; i zpětně; ze soláru 0; roční součet i s jednorázovými. Sekce jen elektřina
+   a pak celkem“). Elektřina: každý den kolik chata vzala z River (zásuvky River) × kolik stála 1 kWh v chatě z nabíjení
+   generátorem (cena paliva ÷ využitelná energie, průměr nabíjení za posledních 60 dní). Plyn a voda z karty Plyn a voda
+   (po měsících rozpočítané na dny). Jednorázové výdaje z vydaje.txt. */
+const VYDK = {komponenty:"🔧 Komponenty", opravy:"🛠 Opravy", dily:"🔩 Náhradní díly", jine:"📦 Jiné"};
+const NKS = () => [{k:"el", n:"⚡ Elektřina", c:css("--s2")}, {k:"ut", n:"🧾 Plyn a voda", c:css("--s1")}, {k:"vy", n:"🔧 Jednorázové", c:css("--muted")}];
+let NPER = "4t"; try{ NPER = localStorage.getItem("nper") || "4t"; }catch(_){}
+function elRuns(d){
+  const {ratio} = costCalc(d), R = [];
+  for(const r of d.fuel_runs||[]){
+    if(!r.t0 || !r.wh) continue;
+    const kc = r.czk ?? (Object.keys(r.czk_f||{}).length && Object.values(r.czk_f).every(v=>v!=null) ? Object.values(r.czk_f).reduce((a,b)=>a+b,0) : null);
+    const U = runUse(d, r, ratio);
+    if(kc!=null && U.use > 50) R.push({t:r.t0, kc, use:U.use});
+  }
+  return R.sort((a,b)=>a.t-b.t);
+}
+function costDays(d){
+  const U = useModel(d), R = elRuns(d), out = {}, now = Date.now()/1000, today = dkey(now);
+  const day = k => out[k] ||= {k, el:0, ut:0, vy:0, wh:0, elest:false};
+  const rateAt = t => { let S = R.filter(x=>x.t <= t && x.t > t - 60*86400), est = false;
+    if(!S.length){ S = R.filter(x=>x.t > t).slice(0,3); est = true; } if(!S.length){ S = R.slice(-3); est = true; }
+    const kc = S.reduce((a,x)=>a+x.kc,0), u = S.reduce((a,x)=>a+x.use,0); return u > 0 ? {r:kc/u, est} : null; };
+  for(const [k, D] of Object.entries(d.days||{})){
+    if(k > today) continue;
+    const tp = (D && D.tp) || {}, wh = U.rids.reduce((s,id)=>s+(+tp[id]||0),0);
+    if(!(wh > 0)) continue;
+    const A = day(k), rt = rateAt(new Date(k+"T23:59:00").getTime()/1000);
+    A.wh = wh; if(rt){ A.el = wh*rt.r; A.elest = rt.est; } else A.elest = true;
+  }
+  const {M} = utilCalc(d), cm = today.slice(0,7);
+  for(const m of Object.values(M)){
+    const tot = Object.keys(UK).reduce((s,kind)=>s+((m[kind]||{}).kc||0),0); if(!(tot > 0)) continue;
+    const [y, mo] = m.k.split("-").map(Number), dim = new Date(y, mo, 0).getDate(), nd = m.k===cm ? +today.slice(8,10) : dim;
+    for(let i=1;i<=nd;i++) day(`${m.k}-${String(i).padStart(2,"0")}`).ut += tot/nd;
+  }
+  for(const v of d.vydaje||[]) day(dkey(v[0])).vy += v[3];
+  return out;
+}
+function costRows(d, per){
+  const D = costDays(d), today = dkey(Date.now()/1000), R = {};
+  const keyOf = k => per==="t" || per==="4t" ? k : per==="r" ? k.slice(0,7) : k.slice(0,4);
+  for(const A of Object.values(D)){ const k = keyOf(A.k), B = R[k] ||= {k, el:0, ut:0, vy:0, wh:0, elest:false};
+    B.el += A.el; B.ut += A.ut; B.vy += A.vy; B.wh += A.wh; B.elest ||= A.elest && A.wh > 0; }
+  let keys;
+  if(per==="t" || per==="4t"){ const n = per==="t" ? 7 : 28; keys = [...Array(n)].map((_,i)=>dkey(Date.now()/1000 - (n-1-i)*86400)); }
+  else if(per==="r"){ const x = new Date(); keys = [...Array(13)].map((_,i)=>{ const m = new Date(x.getFullYear(), x.getMonth()-12+i, 1); return `${m.getFullYear()}-${String(m.getMonth()+1).padStart(2,"0")}`; }); }
+  else keys = Object.keys(R).sort();
+  return keys.map(k=>{ const B = R[k] || {k, el:0, ut:0, vy:0, wh:0}; B.tot = B.el + B.ut + B.vy; return B; });
+}
+const nLab = (k, long) => k.length===10 ? (long ? new Date(k+"T12:00:00").toLocaleDateString("cs-CZ",{weekday:"short", day:"numeric", month:"numeric"}) : `${+k.slice(8,10)}.`)
+  : k.length===7 ? uLab(k, "m", long) : k;
+function costBars(el, rows, series, emptyMsg){
+  const val = r => series.reduce((s,x)=>s+(r[x.k]||0),0), p = rows.filter(r=>val(r) > 0.5);
+  if(!p.length) return empty(el, emptyMsg);
+  const hi = Math.max(...p.map(val))*1.15 || 1, {svg,y} = frame(el, 0, hi, 0);
+  const n = Math.max(rows.length, 6), bw = (W-M.l-M.r)/n, w = Math.max(3, Math.min(34, bw-3));
+  let s = "";
+  rows.forEach((r,i)=>{ const cx = M.l + bw*i + bw/2; let base = 0;
+    for(const x of series){ const v = r[x.k]||0; if(v <= 0.5) continue; const y0 = y(base), y1 = y(base+v);
+      s += `<rect x="${cx-w/2}" y="${y1}" width="${w}" height="${Math.max(0, y0-y1)}" fill="${x.c}"${x.k==="el" && r.elest ? ` fill-opacity=".5"` : ""} stroke="var(--card)" stroke-width="1"/>`; base += v; }
+    s += `<rect data-i="${i}" x="${cx-bw/2}" y="${M.t}" width="${bw}" height="${H-M.t-M.b}" fill="transparent"/>`;
+    if(i%Math.ceil(rows.length/7)===0 || i===rows.length-1) s += `<text x="${cx}" y="${H-6}" text-anchor="middle">${nLab(r.k)}</text>`; });
+  svg.insertAdjacentHTML("beforeend", s);
+  hover(svg, rows, r=>`${nLab(r.k, true)}<br>${series.map(x=>`<span style="color:${x.c}">■</span> ${x.n}: <b>${nf(r[x.k]||0,0)} Kč</b>${x.k==="el" ? ` <span style="opacity:.8">(z River ${kWh(r.wh||0)}${r.elest ? ", cena odhadem" : ""})</span>` : ""}`).join("<br>")}${series.length > 1 ? `<br><b>Celkem ${nf(val(r),0)} Kč</b>` : ""}`);
+}
+function tileCost(d, h){
+  const t = {k:"naklady", icon:"💰", label:"Náklady"};
+  if(!(d.fuel_runs||[]).length && !(d.util||[]).length && !(d.vydaje||[]).length) return {...t, cls:"na", v:"–", st:"Zatím žádná data", a:"Elektřina, plyn a voda, výdaje"};
+  const D = Object.values(costDays(d)), now = Date.now()/1000, k30 = dkey(now - 29*86400), y0 = String(new Date().getFullYear());
+  const el30 = D.filter(A=>A.k >= k30).reduce((s,A)=>s+A.el,0), yr = D.filter(A=>A.k.startsWith(y0)).reduce((s,A)=>s+A.el+A.ut+A.vy,0);
+  return {...t, cls:"ok", v:`${nf(el30,0)}<small>Kč</small>`, st:"elektřina za 30 dní", rows:[["celkem letos", `${nf(yr,0)} Kč`]]};
+}
+function detCost(body){
+  const d = DATA, bs = `font:inherit;font-weight:600;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--text);border:1px solid var(--btnline);background:var(--btn)`;
+  const per = [["t","Týden"],["4t","4 týdny"],["r","Rok"],["v","Vše"]];
+  body.innerHTML = `<div class="seg" id="nper_seg" style="margin:0 0 10px">${per.map(([k,n])=>`<button data-k="${k}" aria-pressed="${NPER===k}">${n}</button>`).join("")}</div>
+    <div class="card chart"><h2>⚡ Jen elektřina</h2><div class="cs" id="n_cs1"></div><div id="n_el"></div><div id="n_sum1" style="font-size:14px;margin-top:6px"></div>
+      <details style="margin-top:6px"><summary class="sub" style="cursor:pointer">Jak se to počítá</summary><div class="sub" style="margin-top:4px">Každý den: kolik chata vzala z River (zásuvky River) × kolik stála 1 kWh v chatě z nabíjení generátorem (cena paliva ÷ energie, kterou chata z nabití opravdu využila; průměr nabíjení za posledních 60 dní). Ze soláru 0 Kč. Světlejší sloupec = cena odhadem (v tom období ještě nebylo nabíjení s cenou).</div></details></div>
+    <div class="card chart"><h2>💰 Celkem</h2><div class="cs">${NKS().map(x=>`<span style="color:${x.c}">■</span> ${x.n}`).join(" · ")}</div><div id="n_all"></div><div id="n_sum2" style="font-size:14px;margin-top:6px"></div></div>
+    <div class="card"><h2 style="margin:0 0 6px">📅 Po rocích</h2><div id="n_years"></div></div>
+    <div class="card"><h2 style="margin:0 0 6px">🔧 Jednorázové výdaje</h2><div style="margin:0 0 8px"><button onclick="vydAdd()" style="${bs}">＋ Výdaj</button></div><div id="n_vyd"></div></div>`;
+  const draw = () => {
+    const rows = costRows(d, NPER), daily = NPER==="t" || NPER==="4t";
+    $("n_cs1").textContent = `Kč za ${daily ? "den" : NPER==="r" ? "měsíc" : "rok"} · jen elektřina z River (ze soláru 0)`;
+    costBars($("n_el"), rows, [NKS()[0]], "Zatím žádná spotřeba z River s cenou.");
+    costBars($("n_all"), rows, NKS(), "Zatím nic.");
+    const S = k => rows.reduce((s,r)=>s+(r[k]||0),0), wh = S("wh");
+    $("n_sum1").innerHTML = rowI("Za období", `${nf(S("el"),0)} Kč`) + rowI("Chata vzala z River", kWh(wh)) + (wh > 100 ? rowI("Průměrně", `${nf(S("el")/(wh/1000),1)} Kč/kWh`) : "");
+    $("n_sum2").innerHTML = NKS().map(x=>rowI(x.n, `${nf(S(x.k),0)} Kč`)).join("") + rowI("<b>Celkem</b>", `<b>${nf(S("tot"),0)} Kč</b>`);
+  };
+  const Y = costRows(d, "v").reverse();
+  $("n_years").innerHTML = Y.length ? `<div style="display:grid;grid-template-columns:auto repeat(4,1fr);gap:4px 10px;font-size:14px"><span></span><span class="sub">⚡</span><span class="sub">🧾</span><span class="sub">🔧</span><b class="sub">Celkem</b>${Y.map(r=>`<b>${r.k}</b><span>${nf(r.el,0)}</span><span>${nf(r.ut,0)}</span><span>${nf(r.vy,0)}</span><b>${nf(r.tot,0)} Kč</b>`).join("")}</div>` : `<span class="sub">Zatím nic.</span>`;
+  const V = (d.vydaje||[]).slice().reverse();
+  $("n_vyd").innerHTML = V.length ? V.map(v=>rowI(`${dTxt(dkey(v[0]))} · ${VYDK[v[1]] || escH(v[1])}`, `${escH(v[2])} · <b>${nf(v[3],0)} Kč</b>`)).join("") : `<span class="sub">Zatím žádný výdaj. Komponenty, opravy, náhradní díly – zapiš je tlačítkem ＋ Výdaj.</span>`;
+  draw();
+  const seg = $("nper_seg"); seg.onclick = e => { const b = e.target.closest("button"); if(!b) return; NPER = b.dataset.k; try{ localStorage.setItem("nper", NPER); }catch(_){}
+    for(const x of seg.children) x.setAttribute("aria-pressed", x===b); draw(); };
+}
+const GHV_ = () => "https://api.github.com/repos/"+REPO+"/contents/vydaje.txt";
+async function vydWrite(line, msg){
+  const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); throw new Error("Chybí token"); }
+  const r = await fetch(GHV_()+"?ref=main",{headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},cache:"no-store"});
+  let txt = "# Jednorázové výdaje na chatu (zapisuje web): datum | kategorie (komponenty / opravy / dily / jine) | popis | Kč\n", sha;
+  if(r.ok){ const j = await r.json(); txt = utf8b64.dec(j.content); sha = j.sha; }
+  const nt = txt.replace(/\n*$/,"\n") + line + "\n";
+  const w = await fetch(GHV_(),{method:"PUT",headers:{Authorization:"Bearer "+tok,Accept:"application/vnd.github+json"},
+    body:JSON.stringify({message:`Výdaj: ${msg}`, content:utf8b64.enc(nt), ...(sha?{sha}:{}), branch:"main"})});
+  if(!w.ok) throw new Error("GitHub odpověděl "+w.status);
+  try{ await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hlidac.yml/dispatches`,{method:"POST",
+    headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"}, body:JSON.stringify({ref:"main",inputs:{test:false,wake:false}})}); }catch(_){}
+}
+function vydAdd(){
+  const tok = store.get("ghtok"); if(!tok){ $("tokbox").classList.remove("hide"); return; }
+  const old = $("vydDlg"); if(old) old.remove();
+  const today = dkey(Date.now()/1000);
+  const inp = "font:inherit;font-size:17px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box";
+  const dl = document.createElement("div"); dl.id = "vydDlg";
+  dl.style.cssText = "position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center";
+  dl.innerHTML = `<form style="background:var(--surface);color:var(--text);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:18px">🔧 Jednorázový výdaj</b><button type="button" id="vydX" style="font:inherit;font-size:22px;background:none;border:0;color:var(--text);cursor:pointer">✕</button></div>
+    <label>Datum<input type="date" name="dt" value="${today}" max="${today}" style="${inp}"></label>
+    <label>Kategorie<select name="k" style="${inp}">${Object.entries(VYDK).map(([k,n])=>`<option value="${k}">${n}</option>`).join("")}</select></label>
+    <label>Co<input name="p" maxlength="80" placeholder="např. Tapo zásuvka, oprava generátoru" style="${inp}"></label>
+    <label>Cena v Kč<input name="v" inputmode="decimal" style="${inp}"></label>
+    <button type="submit" id="vydOk" style="font:inherit;font-weight:700;padding:12px;border-radius:12px;border:0;background:var(--accent,#2a78d6);color:#fff;cursor:pointer">Uložit</button></form>`;
+  document.body.appendChild(dl);
+  $("vydX").onclick = () => dl.remove();
+  dl.querySelector("form").onsubmit = async e => { e.preventDefault(); const f = e.target, v = parseFloat(String(f.v.value).replace(",",".").replace(/\s/g,""));
+    const p = String(f.p.value).replace(/[|\n]/g," ").trim(); if(!p || !(v > 0)){ $("vydOk").textContent = "Vyplň co a cenu"; return; }
+    $("vydOk").disabled = true; $("vydOk").textContent = "Ukládám…";
+    try{ await vydWrite(`${f.dt.value} | ${f.k.value} | ${p} | ${v}`, `${p} ${v} Kč`); $("vydOk").textContent = "✓ Uloženo – v přehledu za pár minut"; setTimeout(()=>dl.remove(), 1500); }
+    catch(err){ $("vydOk").disabled = false; $("vydOk").textContent = "Chyba – zkus znovu"; } };
+}
 let CPER = "m"; try{ CPER = localStorage.getItem("cper") || "m"; }catch(_){}
 function costAgg(d, per){
   const {ratio} = costCalc(d), out = {};
@@ -3971,7 +4106,7 @@ function renderHome(d){
   const T = {
     chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h), tileUtil(d, h)].filter(Boolean),   // 6.23: Plyn a voda patří k chatě
     // 5.284 (Petr): plán pryč / spaní souvisí s výrobou → i ve Výrobě
-    prod: [tileProdSolar(d, h), tileProdGen(d, h), C_(tilePlan)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h)],
+    prod: [tileProdSolar(d, h), tileProdGen(d, h), C_(tilePlan)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h), tileCost(d, h)],
     out: [C_(tileNight), C_(tileTomorrow), C_(tilePlan)], past: [tilePastNight(d,h), tileYesterday(d,h)],
     long: [tileWire(d,h), tileHealth(d,h), tileBsim(d,h), tilePanels(d,h), tileSystem(d,h)], src: SRC };
   $("h_dev").innerHTML = T.chata.map(tileHtml).join("");
@@ -4026,6 +4161,7 @@ function detAlerts(body){
 /* ---------- detail dlaždice: vlastní obsah pro každou dlaždici; delší části se přesunou sem z původní stránky ---------- */
 const DET = {
   bat:   {t:"🔆 Solární baterie", s:"Údaje · grafy · výklad", build:detBat},
+  naklady: {t:"💰 Náklady na chatu", s:"Elektřina (z River – cena z nabíjení generátorem, ze soláru 0), plyn a voda, jednorázové výdaje", build:detCost},
   util: {t:"🧾 Plyn a voda v chatě", s:"Lahve PB (vaření, primotop, sprcha) a voda – kolik to stojí za měsíc a rok", build:detUtil},
   night: {t:"🌙 Příští noc", s:"Vydrží baterie do příštího rána?", build:detNight, title:()=>`🌙 ${tileNight(DATA, homeData(DATA)).label}`},
   pastnight:{t:"🌘 Minulá noc", s:"Jak dopadla a jak sedí předpověď", build:detPastNight, title:()=>`🌘 ${tilePastNight(DATA, homeData(DATA)).label}`},
