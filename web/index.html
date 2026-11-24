@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.84", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.85", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1718,7 +1718,11 @@ function detPlan(body){
   // pod tím rozbalovací
   body.insertAdjacentHTML("beforeend", `<div class="card" id="plan_box"><div class="sub">Načítám plán…</div></div>`);
   const box = $("plan_box");
-  if(!tok){ box.innerHTML = `<div>Pro úpravu plánu je potřeba přihlášení ke GitHubu (stejné jako u Nastavení).</div>`; $("tokbox").classList.remove("hide"); return; }
+  // 6.85 (Petr: „co je tohle?“): okno pro klíč bylo schované pod kartou na hlavní stránce – tlačítko kartu zavře a okno ukáže
+  if(!tok){ box.innerHTML = `<div style="line-height:1.5">V tomhle prohlížeči chybí přihlášení ke GitHubu (klíč „github_pat_…“, stejný jako pro Nastavení a ⚡ Načíst). Bez něj se plán nedá upravit (co hlídač načetl z kalendářů, ukazuje karta 📆 Kalendáře). Klíč se ukládá jen v tomhle prohlížeči – po vymazání dat prohlížeče nebo v jiném prohlížeči je potřeba ho vložit znovu.</div>
+    <button type="button" id="tokgo" style="margin-top:10px;background:var(--text);color:var(--surface);font-weight:600">Vložit klíč</button>`;
+    $("tokgo").onclick = () => { $("detclose").click(); $("tokbox").classList.remove("hide"); $("tokbox").scrollIntoView({block:"center"}); $("tok").focus(); };
+    return; }
   planLoad(tok).then(({P, sha})=>{
     const days = []; for(let i=0;i<8;i++){ const dt = new Date(); dt.setHours(12,0,0,0); dt.setDate(dt.getDate()+i); days.push(dt); }
     const SRC = k => P[k] ? ["✎", "ruční"] : (d.away_src||{})[k]==="cal" ? ["🗓", "kalendář"] : (d.away_src||{})[k]==="copy" ? ["↺", "jako minule"] : ["", ""];
