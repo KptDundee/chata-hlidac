@@ -3645,12 +3645,16 @@ def hash_soc(data, st, now, cfg):
     # chata na River nebo noc bez odběru) → nabití z klidového napětí (soc_from_v) = Ah od plné v tu chvíli.
     cap0 = eff_cap(data, cfg)
     rests = []                                   # (t, qr, Ah od plné)
+    _nq = []
     run0 = None
     last_chg = 0                                 # 5.105: kdy se baterie naposledy nabíjela (proud > 0,5 A)
     for a, b in zip(pts, pts[1:]):
         if a.get("_in") is not None and a["_in"] > 0.5:
             last_chg = a["t"]
         quiet = a.get("_in") is not None and abs(a["_in"]) < 0.8 and (a.get("pv_w") or 0) < 5 and 0 < b["t"] - a["t"] <= 2400
+        if not quiet and a["t"] >= now.timestamp() - 9 * 3600 and (a.get("pv_w") or 0) < 5:   # 6.72: diagnostika – proč noc není klid
+            _nq.append(f"{datetime.fromtimestamp(a['t'], TZ).strftime('%H:%M')} " + (f"mezera {(b['t'] - a['t']) // 60} min" if not 0 < b["t"] - a["t"] <= 2400
+                       else "proud ?" if a.get("_in") is None else f"proud {a['_in']:+.2f} A"))
         if quiet:
             run0 = run0 or a["t"]
             # 5.63: aspoň 2 h klidu – po nabíjení drží baterie ještě hodiny vyšší („povrchové“) napětí a nabití by
@@ -3669,6 +3673,7 @@ def hash_soc(data, st, now, cfg):
             run0 = None
     for p in pts:
         p.pop("_in", None)
+    print("Klid – body bez slunce za 9 h, které klid přerušily: " + (", ".join(_nq[-40:]) or "žádné"))
     data["rests"] = [{"t": r[0], "qr": r[1], "v": r[3], "soc": r[4], "h": r[5], "sc": r[6]} for r in rests]   # 5.101: pro test kapacity
     data["fulls"] = [f[1] for f in fulls]
     rtimes = [r[0] for r in rests]
