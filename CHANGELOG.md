@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.81 – 24. 11. 2026
+- Karta 🌘 Minulá noc (Přehled → Uplynulé) přehledně (Petr: „zmet čísel“): nahoře jedna věta s výsledkem („✓ Do 01:45 ze soláru, pak z River. Ráno 12,62 V (v klidu ~77 %) · nejníž 12,25 V“, barva podle nejnižšího napětí), graf napětí přes noc (šedě = chata na River), sloupcový graf posledních 14 nocí – kolik se vzalo z baterie (zeleně ráno ze soláru, šedě z River; ťuknutím ranní napětí), jedna věta „proč je ráno takové“. Předpověď, rozbor a tabulky jsou sbalené v „Podrobnosti“.
+
 ## 6.80 – 24. 11. 2026
 - Zásuvka 7 po spuštění generátoru rychleji (Petr: „nefunguje, nebo s velkým zpožděním – může se zapnout do 30 s“): 24. 11. hlídač čekal 1 min a Flip povel četl až při svém měření (bez zátěže jednou za 10 min). Teď: povel hned, jak hlídač vidí motor bez zátěže, a zároveň probuzení Flipu (jako ⚡ Načíst), takže ho provede do pár sekund; opakuje se po 1 min. Nezávisí už na tom, jestli běží „relace“ nabíjení (od 6.68 se bez zásuvky nespustila – automatika by bez tlačítka na webu nezapnula nic). Naléhavé upozornění po 3 min (dřív 4).
 
