@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.66", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.67", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1982,17 +1982,22 @@ let UPER = "m"; try{ UPER = localStorage.getItem("uper") || "m"; }catch(_){}
 const uMonth = t => { const x = new Date(t*1000); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`; };
 const uMonthStart = k => new Date(+k.slice(0,4), +k.slice(5,7)-1, 1).getTime()/1000;
 /* rozpočítá množství a Kč rovnoměrně na čas [t0, t1) po měsících; priceOf(rok) volitelně (voda) */
-function uSpread(M, kind, t0, t1, qty, kc, est, priceOf){
+// 6.67: po dnech (opt.daily → klíč den, jinak měsíc) a s vahou dne (opt.w: den → váha; primotop podle zimy)
+function uSpread(M, kind, t0, t1, qty, kc, est, priceOf, opt){
   if(!(t1 > t0)) return;
+  const daily = opt && opt.daily, wf = opt && opt.w, seg = [];
   let a = t0;
-  while(a < t1){
-    const k = uMonth(a), x = new Date(a*1000), nx = new Date(x.getFullYear(), x.getMonth()+1, 1).getTime()/1000, b = Math.min(t1, nx), f = (b-a)/(t1-t0);
+  while(a < t1){ const x = new Date(a*1000), nx = new Date(x.getFullYear(), x.getMonth(), x.getDate()+1).getTime()/1000, b = Math.min(t1, nx);
+    seg.push([a, b, x, (b-a)*(wf ? wf(dkey(a)) : 1)]); a = b; }
+  let tot = seg.reduce((s_,z)=>s_+z[3],0);
+  if(!(tot > 0)){ for(const z of seg) z[3] = z[1]-z[0]; tot = t1 - t0; }
+  for(const [a_, b_, x, w] of seg){
+    const f = w/tot, k = daily ? dkey(a_) : uMonth(a_);
     const R = (M[k] ||= {k}), E = (R[kind] ||= {q:0, kc:0, est:false, pest:false});
     E.q += qty*f;
     if(priceOf){ const P = priceOf(x.getFullYear()); if(P){ E.kc += qty*f*P.v; if(P.est) E.pest = true; } else E.pest = true; }
     else if(kc!=null) E.kc += kc*f;
     if(est) E.est = true;
-    a = b;
   }
 }
 /* 6.66 (Petr: „přes zimu voda neteče – spotřeba skončila posledním odečtem, pustí se v březnu“): voda_vyp / voda_zap –
@@ -2003,17 +2008,22 @@ function utilWaterOff(d){
   return out;
 }
 function utilWaterOn(d){ const E = (d.util||[]).filter(e=>e[1]==="voda_vyp" || e[1]==="voda_zap").sort((a,b)=>a[0]-b[0]); return !E.length || E[E.length-1][1]==="voda_zap"; }
-function utilCalc(d){
+function utilCalc(d, daily){
   const U = d.util || [], now = Date.now()/1000, M = {}, info = {};
+  // 6.67 (Petr: „primotop je vyloženě nárazový“): lahev primotopu se rozpočítá podle zimy – váha dne = denostupně
+  // (o kolik byl den chladnější než 18 °C, venku u chaty); den bez údaje = průměrná váha
+  const TD = d.tout_day || {}, tv = Object.values(TD), hddAvg = tv.length ? tv.reduce((s_,t)=>s_+Math.max(0, 18-t),0)/tv.length : 1;
+  const hdd = k => TD[k]!=null ? Math.max(0, 18 - TD[k]) : hddAvg;
+  const optOf = kind => ({daily, w: kind==="primotop" ? hdd : null});
   for(const kind of UGAS){
     const L = U.filter(e=>e[1]===kind);
     const closed = L.slice(0,-1).map((e,i)=>({t0:e[0], t1:L[i+1][0], kc:e[2], days:(L[i+1][0]-e[0])/86400}));
     const ds = closed.map(x=>x.days).sort((a,b)=>a-b), typ = ds.length ? (ds[Math.floor((ds.length-1)/2)] + ds[Math.floor(ds.length/2)])/2 : null;   // medián, kolik lahev vydrží
-    for(const x of closed) uSpread(M, kind, x.t0, x.t1, UK[kind].kg, x.kc, false);
+    for(const x of closed) uSpread(M, kind, x.t0, x.t1, UK[kind].kg, x.kc, false, null, optOf(kind));
     const last = L[L.length-1];
     if(last && typ){   // aktuální lahev: odhad podle toho, jak dlouho lahev obvykle vydrží (nikdy víc než její cena)
       const el = (now - last[0])/86400, span = Math.max(typ, el);
-      uSpread(M, kind, last[0], now, UK[kind].kg*el/span, last[2]*el/span, true);
+      uSpread(M, kind, last[0], now, UK[kind].kg*el/span, last[2]*el/span, true, null, optOf(kind));
     }
     info[kind] = {n:L.length, last, typ, next: last && typ ? last[0] + typ*86400 : null, days: closed.length};
   }
@@ -2027,7 +2037,7 @@ function utilCalc(d){
     let parts = [[W[i-1][0], W[i][0]]];                       // úseky, kdy voda tekla (bez zimních přestávek)
     for(const [a, b] of OFF) parts = parts.flatMap(([x, y]) => b <= x || a >= y ? [[x, y]] : [[x, Math.min(y, a)], [Math.max(x, b), y]].filter(([u, v]) => v > u));
     const tot = parts.reduce((s_, [x, y]) => s_ + (y - x), 0) || 1;
-    for(const [x, y] of parts) uSpread(M, "voda", x, y, q*(y-x)/tot, null, false, priceOf); }
+    for(const [x, y] of parts) uSpread(M, "voda", x, y, q*(y-x)/tot, null, false, priceOf, {daily}); }
   info.voda = {n:W.length, last:W[W.length-1]};
   return {M, info, PR, priceOf};
 }
@@ -2931,12 +2941,10 @@ function costDays(d){
     const A = day(k), rt = rateAt(new Date(k+"T23:59:00").getTime()/1000);
     A.wh = wh; if(rt){ A.el = wh*rt.r; A.elest = rt.est; } else A.elest = true;
   }
-  const {M} = utilCalc(d), cm = today.slice(0,7);
-  for(const m of Object.values(M)){
-    const tot = Object.keys(UK).reduce((s,kind)=>s+((m[kind]||{}).kc||0),0); if(!(tot > 0)) continue;
-    const [y, mo] = m.k.split("-").map(Number), dim = new Date(y, mo, 0).getDate(), nd = m.k===cm ? +today.slice(8,10) : dim;
-    for(let i=1;i<=nd;i++) day(`${m.k}-${String(i).padStart(2,"0")}`).ut += tot/nd;
-  }
+  // 6.67: plyn a voda po dnech rovnou z lahví a odečtů (dřív měsíční součet ÷ dny v měsíci)
+  const {M} = utilCalc(d, true);
+  for(const m of Object.values(M)){ if(m.k > today) continue;
+    const tot = Object.keys(UK).reduce((s,kind)=>s+((m[kind]||{}).kc||0),0); if(tot > 0) day(m.k).ut += tot; }
   for(const v of d.vydaje||[]) day(dkey(v[0])).vy += v[3];
   return out;
 }

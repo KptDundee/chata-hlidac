@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import urllib.request
+import urllib.parse
 
 import chladnuti
 from datetime import datetime, timedelta, timezone
@@ -2043,6 +2044,7 @@ def main():
                          ("Plyn a voda v chatě", lambda: util_entries(data)),
                          ("Jednorázové výdaje", lambda: vydaje_entries(data)),
                          ("Voda – připomínky", lambda: water_remind(data, st, now, topic)),
+                         ("Venku po dnech", lambda: tout_days(data, st, now, cfg)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Co teď udělat", lambda: build_todo(data, st, now)),
@@ -3893,6 +3895,29 @@ FUEL_FILE = "palivo.txt"
 
 UTIL_FILE = "spotreba.txt"
 VYD_FILE = "vydaje.txt"
+
+
+def tout_days(data, st, now, cfg):
+    """6.67: průměrná venkovní teplota po dnech (Open-Meteo, u chaty; 92 dní zpět) → data["tout_day"] {den: °C}.
+    Web podle ní rozpočítává lahev primotopu – chladnější den dostane víc (denostupně pod 18 °C)."""
+    T = data.setdefault("tout_day", {})
+    day = now.strftime("%Y-%m-%d")
+    if st.get("tout_d") == day and T:
+        return
+    q = urllib.parse.urlencode({"latitude": cfg["sirka"], "longitude": cfg["delka"], "daily": "temperature_2m_mean",
+                                "past_days": 92, "forecast_days": 1, "timezone": "Europe/Prague"})
+    with urllib.request.urlopen(f"https://api.open-meteo.com/v1/forecast?{q}", timeout=25) as r:
+        js = json.loads(r.read().decode())
+    dd = js.get("daily") or {}
+    n = 0
+    for k, v in zip(dd.get("time", []), dd.get("temperature_2m_mean", [])):
+        if v is not None and k < day:
+            T[k] = round(float(v), 1)
+            n += 1
+    for k in [k for k in T if k < (now - timedelta(days=800)).strftime("%Y-%m-%d")]:
+        del T[k]
+    st["tout_d"] = day
+    print(f"Venku po dnech: {n} dní z Open-Meteo, celkem {len(T)}")
 
 
 def water_remind(data, st, now, topic):

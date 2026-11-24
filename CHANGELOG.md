@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.67 – 24. 11. 2026
+- Náklady: plyn a voda po dnech rovnou z lahví a odečtů (dřív měsíční součet rozpočítaný na dny v měsíci – lahev zapojená 25. se roztekla i do dnů před ní).
+- Primotop podle zimy: lahev se rozpočítá podle denostupňů (o kolik byl den chladnější než 18 °C) – chladný den víc, teplý málo nebo nic. Venkovní teplota po dnech z Open-Meteo u chaty (`tout_day`, 92 dní zpět, pak průběžně). Platí i v kartě Plyn a voda.
+
 ## 6.66 – 23. 11. 2026
 - Voda přes zimu: záznamy „voda_vyp“ / „voda_zap“ (tlačítka 🚱 Voda zavřená / 💧 Voda puštěná v Plyn a voda, s odečtem vodoměru). Spotřeba mezi odečty se rozpočítá jen na dny, kdy voda tekla; přes zimu 0. Zapsáno: zavřeno 14. 11. 2026.
 - Připomínky: voda zavřená → od 1. 3. každou sobotu v 9:00 „💧 Je voda v chatě puštěná?“, dokud nepotvrdíš; voda puštěná → každý měsíc od 1. dne denně v 9:00 „💧 Zadej stav vodoměru“, dokud v tom měsíci odečet není.
