@@ -5,6 +5,7 @@ Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mě
 
 ## 6.79 – 24. 11. 2026
 - Pojistka „🚨 River nabíjejí jen na ~200 W“ jen pod 90 % nabití River (24. 11. 20:30: „malá bere 248 W (chci 360 W)“ – malá byla skoro plná a nabíjení sama zpomalila, jak to River na konci dělají; generátor jel na 1400 W). Dřív hranice 95 %.
+- Hlavní příčina: malá (256 Wh) na 361 W rostla ~2,4 %/min a hlídač bral víc než 2 %/min jako nevěrohodný údaj – počítal dál s 55 %, i když měla 99 %. Věrohodná rychlost se teď počítá podle příjmu a velikosti River.
 
 ## 6.78 – 24. 11. 2026
 - „Co teď udělat“ a dlaždice EcoFlow ukazují nabíjení, když ho plán chce (večerní kontrola 24. 11.: plán „nabít ČERV“, rada „nic“): hlavní rada **„nabij ČERV aspoň na 35 % (když to jde, do plna) – začni nejpozději v 20:00“**, dokud River není na minimu a nenabíjí se.

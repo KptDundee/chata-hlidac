@@ -7526,8 +7526,11 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         for r in rivers:
             sn_, v_ = r.get("sn"), r.get("soc")
             last = sok.get(sn_)
+            # 6.79 (24. 11.: malá 256 Wh na 361 W roste ~2,4 %/min – hlídač to bral jako nevěrohodné, držel 55 % a pojistka
+            # 200 W hlásila „malá bere 248 W“, i když byla plná): věrohodná rychlost podle příjmu a velikosti River (× 1,5)
+            rate_ = max(2.0, 1.5 * (acw(r) or 0) / max(100.0, float(r.get("wh") or 768)) * 100 / 60)
             if v_ is not None and (not last or tnow - last[1] > 1200
-                                   or abs(v_ - last[0]) <= 3 + 2 * (tnow - last[1]) / 60):
+                                   or abs(v_ - last[0]) <= 3 + rate_ * (tnow - last[1]) / 60):
                 sok[sn_] = [v_, tnow]
                 sv[sn_] = v_
             elif last and tnow - last[1] <= 1200:
