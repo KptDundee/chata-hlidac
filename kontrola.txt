@@ -1,0 +1,7 @@
+=== 2026-11-24 19:39 ===
+Našel jsem 5 věcí:
+1. **Plán × rada** – od 19:28 (6.75) plán píše „nevyjde – nabít ČERV (min 35 %) do 21:46“, ale „Co teď udělat“ nabíjení neuvádí (19:28 a 19:33 „nic“, 19:36 jen „ČERV má 15 % – přepoj“) a zmizela i rada „před spaním na ŽLUT“ (plán nemá řešení). Návrh: když plán chce nabíjení, přidat ho do Co teď udělat (a do dlaždice); týká se i plánu při odjezdu.
+2. **Generátor kvůli noci** (domněnka – ověř záměr) – solár 92 #, ŽLUT 64 %, zítra přebytek ~0 → podle 6.75 večer/noc bez soláru, takže plán chce dnes večer generátor pro ČERV (dle kódu od 20:00 naléhavé „poslední chvíle“). Je to podle dohody, jen to bude každý zatažený zimní den; kdyby to nebyl záměr, zvážit výjimku pro večer při plném soláru (ovlivní zdraví AGM a pravidlo „solár přes den“).
+3. **Počasí** – předpověď selhala (SSL handshake timeout) ve 27 ze 143 běhů, venkovní teplota 6×, hlavně ráno 6–10 h. Návrh: 1 opakování s delším limitem a jinak poslední úspěšná předpověď – ovlivní odhad zítřejšího přebytku v plánu.
+4. **Odpor spojů** – souhrn 23. 11. 22:00: ~21 mΩ (hranice 20, norma ~10). Fyzicky zkontrolovat pojistku a spoje regulátor–baterie–měnič.
+5. **Drobnost** – GitHub hlásí, že actions/checkout@v4 běží na zastaralém Node 20; přejít na checkout@v5 (bez vlivu na hlídač).
