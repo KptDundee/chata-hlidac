@@ -1258,6 +1258,18 @@ def alarm(st, topic, key, active, title="", msg="", prio=5, tags="rotating_light
     e["last"], e["title"] = ts, title[:80]
 
 
+SW_KEYS = ("night", "eve", "wp_sw2")                   # 6.68: upozornění „přepni chatu ze soláru na River“
+
+
+def sw_dup(st, own):
+    """6.68 (23. 11. večer: na jedno přepnutí chodila 2–3 upozornění najednou, ~27 za 2 h): když už běží jiné upozornění
+    na přepnutí ze soláru na River (to, které začalo první), další se nespouští. Vrátí klíč běžícího, nebo None."""
+    al = st.get("al") or {}
+    if own in al:
+        return None                                    # tohle už běží – pokračuje
+    return next((k for k in SW_KEYS if k != own and k in al), None)
+
+
 def _key(passphrase, salt):
     return hashlib.pbkdf2_hmac("sha256", passphrase.encode(), salt, 200_000, 32)
 
@@ -1850,7 +1862,7 @@ def main():
                     th_[out_] = v_
         st["mig_kuch2"] = 1
     try:
-        load_calendars(now)                                # 5.240: pracovní kalendáře (Google, tajné adresy iCal)
+        load_calendars(now, st)                            # 5.240: pracovní kalendáře (Google, tajné adresy iCal)
     except Exception as e:
         print(f"Kalendáře: chyba ({type(e).__name__})")
     alarm_acks(st, topic)                                  # 5.95: tlačítka Řeším / Za 30 min / Za 1 h
@@ -5205,7 +5217,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         todo_add(data, 4, "přepni na solár – vyrábí víc, než chata bere", "ok")
     # 5.217 (Petr: dlaždice a rady musí sedět s plánem): plán říká teď jiný zdroj, než na kterém chata jede → přepni
     conn_ = (data.get("river_sup") or {}).get("sn")
-    if home_ and W2_ and W2_["cur"] != "s" and W2_["cur"] in RVl and (on_solar or (on_river and conn_ and conn_ != W2_["cur"])):
+    keep_ = (data.get("wplan") or {}).get("keep")          # 6.68: napájecí River vydrží do návratu s rezervou → nepřepínat
+    if home_ and W2_ and W2_["cur"] != "s" and W2_["cur"] in RVl and (on_solar or (on_river and conn_ and conn_ != W2_["cur"] and conn_ != keep_)):
         todo_add(data, 5, (f"šetrně přepni na River {rv_short(RVl[W2_['cur']]['name'])}" if res.get("ok") and on_solar else      # 5.225: solár vydrží – jen šetření
                            f"přepni na River {rv_short(RVl[W2_['cur']]['name'])} ({fmt(RVl[W2_['cur']]['soc'])} %)"), "warn",
                  "sol" if on_solar else "rv")      # 6.10 (Petr): z River na jinou River patří na dlaždici EcoFlow, ne k soláru
@@ -5271,12 +5284,16 @@ CAL = None                                            # 5.240: {datum: [(od, do,
 CAL_N = 0
 
 
-def load_calendars(now):
+def load_calendars(now, st=None):
     """5.240 (Petr): tři Google kalendáře (tajné adresy iCal v GitHub Secrets TRENINK, TRSLEV, PRIVAT → env CAL_*).
     Každá událost = pryč, ±1 h na cestu; volno mezi událostmi ≤ 2 h = pořád pryč (s hodinou cesty tam i zpět se úseky
     dotknou a sloučí). Celodenní, zrušené a „volno“ (TRANSP:TRANSPARENT) se nepočítají; opakované ano. Do logu jen počty
-    (repozitář je veřejný – žádné časy ani názvy)."""
+    (repozitář je veřejný – žádné časy ani názvy).
+    6.68 (23. 11. 23:20: jeden kalendář na jeden běh nešel načíst → plán na chvíli bez odjezdu, rada přeskočila ŽLUT → ČERV
+    → ŽLUT): každý kalendář se pamatuje (st["cal_c"], šifrovaně v data.enc); když nejde načíst, použije se poslední
+    načtená verze, je-li mladší než 12 h."""
     global CAL, CAL_N, CAL_EV
+    cc_ = st.setdefault("cal_c", {}) if st is not None else {}
     urls_ = [(i, os.environ.get(k, "").strip()) for i, k in enumerate(("CAL_TRENINK", "CAL_TRSLEV", "CAL_PRIVAT"))]
     idx = {u: i for i, u in urls_ if u}
     urls = [u for i, u in urls_ if u]
@@ -5296,6 +5313,7 @@ def load_calendars(now):
             req = urllib.request.Request(u.replace("webcal://", "https://"), headers={"User-Agent": "chata-hlidac"})
             raw = urllib.request.urlopen(req, timeout=20).read()
             cal = icalendar.Calendar.from_ical(raw)
+            evs_ = []
             for ev in recurring_ical_events.of(cal).between(t0, t1):
                 if str(ev.get("STATUS", "")).upper() == "CANCELLED" or str(ev.get("TRANSP", "")).upper() == "TRANSPARENT":
                     continue
@@ -5305,12 +5323,22 @@ def load_calendars(now):
                 a = a.dt if a.dt.tzinfo else a.dt.replace(tzinfo=TZ)
                 b = (b.dt if b is not None and isinstance(b.dt, datetime) else a + timedelta(hours=1))
                 b = b if b.tzinfo else b.replace(tzinfo=TZ)
-                ivs.append((a.astimezone(TZ) - timedelta(hours=1), b.astimezone(TZ) + timedelta(hours=1)))
-                CAL_EV.append((a.astimezone(TZ), b.astimezone(TZ), idx[u]))
-                nev += 1
-            ok += 1
+                evs_.append((int(a.timestamp()), int(b.timestamp())))
+            cc_[str(idx[u])] = {"t": int(now.timestamp()), "ev": evs_}
         except Exception as e:
-            print(f"Kalendář {urls.index(u) + 1}: nejde načíst ({type(e).__name__})")
+            c_ = cc_.get(str(idx[u])) or {}
+            if not c_.get("ev") or now.timestamp() - c_.get("t", 0) > 12 * 3600:
+                print(f"Kalendář {urls.index(u) + 1}: nejde načíst ({type(e).__name__})")
+                continue
+            evs_ = c_["ev"]
+            print(f"Kalendář {urls.index(u) + 1}: nejde načíst ({type(e).__name__}) – použita poslední verze "
+                  f"(stáří {int((now.timestamp() - c_['t']) // 60)} min)")
+        for a_, b_ in evs_:
+            a, b = datetime.fromtimestamp(a_, TZ), datetime.fromtimestamp(b_, TZ)
+            ivs.append((a - timedelta(hours=1), b + timedelta(hours=1)))
+            CAL_EV.append((a, b, idx[u]))
+            nev += 1
+        ok += 1
     if not ok:
         return
     ivs.sort()
@@ -5621,7 +5649,10 @@ def eve_plan(data, st, now, topic, cfg):
             res.update({"rv": W["nxt"]["name"], "src": "plan", "eco": int(W["nxt"]["a"])})
     elif W and cs_ == "s":
         if W["cur"] != "s":
-            t_sw, sw_bed, rv_nm = ts, False, W["cur_name"]
+            # 6.68 (23. 11.: „přepni hned“ a zároveň plán „před spaním (do 00:00)“): plán říká jen NA KTEROU River;
+            # KDY nejpozději počítá výpočet výš (i s časem spaní) – „hned“ jen když už ani hned nevyjde / čas je pryč
+            late_ = not t_sw or t_sw <= ts + 300
+            t_sw, sw_bed, rv_nm = (ts if late_ else t_sw), (False if late_ else sw_bed), W["cur_name"]
         elif W["nxt"] and W["nxt"]["src"] != "s" and W["nxt"]["a"] < ts + 18 * 3600:
             t_sw, sw_bed, rv_nm = W["nxt"]["a"], False, W["nxt"]["name"]
         else:
@@ -5643,6 +5674,10 @@ def eve_plan(data, st, now, topic, cfg):
     res["ev"] = bool(evening)                      # 5.214: web ukazuje radu „přepni na River“ jen večer (jako upozornění)
     data["eve"] = res
     due = cs_ == "s" and evening and not res["ok"] and (t_sw is None or ts >= t_sw - 1800) and not is_away(cfg, PLAN, now)
+    dup_ = sw_dup(st, "eve") if due else None
+    if dup_:
+        print(f"Kdy na River: už běží upozornění na přepnutí ({dup_}) – druhé se neposílá")
+        due = False
     when = "hned" if t_sw is None or t_sw <= ts + 300 else ("před spaním (do ~" if sw_bed else "do ~") + datetime.fromtimestamp(t_sw, TZ).strftime("%H:%M") + (")" if sw_bed else "")
     why = (f"ráno v {D.strftime('%H:%M')} (odjezd podle rozvrhu) musí v solární baterii zbýt aspoň ~{need_pct} #, "
            f"aby solár s předpovědí výroby utáhl chatu do {dend.strftime('%H:%M')}" if D else
@@ -5763,11 +5798,21 @@ def dep_confirm(data, st, now, topic, cfg):
     ret = f"{rel_day(b.timestamp(), now)} {hm(b)}" if b.date() != now.date() else hm(b)
     if W.get("ok") and seg and not todo:
         src = "na solár" if seg["src"] == "s" else f"na River {rv_short(seg['name'])}"
-        fs_ = (data.get("day_fc") or {}).get("src")
-        cur = "r" if fs_ == "river" else "s" if fs_ else None
-        now_src = (seg["src"] == "s") == (cur == "s") if cur else None
+        # 6.68 (24. 11. 4:52: „nech chatu na River ČERV“, ale chata jela z ŽLUT): porovnat i KTEROU River – zdroj teď
+        # stejně jako plán (měnič ze soláru → solár, jinak River, která chatu napájí)
+        inv_ = data.get("inverter") or {}
+        sup_ = data.get("river_sup") or {}
+        cur = "s" if (inv_ and ts - inv_.get("t", 0) < 1800 and inv_src(inv_, cfg) == "s") else (sup_.get("sn") or None)
+        U_ = sup_.get("until")
+        if cur and cur != "s" and seg["src"] != "s" and cur != seg["src"] and U_ and U_ >= b.timestamp() + 3600:
+            # jede z jiné River, než chce plán, ale ta vydrží do návratu s rezervou → nepřepínat (jako „Přepnutí podle plánu“)
+            src, now_src, keep_ = f"na River {rv_short(sup_.get('name', ''))}", True, True
+        else:
+            now_src, keep_ = ((seg["src"] == cur) if cur else None), False
         title = f"🚗 Odjezd {hm(a)}: {'nech' if now_src else 'přepni'} chatu {src}"
-        body = f"Podle plánu vydrží do návratu ({ret}). Nic dalšího není potřeba."
+        body = (f"Vydrží do návratu ({ret}) s rezervou. Nic dalšího není potřeba." if keep_ else
+                f"Podle plánu vydrží do návratu ({ret}). Nic dalšího není potřeba." if now_src else
+                f"Pak podle plánu vydrží do návratu ({ret}).")
     else:
         title = f"🚗 Odjezd {hm(a)}: před odjezdem " + (todo[0] if todo else "zkontroluj plán")
         body = ("Ještě: " + "; ".join(todo[1:]) + ". " if len(todo) > 1 else "") + \
@@ -6195,11 +6240,25 @@ def window_plan(data, st, now, topic, cfg):
     sl2_ = bool(nb_ and any(abs(nb_[0] - a) < 60 for a, b in SL))
     when2 = (("před spaním (do " if sl2_ else "před odjezdem (do ") + hm(nb_[0]) + ")") if nb_ else ""
     plan_sw = bool(tgt_ and cur_w and tgt_["src"] != cur_w and not need_sw)
+    # 6.68 (24. 11. 5:48: „před odjezdem přepni na ČERV“, i když ŽLUT vydržela do 14:09 a návrat byl 13:00): z River na
+    # jinou River jen tehdy, když ta, ze které chata jede, nevydrží do návratu / probuzení aspoň s hodinovou rezervou
+    nx_ = next(((a, b) for a, b in blk_ if a > ts), None)          # příští úsek, kdy spím / jsem pryč
+    keep_ = cur_w if (cur_w and cur_w != "s" and U_ and nx_ and U_ >= nx_[1] + 3600) else None
+    data["wplan"]["keep"] = keep_                  # i pro „Co teď udělat“ (výhled dne) – River, kterou nepřepínat
+    rr_ok_ = bool(plan_sw and cur_w != "s" and tgt_["src"] != "s" and keep_)
+    if rr_ok_:
+        print(f"Přepnutí podle plánu: na {rv_short(tgt_['name'])} by šlo, ale {rv_short(sup_.get('name', ''))} vydrží do {rd(U_)} {hm(U_)} "
+              f"(návrat / vstávání {hm(nx_[1])}) → neradím")
+        plan_sw = False
     to_ = ("solár" if tgt_["src"] == "s" else f"River {rv_short(tgt_['name'])}") if tgt_ else ""
     if plan_sw:
         print(f"Přepnutí podle plánu: {when2} na {to_} (teď {'solár' if cur_w == 's' else sup_.get('name')}), upozornění od {hm(nb_[0] - 1800)}")
         todo_add(data, 6, f"{when2} přepni na {to_}", "warn", "sol" if tgt_["src"] == "s" or cur_w == "s" else "rv")
-    alarm(st, topic, "wp_sw2", plan_sw and ts >= nb_[0] - 1800, f"🔁 {when2[:1].upper() + when2[1:]} přepni chatu na {to_}",
+    sw2_ = plan_sw and ts >= nb_[0] - 1800
+    if sw2_ and cur_w == "s" and tgt_["src"] != "s" and sw_dup(st, "wp_sw2"):
+        print(f"Přepnutí podle plánu: už běží upozornění na přepnutí ({sw_dup(st, 'wp_sw2')}) – druhé se neposílá")
+        sw2_ = False
+    alarm(st, topic, "wp_sw2", sw2_, f"🔁 {when2[:1].upper() + when2[1:]} přepni chatu na {to_}",
           (f"Podle plánu má chata od {hm(nb_[0])} jet z {'soláru' if to_ == 'solár' else to_} – {'spíš' if sl2_ else 'budeš pryč'} "
            f"do {rd(nb_[1])} {hm(nb_[1])} a přepnout pak nepůjde." if plan_sw else ""), 3, "arrows_counterclockwise", ok_title=False, cat=2)
     print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, zítra přebytek ~{sur_:.0f} Ah → vybíjet nejníž "
@@ -7465,7 +7524,9 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         if idle_pros and not gs.get("manual"):
             print(f"Nabíjení z generátoru: přestala se nabíjet {[byid(sn).get('name') for sn in idle_pros]} → klidový výkon")
             out += apply(idle_pros)
-        if not gs.get("active") and charging:              # relace sama (bez tlačítka) – River se nabíjejí
+        # 6.68 (23. 11. 12:39: 2 min po „Nabíjení skončilo“ nový „začátek“ se souhrnem 0,01 kWh – údaj generátoru 1443 W
+        # byl starý, EcoFlow hlásil 126 W a River braly 0 W): sama se relace zahájí, jen když některá River opravdu bere
+        if not gs.get("active") and charging and rv_take:  # relace sama (bez tlačítka) – River se nabíjejí
             gs.update({"active": True, "first": None, "nodraw": {}, "off_note": None, "soon": None, "idle": None, "t_on": tnow, "idle_warned": False})
             log("ev", "Nabíjení z generátoru: začátek (River se nabíjejí)")
         if not gs.get("active"):
@@ -8082,6 +8143,16 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
     else:
         title, msg = "", ""
     active = st.get("ur_done") != win and (solar_bad or river_bad or (e is not None and on_solar and st.get("_night_src") == "solar"))
+    if active and solar_bad:
+        # 6.68: na kterou River – podle plánu (stejně jako „Co teď udělat“), ať je to jedno upozornění se vším
+        W_ = wp_now(data, now)
+        rn_ = (W_["cur_name"] if W_["cur"] != "s" else W_["nxt"]["name"] if W_["nxt"] and W_["nxt"]["src"] != "s" else "") if W_ else ""
+        if rn_:
+            title = f"🌙 Před spaním přepni chatu na River {rv_short(rn_)}"
+    dup_ = sw_dup(st, "night") if active else None
+    if dup_:
+        print(f"Před spaním přepni: už běží upozornění na přepnutí ({dup_}) – druhé se neposílá")
+        return
     alarm(st, topic, "night", active, title or (e or {}).get("title", "🌙 Před spaním přepni chatu na River"), msg, 4, "crescent_moon,warning", cat=2,
           ok_title=False if st.get("_night_src") == "river" else "✓ Do rána to už vydrží" if not on_river else "✓ Chata jede z River", ok_msg="")   # 5.288: zrušená River zpráva končí tiše
     if e and not active:

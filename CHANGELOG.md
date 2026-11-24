@@ -3,6 +3,14 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.68 – 24. 11. 2026
+- Jedno upozornění na jedno přepnutí: „🌙 Před spaním přepni chatu na River“, „🔌 Přepni chatu na River … hned / do ~HH:MM“ a „🔁 Před spaním (do …) přepni chatu na River …“ radí totéž (ze soláru na River). Teď běží jen to, které začalo první (s opakováním, Řeším / Za 30 min / Za 1 h); ostatní se nespouští (23. 11. večer jich chodilo 2–3 najednou, ~27 za 2 h). „🌙 Před spaním“ teď říká i na kterou River (podle plánu).
+- „Přepni na River hned“ jen když už opravdu není čas – když plán chce River, ale přepnout stačí před spaním / do ~HH:MM, upozornění to tak napíše a přijde 30 min předem (dřív „hned“ a zároveň „do 00:00“).
+- Kalendář, který jeden běh nejde načíst (vypršel čas), se vezme z posledního načtení (do 12 h) – plán kvůli tomu na chvíli neztratí odjezd a rada nepřeskočí ŽLUT → ČERV → ŽLUT.
+- Před odjezdem / spaním z River na jinou River jen když ta, ze které chata jede, nevydrží do návratu / probuzení aspoň s hodinovou rezervou (24. 11. ráno: „přepni na ČERV“, i když ŽLUT vydržela do 14:09 a návrat byl 13:00). Platí pro upozornění, Co teď udělat i zprávu „🚗 Odjezd“.
+- „🚗 Odjezd: nech chatu na River X“ porovnává i KTEROU River – dřív stačilo, že chata jede z nějaké River (24. 11. „nech na ČERV“, ale jela z ŽLUT).
+- Nabíjení z generátoru se samo zahájí, jen když některá River opravdu bere – starý údaj o výkonu generátoru po konci nabíjení už nezaloží nové „nabíjení“ se souhrnem 0,01 kWh.
+
 ## 6.67 – 24. 11. 2026
 - Náklady: plyn a voda po dnech rovnou z lahví a odečtů (dřív měsíční součet rozpočítaný na dny v měsíci – lahev zapojená 25. se roztekla i do dnů před ní).
 - Primotop podle zimy: lahev se rozpočítá podle denostupňů (o kolik byl den chladnější než 18 °C) – chladný den víc, teplý málo nebo nic. Venkovní teplota po dnech z Open-Meteo u chaty (`tout_day`, 92 dní zpět, pak průběžně). Platí i v kartě Plyn a voda.

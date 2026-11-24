@@ -409,7 +409,11 @@ Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River
 
 **Kalendáře (5.240):** hlídač čte tvoje tři Google kalendáře – každá událost ±1 h na cestu = pryč, volno do 2 h = pořád pryč. Den, který upravíš a uložíš v 🗓 Kdy jsem pryč, má přednost.
 
-**Před odjezdem (5.247):** 70 min před každým odjezdem přijde zpráva, na co nechat chatu a jestli je potřeba něco udělat.
+**Před odjezdem (5.247):** 70 min před každým odjezdem přijde zpráva, na co nechat chatu a jestli je potřeba něco udělat. Když chata jede z jiné River, než chce plán, ale ta vydrží do návratu aspoň s hodinovou rezervou, napíše „nech“ – přepínat netřeba (6.68).
+
+**Jedno upozornění na přepnutí (6.68):** „Před spaním přepni na River“, „Přepni na River do ~HH:MM“ a „Před spaním (do …) přepni“ chodí jen jedno z nich (to, které začalo první) – opakuje se, dokud nepřepneš nebo nedáš Řeším / Za 30 min / Za 1 h. „Hned“ jen když už opravdu není čas.
+
+**Kalendář nejde načíst (6.68):** když se kalendář jednou nenačte, hlídač použije poslední načtenou verzi (do 12 h).
 
 ### 🧾 Plyn a voda (záložka Chata)
 - **Zápis:** „🔄 Vaření / Primotop / Sprcha“ = **zapojil jsem novou lahev** (cena lahve v Kč) – ne nákup do zásoby. „💧 Odečet vody“ = stav vodoměru v m³.
