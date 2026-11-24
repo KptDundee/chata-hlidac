@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.73", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.74", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1458,7 +1458,14 @@ function batOutlook(d, h){
 // vydrží to do návratu?“) – pak „ze soláru na 50 #“ a porovnání s návratem z nepřítomnosti
 function t50Row(d, h){
   const F = d.day_fc; if(!F || h.now - F.t > 1800 || F.fl==null) return [];
-  const lab = F.src==="solar" ? `na ${F.fl} #` : `ze soláru na ${F.fl} #`;
+  // 6.74 (Petr: „řádek co kdyby může zůstat, jen musí být jasné, co je rada a co info“): na River je to jen informace
+  // (kdyby chata jela ze soláru) – šedě s ℹ, bez zelené/oranžové, ať se neplete s radou „přepnout na solár?“
+  if(F.src!=="solar"){
+    const r_ = F.ret_t && F.ret_t > h.now ? ` · do návratu ${hmT(F.ret_t)} ${!F.t50 || F.t50 >= F.ret_t ? "by vydržela" : "by nevydržela"}` : "";
+    const v_ = F.t50 && F.t50 <= F.t + 60 ? `už pod ${F.fl} #` : !F.t50 ? `do rána by neklesla${r_}` : `~${relDay(F.t50)==="dnes" ? "" : relDay(F.t50)+" "}${hmT(F.t50)}${r_}`;
+    return [[`<span class="sub">ℹ kdyby jela ze soláru – na ${F.fl} #</span>`, `<span class="sub">${v_} (jen informace)</span>`]];
+  }
+  const lab = `na ${F.fl} #`;
   const ret = F.ret_t && F.ret_t > h.now ? (!F.t50 || F.t50 >= F.ret_t
     ? ` · <span style="color:var(--good)">do návratu ${hmT(F.ret_t)} ✓</span>` : ` · <span style="color:var(--warn)">do návratu ${hmT(F.ret_t)} ne</span>`) : "";
   if(F.t50 && F.t50 <= F.t + 60) return [[lab, `<b style="color:var(--warn)">už pod ${F.fl} #</b>`]];
