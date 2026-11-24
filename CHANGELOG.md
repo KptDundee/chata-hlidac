@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.80 – 24. 11. 2026
+- Zásuvka 7 po spuštění generátoru rychleji (Petr: „nefunguje, nebo s velkým zpožděním – může se zapnout do 30 s“): 24. 11. hlídač čekal 1 min a Flip povel četl až při svém měření (bez zátěže jednou za 10 min). Teď: povel hned, jak hlídač vidí motor bez zátěže, a zároveň probuzení Flipu (jako ⚡ Načíst), takže ho provede do pár sekund; opakuje se po 1 min. Nezávisí už na tom, jestli běží „relace“ nabíjení (od 6.68 se bez zásuvky nespustila – automatika by bez tlačítka na webu nezapnula nic). Naléhavé upozornění po 3 min (dřív 4).
+
 ## 6.79 – 24. 11. 2026
 - Pojistka „🚨 River nabíjejí jen na ~200 W“ jen pod 90 % nabití River (24. 11. 20:30: „malá bere 248 W (chci 360 W)“ – malá byla skoro plná a nabíjení sama zpomalila, jak to River na konci dělají; generátor jel na 1400 W). Dřív hranice 95 %.
 - Hlavní příčina: malá (256 Wh) na 361 W rostla ~2,4 %/min a hlídač bral víc než 2 %/min jako nevěrohodný údaj – počítal dál s 55 %, i když měla 99 %. Věrohodná rychlost se teď počítá podle příjmu a velikosti River.

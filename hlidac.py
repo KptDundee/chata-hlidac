@@ -7615,18 +7615,23 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # a River nic neberou → po 1 min (zahřátí bez zátěže) zapnout zásuvku generátoru přes Flip; když se do 4 min nic
         # nezmění, naléhavě každou minutu
         p7 = str(cfg.get("zasuvka_generator") or "7")
-        if gs.get("active") and motor_on and (gw or 0) < 20 and not rv_take and any((soc_(r) if soc_(r) is not None else 0) < 99 for r in ctl):
+        # 6.80 (Petr: „zapnutí zásuvky 7 po spuštění generátoru nefunguje nebo s velkým zpožděním – může se zapnout do 30 s“):
+        # 1) nezávisle na tom, jestli běží „relace“ nabíjení (od 6.68 vzniká až když River berou – bez zásuvky nikdy);
+        # 2) povel hned, jak hlídač vidí motor bez zátěže (motor běží už nějakou dobu, než to EcoFlow nahlásí);
+        # 3) Flip povely čte jen při svém měření (bez zátěže co 10 min) → hned po povelu ho probudit (téma -wake)
+        if motor_on and (gw or 0) < 20 and not rv_take and any((soc_(r) if soc_(r) is not None else 0) < 99 for r in ctl):
             gs["p7_t"] = gs.get("p7_t") or tnow
             el_ = tnow - gs["p7_t"]
             print(f"Nabíjení z generátoru: generátor běží {el_} s bez zátěže – zásuvka {p7} vypnutá?")
-            if el_ >= 60 and tnow - (gs.get("p7_cmd") or 0) >= 180:
+            if tnow - (gs.get("p7_cmd") or 0) >= 60:
                 gs["p7_cmd"] = tnow
-                send_cmd(topic, p7, True, "generátor běží 1 min bez zátěže")
+                send_cmd(topic, p7, True, "generátor běží bez zátěže")
+                wake_flip(topic, 0)
                 if not gs.get("p7_sent"):
                     gs["p7_sent"] = 1
                     ntfy(topic, f"🔌 Zapínám zásuvku {p7} – generátor běží bez zátěže",
-                         f"Generátor běží 1 min a River nic neberou – zásuvka {p7} je asi vypnutá. Zapínám ji přes Flip.", 3, "electric_plug")
-            if el_ >= 240 and tnow - (gs.get("p7_al") or 0) >= 60:
+                         f"Generátor běží a River nic neberou – zásuvka {p7} je asi vypnutá. Zapínám ji přes Flip.", 3, "electric_plug")
+            if el_ >= 180 and tnow - (gs.get("p7_al") or 0) >= 60:
                 gs["p7_al"] = tnow
                 ntfy(topic, f"🚨 Generátor běží, ale nic nenabíjí – zapni zásuvku {p7}",
                      f"Generátor běží {el_ // 60} min bez zátěže a zapnout zásuvku {p7} se nepovedlo. Zapni ji ručně "
