@@ -34,7 +34,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "chladnuti_vyjimky": "",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "solar_pryc_pct": 25, "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -5213,11 +5213,16 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     fp_ = data.get("fullplan") or {}
     fullchg_ = bool(fp_.get("cur")) and (data.get("last_full") or 0) < ts - 12 * 3600   # dnes se dobíjí do plna (ještě nebyl Float)
     full_offer = on_river and home_ and day_ok_ and hq["pct"] >= full_pct and not fullchg_
+    # 6.75 (Petr: plán počítal s přepnutím, rada zněla „můžeš“): když plán s solárem TEĎ počítá, je to rada, ne nabídka
+    plan_s_ = ((wp_now(data, now) or {}).get("cur") == "s") and on_river and home_
     if full_offer:
-        todo_add(data, 4, f"můžeš přepnout na solár (zpátky na River při {back_pct} #)", "ok")
+        todo_add(data, 4, (f"přepni na solár – plán s tím počítá (zpátky na River při {back_pct} #)" if plan_s_ else
+                           f"můžeš přepnout na solár (zpátky na River při {back_pct} #)"), "warn" if plan_s_ else "ok")
         if sf.get("d") != now.strftime("%Y-%m-%d") and not in_quiet():
-            ntfy(topic, f"☀️ Solární baterie {hq['pct']} # – můžeš chatu přepnout na solár",
-                 f"Baterie je skoro plná, výroba by se jinak nevyužila a šetří se River (palivo). Nepovinné.\n"
+            ntfy(topic, f"☀️ Solární baterie {hq['pct']} # – " + ("přepni chatu na solár" if plan_s_ else "můžeš chatu přepnout na solár"),
+                 (f"Plán s tím počítá – šetří se River (palivo). Když do hodiny nepřepneš, plán přepočítám bez soláru "
+                  f"(a když River nebudou stačit, poradím je nabít).\n" if plan_s_ else
+                  f"Baterie je skoro plná, výroba by se jinak nevyužila a šetří se River (palivo). Nepovinné.\n") +
                  f"Při {back_pct} # napíšu, ať přepneš zpátky na River.", 3, "sunny")
             sf.update(d=now.strftime("%Y-%m-%d"), t=int(ts))
     if on_river and home_ and fullchg_:
@@ -5256,7 +5261,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
                            f"přepni na River {rv_short(RVl[W2_['cur']]['name'])} ({fmt(RVl[W2_['cur']]['soc'])} %)"), "warn",
                  "sol" if on_solar else "rv")      # 6.10 (Petr): z River na jinou River patří na dlaždici EcoFlow, ne k soláru
     elif not full_offer and home_ and W2_ and W2_["cur"] == "s" and on_river and not covers:
-        todo_add(data, 3, "můžeš přepnout na solár", "ok")
+        todo_add(data, 3, "přepni na solár – plán s tím počítá", "warn")      # 6.75: plán s tím počítá → rada, ne nabídka
     if on_river and home_ and covers and (W2_["cur"] == "s" if W2_ else hq["pct"] >= start_pct) and hq["pct"] >= alarm_soc and rise and set_ and rise <= now < set_ - timedelta(hours=1) \
             and st.get("sol_use_d") != now.strftime("%Y-%m-%d") and st.get("do_conn") != (str(int(AW[0].timestamp())) if AW else now.strftime("%Y-%m-%d")):
         ntfy(topic, "☀️ Přepni chatu na solár – vyrábí víc, než chata bere",
@@ -5571,9 +5576,13 @@ def strict_floor(M, cfg, now, floor_s):
         while t_ < zn_.timestamp():
             sur_ += max(0.0, M["prod_ah"](t_, 600) - M["load_a"](t_) * 600 / 3600)
             t_ += 600
-    # 6.28 (Petr: „v zimě se solár za den skoro nikdy nedobije – nezapojil by se nikdy; platí 50 #“): hranice vybíjení je
-    # jen spodní hranice floor_s (baterie_setrna_pct). Zítřejší přebytek se dál počítá – jen pro log a web.
-    return floor_s, sur_
+    # 6.28 (Petr: „v zimě se solár za den skoro nikdy nedobije – nezapojil by se nikdy; platí 50 #“): přes den jen floor_s.
+    # 6.75 (Petr: „hlavní kritérium je úspora peněz při bezpečném vybití; doma je v noci lepší River – výjimka, když by zítra
+    # výroba propadla, protože baterie už bude plná“): BEZ SLUNCE (večer, noc) smí baterie klesnout jen o tolik, kolik zítra
+    # doplní přebytek (plná − přebytek), nejníž floor_s. Přes den (panely vyrábějí, krmí chatu přímo) dál až na floor_s –
+    # to rozlišuje hledání plánu (dis jen v krocích bez výroby), proto v zimě solár přes den jede dál.
+    full_ = max(0.0, (100 - M["alarm_soc"]) / 100 * M["cap"])
+    return max(floor_s, full_ - sur_), sur_
 
 
 def sim_level(M, t0, t1, lvl, top, solar_until=None, step=600):
@@ -6058,6 +6067,21 @@ def window_plan(data, st, now, topic, cfg):
     # z River na solár až když je baterie skoro plná (solar_start_pct, 90 #) – do té doby jde celá výroba do baterie.
     # Když už chata na soláru jede, jede dál (do šetrné hranice). Jen když to jinak nejde, solár i dřív.
     start_L = max(0.0, ((cfg.get("solar_start_pct") or 90) - M["alarm_soc"]) / 100 * M["cap"])
+    # 6.75 (Petr: „ráno odjedu na solár, přijedu pozdě a baterie bude třeba na 49 # – to je v pořádku, jinak by výroba
+    # propadla; pod ~20 # se ale dostat nesmí“): když jsem pryč, smí solár až na solar_pryc_pct (25 # = alarm + rezerva),
+    # bez noční hranice – přepnout stejně nejde a každá Wh ze soláru je Wh, kterou neplatí River
+    away_seg = [any(a <= s0 < b for a, b in AW) for s0, s1 in segs]
+    floor_aw = max(0.0, ((cfg.get("solar_pryc_pct") or 25) - M["alarm_soc"]) / 100 * M["cap"])
+    # 6.75 (Petr: „když plán počítal s tím, že přepnu, a já to neudělal, musí se změnit podle aktuální situace – vždycky“):
+    # rada „přepni teď na X“ nesplněná přes hodinu → do přepnutí (nebo do konce dne) plán s X v úsecích, kdy jsem doma
+    # a vzhůru, nepočítá (počítá s tím, na čem chata jede); pokud pak River nevystačí, poradí nabít
+    ign_ = st.get("wp_ign") or {}
+    if ign_ and (ign_.get("cur") != cur or ign_.get("d") != now.strftime("%Y-%m-%d")):
+        st.pop("wp_ign", None)
+        ign_ = {}
+    excl_ = ign_.get("to")
+    if excl_:
+        print(f"Plán: rada přepnout na {'solár' if excl_ == 's' else pn_((RV.get(excl_) or {}).get('name', excl_))} se nesplnila – počítá se bez ní")
 
     def search(soc0, floor=0.0, sun=False, minrun=True, dis=None, st0=True):
         cands, cmin = [], [float("inf")]
@@ -6102,6 +6126,8 @@ def window_plan(data, st, now, topic, cfg):
             choices = srcs if home(segs[i][0]) or home(segs[i][0] - 60) or (i == 0 and cur not in srcs) else \
                 [plan[-1]] if plan else [cur]   # při odjezdu ještě přepnout jde
             on_s = (plan[-1] == "s") if plan else (cur == "s")
+            if excl_ and not fixed[i]:
+                choices = [c_ for c_ in choices if c_ != excl_] or choices            # 6.75: nesplněná rada
             if st0 and not on_s and L < start_L:
                 choices = [c_ for c_ in choices if c_ != "s"] or choices      # 6.7: z River na solár až od solar_start_pct
             if sun and i == 0 and (on_s or not st0 or L >= start_L):
@@ -6115,7 +6141,8 @@ def window_plan(data, st, now, topic, cfg):
                         L2 = min(L2 + pr, top) - la
                         # 5.216/5.219/5.220: pod hranicí jen když se nabíjí; „zítřejší přebytek“ (dis) jen když panely kryjí míň
                         # než polovinu spotřeby – jinak jde většina výroby rovnou do chaty a baterie doplácí málo (šetrná hranice)
-                        fl_ = dis if dis is not None and pr < 0.5 * la else floor
+                        # 6.75: pryč → až k solar_pryc_pct (bez noční hranice); doma bez slunce → plná − zítřejší přebytek
+                        fl_ = min(floor, floor_aw) if away_seg[i] else dis if dis is not None and pr < 0.01 else floor
                         if L2 < 0 or (L2 < fl_ and L2 < Lp_):
                             ok = False
                             break
@@ -6197,38 +6224,23 @@ def window_plan(data, st, now, topic, cfg):
                 print(f"Plán – solár dál místo {nm(P_[j_])} od {hm(segs[j_][0])}: nejníž ~{pc_(lo_):.0f} # ({rd(lo_t)} {hm(lo_t)}), "
                       f"spodní hranice {pc_(floor_s):.0f} #, konec plánu {rd(w1)} {hm(w1)}; klíč plánu {found[0]}")
                 break
-    # 6.69 (diagnostika, Petr: „solár ráno ve Float, v noci jede River – není to škoda?“): když plán solár vůbec nebere,
-    # zkusit celou dobu do konce plánu solár – kam by baterie klesla, kdy, a co by ho zarazilo (hranice / start 90 #)
-    if pl and "s" not in pl[1] and M["cap"]:
-        L_, lo_, lo_t = M["ah_now"], M["ah_now"], ts
-        for i_ in range(len(segs)):
-            for k_, (pr, la, ia, lw) in enumerate(steps[i_]):
-                L_ = min(L_ + pr, top) - la
-                if L_ < lo_:
-                    lo_, lo_t = L_, segs[i_][0] + k_ * 600
-        pc_ = lambda x: M["alarm_soc"] + x / max(1.0, M["cap"]) * 100
-        nt_ = sum(la for i_ in range(len(segs)) for (pr, la, ia, lw) in steps[i_])
-        print(f"Plán – celou dobu solár místo {' · '.join(nm(c) for c in dict.fromkeys(pl[1]))}: teď {pc_(M['ah_now']):.0f} #, "
-              f"nejníž ~{pc_(lo_):.0f} # ({rd(lo_t)} {hm(lo_t)}), hranice {pc_(floor_s):.0f} #, start soláru od {pc_(start_L):.0f} #, "
-              f"zdroj teď {cur}, kapacita {M['cap']:.0f} Ah, spotřeba do {rd(w1)} {hm(w1)} ~{nt_:.0f} Ah; "
-              f"{'vešlo by se' if lo_ >= floor_s and M['ah_now'] >= start_L else 'nevešlo by se'}; klíč plánu {pl[0]}")
-        # 6.70: a varianta „solár, dokud jde přepínat (doma, vzhůru), na noc / odjezd River podle plánu“
-        if any(fixed) and not all(fixed):
-            L_, lo_, lo_t, rw_ = M["ah_now"], M["ah_now"], ts, 0.0
-            for i_ in range(len(segs)):
-                c_ = pl[1][i_] if fixed[i_] else "s"
-                for k_, (pr, la, ia, lw) in enumerate(steps[i_]):
-                    L_ = min(L_ + pr, top) - (la if c_ == "s" else ia)
-                    rw_ += 0 if c_ == "s" else lw
-                    if L_ < lo_:
-                        lo_, lo_t = L_, segs[i_][0] + k_ * 600
-            pw_ = sum(lw for i_ in range(len(segs)) for (pr, la, ia, lw) in steps[i_] if pl[1][i_] != "s")
-            print(f"Plán – solár, dokud jde přepínat, pak River: nejníž ~{pc_(lo_):.0f} # ({rd(lo_t)} {hm(lo_t)}), z River {rw_:.0f} Wh "
-                  f"(plán {pw_:.0f} Wh); {'vešlo by se' if lo_ >= floor_s and M['ah_now'] >= start_L else 'nevešlo by se'}")
     data["wplan"] = {"t": int(ts), "win": bool(in_win), "w0_end": int(w0_end), "w1": int(w1), "ok": bool(found),
                      "segs": wp_merge(segs, pl[1], home, nm) if pl else [],
                      "need": {k_: v_ for k_, v_ in (need or {}).items() if k_ != "plan"} or None,
                      "sur": round(sur_, 1)}   # 6.27: zítřejší přebytek Ah – web z něj říká, proč plán solár nebere
+    # 6.75: rada „přepni teď“ (doma, vzhůru) – od kdy platí; přes hodinu nesplněná → plán s ní dál nepočítá (wp_ign)
+    adv_ = pl[1][0] if (pl and found and cur and home(ts) and pl[1] and pl[1][0] != cur) else None
+    wa_ = st.get("wp_adv") or {}
+    if adv_:
+        if wa_.get("to") != adv_ or wa_.get("cur") != cur:
+            st["wp_adv"] = wa_ = {"to": adv_, "cur": cur, "t": int(ts)}
+        elif ts - wa_["t"] >= 3600:
+            st["wp_ign"] = {"to": adv_, "cur": cur, "d": now.strftime("%Y-%m-%d")}
+            st.pop("wp_adv", None)
+            print(f"Plán: rada přepnout na {nm(adv_)} platí přes hodinu a nesplnila se – příští výpočet bez ní")
+    else:
+        st.pop("wp_adv", None)
+    data["wplan"]["adv_t"] = wa_.get("t") if adv_ else None
     charging = any(((r.get("ac_in_w") if r.get("ac_in_w") is not None else r.get("in_w")) or 0) > 20
                    for r in data.get("rivers") or [] if r.get("online") and not r.get("gen"))
     act = in_win and not found and not charging
@@ -6322,8 +6334,9 @@ def window_plan(data, st, now, topic, cfg):
     alarm(st, topic, "wp_sw2", sw2_, f"🔁 {when2[:1].upper() + when2[1:]} přepni chatu na {to_}",
           (f"Podle plánu má chata od {hm(nb_[0])} jet z {'soláru' if to_ == 'solár' else to_} – {'spíš' if sl2_ else 'budeš pryč'} "
            f"do {rd(nb_[1])} {hm(nb_[1])} a přepnout pak nepůjde." if plan_sw else ""), 3, "arrows_counterclockwise", ok_title=False, cat=2)
-    print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, zítra přebytek ~{sur_:.0f} Ah → vybíjet nejníž "
-          f"na ~{M['alarm_soc'] + floor_x / max(1.0, M['cap']) * 100:.0f} #, "
+    print(f"Plán okna: okno {'ano' if in_win else 'ne'} do {hm(w0_end)}, další {rd(w1)} {hm(w1)}, zítra přebytek ~{sur_:.0f} Ah → bez slunce nejníž "
+          f"na ~{M['alarm_soc'] + floor_x / max(1.0, M['cap']) * 100:.0f} #, přes den {M['alarm_soc'] + floor_s / max(1.0, M['cap']) * 100:.0f} #, "
+          f"pryč {M['alarm_soc'] + floor_aw / max(1.0, M['cap']) * 100:.0f} #, "
           + ("vyjde: " + " · ".join(f"{hm(sg['a'])} {sg['name']}" for sg in data['wplan']['segs']) if found
              else f"nevyjde – nabít {need['name']} (minimum {need['target']} %) do {hm(need['latest'])}" if need else "nevyjde ani s nabitím"))
 
@@ -6456,7 +6469,8 @@ def away_plan(data, st, now, topic, cfg):
         return tot / RV[k]["cap"] * 100
 
     soc = {k: v["soc"] for k, v in RV.items()}
-    fl_strict = strict_floor(M, cfg, now, max(0.0, ((cfg.get("baterie_setrna_pct") or 50) - M["alarm_soc"]) / 100 * M["cap"]))[0]
+    # 6.75 (Petr: pryč smí solár i pod 50 #, jen ne pod ~20 #): solár první, když nespadne pod solar_pryc_pct (25 #)
+    fl_strict = max(0.0, ((cfg.get("solar_pryc_pct") or 25) - M["alarm_soc"]) / 100 * M["cap"])
     L, t, plan, fails = M["ah_now"], now, [], []
     for a, b, f in ivs:
         a = max(a, now)

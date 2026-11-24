@@ -290,7 +290,11 @@ Jen když chata jede ze solární baterie. Na dlaždici Solární baterie: **„
 - **50 # = spodní hranice** (`baterie_setrna_pct`): níž se ze soláru nejezdí (rezerva a ochrana baterie). Při 50 # „🔋 přepni chatu na River“, při 45 # důrazně. Jen když jsi doma a vzhůru a panely odběr nepokryjí. Když jsou River skoro prázdné (pod 20 %): „nabij je generátorem a pak přepni“. Výjimka: když jsi pryč / spíš a River nestačí, plán smí jet ze soláru i níž.
 - **~20 # = alarm** (≈ 12,0 V): naléhavé, kdykoli i v noci.
 - **Před odjezdem / spaním (6.37):** když plán na dobu, kdy budeš pryč nebo spát, chce jiný zdroj, než ze kterého chata jede, přijde 30 min předem „🔁 Před odjezdem (do 06:00) přepni chatu na …“ a stejná rada je na dlaždici.
-- Plán River / solár se drží stejných hranic: na solár od 90 #, ze soláru nejníž na 50 # (od 6.28 už nezáleží na tom, jestli ho panely zítra dobijí – v zimě by se jinak nezapojil nikdy).
+- **Hlavní kritérium plánu (6.75): úspora peněz (co nejméně z River / generátoru) při bezpečném vybití soláru.**
+  - Přes den (panely vyrábějí, krmí chatu přímo) ze soláru nejníž na **50 #**.
+  - Bez slunce (večer, noc) a doma jen o tolik, kolik zítra doplní přebytek výroby – bez přebytku jede večer a noc River. Když by zítra výroba propadla (baterie plná), solár smí i v noci.
+  - Když jsi pryč, smí solár až na **25 #** (`solar_pryc_pct`) – přepnout stejně nejde a každá Wh ze soláru šetří River. Pod ~20 # nikdy.
+  - Plán vychází jen ze skutečnosti: když radí „přepni teď“ a do hodiny nepřepneš, počítá dál s tím, na čem chata jede (a případně poradí nabít River). Když plán se solárem počítá, rada zní „přepni na solár – plán s tím počítá“.
 - Zvlášť: mráz (v mrazu nabít aspoň na 50 #) a **dobití do plna** – od 7 dní bez plného nabití (Float) hlídač vybere v předpovědi dny, kdy chata pojede z River a solár se nabije do plna, nejpozději od 14. dne (`plne_nabiti_od_dni`, `plne_nabiti_dni`).
 
 ### Naléhavě: přepni na River (4.01)

@@ -3,6 +3,16 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.75 – 24. 11. 2026
+Pravidla solární baterie podle Petra – **hlavní kritérium je úspora peněz (co nejméně z River / generátoru) při bezpečném vybití soláru**:
+- **Přes den** (panely vyrábějí a krmí chatu přímo) smí solár až na **50 #** (jako dosud).
+- **Bez slunce (večer, noc) a jsem doma** smí solár klesnout jen o tolik, kolik zítra doplní přebytek (výroba nad spotřebu chaty), tj. nejníž na „plná − zítřejší přebytek“, aspoň 50 #. Bez přebytku jede večer a noc River. Výjimka (přebytek by jinak propadl, protože baterie bude plná) se tím počítá sama. Při stejné energii vyhrává solár přes den (6.32).
+- **Když jsem pryč** (přepnout nejde) smí solár až na **25 #** (`solar_pryc_pct`, alarm ~20 # + rezerva), i přes noc – každá Wh ze soláru je Wh, kterou neplatí River; baterie se pak klidně dobíjí pár dní. Pod ~20 # nikdy. Platí pro plán i pro plán odjezdu.
+- **Plán vychází jen ze skutečnosti:** rada „přepni teď na X“ (doma, vzhůru), která se do hodiny nesplní, se dál nepočítá – plán počítá s tím, na čem chata jede (do přepnutí nebo do konce dne). Když pak River nevystačí, přijde rada nabít. (24. 11.: plán od 13:44 každou hodinu počítal „za hodinu přepneš na solár“, ČERV mezitím klesla na 20 % a rada „nabij“ nepřišla.)
+- Když plán se solárem TEĎ počítá, rada i zpráva zní „přepni na solár – plán s tím počítá“ (ne „můžeš“) a zpráva řekne, že po hodině se přepočítá bez soláru. Nabídka při plné baterii (90 #), se kterou plán nepočítá, zůstává nepovinná.
+- Beze změny: z River na solár až od 90 # (6.7), hranice 50 / 45 / ~20 #, upozornění „zpátky na River“ jen doma a vzhůru.
+- Diagnostiky 6.69 a 6.70 (varianta „celou dobu solár“) odstraněny.
+
 ## 6.74 – 24. 11. 2026
 - Dlaždice Solární baterie: když chata jede z River, řádek „ze soláru na 50 #“ je nově šedý „ℹ kdyby jela ze soláru – na 50 # … (jen informace)“, ať je jasné, co je rada („přepnout na solár?“) a co jen informace.
 
