@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.79 – 24. 11. 2026
+- Pojistka „🚨 River nabíjejí jen na ~200 W“ jen pod 90 % nabití River (24. 11. 20:30: „malá bere 248 W (chci 360 W)“ – malá byla skoro plná a nabíjení sama zpomalila, jak to River na konci dělají; generátor jel na 1400 W). Dřív hranice 95 %.
+
 ## 6.78 – 24. 11. 2026
 - „Co teď udělat“ a dlaždice EcoFlow ukazují nabíjení, když ho plán chce (večerní kontrola 24. 11.: plán „nabít ČERV“, rada „nic“): hlavní rada **„nabij ČERV aspoň na 35 % (když to jde, do plna) – začni nejpozději v 20:00“**, dokud River není na minimu a nenabíjí se.
 - Když se nabíjí, nebo už je River nad minimem (Petr: „když dojde benzín a je to nad potřebnou hranicí, generátor hned nepouštím“), je to jen informace: „nabíjí se – minimum 35 % splněno, dál jen do plna (není nutné)“ / „ČERV 48 % – minimum splněno, dobít do plna můžeš, ale není to nutné“. Do plna nebo do konce dne.

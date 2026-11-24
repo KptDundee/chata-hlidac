@@ -7799,7 +7799,9 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             out += res_
         # 6.61 (Petr: „příště se nezasekne na 200 W?“): pojistka na výsledek, ne na příčinu – nabíjí se, River není plná,
         # hlídač pro ni chce ≥ 350 W, a ona přes 2 min bere jen ~200 W → naléhavě každou minutu (s posledním důvodem)
-        lw_ = [r for r in con if r.get("online") and (soc_(r) or 0) < 95 and acw(r) < 260 and (plan.get(r["sn"]) or 0) >= 350] \
+        # 6.79 (24. 11. 20:30 „malá bere 248 W (chci 360 W)“ – byla na ~94 % a sama ubírala, jak se plní): River nad 90 %
+        # nabíjí pomaleji sama od sebe (konec nabíjení) – pojistka jen pod 90 %
+        lw_ = [r for r in con if r.get("online") and (soc_(r) or 0) < 90 and acw(r) < 260 and (plan.get(r["sn"]) or 0) >= 350] \
             if gs.get("active") and charging and gs.get("first") and tnow - gs["first"] >= 120 and not gs.get("manual") else []
         if lw_:
             gs["w200_t"] = gs.get("w200_t") or tnow
