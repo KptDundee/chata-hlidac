@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.76", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.77", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1358,11 +1358,12 @@ function dayFcRow(d, h){
   // 6.18 (Petr): plná solární baterie přes den → nepovinně na solár, zpátky na River při 75 # (stejně jako rada a upozornění)
   // 6.20: jedna sada hranic – od 90 # (plná) přes den ano, zpátky na River při 50 #; ve dny dobíjení do plna ne
   const SF = d.sol_full, SFf = SF && h.now - SF.t <= 1800;
-  if(f.src==="river" && SFf && SF.chg) return ["přepnout na solár?", `<span style="color:var(--text2)">ne – dobíjí se do plna</span>`, 1];
+  // 6.77 (Petr: „když dobíjíme do 100 # kvůli zdraví, dej na dlaždici info, ať nepřepnu z vlastní iniciativy“)
+  if(f.src==="river" && SFf && SF.chg) return ["ℹ dnes dobíjení do plna", `<b style="color:var(--accent,var(--text))">nepřepínej na solár</b> <span class="sub">– chata jede z River, aby se baterie nabila do Float (zdraví baterie)</span>`, 1];
   if(f.src==="river" && SFf && SF.offer) return ["přepnout na solár?", `<b style="color:var(--good)">ano · zpět při ${SF.back} #</b>`, 1];
   const WPl = d.wplan && d.wplan.ok && h.now - d.wplan.t <= 1800 && (d.wplan.segs||[]).length ? d.wplan : null;
   if(f.src==="river" && WPl){ const sg = WPl.segs.filter(x=>x.b > h.now), cur = sg[0], gs = sg.find(x=>x.src==="s");
-    return ["přepnout na solár?", cur && cur.src==="s" ? `<b style="color:var(--good)">ano ✓</b>` : gs ? `<b style="color:var(--good)">v ${hmT(Math.max(gs.a, h.now))}</b>` : `<span style="color:var(--text2)">ne – ${d.hq && d.hq.pct < 90 ? "až od 90 #" : "plán jede z River"}</span>`, 1]; }
+    return ["přepnout na solár?", cur && cur.src==="s" ? `<b style="color:var(--good)">ano ✓</b>` : gs ? `<b style="color:var(--good)">v ${hmT(Math.max(gs.a, h.now))}</b>` : `<span style="color:var(--text2)">ne – plán jede z River</span>`, 1]; }
   if(f.src==="river")   // chata na River (4.26): jeden jasný řádek – můžu přepnout na solár? (rozpis v detailu)
     return ["přepnout na solár?", f.ok && f.night_ok ? `<b style="color:var(--good)">ano ✓</b>` : f.ok ? `<b style="color:var(--good)">do ${e}</b>` : `<b style="color:var(--text2)">ne</b>`, 1];
   // 5.271: když je pryč, musí solár vydržet do návratu (odjezd v ${dep}, přepnout se pak nedá) – řádek to říká

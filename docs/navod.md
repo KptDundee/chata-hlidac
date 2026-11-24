@@ -291,7 +291,7 @@ Jen když chata jede ze solární baterie. Na dlaždici Solární baterie: **„
 - **~20 # = alarm** (≈ 12,0 V): naléhavé, kdykoli i v noci.
 - **Před odjezdem / spaním (6.37):** když plán na dobu, kdy budeš pryč nebo spát, chce jiný zdroj, než ze kterého chata jede, přijde 30 min předem „🔁 Před odjezdem (do 06:00) přepni chatu na …“ a stejná rada je na dlaždici.
 - **Hlavní kritérium plánu (6.75): úspora peněz (co nejméně z River / generátoru) při bezpečném vybití soláru.**
-  - Přes den (panely vyrábějí, krmí chatu přímo) ze soláru nejníž na **50 #**.
+  - Přes den (panely vyrábějí, krmí chatu přímo) ze soláru nejníž na **50 #** Doma na solár kdykoli tím plán ušetří River, i pod 90 # (6.77). V den dobíjení do plna (zdraví baterie) ne – dlaždice to řekne („ℹ dnes dobíjení do plna – nepřepínej na solár“).
   - Bez slunce (večer, noc) a doma jen o tolik, kolik zítra doplní přebytek výroby – bez přebytku jede večer a noc River. Když by zítra výroba propadla (baterie plná), solár smí i v noci.
   - Při odjezdu neplatí „na solár až od 90 #“ (6.76) – plán poradí solár, kdykoli tím ušetří River.
   - Když jsi pryč, smí solár až na **25 #** (`solar_pryc_pct`) – přepnout stejně nejde a každá Wh ze soláru šetří River. Pod ~20 # nikdy.

@@ -5212,9 +5212,11 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     day_ok_ = bool(rise and set_ and rise <= now < set_ - timedelta(hours=2))
     fp_ = data.get("fullplan") or {}
     fullchg_ = bool(fp_.get("cur")) and (data.get("last_full") or 0) < ts - 12 * 3600   # dnes se dobíjí do plna (ještě nebyl Float)
-    full_offer = on_river and home_ and day_ok_ and hq["pct"] >= full_pct and not fullchg_
     # 6.75 (Petr: plán počítal s přepnutím, rada zněla „můžeš“): když plán s solárem TEĎ počítá, je to rada, ne nabídka
     plan_s_ = ((wp_now(data, now) or {}).get("cur") == "s") and on_river and home_
+    # 6.77 (Petr: „doma přes den na solár i pod 90 # – panely krmí chatu přímo, při 50 # přepnu“): rada podle plánu
+    # kdykoli přes den; nepovinná nabídka při plné baterii (90 #) zůstává, když s ní plán nepočítá
+    full_offer = on_river and home_ and day_ok_ and (plan_s_ or hq["pct"] >= full_pct) and not fullchg_
     if full_offer:
         todo_add(data, 4, (f"přepni na solár – plán s tím počítá (zpátky na River při {back_pct} #)" if plan_s_ else
                            f"můžeš přepnout na solár (zpátky na River při {back_pct} #)"), "warn" if plan_s_ else "ok")
@@ -5227,6 +5229,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
             sf.update(d=now.strftime("%Y-%m-%d"), t=int(ts))
     if on_river and home_ and fullchg_:
         todo_add(data, 2, "dnes dobití solární baterie do plna – nech chatu na River", "ok")
+    if on_solar and home_ and fullchg_ and day_ok_:        # 6.77: den dobíjení do plna – na soláru se baterie do Float nedostane
+        todo_add(data, 5, "dnes dobití solární baterie do plna (zdraví baterie) – přepni chatu na River", "warn", "sol")
     data["sol_full"] = {"offer": 1 if full_offer else 0, "back": back_pct, "back2": back2_pct, "chg": 1 if fullchg_ else 0, "t": int(ts)}
     awake_ = home_ and not asleep(cfg, now)
     rv_ok_ = bool(best and best["soc"] >= 20)                       # River skoro prázdné → nabít generátorem, pak přepnout
@@ -5263,7 +5267,7 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     elif not full_offer and home_ and W2_ and W2_["cur"] == "s" and on_river and not covers:
         todo_add(data, 3, "přepni na solár – plán s tím počítá", "warn")      # 6.75: plán s tím počítá → rada, ne nabídka
     if on_river and home_ and covers and (W2_["cur"] == "s" if W2_ else hq["pct"] >= start_pct) and hq["pct"] >= alarm_soc and rise and set_ and rise <= now < set_ - timedelta(hours=1) \
-            and st.get("sol_use_d") != now.strftime("%Y-%m-%d") and st.get("do_conn") != (str(int(AW[0].timestamp())) if AW else now.strftime("%Y-%m-%d")):
+            and st.get("sol_use_d") != now.strftime("%Y-%m-%d") and sf.get("d") != now.strftime("%Y-%m-%d") and not fullchg_ and st.get("do_conn") != (str(int(AW[0].timestamp())) if AW else now.strftime("%Y-%m-%d")):
         ntfy(topic, "☀️ Přepni chatu na solár – vyrábí víc, než chata bere",
              f"Panely teď dávají ~{fmt(pv_)} W, chata bere ~{fmt(cab_w)} W (z baterie by šlo ~{fmt(need_w)} W). Spotřeba pojede rovnou z panelů "
              f"– šetří River (plyn) a baterie se při tom nevybíjí. Solární baterie {hq['pct']} #.\n"
@@ -6066,7 +6070,13 @@ def window_plan(data, st, now, topic, cfg):
     # 6.7 (Petr: „není lepší nechat chatu na River, ať je solární baterie plnější? každý třetí den se pak může zapnout“):
     # z River na solár až když je baterie skoro plná (solar_start_pct, 90 #) – do té doby jde celá výroba do baterie.
     # Když už chata na soláru jede, jede dál (do šetrné hranice). Jen když to jinak nejde, solár i dřív.
-    start_L = max(0.0, ((cfg.get("solar_start_pct") or 90) - M["alarm_soc"]) / 100 * M["cap"])
+    # 6.77 (Petr: „úspora peněz při zachování zdraví baterie“ – doma přes den na solár i pod 90 #, panely krmí chatu přímo):
+    # hranice 90 # pro přepnutí z River na solár zrušena; zdraví baterie hlídá dobíjení do plna (fullplan) – v takový den
+    # plán doma přes den solár nenabízí, dokud baterie nedojde do Float
+    start_L = 0.0
+    fullchg_w = bool((data.get("fullplan") or {}).get("cur")) and (data.get("last_full") or 0) < ts - 12 * 3600
+    _r_, _z_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    fc_end = _z_.timestamp() if (fullchg_w and _z_) else 0
     # 6.75 (Petr: „ráno odjedu na solár, přijedu pozdě a baterie bude třeba na 49 # – to je v pořádku, jinak by výroba
     # propadla; pod ~20 # se ale dostat nesmí“): když jsem pryč, smí solár až na solar_pryc_pct (25 # = alarm + rezerva),
     # bez noční hranice – přepnout stejně nejde a každá Wh ze soláru je Wh, kterou neplatí River
@@ -6126,6 +6136,8 @@ def window_plan(data, st, now, topic, cfg):
             choices = srcs if home(segs[i][0]) or home(segs[i][0] - 60) or (i == 0 and cur not in srcs) else \
                 [plan[-1]] if plan else [cur]   # při odjezdu ještě přepnout jde
             on_s = (plan[-1] == "s") if plan else (cur == "s")
+            if fc_end and not away_seg[i] and segs[i][0] < fc_end:
+                choices = [c_ for c_ in choices if c_ != "s"] or choices            # 6.77: den dobíjení do plna
             if excl_ and not fixed[i]:
                 choices = [c_ for c_ in choices if c_ != excl_] or choices            # 6.75: nesplněná rada
             # 6.76 (Petr: „důležitější je úspora peněz při zachování zdraví baterie“): při odjezdu (úsek, kdy jsem pryč) 90 #

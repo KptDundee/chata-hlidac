@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.77 – 24. 11. 2026
+- Doma přes den na solár i pod 90 # (Petr: „úspora vzniká i tím, že panely krmí chatu přímo; jsem doma, při 50 # přepnu“): hranice 90 # pro přepnutí z River na solár zrušena. Plán poradí „přepni na solár – plán s tím počítá“ (jednou za den i zprávou), kdykoli tím ušetří River; při 50 # „přepni na River“. Večer a v noci platí dál zítřejší přebytek, pryč 25 #.
+- Zdraví baterie: v **den dobíjení do plna** plán doma přes den solár nenabízí (dřív jen nebyla nabídka, plán ho radit mohl). Na dlaždici Solární baterie „ℹ dnes dobíjení do plna – nepřepínej na solár (chata jede z River, aby se baterie nabila do Float)“; když chata v takový den jede ze soláru, rada „přepni na River“.
+- Nepovinná nabídka při plné baterii (90 #) zůstává, když s ní plán nepočítá.
+
 ## 6.76 – 24. 11. 2026
 - Odjezd (Petr: „důležitější je úspora peněz při zachování zdraví baterie“): pravidlo „z River na solár až od 90 #“ při odjezdu neplatí. Plán při odjezdu poradí solár, kdykoli tím ušetří River a baterie do návratu nespadne pod 25 # (`solar_pryc_pct`). Doma přes den 90 # platí dál (baterie se nechá dobít do plna – zdraví AGM).
 
