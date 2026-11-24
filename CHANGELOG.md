@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.86 – 24. 11. 2026
+- „Na co jela chata“ (Rok / Vše / Týden): nahoře velké skutečné období z dat („📅 29. 10. – 24. 11. (27 dní)“), u Roku / Vše žluté upozornění „Data jsou teprve od … – za celý rok ještě nejsou“. Když se čas počítá od pozdějšího dne než energie, je to u „Podle času“ napsané (Petr: „nemáš data za rok – má tam být velké info, za jaké období to je“).
+
 ## 6.85 – 24. 11. 2026
 - Karta 🗓 Jsem pryč a spím bez přihlášení: místo jedné věty vysvětlení (v tomhle prohlížeči chybí klíč GitHubu, ukládá se jen v prohlížeči) a tlačítko „Vložit klíč“, které kartu zavře a ukáže okno pro klíč (dřív bylo schované pod kartou na hlavní stránce).
 

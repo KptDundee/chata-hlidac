@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.85", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.86", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3994,8 +3994,15 @@ function srcPiesHtml(d, h){
   const eItems = [{name:"Solár", color:solC, v:span.reduce((a,k)=>a+((D(k).tp||{})[U.mip]||0),0)},
     ...R.map(r=>({name: rvSmall(r) ? `${r.short} (jen spotřebič)` : r.short, color:r.color, v:span.reduce((a,k)=>a+((D(k).tp||{})[r.id]||0),0)}))];
   const hT = v => hmH(v), kT = v => `${nf(v/1000, v < 10000 ? 2 : 1)} kWh`;
+  // 6.86 (Petr: „nemáš data za rok, je to jen část roku – má tam být velké info, za jaké období to je“): skutečné období
+  // z dat (od prvního do posledního dne), počet dní; u Rok / Vše upozornění, že dat je méně
+  const dm = k => `${+k.slice(8,10)}. ${+k.slice(5,7)}.`, nd = a => a.length;
+  const perBox = (ks, what) => !ks.length ? "" : `<div style="font-size:16px;font-weight:600;margin:2px 0 6px">📅 ${ks.length===1 ? dm(ks[0]) : `${dm(ks[0])} – ${dm(ks[ks.length-1])}`} <span class="sub" style="font-weight:500">(${nd(ks)} ${nd(ks)===1?"den":nd(ks)<5?"dny":"dní"}${what ? " " + what : ""})</span></div>`;
+  const short_ = n > 7 && span.length < n ? `<div style="font-size:14px;margin:0 0 8px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--warn) 14%,transparent)">⚠ Data jsou teprve od <b>${dm(span[0]||dkey(now))}</b> – za ${DETR==="y" ? "celý rok" : "delší dobu"} ještě nejsou. Čísla platí jen pro období výše.</div>` : "";
+  const tKeys = detLong() ? tk : null;
   return `<div class="card"><h2 style="margin:0 0 6px">Na co jela chata <span class="sub" style="text-transform:none;letter-spacing:0;font-weight:500">· ${per}</span></h2>
-    <div style="font-weight:600;margin:4px 0">Podle času</div>${tk.length ? pieHtml(tItems, hT) : `<div class="sub">Počítá se od 29. 10. (z měření za posledních 14 dní).</div>`}
+    ${detLong() ? perBox(span, "") : ""}${short_}
+    <div style="font-weight:600;margin:4px 0">Podle času${tKeys && tKeys.length && tKeys[0] !== span[0] ? ` <span class="sub" style="font-weight:500">· ${dm(tKeys[0])} – ${dm(tKeys[tKeys.length-1])} (čas se počítá až od ${dm(tKeys[0])})</span>` : ""}</div>${tk.length ? pieHtml(tItems, hT) : `<div class="sub">Počítá se od 29. 10. (z měření za posledních 14 dní).</div>`}
     <div style="font-weight:600;margin:12px 0 4px">Podle energie</div>${pieHtml(eItems, kT)}
     <div class="sub" style="margin-top:8px;line-height:1.5">Čas = kdy chatu napájel solár (měnič) nebo která River. Energie = kolik kWh šlo do chaty ze solární baterie přes měnič a z výstupu každé River (220 V – i spotřebič zapojený do River, když chata jela ze soláru). Období přepínáš nahoře (Dnes / 48 h / Týden / Rok / Vše).</div></div>`;
 }
