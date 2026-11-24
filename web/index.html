@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.83", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.84", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -4749,26 +4749,29 @@ function detPastNightMore(body, n){
   <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se předpověď učí:</b> každý večer hodinu po západu si hlídač zapíše, jaké napětí čeká příští ráno. To příští ráno pak změří skutečnost (nejnižší napětí před začátkem nabíjení). Noci, kdy chata jela z River, se vynechají (baterie neměla odběr). Z posledních až 10 nocí vezme medián rozdílu a o tolik opraví další předpovědi (nejvýš ±0,4 V). Když předpověď sedí, oprava je ~0. Kapacita baterie a noční odběr se navíc učí zvlášť (Zdraví baterie, měřený odběr).</div>`);
 }
 function detYesterday(body){
+  /* 6.84 (Petr: „spotřeba za měničem 0,28 kWh? to je divné“): za měničem je jen to, co šlo ze soláru – když chata jela
+     z River, tam nic není. Nahoře celková spotřeba chaty (solár + River, stejně jako karta Spotřeba chaty) s rozdělením */
   const d = DATA, h = homeData(d), yk = dkey(h.now - 86400), D = (d.days||{})[yk] || {}, w = d.wxo || {};
   const acc = (w.acc||[]).find(x=>x.d===yk);
-  const mip = String(d.cfg?.zasuvka_menic ?? "").trim() || (d.inverter && d.inverter.mip);
-  const fip = String(d.cfg?.zasuvka_lednice ?? "4");
-  const tp = D.tp || {}, cons = mip && tp[mip]!=null ? tp[mip]/1000 : null, idle = d.cfg?.menic_vlastni_W ?? 6;
-  const dc = cons!=null ? cons/0.88 + idle*24/1000 : null, bal = dc!=null && D.solar_kwh!=null ? D.solar_kwh*0.9 - dc : null;
+  const U = useModel(d), UD = useDay(yk, U);
+  const fip = String(d.cfg?.zasuvka_lednice ?? "4"), idle = d.cfg?.menic_vlastni_W ?? 6;
+  const sol = UD && UD.s._sum ? UD.s._sum/1000 : (D.tp||{})[U.mip]!=null ? D.tp[U.mip]/1000 : null;
+  const riv = UD && UD.r._sum ? UD.r._sum/1000 : 0, tot = sol!=null || riv ? (sol||0) + riv : null;
+  const fr = UD && UD.a[fip]!=null ? UD.a[fip]/1000 : (D.tp||{})[fip]!=null ? D.tp[fip]/1000 : null;
+  const dc = sol!=null ? sol/0.88 + idle*24/1000 : null, bal = dc!=null && D.solar_kwh!=null ? D.solar_kwh*0.9 - dc : null;
   const rows = (w.acc||[]).slice().reverse().slice(0,14);
   body.insertAdjacentHTML("beforeend", `<div class="card">
     <div style="font-size:13px;color:var(--text2)">Včera – ${new Date(yk+"T12:00").toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})}</div>
-    ${rowI("☀️ Vyrobeno", `<b>${nf(D.solar_kwh,2)} kWh</b>`)}
-    ${rowI("Předpověď (předevčírem večer)", acc ? `${nf(acc.p,2)} kWh` : "–")}
-    ${acc && acc.p>0.05 ? rowI("Odchylka", `<b style="color:var(${Math.abs(acc.a/acc.p-1)<=0.2?"--good":"--warn"})">${acc.a>=acc.p?"+":"−"}${nf(Math.abs(acc.a-acc.p),2)} kWh (${Math.round((acc.a/acc.p-1)*100)} %)</b>`) : ""}
-    ${rowI("🏠 Spotřeba za měničem", cons!=null ? `${nf(cons,2)} kWh` : "–")}
-    ${tp[fip]!=null ? rowI("z toho lednice", `${nf(tp[fip]/1000,2)} kWh`) : ""}
-    ${rowI("Bilance baterie (výroba −10 % nabíjení − odběr se ztrátami)", bal!=null ? `<b style="color:var(${bal>=0?"--good":"--crit"})">${bal>=0?"+":"−"}${nf(Math.abs(bal),2)} kWh</b>` : "–")}
-    ${rowI("Napětí za celý včerejšek", D.min_v!=null ? `${nf(D.min_v,2)} – ${nf(D.max_v,2)} V` : "–")}
-    ${rowI("Oprava předpovědi výroby", w.bias ? `<b>×${nf(w.bias,2)}</b> <span class="sub">(z ${w.bias_n||0} dní)</span>` : "–")}
+    ${rowI("☀️ Panely vyrobily", `<b>${nf(D.solar_kwh,2)} kWh</b>${acc ? ` <span class="sub">(předpověď ${nf(acc.p,2)})</span>` : ""}`)}
+    ${rowI("🏠 Chata spotřebovala", tot!=null ? `<b>${nf(tot,2)} kWh</b>` : "–")}
+    ${tot!=null ? rowI(`<span class="sub" style="padding-left:14px">ze soláru · z River</span>`, `<span class="sub">${nf(sol||0,2)} · ${nf(riv,2)} kWh</span>`) : ""}
+    ${fr!=null ? rowI(`<span class="sub" style="padding-left:14px">z toho lednice</span>`, `<span class="sub">${nf(fr,2)} kWh</span>`) : ""}
+    ${rowI("🔋 Solární baterie za den", bal!=null ? `<b style="color:var(${bal>=0?"--good":"--warn"})">${bal>=0?"+":"−"}${nf(Math.abs(bal),2)} kWh</b>` : "–")}
+    ${rowI("Napětí baterie nejníž", D.min_v!=null ? `${nf(D.min_v,2)} V` : "–")}
   </div>
+  <div class="sub" style="margin:-4px 4px 10px;line-height:1.5">Solární baterie za den = co do ní panely daly (−10 % ztráty nabíjení) minus to, co chata vzala ze soláru (+ ztráty a vlastní spotřeba měniče). Plus = baterie se přes den nabila, minus = vybila.</div>
   ${chartCard("dy_acc", `Předpověď výroby vs skutečnost${w.acc_med!=null?` · obvykle ±${w.acc_med} %`:""}`, `<span style="color:var(--s2)">■</span> skutečně vyrobeno · <span style="color:var(--text2)">┅</span> předpověď (předchozí večer) · kWh za den · ťukni na sloupec`)}
-  <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se předpověď výroby učí:</b> každý večer si hlídač zapíše předpověď na zítřek, druhý den ji porovná s tím, co regulátor opravdu vyrobil. Medián poměru za posledních 14 dní (bez dnů, kdy byla baterie brzy plná a výroba přiškrcená) pak násobí další předpovědi – to je ta oprava ×. Model navíc pro každou roční dobu ví, kolik dává rozptýlené a přímé světlo.</div>`);
+  <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se předpověď výroby učí:</b> každý večer si hlídač zapíše předpověď na zítřek, druhý den ji porovná s tím, co regulátor opravdu vyrobil. Medián poměru za posledních 14 dní (bez dnů, kdy byla baterie brzy plná a výroba přiškrcená) pak násobí další předpovědi${w.bias ? ` – teď <b>×${nf(w.bias,2)}</b> (z ${w.bias_n||0} dní)` : ""}. Model navíc pro každou roční dobu ví, kolik dává rozptýlené a přímé světlo.</div>`);
   // 6.83 (Petr: „tohle se dá krásně udělat do grafu“): sloupce = skutečnost, čárkovaně předpověď
   const acc_ = rows.slice().reverse().map(a=>({k:a.d, a:a.a, p:a.p}));
   barChart($("dy_acc"), acc_, "a", css("--s2"), {dec:2, unit:"kWh", line:"p", label:k=>`${+k.slice(8,10)}.`,

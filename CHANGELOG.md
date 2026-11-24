@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.84 – 24. 11. 2026
+- Karta Včera srozumitelně (Petr: „spotřeba za měničem 0,28 kWh – divné“): za měničem je jen to, co šlo ze soláru; když chata jela z River, tam nic není. Nově „🏠 Chata spotřebovala“ celkem (solár + River, stejně jako karta Spotřeba chaty) s rozdělením ze soláru · z River a lednicí; „🔋 Solární baterie za den“ +/− s vysvětlením; napětí jen nejnižší (horní hodnota je nabíjecí napětí a mátla); předpověď u výroby v závorce, oprava předpovědi v textu dole.
+
 ## 6.83 – 24. 11. 2026
 - Karta Včera: „Předpověď výroby vs skutečnost“ jako graf – sloupce = skutečně vyrobeno, čárkovaně předpověď z předchozího večera (14 dní), ťuknutím rozdíl v %.
 
