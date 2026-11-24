@@ -6184,6 +6184,21 @@ def window_plan(data, st, now, topic, cfg):
                 print(f"Plán – solár dál místo {nm(P_[j_])} od {hm(segs[j_][0])}: nejníž ~{pc_(lo_):.0f} # ({rd(lo_t)} {hm(lo_t)}), "
                       f"spodní hranice {pc_(floor_s):.0f} #, konec plánu {rd(w1)} {hm(w1)}; klíč plánu {found[0]}")
                 break
+    # 6.69 (diagnostika, Petr: „solár ráno ve Float, v noci jede River – není to škoda?“): když plán solár vůbec nebere,
+    # zkusit celou dobu do konce plánu solár – kam by baterie klesla, kdy, a co by ho zarazilo (hranice / start 90 #)
+    if pl and "s" not in pl[1] and M["cap"]:
+        L_, lo_, lo_t = M["ah_now"], M["ah_now"], ts
+        for i_ in range(len(segs)):
+            for k_, (pr, la, ia, lw) in enumerate(steps[i_]):
+                L_ = min(L_ + pr, top) - la
+                if L_ < lo_:
+                    lo_, lo_t = L_, segs[i_][0] + k_ * 600
+        pc_ = lambda x: M["alarm_soc"] + x / max(1.0, M["cap"]) * 100
+        nt_ = sum(la for i_ in range(len(segs)) for (pr, la, ia, lw) in steps[i_])
+        print(f"Plán – celou dobu solár místo {' · '.join(nm(c) for c in dict.fromkeys(pl[1]))}: teď {pc_(M['ah_now']):.0f} #, "
+              f"nejníž ~{pc_(lo_):.0f} # ({rd(lo_t)} {hm(lo_t)}), hranice {pc_(floor_s):.0f} #, start soláru od {pc_(start_L):.0f} #, "
+              f"zdroj teď {cur}, kapacita {M['cap']:.0f} Ah, spotřeba do {rd(w1)} {hm(w1)} ~{nt_:.0f} Ah; "
+              f"{'vešlo by se' if lo_ >= floor_s and M['ah_now'] >= start_L else 'nevešlo by se'}; klíč plánu {pl[0]}")
     data["wplan"] = {"t": int(ts), "win": bool(in_win), "w0_end": int(w0_end), "w1": int(w1), "ok": bool(found),
                      "segs": wp_merge(segs, pl[1], home, nm) if pl else [],
                      "need": {k_: v_ for k_, v_ in (need or {}).items() if k_ != "plan"} or None,

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.69 – 24. 11. 2026
+- Diagnostika plánu (jen log): když plán solár vůbec nebere (např. v noci jede River a solární baterie je plná), hlídač spočítá variantu „celou dobu solár“ – kam by baterie klesla, kdy, hranice, start soláru, kapacita a spotřeba. Podklad pro rozhodnutí, proč se v noci nejede ze soláru, když je ráno ve Float.
+
 ## 6.68 – 24. 11. 2026
 - Jedno upozornění na jedno přepnutí: „🌙 Před spaním přepni chatu na River“, „🔌 Přepni chatu na River … hned / do ~HH:MM“ a „🔁 Před spaním (do …) přepni chatu na River …“ radí totéž (ze soláru na River). Teď běží jen to, které začalo první (s opakováním, Řeším / Za 30 min / Za 1 h); ostatní se nespouští (23. 11. večer jich chodilo 2–3 najednou, ~27 za 2 h). „🌙 Před spaním“ teď říká i na kterou River (podle plánu).
 - „Přepni na River hned“ jen když už opravdu není čas – když plán chce River, ale přepnout stačí před spaním / do ~HH:MM, upozornění to tak napíše a přijde 30 min předem (dřív „hned“ a zároveň „do 00:00“).
