@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.70 – 24. 11. 2026
+- Diagnostika plánu (jen log): i varianta „solár, dokud jde přepínat (doma a vzhůru), na noc / odjezd River podle plánu“ – kam by baterie klesla a kolik Wh z River by se ušetřilo.
+
 ## 6.69 – 24. 11. 2026
 - Diagnostika plánu (jen log): když plán solár vůbec nebere (např. v noci jede River a solární baterie je plná), hlídač spočítá variantu „celou dobu solár“ – kam by baterie klesla, kdy, hranice, start soláru, kapacita a spotřeba. Podklad pro rozhodnutí, proč se v noci nejede ze soláru, když je ráno ve Float.
 

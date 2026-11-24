@@ -6199,6 +6199,19 @@ def window_plan(data, st, now, topic, cfg):
               f"nejníž ~{pc_(lo_):.0f} # ({rd(lo_t)} {hm(lo_t)}), hranice {pc_(floor_s):.0f} #, start soláru od {pc_(start_L):.0f} #, "
               f"zdroj teď {cur}, kapacita {M['cap']:.0f} Ah, spotřeba do {rd(w1)} {hm(w1)} ~{nt_:.0f} Ah; "
               f"{'vešlo by se' if lo_ >= floor_s and M['ah_now'] >= start_L else 'nevešlo by se'}; klíč plánu {pl[0]}")
+        # 6.70: a varianta „solár, dokud jde přepínat (doma, vzhůru), na noc / odjezd River podle plánu“
+        if any(fixed) and not all(fixed):
+            L_, lo_, lo_t, rw_ = M["ah_now"], M["ah_now"], ts, 0.0
+            for i_ in range(len(segs)):
+                c_ = pl[1][i_] if fixed[i_] else "s"
+                for k_, (pr, la, ia, lw) in enumerate(steps[i_]):
+                    L_ = min(L_ + pr, top) - (la if c_ == "s" else ia)
+                    rw_ += 0 if c_ == "s" else lw
+                    if L_ < lo_:
+                        lo_, lo_t = L_, segs[i_][0] + k_ * 600
+            pw_ = sum(lw for i_ in range(len(segs)) for (pr, la, ia, lw) in steps[i_] if pl[1][i_] != "s")
+            print(f"Plán – solár, dokud jde přepínat, pak River: nejníž ~{pc_(lo_):.0f} # ({rd(lo_t)} {hm(lo_t)}), z River {rw_:.0f} Wh "
+                  f"(plán {pw_:.0f} Wh); {'vešlo by se' if lo_ >= floor_s and M['ah_now'] >= start_L else 'nevešlo by se'}")
     data["wplan"] = {"t": int(ts), "win": bool(in_win), "w0_end": int(w0_end), "w1": int(w1), "ok": bool(found),
                      "segs": wp_merge(segs, pl[1], home, nm) if pl else [],
                      "need": {k_: v_ for k_, v_ in (need or {}).items() if k_ != "plan"} or None,
