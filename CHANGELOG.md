@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.73 – 24. 11. 2026
+- Oprava počítadla #: bod bez dat z Flipu (Victron spí, chata na River) se dřív počítal jako „běžná chata 30 W ze solární baterie“ (−2,9 A). V noci na River to přerušovalo klid baterie (nevznikl test kapacity) a mírně ubíralo #. Nově se vezme zdroj z posledního známého bodu (nejvýš 30 min).
+
 ## 6.72 – 24. 11. 2026
 - Diagnostika (jen log): body bez slunce za posledních 9 h, které přerušily klid baterie (mezera v datech / proud) – proč z noci nevznikla klidová kotva.
 

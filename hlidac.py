@@ -3614,6 +3614,7 @@ def hash_soc(data, st, now, cfg):
         j = _bs.bisect_left(ftim, a["t"])
         c = [fpts[k] for k in (j - 1, j) if 0 <= k < len(fpts) and abs(fpts[k]["t"] - a["t"]) <= 300]
         return min(c, key=lambda q: abs(q["t"] - a["t"])) if c else a
+    cs_last, cs_t = None, 0
     for a, b in zip(pts, pts[1:]):
         fa = _flip(a)
         if fa.get("mw") is not None:
@@ -3621,6 +3622,13 @@ def hash_soc(data, st, now, cfg):
         dt = b["t"] - a["t"]
         if 0 < dt <= 2400:
             cs_ = pt_src(fa, cfg)
+            # 6.73 (Petr: „v noci jsem jel z River, solár nejel“): bod bez dat z Flipu (Victron spí) dřív počítal „běžnou chatu
+            # 30 W ze solární baterie“ – v noci na River to přerušovalo klid (žádný test kapacity) a ubíralo #. Nově se vezme
+            # zdroj z posledního bodu, kde byl známý (nejvýš 30 min starý).
+            if cs_ is None and cs_last in ("r", "0") and a["t"] - cs_t <= 1800:
+                cs_ = cs_last
+            elif cs_ is not None:
+                cs_last, cs_t = cs_, a["t"]
             if mw_last is not None and a["t"] - mw_t <= 1800 and not (fa.get("mw") is None and cs_ in ("r", "0")):
                 load = mw_last / 0.88 + idle
             elif fa.get("mw") is None and cs_ in ("r", "0"):
