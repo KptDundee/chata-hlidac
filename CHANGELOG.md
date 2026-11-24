@@ -11,6 +11,9 @@ Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mě
 - „🚗 Odjezd: nech chatu na River X“ porovnává i KTEROU River – dřív stačilo, že chata jede z nějaké River (24. 11. „nech na ČERV“, ale jela z ŽLUT).
 - Nabíjení z generátoru se samo zahájí, jen když některá River opravdu bere – starý údaj o výkonu generátoru po konci nabíjení už nezaloží nové „nabíjení“ se souhrnem 0,01 kWh.
 
+## 6.68 – 24. 11. 2026
+- Nová dlaždice **🔍 Večerní kontrola** (Přehled → Dlouhodobě): naplánovaná úloha „Chata – večerní kontrola“ (Claude, každý den 19:35) zapisuje výsledek do `kontrola.txt`; dlaždice ukáže poslední výsledek (✓ bez nálezů / počet nálezů), karta historii za 30 dní a u každé kontroly **💬 Zeptat se Clauda** (nový chat s vloženým textem kontroly).
+
 ## 6.67 – 24. 11. 2026
 - Náklady: plyn a voda po dnech rovnou z lahví a odečtů (dřív měsíční součet rozpočítaný na dny v měsíci – lahev zapojená 25. se roztekla i do dnů před ní).
 - Primotop podle zimy: lahev se rozpočítá podle denostupňů (o kolik byl den chladnější než 18 °C) – chladný den víc, teplý málo nebo nic. Venkovní teplota po dnech z Open-Meteo u chaty (`tout_day`, 92 dní zpět, pak průběžně). Platí i v kartě Plyn a voda.

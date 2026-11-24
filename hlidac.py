@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import sys
+import re
 import time
 import urllib.request
 import urllib.parse
@@ -2055,6 +2056,7 @@ def main():
                          ("Zásoba paliva", lambda: fuel_reserve(data, st, now, cfg)),
                          ("Plyn a voda v chatě", lambda: util_entries(data)),
                          ("Jednorázové výdaje", lambda: vydaje_entries(data)),
+                         ("Večerní kontrola", lambda: kontrola_entries(data)),
                          ("Voda – připomínky", lambda: water_remind(data, st, now, topic)),
                          ("Venku po dnech", lambda: tout_days(data, st, now, cfg)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
@@ -3958,6 +3960,24 @@ def water_remind(data, st, now, topic):
             ntfy(topic, "💧 Zadej stav vodoměru",
                  "Tento měsíc ještě není odečet vody. Plyn a voda → „💧 Odečet vody“. Připomínám denně, dokud ho nezadáš. "
                  "Na zimu vodu zavřeš tlačítkem „🚱 Voda zavřená“ (s posledním odečtem).", 3, "droplet")
+
+
+def kontrola_entries(data):
+    """6.68 (Petr: večerní kontrola na webu, s historií): kontrola.txt – zapisuje ji naplánovaná úloha „Chata – večerní
+    kontrola“ (Claude) blokem „=== YYYY-MM-DD HH:MM ===“ a textem. Web ukáže posledních 30."""
+    try:
+        txt = open("kontrola.txt", encoding="utf-8").read()
+    except OSError:
+        txt = ""
+    out = []
+    for blk in re.split(r"^=== ", txt, flags=re.M)[1:]:
+        head, _, body = blk.partition("\n")
+        try:
+            t = int(datetime.strptime(head.strip(" =")[:16], "%Y-%m-%d %H:%M").replace(tzinfo=TZ).timestamp())
+        except ValueError:
+            continue
+        out.append([t, body.strip()[:3000]])
+    data["kontrola"] = sorted(out)[-30:]
 
 
 def vydaje_entries(data):

@@ -424,3 +424,6 @@ Solární baterie má jediné upozornění: pod 12,0 V „přepni chatu na River
 - **⚡ Jen elektřina:** každý den kolik chata vzala z River × kolik stála 1 kWh v chatě z nabíjení generátorem (cena paliva ÷ energie, kterou chata z nabití opravdu využila; průměr nabíjení za posledních 60 dní). Ze soláru 0 Kč. Počítá se i zpětně.
 - **💰 Celkem:** elektřina + plyn a voda (z karty Plyn a voda) + jednorázové výdaje. Období Týden, 4 týdny (po dnech), Rok (po měsících), Vše (po rocích); tabulka po rocích.
 - **🔧 Jednorázové výdaje:** komponenty, opravy, náhradní díly, jiné – tlačítko ＋ Výdaj (datum, kategorie, co, Kč), soubor `vydaje.txt`.
+
+### 🔍 Večerní kontrola (Přehled → Dlouhodobě, od 6.68)
+Každý večer v 19:35 projde Claude (naplánovaná úloha „Chata – večerní kontrola“) záznamy hlídače a hledá, co nesedí – chyby, výpadky dat, podivné hodnoty. Výsledek zapíše do `kontrola.txt` a ukáže se na dlaždici (✓ = bez nálezů, číslo = počet nálezů). Karta má historii za 30 dní. Tlačítko **💬 Zeptat se Clauda** otevře nový chat s Claudem s textem kontroly už vloženým – stačí dopsat otázku. Kontrola nic nemění, opravy jen navrhuje.

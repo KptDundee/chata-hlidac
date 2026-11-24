@@ -490,3 +490,8 @@ Krátké shrnutí pro hodinky (ntfy `<téma>-hodinky`): `t, v, soc (regulátor),
 **5.254**: palivo.txt 4. sloupec `prazdna` = konec lahve bez nové. `fuel_stats`: hist má `t1`, `c0`, `c1`; `gpk` ze spotřebovaných lahví (`gpk_src` „lahve“), jinak g/h; `fuel.lpg.bottles` [{t0,t1,price,kg,wh,runs,rivers,rv_wh,ch_wh,czk_kwh,g_kwh,czk_ch}]. Web `bottlesHtml`, `hBars`. Kuckání (5.253) odstraněno.
 
 **6.68**: `sw_dup(st, own)` + `SW_KEYS` (night, eve, wp_sw2) – přepnutí ze soláru na River: běží jen alarm, který začal první (`urgent_river` return, `eve_plan` due=False, `wp_sw2` jen při cur_w = s a cíli River). `urgent_river`: titulek s River z `wp_now` (cur, jinak nxt). `eve_plan`: plán (W.cur ≠ s) dává jen jméno River, `t_sw` z `latest_switch` / spaní, „hned“ jen při t_sw None nebo ≤ ts + 300. `load_calendars(now, st)`: `st.cal_c[idx] = {t, ev: [[od, do]]}` (ts, bez cesty); při chybě kalendáře poslední verze ≤ 12 h. `window_plan`: `nx_` = příští blok spaní / pryč, `wplan.keep` = sn napájecí River, když `river_sup.until ≥ nx_[1] + 1 h` → `plan_sw` River→River se nevydá; `day_outlook` todo River→River vynechá `conn_ == wplan.keep`. `dep_confirm`: zdroj teď = měnič s / `river_sup.sn` (dřív jen r/s z `day_fc`); jiná River s `until ≥ návrat + 1 h` → „nech“. `gen_charge_ctl`: automatický začátek relace jen s `rv_take`.
+
+## Večerní kontrola (6.68)
+- `kontrola.txt` v repu – bloky `=== YYYY-MM-DD HH:MM ===` + text; zapisuje a commituje je jen naplánovaná úloha „Chata – večerní kontrola“ (nic jiného nemění).
+- `kontrola_entries(data)` v hlidac.py → `data["kontrola"] = [[ts, text], …]` (posledních 30, text max 3000 znaků).
+- Web: `tileCheck` (sekce long), `detCheck` (DET `kontrola`), `askClaude(txt)` = odkaz `claude.ai/new?q=…` s vloženým textem.
