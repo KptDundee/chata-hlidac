@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.82 – 24. 11. 2026
+- Minulá noc: graf „kolik se vzalo z baterie“ (nesrozumitelný) nahrazen grafem „Ráno po posledních nocích“ – nejnižší ranní napětí po každé noci s čárami hranice upozornění a alarmu.
+
 ## 6.81 – 24. 11. 2026
 - Karta 🌘 Minulá noc (Přehled → Uplynulé) přehledně (Petr: „zmet čísel“): nahoře jedna věta s výsledkem („✓ Do 01:45 ze soláru, pak z River. Ráno 12,62 V (v klidu ~77 %) · nejníž 12,25 V“, barva podle nejnižšího napětí), graf napětí přes noc (šedě = chata na River), sloupcový graf posledních 14 nocí – kolik se vzalo z baterie (zeleně ráno ze soláru, šedě z River; ťuknutím ranní napětí), jedna věta „proč je ráno takové“. Předpověď, rozbor a tabulky jsou sbalené v „Podrobnosti“.
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.81", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.82", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -4709,16 +4709,17 @@ function detPastNight(body){
     <div style="font-size:15px;margin-top:4px">Ráno <b style="color:var(${cv(n.vEnd)})">${nf(n.vEnd,2)} V</b>${R0 ? ` <span class="sub">(v klidu ~${R0.soc} %)</span>` : ""} · nejníž <b style="color:var(${cv(n.vmin)})">${nf(n.vmin,2)} V</b>${n.kwh > 0.01 ? ` · z baterie ~${nf(n.kwh*1000/12.3,0)} Ah` : ""}</div>
     <div class="sub" style="margin-top:4px">${fmtT(n.start)} → ${fmtT(n.end)}</div></div>`
   + chartCard("dp_v", "Napětí solární baterie přes noc", `šedě = chata jela z River (baterie bez odběru) · čárkovaně hranice upozornění`)
-  + chartCard("dp_n", "Posledních 14 nocí – kolik se vzalo z baterie", `<span style="color:var(--good)">■</span> ráno ze soláru · <span style="color:var(--muted)">■</span> ráno z River · ťukni na sloupec`)
+  + chartCard("dp_n", "Ráno po posledních nocích", `nejnižší napětí ráno – čím níž, tím víc noc baterii vybila · čárkovaně hranice upozornění a alarmu · když chata v noci jela z River, baterie odpočívala a ráno je vysoko`)
   + nightWhyShort(d)
   + `<details class="card"><summary style="cursor:pointer"><b>Podrobnosti</b> <span class="sub">– předpověď, rozbor a tabulky</span></summary><div id="dp_more"></div></details>`);
   lineChart($("dp_v"), n.pts, "bat_v", css("--s1"), {unit:"V",dec:2,t0:n.start,t1:n.end+900,refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,bands:riverBands(n.pts, ids)});
   const H = nightRowsHist(d), Rn = (H.length >= 8 ? H : nightRows(d)).slice(-14);
   const D = d.days || {};
   const dd = Rn.map(r=>({k:r.k, ah:r.ah!=null ? Math.max(0, r.ah) : null, v:r.vmin, mn:(D[nextKey(r.k)]||{}).mn}));
-  barChart($("dp_n"), dd, "ah", css("--good"), {dec:0, unit:"Ah", color:q=>q.mn==="r" ? css("--muted") : css("--good"),
-    label:k=>`${+k.slice(8,10)}.`,
-    tip:q=>`noc ${+q.k.slice(8,10)}. → ${+nextKey(q.k).slice(8,10)}.<br><b>${nf(q.ah,0)} Ah</b> z baterie<br>ráno nejníž ${nf(q.v,2)} V${q.mn ? `<br>ráno chata na ${q.mn==="r" ? "River" : "soláru"}` : ""}`});
+  // 6.82 (Petr: „graf kolik se vzalo z baterie – nevím, co říká“): místo Ah ranní napětí po každé noci s hranicemi
+  const mp = dd.filter(q=>q.v!=null).map(q=>({t:new Date(nextKey(q.k)+"T07:00").getTime()/1000, v:q.v}));
+  lineChart($("dp_n"), mp, "v", css("--s1"), {unit:"V",dec:2,t0:mp.length ? mp[0].t - 43200 : null,t1:mp.length ? mp[mp.length-1].t + 43200 : null,
+    refs:[[WARN_V,"--serious"],[CRIT_V,"--crit"]],pad:.15,gap:3*86400});
   detPastNightMore($("dp_more"), n);
 }
 function detPastNightMore(body, n){
