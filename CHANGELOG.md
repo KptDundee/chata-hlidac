@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.87 – 24. 11. 2026
+- Všechny grafy u Rok / Vše (Solární baterie, Výroba, Spotřeba, River, náklady…): každý graf si z dat, která opravdu kreslí, zjistí první a poslední den a napíše je nahoru do karty („📅 28. 10. 2026 – 23. 11. 2026 (27 dní)“). U Roku, když data začínají později než před rokem, žluté „⚠ Data jsou teprve od … – za celý rok ještě nejsou“. Údaje ze Solar Guardian (výroba – celý rok) upozornění nemají, jen období (Petr: „některá data odpovídají – pozor na to“).
+
 ## 6.86 – 24. 11. 2026
 - „Na co jela chata“ (Rok / Vše / Týden): nahoře velké skutečné období z dat („📅 29. 10. – 24. 11. (27 dní)“), u Roku / Vše žluté upozornění „Data jsou teprve od … – za celý rok ještě nejsou“. Když se čas počítá od pozdějšího dne než energie, je to u „Podle času“ napsané (Petr: „nemáš data za rok – má tam být velké info, za jaké období to je“).
 

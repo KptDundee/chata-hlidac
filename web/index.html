@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.86", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.87", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -816,7 +816,29 @@ function dayLines(svg,t0,t1,x){
   }
   svg.insertAdjacentHTML("beforeend", s);
 }
+/* 6.87 (Petr: „nemáš data za rok, je to jen část roku – má tam být velké info, za jaké období to je; pozor, některá data
+   odpovídají, třeba ze Solar Guardian“): u Rok / Vše si každý graf sám z dat, která opravdu kreslí, zjistí první a poslední
+   den a napíše je nahoru do karty; u Roku, když data začínají později než před rokem, žluté upozornění. Údaje ze Solar
+   Guardian (celý rok) tak žádné upozornění nemají. */
+function perTag(el, items){
+  try{
+    if(!detLong() || !el || !el.closest || !el.closest("#detbody")) return;
+    const card = el.closest(".card"); if(!card) return;
+    const ks = items.map(q=>q==null ? null : typeof q==="number" ? dkey(q) : typeof q==="string" ? q : q.k!=null ? String(q.k) : q.t!=null ? dkey(q.t) : null)
+                    .filter(k=>k && /^\d{4}-\d{2}/.test(k)).sort();
+    if(!ks.length) return;
+    const a = ks[0], b = ks[ks.length-1], mon = a.length===7;
+    const f = k => k.length===7 ? new Date(k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"numeric"}) : new Date(k+"T12:00").toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric",year:"numeric"});
+    const nd = mon ? null : Math.round((new Date(b+"T12:00") - new Date(a+"T12:00"))/864e5) + 1;
+    const yr = dkey(Date.now()/1000 - 335*86400);                      // rok (s tolerancí ~1 měsíc)
+    const late = DETR==="y" && (mon ? a > yr.slice(0,7) : a > yr);
+    let t = card.querySelector(".pertag"); if(!t){ t = document.createElement("div"); t.className = "pertag"; card.insertBefore(t, card.querySelector(".cs")?.nextSibling || el); }
+    t.innerHTML = `<div style="font-size:15px;font-weight:600;margin:4px 0 6px">📅 ${a===b ? f(a) : `${f(a)} – ${f(b)}`}${nd ? ` <span class="sub" style="font-weight:500">(${nd} ${nd===1?"den":nd<5?"dny":"dní"})</span>` : ""}</div>`
+      + (late ? `<div style="font-size:13.5px;margin:0 0 6px;padding:6px 9px;border-radius:9px;background:color-mix(in srgb,var(--warn) 14%,transparent)">⚠ Data jsou teprve od ${f(a)} – za celý rok ještě nejsou.</div>` : "");
+  }catch(e){}
+}
 function lineChart(el, pts, key, color, o){
+  perTag(el, (pts||[]).filter(q=>q && q[key]!=null).map(q=>q.t));
   if(o._pz) o = {...o, _pz:0};                       // kreslí zvětšení prsty: výřez z pinch()
   else { el._lc = {pts, key, color, o};              // nová data: zapamatovat (výřez prsty zůstává, dvojí ťuknutí ho zruší)
          if(el._zw && o.t0==null) o = {...o, t0:el._zw[0], t1:el._zw[1]}; }
@@ -3120,6 +3142,7 @@ function perLabel(k, per, long){
   return per==="w" ? (long ? `týden od ${t}` : t) : t;
 }
 function catLines(el, rows, series, o){
+  perTag(el, rows.filter(q=>series.some(s=>q[s.key]!=null)));
   const vals = rows.flatMap(q=>series.map(s=>q[s.key]).filter(v=>v!=null));
   if(!vals.length) return empty(el, o.emptyMsg || "Zatím žádné nabíjení s cenou.");
   const hi = Math.max(...vals)*1.15 || 1, {svg,y} = frame(el, 0, hi, o.dec ?? 0);
@@ -3141,6 +3164,7 @@ function catLines(el, rows, series, o){
 }
 /* 5.293 (Petr: „čára propojení nic neříká, plyn a benzín zvlášť“): sloupce vedle sebe, jeden na řadu */
 function catBars(el, rows, series, o){
+  perTag(el, rows.filter(q=>series.some(s=>q[s.key]!=null)));
   const vals = rows.flatMap(q=>series.map(s=>q[s.key]).filter(v=>v!=null));
   if(!vals.length) return empty(el, o.emptyMsg || "Zatím žádné nabíjení s cenou.");
   const hi = Math.max(...vals)*1.15 || 1, {svg,y} = frame(el, 0, hi, o.dec ?? 0);
@@ -4832,7 +4856,7 @@ $("openall").addEventListener("click", e => { e.preventDefault(); openDet("all")
 function dayLabel(k){ if(String(k).length===7) return new Date(k+"-01").toLocaleDateString("cs-CZ",{month:"short",year:"2-digit"});   // 5.287: klíč měsíce „2026-11“
   return new Date(k).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"});}
 function barChart(el, dd, key, color, o){
-  const p=dd.filter(q=>q[key]!=null); if(!p.length) return empty(el,"Zatím žádné celé dny.");
+  const p=dd.filter(q=>q[key]!=null); perTag(el, p); if(!p.length) return empty(el,"Zatím žádné celé dny.");
   const hi=Math.max(...p.map(q=>q[key]))*1.15||1; const {svg,y}=frame(el,0,hi,1);
   const n=Math.max(p.length,7), bw=(W-M.l-M.r)/n, w=Math.max(2,Math.min(28,bw-2));
   let s=""; p.forEach((q,i)=>{const cx=M.l+bw*i+bw/2, top=y(q[key]), h=y(0)-top, r=Math.min(4,w/2,h);
@@ -4926,7 +4950,7 @@ function renderCap(d, days){
   $("hlist").innerHTML = items + `<p class="sub" style="margin-top:8px">Noční odhad se počítá jen z nocí, kdy baterie zůstala nad 12,1 V – při hlubším vybití už napětí pod zátěží neodpovídá stavu nabití. Odhad z nabíjení je jen orientační: regulátor přejde do Float po době Boostu, ne když je baterie opravdu plná, takže kapacitu podhodnocuje (u starší baterie víc). Jednotlivá měření kolísají klidně o ±15 % (teplota, různý odběr, nepřesné ranní napětí) – proto rozhoduje medián, ne jedna noc. Zimní hodnoty bývají nižší kvůli chladu; skutečný úbytek kapacity poznáš srovnáním stejné roční doby. Upozornění přijde samo, když se baterie znatelně zhorší.</p>`;
 }
 function dotChart(el, dd, key, color, o){
-  const p=dd.filter(q=>q[key]!=null); if(!p.length) return empty(el,"Zatím žádné celé dny.");
+  const p=dd.filter(q=>q[key]!=null); perTag(el, p); if(!p.length) return empty(el,"Zatím žádné celé dny.");
   let lo=Math.min(...p.map(q=>q[key]),CRIT_V)-.2, hi=Math.max(...p.map(q=>q[key]),WARN_V)+.2;
   const {svg,y}=frame(el,lo,hi,1); refLines(svg,y,o.refs);
   const n=Math.max(p.length,7), bw=(W-M.l-M.r)/n; let s="",line="";
