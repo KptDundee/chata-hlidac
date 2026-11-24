@@ -6659,6 +6659,18 @@ def capacity_check(data, st, now, cfg):
 
     # 5.105: klid až 6 h po posledním nabíjení – 24. 10. kleslo napětí po nabíjení z 12,56 na 12,40 V při odběru jen 1,9 Ah
     # (povrchové napětí po nabíjení drží mnohem déle než 2 h) → testy dávaly ~55 Ah
+    # 6.71 (diagnostika, Petr: „co použít pro výpočet včerejšek?“): klidové kotvy za poslední 3 dny a proč z nich není test
+    _tz = lambda x: datetime.fromtimestamp(x, TZ).strftime("%d.%m. %H:%M")
+    _r3 = [r for r in rests if r["t"] >= now.timestamp() - 3 * 86400]
+    print("Klidové kotvy (3 dny): " + (" | ".join(f"{_tz(r['t'])} {r['v']:.2f} V {r['soc']} % klid {r.get('h')} h, po nabíjení {r.get('sc')} h"
+                                                 + ("" if (r.get("sc") or 0) >= 6 else " (moc brzy po nabíjení)") for r in _r3) or "žádné"))
+    _ok = [r for r in _r3 if (r.get("sc") or 0) >= 6]
+    for i_, B_ in enumerate(_ok[1:], 1):
+        A_ = _ok[i_ - 1]
+        w_ = [p for p in pts if A_["t"] <= p["t"] <= B_["t"]]
+        lu_ = sum(1 for p in w_ if p.get("lu"))
+        print(f"Test kapacity – dvojice {_tz(A_['t'])} → {_tz(B_['t'])}: změna nabití {abs(B_['soc'] - A_['soc'])} % (potřeba 15), "
+              f"{(B_['t'] - A_['t']) / 3600:.0f} h (max 48), Ah {abs(B_['qr'] - A_['qr']):.1f}, odběr neznámý v {lu_}/{len(w_)} bodech (max 20 %)")
     rests = [r for r in rests if (r.get("sc") or 0) >= 6]
     tests = []
     for i, B in enumerate(rests):

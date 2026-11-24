@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.71 – 24. 11. 2026
+- Diagnostika testu kapacity (jen log): klidové kotvy za poslední 3 dny a u každé dvojice, proč z ní test je / není (změna nabití, doba, Ah, neznámý odběr).
+
 ## 6.70 – 24. 11. 2026
 - Diagnostika plánu (jen log): i varianta „solár, dokud jde přepínat (doma a vzhůru), na noc / odjezd River podle plánu“ – kam by baterie klesla a kolik Wh z River by se ušetřilo.
 
