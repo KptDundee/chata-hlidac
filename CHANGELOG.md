@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.76 – 24. 11. 2026
+- Odjezd (Petr: „důležitější je úspora peněz při zachování zdraví baterie“): pravidlo „z River na solár až od 90 #“ při odjezdu neplatí. Plán při odjezdu poradí solár, kdykoli tím ušetří River a baterie do návratu nespadne pod 25 # (`solar_pryc_pct`). Doma přes den 90 # platí dál (baterie se nechá dobít do plna – zdraví AGM).
+
 ## 6.75 – 24. 11. 2026
 Pravidla solární baterie podle Petra – **hlavní kritérium je úspora peněz (co nejméně z River / generátoru) při bezpečném vybití soláru**:
 - **Přes den** (panely vyrábějí a krmí chatu přímo) smí solár až na **50 #** (jako dosud).

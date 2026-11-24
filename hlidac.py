@@ -6128,7 +6128,9 @@ def window_plan(data, st, now, topic, cfg):
             on_s = (plan[-1] == "s") if plan else (cur == "s")
             if excl_ and not fixed[i]:
                 choices = [c_ for c_ in choices if c_ != excl_] or choices            # 6.75: nesplněná rada
-            if st0 and not on_s and L < start_L:
+            # 6.76 (Petr: „důležitější je úspora peněz při zachování zdraví baterie“): při odjezdu (úsek, kdy jsem pryč) 90 #
+            # neplatí – na solár, kdykoli to vyjde levněji a baterie nespadne pod solar_pryc_pct
+            if st0 and not on_s and L < start_L and not away_seg[i]:
                 choices = [c_ for c_ in choices if c_ != "s"] or choices      # 6.7: z River na solár až od solar_start_pct
             if sun and i == 0 and (on_s or not st0 or L >= start_L):
                 choices = ["s"]                          # 5.217: dokud solár stačí, jede solár
