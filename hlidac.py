@@ -6287,6 +6287,28 @@ def window_plan(data, st, now, topic, cfg):
         late_n = min(w0_end - 2 * 3600, now.replace(hour=20, minute=0, second=0, microsecond=0).timestamp())
         alarm(st, topic, "wp_none", act and not need and ts >= late_n, f"⚠️ Do {rd(w1)} {hm(w1)} to nevydrží ani s nabitím River",
               why + " Nepomůže ani nabití River do plna – omez spotřebu, nebo uprav plán (návrat dřív).", 5, "warning", ok_title=False, cat=1)
+    # 6.78 (večerní kontrola 24. 11.: plán chtěl nabíjení, „Co teď udělat“ ukazovalo „nic“; Petr: „rada nabij aspoň na X %,
+    # když to jde, nabíjím do plna; když dojde benzín a už je nad potřebnou hranicí, generátor hned nepouštím – pak jen info,
+    # ne hlavní rada“): hlavní rada jen dokud River není na minimu; nabíjí se / minimum splněno → informace
+    day_ = now.strftime("%Y-%m-%d")
+    if in_win and need and not found:
+        st["wp_need"] = {"k": need["k"], "name": need["name"], "target": need["target"], "d": day_}
+    wn_ = st.get("wp_need") or {}
+    if wn_ and wn_.get("d") != day_:
+        st.pop("wp_need", None)
+        wn_ = {}
+    if in_win and need and not found and not charging:
+        todo_add(data, 7, f"nabij {rv_short(need['name'])} aspoň na {need['target']} % (když to jde, do plna) – začni nejpozději v "
+                 f"{hm(late_u)}", "warn", "rv")
+    elif wn_ and wn_.get("k") in RV:
+        s_ = RV[wn_["k"]]["soc"]
+        if charging and s_ < 100:
+            todo_add(data, 1, f"nabíjí se – {rv_short(wn_['name'])} minimum {wn_['target']} %"
+                     + (" splněno, dál jen do plna (není nutné)" if s_ >= wn_["target"] else f", teď {fmt(s_)} %"), "ok", "rv")
+        elif s_ >= wn_["target"] and s_ < 100:
+            todo_add(data, 1, f"{rv_short(wn_['name'])} {fmt(s_)} % – minimum {wn_['target']} % splněno, dobít do plna můžeš, ale není to nutné", "ok", "rv")
+        elif s_ >= 100:
+            st.pop("wp_need", None)
     # 5.263 (Petr: ČERV dojde v 7:52, vstávám v 9:00 – a „Co teď udělat: nic“): chata jede z River, která do další
     # možnosti něco udělat nevydrží, a plán chce teď jinou River → rada i upozornění „přepni teď“
     sup_ = data.get("river_sup") or {}
