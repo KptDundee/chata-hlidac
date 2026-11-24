@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.82", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.83", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -4767,9 +4767,12 @@ function detYesterday(body){
     ${rowI("Napětí za celý včerejšek", D.min_v!=null ? `${nf(D.min_v,2)} – ${nf(D.max_v,2)} V` : "–")}
     ${rowI("Oprava předpovědi výroby", w.bias ? `<b>×${nf(w.bias,2)}</b> <span class="sub">(z ${w.bias_n||0} dní)</span>` : "–")}
   </div>
-  <div class="card"><b>Předpověď výroby vs skutečnost</b>${w.acc_med!=null?` <span class="sub">· obvykle ±${w.acc_med} %</span>`:""}
-    <div style="font-size:13.5px;margin-top:6px">${rows.map(a=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${relDay(a.d)}</span><span style="font-variant-numeric:tabular-nums">předpověď ${nf(a.p,2)} → <b>${nf(a.a,2)}</b> kWh</span></div>`).join("") || '<span class="sub">Zatím nic k porovnání.</span>'}</div></div>
+  ${chartCard("dy_acc", `Předpověď výroby vs skutečnost${w.acc_med!=null?` · obvykle ±${w.acc_med} %`:""}`, `<span style="color:var(--s2)">■</span> skutečně vyrobeno · <span style="color:var(--text2)">┅</span> předpověď (předchozí večer) · kWh za den · ťukni na sloupec`)}
   <div class="sub" style="margin:0 4px 12px;line-height:1.5"><b>Jak se předpověď výroby učí:</b> každý večer si hlídač zapíše předpověď na zítřek, druhý den ji porovná s tím, co regulátor opravdu vyrobil. Medián poměru za posledních 14 dní (bez dnů, kdy byla baterie brzy plná a výroba přiškrcená) pak násobí další předpovědi – to je ta oprava ×. Model navíc pro každou roční dobu ví, kolik dává rozptýlené a přímé světlo.</div>`);
+  // 6.83 (Petr: „tohle se dá krásně udělat do grafu“): sloupce = skutečnost, čárkovaně předpověď
+  const acc_ = rows.slice().reverse().map(a=>({k:a.d, a:a.a, p:a.p}));
+  barChart($("dy_acc"), acc_, "a", css("--s2"), {dec:2, unit:"kWh", line:"p", label:k=>`${+k.slice(8,10)}.`,
+    tip:q=>`${relDay(q.k)}<br>vyrobeno <b>${nf(q.a,2)} kWh</b><br>předpověď ${nf(q.p,2)} kWh${q.p>0.05?` (${q.a>=q.p?"+":"−"}${Math.abs(Math.round((q.a/q.p-1)*100))} %)`:""}`});
 }
 function openDet(k){
   if(k === "wire"){ openWire(); return; }

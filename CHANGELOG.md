@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.83 – 24. 11. 2026
+- Karta Včera: „Předpověď výroby vs skutečnost“ jako graf – sloupce = skutečně vyrobeno, čárkovaně předpověď z předchozího večera (14 dní), ťuknutím rozdíl v %.
+
 ## 6.82 – 24. 11. 2026
 - Minulá noc: graf „kolik se vzalo z baterie“ (nesrozumitelný) nahrazen grafem „Ráno po posledních nocích“ – nejnižší ranní napětí po každé noci s čárami hranice upozornění a alarmu.
 
