@@ -3,6 +3,14 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.91 – 26. 11. 2026
+Opravy podle večerní kontroly 25. 11.:
+- **Zdroj chaty, když zásuvka River mlčí:** zásuvka Tapo na výstupu River nemá proud, když je River vypnutá (Petr: „logické“), a občas neodpoví i zapnutá. Místo „zdroj ?“ se vezme výstup té River z EcoFlow (online → její výstup bez 12 V, offline = vypnutá → 0 W). 25. 11. 07:11–12:43 by to bylo „River ŽLUT“ (EcoFlow hlásilo 70 W).
+- **Testy kapacity se nepřepisují:** dva testy končící stejný den (24. 11.: 112 a 100 Ah) se střídaly pod jedním klíčem a každý běh je vypsal znovu. Za den se drží test z největšího odběru (nejpřesnější), všechny jsou v days[den]["qcs"]; zápis jen při změně.
+- **Souhrn dne:** „🏠 Chata X kWh – ze soláru a · z River b“ a spotřebiče zvlášť (dřív „ze solární baterie 0,05 · z toho Lednice 0,20“ – lednice část dne jela z River).
+- **Poplach „bez spojení s EcoFlow“** při nabíjení až po 2 min (River se po startu generátoru probouzejí).
+- **Počasí:** jedno opakování po pár sekundách (SSL timeout, HTTP 429); jinak zůstává poslední úspěšná předpověď.
+
 ## 6.90 – 26. 11. 2026
 - Večerní kontrola rozlišuje nálezy (Petr: „označ červeně, na co mám reagovat, a rovnou napiš jak“): **🔴 Udělej ty** (s postupem krok za krokem), **🔧 Oprava v hlídači** (stačí Claudovi napsat „oprav bod N“), **ℹ Jen info**. Na webu 🔴 červeně zvýrazněné, dlaždice ukazuje „🔴 N“ jen když je něco pro Petra, jinak zelená „pro tebe nic · oprav v hlídači N“.
 

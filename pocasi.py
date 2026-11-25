@@ -25,9 +25,18 @@ WMO = {0: "jasno", 1: "skoro jasno", 2: "polojasno", 3: "zataženo", 45: "mlha",
 
 
 def _get(url, params, timeout=30):
+    # 6.91 (večerní kontrola: předpověď selhala v 19 ze 172 běhů – SSL timeout, 2× HTTP 429): jedno opakování po pár
+    # sekundách; když selže i to, zůstává poslední úspěšná předpověď (data se jen nepřepíšou)
+    import time
     q = urllib.parse.urlencode(params)
-    with urllib.request.urlopen(f"{url}?{q}", timeout=timeout) as r:
-        return json.loads(r.read().decode())
+    for i in range(2):
+        try:
+            with urllib.request.urlopen(f"{url}?{q}", timeout=timeout if i == 0 else 20) as r:
+                return json.loads(r.read().decode())
+        except Exception as e:
+            if i:
+                raise
+            time.sleep(8 if "429" in str(e) else 3)
 
 
 def _daily_sums(js):

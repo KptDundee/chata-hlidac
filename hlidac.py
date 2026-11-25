@@ -1829,6 +1829,8 @@ def main():
     acc, pw, topic = os.environ["SG_ACCOUNT"], os.environ["SG_PASSWORD"], os.environ["NTFY_TOPIC"]
     key = os.environ["DATA_KEY"].strip()
     data = load_data(key)
+    global _DATA
+    _DATA = data
     st = data.setdefault("state", {})
     now = datetime.now(TZ)
     cfg = load_config()
@@ -2289,10 +2291,16 @@ def daily_summary(data, v, st, now, topic, cfg, rise, set_):
     if mip and tp.get(mip) is not None:
         extra = [f"{names.get(ip, '.' + ip)} {fmt(tp[ip] / 1000, 2)}" for ip in sorted(tp, key=lambda i: -tp[i])
                  if ip != mip and ip not in ips(cfg.get("zasuvky_river")) and ip != str(cfg.get("zasuvka_generator")) and tp[ip] > 20][:3]
-        L.append(f"⚡ Ze solární baterie (měnič) {fmt(tp[mip] / 1000, 2)} kWh" + (f" · z toho {', '.join(extra)}" if extra else ""))
-    rv = [tp[i] for i in ips(cfg.get("zasuvky_river")) if tp.get(i)]
-    if rv and sum(rv) > 20:
-        L.append(f"🔌 Z River {fmt(sum(rv) / 1000, 2)} kWh")
+        # 6.91 (večerní kontrola 25. 11.: „ze solární baterie 0,05 kWh · z toho Lednice 0,20“ – lednice část dne jela
+        # z River): celkem chata = měnič + River, spotřebiče zvlášť (měří se bez ohledu na zdroj)
+        rv_ = sum(tp[i] for i in ips(cfg.get("zasuvky_river")) if tp.get(i))
+        L.append(f"🏠 Chata {fmt((tp[mip] + rv_) / 1000, 2)} kWh – ze soláru {fmt(tp[mip] / 1000, 2)} · z River {fmt(rv_ / 1000, 2)}")
+        if extra:
+            L.append(f"   spotřebiče (ze soláru i z River): {', '.join(extra)}")
+    else:
+        rv = [tp[i] for i in ips(cfg.get("zasuvky_river")) if tp.get(i)]
+        if rv and sum(rv) > 20:
+            L.append(f"🔌 Z River {fmt(sum(rv) / 1000, 2)} kWh")
     g = tp.get(str(cfg.get("zasuvka_generator") or ""))
     if g and g > 20:
         L.append(f"⛽ Generátor dodal {fmt(g / 1000, 2)} kWh")
@@ -2944,6 +2952,23 @@ def vic_state(inv):
     return str(inv["st"]).upper() if (inv.get("age") or 0) <= 1200 else None
 
 
+_DATA = None                     # 6.91: data běhu (River z EcoFlow pro inv_src)
+
+
+def ef_plug_w(pid, cfg):
+    """6.91 (večerní kontrola 25. 11.: Tapo (2) na výstupu ŽLUT neodpovídalo, EcoFlow hlásilo výstup 70 W – hlídač psal
+    „zdroj ?“; Petr: „když je River vypnutá, zásuvka v ní odpovídat nemůže – logické“): výstup River z EcoFlow pro zásuvku
+    na jejím výstupu. River online → její výstup (W); River offline (vypnutá) → 0; nevíme, která River → None."""
+    try:
+        rv = [r for r in ((_DATA or {}).get("rivers") or []) if not r.get("gen") and r.get("sn")]
+        r = river_for_plug(pid, ((_DATA or {}).get("plug_names") or {}).get(pid), rv, cfg)
+        if not r:
+            return None
+        return max(0.0, float(r.get("out_w") or 0) - float(r.get("car_w") or 0)) if r.get("online") else 0.0   # bez 12 V výstupu
+    except Exception:
+        return None
+
+
 def inv_src(inv, cfg):
     """Z čeho chata jede podle jedné zprávy Flipu (aktuální stav i doplněné body)."""
     if not inv:
@@ -2953,7 +2978,13 @@ def inv_src(inv, cfg):
     mw = inv.get("mw")
     if mw is None and (by.get(mip) or {}).get("w") is not None:
         mw = by[mip]["w"]
-    rw_ = river_w({k: v.get("w") for k, v in by.items()}, ips(cfg.get("zasuvky_river")))
+    tw_ = {k: v.get("w") for k, v in by.items()}
+    for pid in ips(cfg.get("zasuvky_river")):          # 6.91: mlčící zásuvka River → výstup té River z EcoFlow
+        if tw_.get(pid) is None:
+            e_ = ef_plug_w(pid, cfg)
+            if e_ is not None:
+                tw_[pid] = e_
+    rw_ = river_w(tw_, ips(cfg.get("zasuvky_river")))
     # 5.201: zásuvka měniče zmizela ze sítě (Flip hlásí „gone“ = bez proudu – přepínač ji odpojil) a River dodává → chata na River
     # 5.259: i když ji Flip v seznamu vůbec nemá (po restartu ji ještě nenašel) – dřív „nevíme“ a River výdrž chyběla
     if mw is None and ((by.get(mip) or {}).get("gone") or mip not in by) and rw_ is not None and rw_ > 3:
@@ -6762,14 +6793,21 @@ def capacity_check(data, st, now, cfg):
                 best["why"] = "nesmyslný výsledek"
             tests.append(best)
     seen_k = set()
+    # 6.91 (večerní kontrola 25. 11.: dva testy končí stejný den – 24. 11. 112 Ah a 100 Ah – a přepisovaly se pod jedním
+    # klíčem, každý běh oba znovu; jeden se ztrácel): za den se drží test z největšího odběru (nejpřesnější), ostatní
+    # v days[k]["qcs"] (pro přehled); zápis a výpis jen při skutečné změně
+    byd = {}
     for tst in tests:
-        k = datetime.fromtimestamp(tst["t"], TZ).strftime("%Y-%m-%d")
+        byd.setdefault(datetime.fromtimestamp(tst["t"], TZ).strftime("%Y-%m-%d"), []).append(tst)
+    for k, L in byd.items():
+        tst = max(L, key=lambda q: (q.get("ok", False), q["ah"]))
         seen_k.add(k)
         day = data["days"].setdefault(k, {})
         old = day.get("qc") or {}
         if old.get("v2") != 3 or old.get("t") != tst["t"] or old.get("cap") != tst["cap"] or old.get("ah") != tst["ah"]:
             day["qc"] = tst                        # 5.115: i když se po opravě dat změnil výsledek
             print("Test kapacity", k, tst)
+        day["qcs"] = [{"t": q["t"], "ah": q["ah"], "cap": q["cap"], "ok": q.get("ok")} for q in sorted(L, key=lambda q: q["t"])]
     # 5.115: test, který z opravených dat už nevychází, smazat – jen dokud jsou jeho body v historii (aspoň 2 dny před ním)
     t_first = pts[0]["t"]
     for k, day in data["days"].items():
@@ -7724,7 +7762,15 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         if off_map:
             print(f"Nabíjení z generátoru: offline {[byid(k).get('name') for k in off_map]} – počítám s posledním nastavením {off_map}")
         off_all = [pn_(r.get("name")) for r in off_rv] + ["generátor" for _ in off_g]
+        # 6.91 (večerní kontrola 25. 11.: hned po startu generátoru 2× „🚨 ČERV, ŽLUT – bez spojení“ a do minuty „zase
+        # spojení“ – River se teprve probouzely): poplach až po 2 min bez spojení během nabíjení
         if off_all and gs.get("active"):
+            gs["off_since"] = gs.get("off_since") or tnow
+        else:
+            gs.pop("off_since", None)
+        if off_all and gs.get("active") and tnow - gs["off_since"] < 120:
+            print(f"Nabíjení z generátoru: bez spojení {off_all} {tnow - gs['off_since']} s – poplach až po 2 min")
+        elif off_all and gs.get("active"):
             if tnow - (gs.get("off_note") or 0) >= 60:
                 gs["off_note"] = tnow
                 gs["off_names"] = off_all
