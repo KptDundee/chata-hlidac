@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.90 – 26. 11. 2026
+- Večerní kontrola rozlišuje nálezy (Petr: „označ červeně, na co mám reagovat, a rovnou napiš jak“): **🔴 Udělej ty** (s postupem krok za krokem), **🔧 Oprava v hlídači** (stačí Claudovi napsat „oprav bod N“), **ℹ Jen info**. Na webu 🔴 červeně zvýrazněné, dlaždice ukazuje „🔴 N“ jen když je něco pro Petra, jinak zelená „pro tebe nic · oprav v hlídači N“.
+
 ## 6.89 – 26. 11. 2026
 - Dlaždice Solární baterie: u blikajícího „!“ je pod stavem napsané proč, např. „! napětí 12,08 V – pod 12,2 V, omez spotřebu nebo přepni na River“ (Petr: „bliká červený vykřičník, nevím, co znamená“). Dřív se důvod ukazoval jen v detailu.
 

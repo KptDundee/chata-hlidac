@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.89", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.90", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -3015,20 +3015,26 @@ function costBars(el, rows, series, emptyMsg){
 function tileCheck(d, h){
   const K = d.kontrola || [], t = {k:"kontrola", icon:"🔍", label:"Večerní kontrola"};
   if(!K.length) return {...t, cls:"na", v:"–", st:"první kontrola dnes v 19:35"};
+  // 6.90 (Petr: „označ červeně, na co mám reagovat, a rovnou napiš jak“): 🔴 = udělej ty, 🔧 = oprava v hlídači, ℹ = info
   const L = K[K.length-1], ok = /bez nálezů/i.test(L[1].split("\n")[0]), n = (L[1].match(/^\s*(?:[-•*]|\d+[.)])\s/gm) || []).length;
-  return {...t, cls: ok ? "ok" : "warn", v: ok ? "✓" : `${n || "!"}`, st: `${relDay(L[0])} ${hmT(L[0])} · ${ok ? "bez nálezů" : n ? `${n} ${n===1 ? "nález" : n<5 ? "nálezy" : "nálezů"}` : "něco našla"}`};
+  const nr = (L[1].match(/🔴/g) || []).length - (/pro tebe:/i.test(L[1]) ? 0 : 0), nf_ = (L[1].match(/🔧/g) || []).length;
+  return {...t, cls: ok ? "ok" : nr ? "warn" : "ok", v: ok ? "✓" : nr ? `🔴 ${nr}` : `${n || "!"}`,
+    st: `${relDay(L[0])} ${hmT(L[0])} · ${ok ? "bez nálezů" : nr ? `pro tebe ${nr} · oprav v hlídači ${nf_}` : nf_ ? `pro tebe nic · oprav v hlídači ${nf_}` : n ? `${n} ${n===1 ? "nález" : n<5 ? "nálezy" : "nálezů"}` : "něco našla"}`};
 }
 const askClaude = txt => `https://claude.ai/new?q=${encodeURIComponent(`Tohle je večerní kontrola mého hlídače chaty (off-grid chata, solár + EcoFlow River + generátor; repozitář KptDundee/chata-hlidac). Chci se na ni zeptat:\n\n${txt}\n\nMoje otázka: `)}`;
 function detCheck(body){
   const K = (DATA.kontrola || []).slice().reverse();
   const bs = `display:inline-block;font:inherit;font-weight:600;padding:9px 12px;border-radius:12px;color:var(--text);border:1px solid var(--btnline);background:var(--btn);text-decoration:none`;
-  const fmtK = x => escH(x).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
+  const fmtK = x => escH(x).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").split("\n").map(l=>
+      /🔴/.test(l) ? `<div style="margin:4px 0;padding:6px 9px;border-radius:9px;background:color-mix(in srgb,var(--crit) 14%,transparent);border-left:3px solid var(--crit)">${l}</div>`
+    : /🔧/.test(l) ? `<div style="margin:4px 0">${l}</div>`
+    : /ℹ/.test(l) ? `<div class="sub" style="margin:4px 0">${l}</div>` : `<div>${l}</div>`).join("");
   body.innerHTML = !K.length ? `<div class="card"><span class="sub">Zatím žádná kontrola. Poprvé proběhne dnes v 19:35, pak každý večer.</span></div>`
     : K.map((x,i)=>`<div class="card"${i ? "" : ` style="border:1px solid var(--line)"`}>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 6px"><b>${relDay(x[0])} ${hmT(x[0])}</b>
           <a href="${askClaude(x[1])}" target="_blank" rel="noopener" style="${bs}">💬 Zeptat se Clauda</a></div>
         <div style="font-size:14.5px;line-height:1.5">${fmtK(x[1])}</div></div>`).join("")
-    + `<div class="sub" style="margin:6px 4px">Kontrolu dělá každý večer Claude (naplánovaná úloha „Chata – večerní kontrola“). Nic nemění – opravy jen navrhuje. 💬 otevře nový chat s Claudem, kde je text kontroly už vložený.</div>`;
+    + `<div class="sub" style="margin:6px 4px"><b style="color:var(--crit)">🔴 Udělej ty</b> = musíš něco udělat sám (je napsané jak) · <b>🔧 Oprava v hlídači</b> = nic nedělej, stačí Claudovi napsat „oprav bod N“ · ℹ = jen informace.<br>Kontrolu dělá každý večer Claude (naplánovaná úloha „Chata – večerní kontrola“). Nic nemění – opravy jen navrhuje. 💬 otevře nový chat s Claudem, kde je text kontroly už vložený.</div>`;
 }
 function tileCost(d, h){
   const t = {k:"naklady", icon:"💰", label:"Náklady"};
