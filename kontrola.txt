@@ -5,3 +5,12 @@ Našel jsem 5 věcí:
 3. **Počasí** – předpověď selhala (SSL handshake timeout) ve 27 ze 143 běhů, venkovní teplota 6×, hlavně ráno 6–10 h. Návrh: 1 opakování s delším limitem a jinak poslední úspěšná předpověď – ovlivní odhad zítřejšího přebytku v plánu.
 4. **Odpor spojů** – souhrn 23. 11. 22:00: ~21 mΩ (hranice 20, norma ~10). Fyzicky zkontrolovat pojistku a spoje regulátor–baterie–měnič.
 5. **Drobnost** – GitHub hlásí, že actions/checkout@v4 běží na zastaralém Node 20; přejít na checkout@v5 (bez vlivu na hlídač).
+
+=== 2026-11-25 19:40 ===
+Našel jsem 5 věcí:
+1. **Zdroj neznámý** – 25. 11. 07:11–12:43 hlídač psal „zdroj ?“ a Výhled dne se nepočítal, přestože EcoFlow hlásilo „River napájí chatu: ŽLUT ~30 W“. Tapo (2) na výstupu ŽLUT celé dopoledne neodpovídalo (spojení vypršelo). Návrh: když měřicí zásuvka mlčí, určit zdroj z výstupu té River v EcoFlow (jen u River ze zasuvky_river). Ovlivní to rozpoznání zdroje, plán i Výhled dne. Riziko: River by mohla napájet i něco jiného než chatu.
+2. **Testy kapacity** – dva testy končí stejný den (24. 11.: 112 Ah a 100 Ah) a ukládají se pod jeden klíč days[den]["qc"]. Pozdější test přepíše dřívější a každý běh je zapíše oba znovu (v logu 261× „Test kapacity 2026-11-24“, podobně 12. 11. a 25. 11.). Jeden test se tak ztrácí. Návrh: klíč podle času testu a zápis jen při skutečné změně. Ovlivní to medián kapacity (#, plán a kartu Jaká baterie).
+3. **Souhrn dne** – souhrn z 24. 11. ve 22:07 uvádí „Ze solární baterie (měnič) 0,05 kWh · z toho Lednice 0,20“, tedy část je větší než celek. Lednice část dne běžela z River. Návrh: do „z toho“ počítat lednici jen za dobu, kdy chata jela ze soláru, a zbytek uvést zvlášť. Ovlivní to i kartu Včera a Spotřebu.
+4. **Falešný poplach EcoFlow** – 25. 11. ve 12:59 přišlo hned po startu generátoru 2× „🚨 ČERV, ŽLUT – bez spojení s EcoFlow, oprav hned“ a do minuty „zase spojení“. River se teprve probouzely. Návrh: poplach až po 2–3 min nabíjení bez spojení. Skutečný výpadek se tím ohlásí o 2–3 min později. Spuštění zásuvky 7 (6.80) proběhlo správně, hned.
+5. **Počasí (trvá)** – předpověď selhala v 19 ze 172 běhů (SSL timeout, 2× HTTP 429), venkovní teplota 2×. Nález z 24. 11. tedy pořád platí. Návrh beze změny: 1 opakování a jinak poslední úspěšná předpověď.
+Info: 15 zrušených běhů je jen fronta (souběžné spuštění během dlouhého běhu při nabíjení). Nejdelší běh trval 7:20 min při limitu 9 min, takže je tam ještě rezerva. Varování o Node 20 po 6.88 zmizelo.
