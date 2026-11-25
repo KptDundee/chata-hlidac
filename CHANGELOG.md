@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.89 – 26. 11. 2026
+- Dlaždice Solární baterie: u blikajícího „!“ je pod stavem napsané proč, např. „! napětí 12,08 V – pod 12,2 V, omez spotřebu nebo přepni na River“ (Petr: „bliká červený vykřičník, nevím, co znamená“). Dřív se důvod ukazoval jen v detailu.
+
 ## 6.88 – 25. 11. 2026
 - GitHub Actions: `actions/checkout@v5` místo v4 (v4 běží na zastaralém Node 20 – hlásila večerní kontrola). Na hlídač bez vlivu.
 
