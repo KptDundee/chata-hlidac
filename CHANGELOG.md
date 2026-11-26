@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.100 – 26. 11. 2026
+- Karta 💡 Světla: graf „Posledních 24 h“ – časová osa, řádek = světlo (terasa, chodba), značka = rozsvícení (zeleně svítilo, červeně nesvítilo, šedě bez potvrzení); ťuknutím na značku čas a světlo.
+
 ## 6.99 – 26. 11. 2026
 - Zdání přítomnosti podle Petra: světla **S4 terasa a S3 chodba** (náhodně střídat); **první hodinu po odchodu se nesimuluje** (byl jsem tam – `svetla_simulace_od_h` = 1). Cesta = jsem pryč (úseky pryč z kalendáře už mají hodinu cesty tam i zpět).
 - Nová dlaždice **💡 Světla** (Chata): kolik světel Tapo teď svítí, stav zdání přítomnosti (běží · příště ~HH:MM / od HH:MM / vypnuto), naposledy rozsvícené. Karta: co teď svítí (S1–S4) a přehled po dnech, kdy se co rozsvítilo (✓ Flip potvrdil · ✗ nesvítilo · ? bez potvrzení), nastavení k ní.

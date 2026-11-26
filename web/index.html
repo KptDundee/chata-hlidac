@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.99", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.100", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2114,10 +2114,33 @@ function tileLights(d, h){
   return {k:"svetla", icon:"💡", label:"Světla", cls: on ? "ok" : "na", v: L.length ? `${on}/${L.length}` : "–",
     st: st + (last ? `<br><span class="sub">naposledy ${relDay(last[0])} ${hmT(last[0])} ${escH(String(last[1]).replace(/^\(S\d\)\s*/,""))}${last[2]===true?" ✓":last[2]===false?" ✗":""}</span>` : "")};
 }
+/* 6.100 (Petr: „kdy které světlo svítilo – nějak graficky“): časová osa za posledních 24 h, řádek = světlo, značka =
+   rozsvícení (zeleně potvrzené, červeně nesvítilo, šedě bez potvrzení); ťuknutím na značku čas a světlo */
+function psimChart(d){
+  const now = Date.now()/1000, t1 = now, t0 = now - 24*3600, G = (d.psim_log||[]).filter(g=>g[0] >= t0);
+  const nm = x => String(x).replace(/^\(S\d\)\s*/,"").replace(/ svetlo$/,"").replace(/ \(TP\)$/,"");
+  const lanes = [...new Set([...((d.psim_st||{}).lights||[]).map(nm), ...G.map(g=>nm(g[1]))])];
+  if(!lanes.length) return "";
+  const W = 340, L = 62, R = 8, top = 6, lh = 30, H = top + lanes.length*lh + 22, x = t => L + (t - t0)/(t1 - t0)*(W - L - R);
+  const col = v => v===true ? "var(--good)" : v===false ? "var(--crit)" : "var(--muted)";
+  let sv = "";
+  lanes.forEach((ln,i)=>{ const y = top + i*lh;
+    sv += `<rect x="${L}" y="${y+4}" width="${W-L-R}" height="${lh-8}" rx="6" fill="var(--line)" opacity=".45"/>`
+        + `<text x="${L-8}" y="${y+lh/2+4}" text-anchor="end" font-size="12" fill="var(--text2)">${escH(ln)}</text>`; });
+  for(let h_ = Math.ceil(t0/10800)*10800; h_ <= t1; h_ += 10800){ const X = x(h_);
+    sv += `<line x1="${X}" x2="${X}" y1="${top}" y2="${top+lanes.length*lh}" stroke="var(--line)" stroke-dasharray="2 3"/>`
+        + `<text x="${X}" y="${H-6}" text-anchor="middle" font-size="11" fill="var(--text2)">${hmT(h_)}</text>`; }
+  G.forEach(g=>{ const i = lanes.indexOf(nm(g[1])); if(i < 0) return; const y = top + i*lh, X = x(g[0]);
+    const lab = `${relDay(g[0])} ${hmT(g[0])} · ${nm(g[1])} · ${g[2]===true?"svítilo ✓":g[2]===false?"nesvítilo ✗":"bez potvrzení"}`;
+    sv += `<rect x="${X-3}" y="${y+6}" width="6" height="${lh-12}" rx="2" fill="${col(g[2])}" style="cursor:pointer" onclick="document.getElementById('psim_tip').textContent='${lab.replace(/'/g,"")}'"><title>${escH(lab)}</title></rect>`; });
+  return `<div class="card chart"><h2>Posledních 24 h</h2><div class="cs"><span style="color:var(--good)">■</span> svítilo · <span style="color:var(--crit)">■</span> nesvítilo · <span style="color:var(--muted)">■</span> bez potvrzení · ťukni na značku</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${sv}</svg><div id="psim_tip" class="sub" style="min-height:1.4em;margin-top:4px">${G.length ? "" : "Za posledních 24 h nic."}</div></div>`;
+}
 function detLights(body){
   const d = DATA, L = lightsNow(d), G = (d.psim_log||[]).slice().reverse(), P = d.psim_st;
   const byDay = {}; for(const g of G){ const k = relDay(g[0]); (byDay[k] = byDay[k] || []).push(g); }
   body.innerHTML = `<div class="card"><b>Teď</b>${L.map(x=>rowI(escH(x.n), x.on==null ? "–" : x.on ? `<b style="color:var(--good)">svítí</b>` : `<span class="sub">nesvítí</span>`)).join("") || `<div class="sub">Flip zatím žádná světla nehlásí.</div>`}</div>
+    ${psimChart(d)}
     <div class="card"><b>Zdání přítomnosti – kdy se rozsvítilo</b>
       ${Object.keys(byDay).length ? Object.entries(byDay).map(([k,a])=>`<div style="margin-top:8px"><b>${cap1(k)}</b> <span class="sub">(${a.length}×)</span><div style="margin-top:2px;line-height:1.6;display:flex;flex-wrap:wrap;gap:2px 14px">${a.slice().reverse().map(g=>`<span style="white-space:nowrap">${hmT(g[0])} ${escH(String(g[1]).replace(/^\(S\d\)\s*/,"").replace(/ svetlo$/,""))} ${g[2]===true?`<span style="color:var(--good)">✓</span>`:g[2]===false?`<span style="color:var(--crit)">✗</span>`:`<span class="sub">?</span>`}</span>`).join("")}</div></div>`).join("") : `<div class="sub" style="margin-top:6px">Zatím nic.</div>`}
     </div>
