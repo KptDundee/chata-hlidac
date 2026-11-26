@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.96 – 26. 11. 2026
+- Dlaždice Solární baterie: čas „na 50 #“ jako „kolem 17:10“ místo „~17:10“ a nezalomí se (Petr: vlnovka na novém řádku vypadala jako začátek další informace).
+
 ## 6.95 – 26. 11. 2026
 - Úkoly 🔴 z večerní kontroly (do 36 h) jsou i v pruhu nahoře („🔴 z večerní kontroly: …“, ťuknutí otevře kontrolu), dokud je Petr v kartě 🔍 neodškrtne tlačítkem „✓ Hotovo“ (pamatuje si prohlížeč).
 - Dlaždice Solární baterie srozumitelněji: když jsi pryč a chata jede z River, jen „jsi pryč – chata jede z River do návratu 13:00, nic nepřepínáš“ (bez rady a bez „co kdyby“). Doma / před odjezdem je informační řádek „ℹ jen pro představu – ze soláru by klesla na 50 # ~17:10 · do návratu 13:00 by vydržela“.

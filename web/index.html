@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.95", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.96", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1494,7 +1494,7 @@ function t50Row(d, h){
     // 6.95: srozumitelně – jen pro představu, kam by baterie ze soláru klesla
     const r_ = aw_ ? ` · do návratu ${hmT(F.ret_t)} by ${!T_ || T_ >= F.ret_t ? "vydržela" : "nevydržela"}` : "";
     const v_ = T_ && T_ <= F.t + 60 ? `ze soláru by už byla pod ${FL_} #` : !T_ ? `ze soláru by do rána neklesla pod ${FL_} #${r_}`
-      : `ze soláru by klesla na ${FL_} # ~${relDay(T_)==="dnes" ? "" : relDay(T_)+" "}${hmT(T_)}${r_}`;
+      : `ze soláru by klesla na ${FL_} # <span style="white-space:nowrap">kolem ${relDay(T_)==="dnes" ? "" : relDay(T_)+" "}${hmT(T_)}</span>${r_}`;
     return [[`<span class="sub">ℹ jen pro představu</span>`, `<span class="sub">${v_}</span>`]];
   }
   const lab = `na ${F.fl} #`;
@@ -1502,7 +1502,7 @@ function t50Row(d, h){
     ? ` · <span style="color:var(--good)">do návratu ${hmT(F.ret_t)} ✓</span>` : ` · <span style="color:var(--warn)">do návratu ${hmT(F.ret_t)} ne</span>`) : "";
   if(F.t50 && F.t50 <= F.t + 60) return [[lab, `<b style="color:var(--warn)">už pod ${F.fl} #</b>`]];
   if(!F.t50) return [[lab, `<span style="color:var(--good)">do rána ne</span>${ret}`]];
-  return [[lab, `~${relDay(F.t50)==="dnes" ? "" : relDay(F.t50)+" "}${hmT(F.t50)} <span class="sub">(za ${durHM(F.t50 - h.now)})</span>${ret}`]];
+  return [[lab, `<span style="white-space:nowrap">kolem ${relDay(F.t50)==="dnes" ? "" : relDay(F.t50)+" "}${hmT(F.t50)}</span> <span class="sub">(za ${durHM(F.t50 - h.now)})</span>${ret}`]];
 }
 function tileSolar(d, h){
   const t = {k:"bat", icon:"🔆", label:"Solární baterie"};
