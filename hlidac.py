@@ -34,7 +34,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "solar_pryc_pct": 25, "chladnuti_vyjimky": "",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "svetla_simulace": "vypnuto", "svetla_simulace_svetla": "pokoj", "svetla_simulace_s": 90, "solar_pryc_pct": 25, "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -2085,6 +2085,7 @@ def main():
                          ("Jednorázové výdaje", lambda: vydaje_entries(data)),
                          ("Večerní kontrola", lambda: kontrola_entries(data)),
                          ("Voda – připomínky", lambda: water_remind(data, st, now, topic)),
+                         ("Zdání přítomnosti", lambda: presence_sim(data, st, now, topic, cfg)),
                          ("Venku po dnech", lambda: tout_days(data, st, now, cfg)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
@@ -2138,6 +2139,52 @@ def send_cmd(topic, ip, on, reason):
     except Exception as e:
         log("err", f"Povel pro zásuvku .{ip} neodešel: {str(e)[:80]}")
         return False
+
+
+def presence_sim(data, st, now, topic, cfg):
+    """6.97 (Petr: „když jsem podle plánu pryč a je po západu, rozsvítí se 4× za hodinu na 90 s – hodina rozdělená na čtvrtiny,
+    v každé čtvrtině v náhodnou dobu; dojem, že je někdo doma“): zdání přítomnosti se světly Tapo (L900). V každé čtvrthodině
+    se vylosuje okamžik; první běh hlídače po něm rozsvítí náhodně jedno ze světel ze seznamu, probudí Flip, za 90 s zhasne.
+    Světla se hledají podle názvu (svetla_simulace_svetla), IP bere z posledních dat Flipu."""
+    import random
+    if str(cfg.get("svetla_simulace") or "").strip().lower() not in ("zapnuto", "ano", "1", "on"):
+        return
+    ps = st.setdefault("psim", {})
+    inv = data.get("inverter") or {}
+    names = [x.strip().lower() for x in str(cfg.get("svetla_simulace_svetla") or "pokoj").split(",") if x.strip()]
+    lts = [p for p in inv.get("tp", []) if p.get("lt") and p.get("ip") and not p.get("off")
+           and any(n in str(p.get("n") or "").lower() for n in names)]
+    rise_, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+    after_set = set_ is not None and (now >= set_ or now < rise_)          # od západu do východu
+    active = is_away(cfg, PLAN, now) and after_set
+    if ps.get("on_ip"):                       # pojistka: zhasnout, co jsme rozsvítili (kdyby předchozí běh nedoběhl)
+        send_cmd(topic, ps["on_ip"], False, "zdání přítomnosti – zhasnout")
+        wake_flip(topic, 0)
+        ps.pop("on_ip", None)
+    if not active or not lts:
+        if is_away(cfg, PLAN, now) and after_set and not lts:
+            print(f"Zdání přítomnosti: žádné světlo z „{', '.join(names)}“ v datech Flipu")
+        return
+    q = now.replace(minute=now.minute // 15 * 15, second=0, microsecond=0)
+    qk = int(q.timestamp())
+    if ps.get("q") != qk:
+        ps.update(q=qk, at=qk + random.randint(0, 15 * 60 - 150), done=0)
+    if ps.get("done") or now.timestamp() < ps["at"]:
+        print(f"Zdání přítomnosti: tahle čtvrthodina {'hotová' if ps.get('done') else 'rozsvítí ~' + datetime.fromtimestamp(ps['at'], TZ).strftime('%H:%M')}")
+        return
+    p = random.choice(lts)
+    ip, nm = str(p["ip"]), str(p.get("n") or p["ip"]).replace(" (TP)", "")
+    ps.update(done=1, on_ip=ip)
+    send_cmd(topic, ip, True, "zdání přítomnosti")
+    wake_flip(topic, 0)
+    time.sleep(int(cfg.get("svetla_simulace_s") or 90))
+    send_cmd(topic, ip, False, "zdání přítomnosti – zhasnout")
+    wake_flip(topic, 0)
+    ps.pop("on_ip", None)
+    L = data.setdefault("psim_log", [])
+    L.append([int(now.timestamp()), nm])
+    data["psim_log"] = L[-40:]
+    print(f"Zdání přítomnosti: {nm} rozsvíceno na {int(cfg.get('svetla_simulace_s') or 90)} s")
 
 
 def dur(sec):

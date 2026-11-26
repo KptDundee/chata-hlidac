@@ -191,3 +191,10 @@ gen_off =                        # River bez spojení: výkon nastavený ručně
 gen_spotrebice = Kolobezka=80; RoboVysavac=70; Autonabijecka 12V=50
 kanystry = šedý 5:1, černý 5:0, velký 10:10
 lahve_pb = 10:0, 10:0
+
+# --- 💡 Zdání přítomnosti (6.97) ---
+# Když jsem podle plánu pryč a je po západu slunce (do východu), rozsvítí se 4× za hodinu na chvíli jedno ze světel Tapo:
+# hodina je rozdělená na čtvrtiny, v každé v náhodnou dobu. Světla podle názvu v aplikaci Tapo (část názvu, čárkou).
+svetla_simulace = zapnuto
+svetla_simulace_svetla = pokoj    # např. pokoj, chodba, loznice, terasa
+svetla_simulace_s = 90            # jak dlouho svítí (s)

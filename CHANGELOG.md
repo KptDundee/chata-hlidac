@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.97 – 26. 11. 2026
+- **💡 Zdání přítomnosti** (Petr: „když jsem podle plánu pryč a je po západu, rozsvítí se 4× za hodinu na 90 s – hodina rozdělená na čtvrtiny, v každé v náhodnou dobu“): v každé čtvrthodině se vylosuje okamžik; první běh hlídače po něm rozsvítí jedno ze světel Tapo ze seznamu (náhodně), probudí Flip, za 90 s zhasne (pojistka: kdyby běh nedoběhl, další ho zhasne). Platí od západu do východu slunce, jen když jsem podle plánu pryč. Nastavení `svetla_simulace` (zapnuto/vypnuto), `svetla_simulace_svetla` (části názvů: pokoj, chodba, loznice, terasa), `svetla_simulace_s` (90). Na zkoušku zapnuto jen „pokoj“.
+
 ## 6.96 – 26. 11. 2026
 - Dlaždice Solární baterie: čas „na 50 #“ jako „kolem 17:10“ místo „~17:10“ a nezalomí se (Petr: vlnovka na novém řádku vypadala jako začátek další informace).
 
