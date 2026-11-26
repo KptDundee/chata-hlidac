@@ -196,5 +196,6 @@ lahve_pb = 10:0, 10:0
 # Když jsem podle plánu pryč a je po západu slunce (do východu), rozsvítí se 4× za hodinu na chvíli jedno ze světel Tapo:
 # hodina je rozdělená na čtvrtiny, v každé v náhodnou dobu. Světla podle názvu v aplikaci Tapo (část názvu, čárkou).
 svetla_simulace = zapnuto
-svetla_simulace_svetla = S1      # (S1) pokoj, (S2) ložnice, (S3) chodba, (S4) terasa – např. S1, S3 (nebo část názvu)
+svetla_simulace_svetla = S4, S3  # (S1) pokoj, (S2) ložnice, (S3) chodba, (S4) terasa – např. S1, S3 (nebo část názvu)
 svetla_simulace_s = 90            # jak dlouho svítí (s)
+svetla_simulace_od_h = 1          # první hodinu po odchodu (cesta) nesimulovat – byl jsem tam

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.98", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.99", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -474,6 +474,7 @@ const cfgV = (key, txt) => `<span class="cfgv" data-cfg="${key}" role="button" t
 document.addEventListener("click", e => { const c = e.target.closest(".cfgv"); if(!c) return; e.preventDefault(); e.stopPropagation(); openSettings({focus: c.dataset.cfg}); }, true);
 /* nastavení, která ovlivňují jednotlivé detaily (řádek „⚙ Nastavení k této kartě“) */
 const DETCFG = {
+  svetla: ["svetla_simulace","svetla_simulace_svetla","svetla_simulace_s","svetla_simulace_od_h"],
   bat: ["baterie_slabne_V","baterie_kriticka_V","baterie_setrna_pct","odpojeni_V","noc_spotreba_W","menic_vlastni_W","kapacita_Ah","nutne_river_v","plne_nabiti_od_dni","plne_nabiti_dni","odber_hlidat","odber_z_baterie_A"],
   night: ["nutne_river_v","baterie_kriticka_V","noc_spotreba_W","menic_vlastni_W","ticho"],
   wx: ["pocasi","rezim","panely_pocet","sezona_upozornit"],
@@ -2099,6 +2100,28 @@ function utilSummary(d){   // posledních 12 měsíců (bez rozběhnutého měs�
   const {M} = utilCalc(d), cur = uMonth(Date.now()/1000), ks = Object.keys(M).sort().filter(k=>k<cur).slice(-12);
   const S = {}; for(const kind of Object.keys(UK)){ const v = ks.map(k=>(M[k][kind]||{}).kc||0); S[kind] = ks.length ? v.reduce((a,b)=>a+b,0) : null; }
   return {S, n:ks.length, tot: ks.length ? Object.values(S).reduce((a,b)=>a+(b||0),0) : null};
+}
+/* 6.99 (Petr: „chtěl bych vidět přehled, kdy bylo zapnuté co – na kartě, pro kontrolu“): 💡 Světla Tapo (S1–S4) –
+   co teď svítí, zdání přítomnosti (aktivní / od kdy) a přehled rozsvícení */
+const lightsNow = d => { const I = d.inverter, f = I && Date.now()/1000 - I.t < 1800;
+  return ((I||{}).tp||[]).filter(p=>p.lt && !p.off).map(p=>({n:String(p.n||p.ip).replace(" (TP)",""), on: f ? p.on===1 : null}))
+    .sort((a,b)=>a.n.localeCompare(b.n)); };
+function tileLights(d, h){
+  const L = lightsNow(d), P = d.psim_st, G = d.psim_log || [], last = G[G.length-1];
+  const fresh = P && h.now - P.t < 1800, on = L.filter(x=>x.on).length;
+  const st = !fresh ? "zdání přítomnosti vypnuto" : P.active ? `zdání přítomnosti běží${P.at ? ` · příště ~${hmT(P.at)}` : ""}`
+    : P.away && P.from ? `zdání přítomnosti od ${hmT(P.from)}` : "zdání přítomnosti – jen když jsi pryč po setmění";
+  return {k:"svetla", icon:"💡", label:"Světla", cls: on ? "ok" : "na", v: L.length ? `${on}/${L.length}` : "–",
+    st: st + (last ? `<br><span class="sub">naposledy ${relDay(last[0])} ${hmT(last[0])} ${escH(String(last[1]).replace(/^\(S\d\)\s*/,""))}${last[2]===true?" ✓":last[2]===false?" ✗":""}</span>` : "")};
+}
+function detLights(body){
+  const d = DATA, L = lightsNow(d), G = (d.psim_log||[]).slice().reverse(), P = d.psim_st;
+  const byDay = {}; for(const g of G){ const k = relDay(g[0]); (byDay[k] = byDay[k] || []).push(g); }
+  body.innerHTML = `<div class="card"><b>Teď</b>${L.map(x=>rowI(escH(x.n), x.on==null ? "–" : x.on ? `<b style="color:var(--good)">svítí</b>` : `<span class="sub">nesvítí</span>`)).join("") || `<div class="sub">Flip zatím žádná světla nehlásí.</div>`}</div>
+    <div class="card"><b>Zdání přítomnosti – kdy se rozsvítilo</b>
+      ${Object.keys(byDay).length ? Object.entries(byDay).map(([k,a])=>`<div style="margin-top:8px"><b>${cap1(k)}</b> <span class="sub">(${a.length}×)</span><div style="margin-top:2px;line-height:1.6;display:flex;flex-wrap:wrap;gap:2px 14px">${a.slice().reverse().map(g=>`<span style="white-space:nowrap">${hmT(g[0])} ${escH(String(g[1]).replace(/^\(S\d\)\s*/,"").replace(/ svetlo$/,""))} ${g[2]===true?`<span style="color:var(--good)">✓</span>`:g[2]===false?`<span style="color:var(--crit)">✗</span>`:`<span class="sub">?</span>`}</span>`).join("")}</div></div>`).join("") : `<div class="sub" style="margin-top:6px">Zatím nic.</div>`}
+    </div>
+    <div class="sub" style="margin:6px 4px;line-height:1.5">Když jsi podle plánu pryč a je tma (od západu do východu), rozsvítí se 4× za hodinu na 90 s jedno ze světel (${escH(((P||{}).lights||[]).join(", ") || "podle nastavení")}) – v každé čtvrthodině v náhodnou dobu. První hodinu po odchodu ne (byl jsi tam). ✓ = Flip potvrdil, že svítilo; ✗ = nesvítilo (povel neprošel); ? = potvrzení nepřišlo.</div>`;
 }
 function tileUtil(d, h){
   const t = {k:"util", icon:"🧾", label:"Plyn a voda"}, U = d.util || [];
@@ -4239,7 +4262,7 @@ function renderHome(d){
   $("h_src").innerHTML = SRC.map(tileHtml).join("");
   // 5.15: sekce – Chata (teploty, lednice, Flip, spotřebiče), Energie dnes (výroba + spotřeba), Výhled, Uplynulé, Dlouhodobě
   const T = {
-    chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h), tileUtil(d, h)].filter(Boolean),   // 6.23: Plyn a voda patří k chatě
+    chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h), tileUtil(d, h), tileLights(d, h)].filter(Boolean),   // 6.23: Plyn a voda patří k chatě
     // 5.284 (Petr): plán pryč / spaní souvisí s výrobou → i ve Výrobě
     prod: [tileProdSolar(d, h), tileProdGen(d, h), C_(tilePlan)], use: [tileUseTotal(d, h), tileUseSolar(d, h), tileUseRiver(d, h), tileCost(d, h)],
     out: [C_(tileNight), C_(tileTomorrow), C_(tilePlan)], past: [tilePastNight(d,h), tileYesterday(d,h)],
@@ -4298,6 +4321,7 @@ const DET = {
   bat:   {t:"🔆 Solární baterie", s:"Údaje · grafy · výklad", build:detBat},
   kontrola: {t:"🔍 Večerní kontrola", s:"Každý večer Claude projde záznamy hlídače – poslední výsledek nahoře", build:detCheck},
   naklady: {t:"💰 Náklady na chatu", s:"Elektřina (z River – cena z nabíjení generátorem, ze soláru 0), plyn a voda, jednorázové výdaje", build:detCost},
+  svetla: {t:"💡 Světla", s:"Světla Tapo – co svítí a kdy je rozsvítilo zdání přítomnosti", build:detLights},
   util: {t:"🧾 Plyn a voda v chatě", s:"Lahve PB (vaření, primotop, sprcha) a voda – kolik to stojí za měsíc a rok", build:detUtil},
   night: {t:"🌙 Příští noc", s:"Vydrží baterie do příštího rána?", build:detNight, title:()=>`🌙 ${tileNight(DATA, homeData(DATA)).label}`},
   pastnight:{t:"🌘 Minulá noc", s:"Jak dopadla a jak sedí předpověď", build:detPastNight, title:()=>`🌘 ${tilePastNight(DATA, homeData(DATA)).label}`},
@@ -5180,6 +5204,10 @@ const SETTINGS = [
     ["chladnuti_spat","Chodím spát v","Kolik °C mít v pokoji v tuhle dobu, aby ráno bylo „ráno chci“","",0,"time"],
     ["chladnuti_min_C","Přes den nesmí klesnout pod","Kdy zatopit: hranice teploty pokoje","°C",0.5,"num"],
     ["chladnuti_predstih_min","Upozornit předem","Kolik minut před dosažením hranice přijde „zatop“","min",5,"num"],
+    ["svetla_simulace","Zdání přítomnosti","Když jsi pryč a je tma, rozsvítí 4× za hodinu na chvíli jedno ze světel","","","sw"],
+    ["svetla_simulace_svetla","Zdání přítomnosti – světla","Označení nebo část názvu z aplikace Tapo, čárkou: S1 pokoj, S2 ložnice, S3 chodba, S4 terasa","",0,"str"],
+    ["svetla_simulace_s","Zdání přítomnosti – svítit","Jak dlouho jedno rozsvícení","s",10,"num"],
+    ["svetla_simulace_od_h","Zdání přítomnosti – od odchodu","Kolik hodin po odchodu začít (cesta – byl jsi tam)","h",0.5,"num"],
     ["lednice_max_C","Lednice teplejší než","Upozornit, když je v lednici tepleji déle než 2 h (a neklesá)","°C",1,"num"],
     ["lednice_teplo_C","Teplo v pokoji od","V pokoji aspoň tolik → lednice v teple nestíhá, to není porucha (nehlásí se teplá ani běh bez přestávky)","°C",1,"num"],
     ["lednice_kriticka_C","V teple hlásit až nad","Když je v pokoji teplo: upozornit, až je v lednici tepleji déle než 1 h","°C",1,"num"],

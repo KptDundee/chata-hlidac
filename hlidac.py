@@ -34,7 +34,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "svetla_simulace": "vypnuto", "svetla_simulace_svetla": "pokoj", "svetla_simulace_s": 90, "solar_pryc_pct": 25, "chladnuti_vyjimky": "",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "svetla_simulace": "vypnuto", "svetla_simulace_svetla": "pokoj", "svetla_simulace_s": 90, "svetla_simulace_od_h": 1, "solar_pryc_pct": 25, "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -2156,11 +2156,22 @@ def presence_sim(data, st, now, topic, cfg):
            and any(n in str(p.get("n") or "").lower() for n in names)]
     rise_, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
     after_set = set_ is not None and (now >= set_ or now < rise_)          # od západu do východu
-    active = is_away(cfg, PLAN, now) and after_set
+    # 6.99 (Petr: „když odcházím, tu dobu simulovat nemusíme – byl jsem tam; až hodinu po odchodu“; cesta = jsem pryč –
+    # úseky pryč z kalendáře už hodinu cesty tam i zpět obsahují): první hodinu úseku pryč (od odchodu) nic
+    a_ = None
+    for i in (-1, 0):
+        for a, b, f in plan_day(PLAN, (now + timedelta(days=i)).date())[0]:
+            if a <= now < b:
+                a_ = a if a_ is None else min(a_, a)
+    od_ = float(cfg.get("svetla_simulace_od_h") or 1)
+    active = a_ is not None and after_set and (now - a_).total_seconds() >= od_ * 3600
     if ps.get("on_ip"):                       # pojistka: zhasnout, co jsme rozsvítili (kdyby předchozí běh nedoběhl)
         send_cmd(topic, ps["on_ip"], False, "zdání přítomnosti – zhasnout")
         wake_flip(topic, 0)
         ps.pop("on_ip", None)
+    data["psim_st"] = {"t": int(now.timestamp()), "active": bool(active), "away": a_ is not None,
+                       "from": int((a_ + timedelta(hours=od_)).timestamp()) if a_ is not None else None,
+                       "lights": [str(p.get("n") or "").replace(" (TP)", "") for p in lts]}
     if not active or not lts:
         if is_away(cfg, PLAN, now) and after_set and not lts:
             print(f"Zdání přítomnosti: žádné světlo z „{', '.join(names)}“ v datech Flipu")
@@ -2169,6 +2180,7 @@ def presence_sim(data, st, now, topic, cfg):
     qk = int(q.timestamp())
     if ps.get("q") != qk:
         ps.update(q=qk, at=qk + random.randint(0, 15 * 60 - 150), done=0)
+    data["psim_st"]["at"] = ps["at"] if not ps.get("done") else None
     if ps.get("done") or now.timestamp() < ps["at"]:
         print(f"Zdání přítomnosti: tahle čtvrthodina {'hotová' if ps.get('done') else 'rozsvítí ~' + datetime.fromtimestamp(ps['at'], TZ).strftime('%H:%M')}")
         return
