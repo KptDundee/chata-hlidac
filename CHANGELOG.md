@@ -3,6 +3,13 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.102 – 26. 11. 2026
+- **📍 Poloha telefonu** (Petr: „využít na potvrzení reálné nepřítomnosti; plán z ní dělat nemůžeme – když už budu pryč, je pozdě; při příjezdu můžu dostat okamžitý pokyn; stará pravidla nerušit, kdyby lokace chybovala“): telefon (aplikace Automate, okruh ~2 km kolem chaty) pošle do ntfy `<topic>-geo` „prijezd“ / „odjezd“ a spustí hlídač. Hlídač to čte v každém běhu i ve smyčce nabíjení.
+  - **Příjezd:** za tmy hned světlo na příchod (terasa, zhasne po 25 min), zpráva „🏠 Přijíždíš na chatu – co udělat: …“ (nejdůležitější rady z „Co teď udělat“), zdání přítomnosti se zastaví (do 12 h nebo do odjezdu).
+  - **Odjezd:** zapíše se; zdání přítomnosti začne hodinu po skutečném odjezdu (když je pozdější než v plánu).
+  - Plán, kalendář a světlo na příchod podle kalendáře platí dál jako záloha.
+  - Karta 💡 Světla: příjezdy a odjezdy (seznam, svislé čáry 🏠 / 🚗 v grafu), na dlaždici poslední.
+
 ## 6.101 – 26. 11. 2026
 - Zdání přítomnosti **jen večer** – od západu slunce do půlnoci (Petr: „ráno zloděje nepředpokládám“).
 - **🏠 Světlo na příchod** (Petr: „10 min před příchodem se večer rozsvítí terasa a zůstane svítit, já ji ručně vypnu; když to neudělám do 20 min, sama se vypne – abych viděl na cestu“): příchod = konec úseku pryč (cesta je v něm). Za tmy první běh hlídače od ~15 min před příchodem rozsvítí terasu (hlídač běží co ~10 min → ±5 min), 20 min po příchodu ji zhasne (když ji Petr zhasl sám, nic se nestane). Posledních ~15 min před příchodem zdání přítomnosti nebliká. Nastavení `svetla_vitani`, `svetla_vitani_svetlo`, `svetla_vitani_pred_min`, `svetla_vitani_po_min`. V kartě Světla modře v grafu a „🏠 … na příchod“ v přehledu, na dlaždici čas.

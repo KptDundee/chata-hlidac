@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.101", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.102", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2112,7 +2112,7 @@ function tileLights(d, h){
   const st = !fresh ? "zdání přítomnosti vypnuto" : P.active ? `zdání přítomnosti běží${P.at ? ` · příště ~${hmT(P.at)}` : ""}`
     : P.away && P.from ? `zdání přítomnosti od ${hmT(P.from)}` : "zdání přítomnosti – jen když jsi pryč po setmění";
   return {k:"svetla", icon:"💡", label:"Světla", cls: on ? "ok" : "na", v: L.length ? `${on}/${L.length}` : "–",
-    st: st + (d.psim_st && d.psim_st.vit ? `<br><span class="sub">🏠 terasa na příchod ~${hmT(d.psim_st.vit)}</span>` : "") + (last ? `<br><span class="sub">naposledy ${relDay(last[0])} ${hmT(last[0])} ${escH(String(last[1]).replace(/^\(S\d\)\s*/,""))}${last[2]===true?" ✓":last[2]===false?" ✗":""}</span>` : "")};
+    st: st + (P && P.geo && P.geo.t && h.now - P.geo.t < 24*3600 ? `<br><span class="sub">📍 ${P.geo.ev==="prijezd" ? "přijel" : "odjel"} ${relDay(P.geo.t)} ${hmT(P.geo.t)} (poloha)</span>` : "") + (d.psim_st && d.psim_st.vit ? `<br><span class="sub">🏠 terasa na příchod ~${hmT(d.psim_st.vit)}</span>` : "") + (last ? `<br><span class="sub">naposledy ${relDay(last[0])} ${hmT(last[0])} ${escH(String(last[1]).replace(/^\(S\d\)\s*/,""))}${last[2]===true?" ✓":last[2]===false?" ✗":""}</span>` : "")};
 }
 /* 6.100 (Petr: „kdy které světlo svítilo – nějak graficky“): časová osa za posledních 24 h, řádek = světlo, značka =
    rozsvícení (zeleně potvrzené, červeně nesvítilo, šedě bez potvrzení); ťuknutím na značku čas a světlo */
@@ -2121,7 +2121,7 @@ function psimChart(d){
   const nm = x => String(x).replace(/^\(S\d\)\s*/,"").replace(/ svetlo$/,"").replace(/ \(TP\)$/,"");
   const lanes = [...new Set([...((d.psim_st||{}).lights||[]).map(nm), ...G.map(g=>nm(g[1]))])];
   if(!lanes.length) return "";
-  const W = 340, L = 62, R = 8, top = 6, lh = 30, H = top + lanes.length*lh + 22, x = t => L + (t - t0)/(t1 - t0)*(W - L - R);
+  const W = 340, L = 62, R = 8, top = (d.geo_log||[]).some(g=>g[0] >= t0) ? 18 : 6, lh = 30, H = top + lanes.length*lh + 22, x = t => L + (t - t0)/(t1 - t0)*(W - L - R);
   const col = v => v===true ? "var(--good)" : v===false ? "var(--crit)" : "var(--muted)";
   let sv = "";
   lanes.forEach((ln,i)=>{ const y = top + i*lh;
@@ -2130,6 +2130,8 @@ function psimChart(d){
   for(let h_ = Math.ceil(t0/10800)*10800; h_ <= t1; h_ += 10800){ const X = x(h_);
     sv += `<line x1="${X}" x2="${X}" y1="${top}" y2="${top+lanes.length*lh}" stroke="var(--line)" stroke-dasharray="2 3"/>`
         + `<text x="${X}" y="${H-6}" text-anchor="middle" font-size="11" fill="var(--text2)">${hmT(h_)}</text>`; }
+  (d.geo_log||[]).filter(g=>g[0] >= t0).forEach(g=>{ const X = x(g[0]);
+    sv += `<line x1="${X}" x2="${X}" y1="${top}" y2="${top+lanes.length*lh}" stroke="var(--text2)" stroke-width="1.5"/><text x="${X}" y="12" text-anchor="middle" font-size="11">${g[1]==="prijezd" ? "🏠" : "🚗"}</text>`; });
   G.forEach(g=>{ const i = lanes.indexOf(nm(g[1])); if(i < 0) return; const y = top + i*lh, X = x(g[0]);
     const lab = (g[3]||0) > 300 ? `${relDay(g[0])} ${hmT(g[0])} · ${nm(g[1])} · na příchod (nejdéle do ${hmT(g[0]+g[3])})`
       : `${relDay(g[0])} ${hmT(g[0])} · ${nm(g[1])} · ${g[2]===true?"svítilo ✓":g[2]===false?"nesvítilo ✗":"bez potvrzení"}`;
@@ -2143,6 +2145,7 @@ function detLights(body){
   const byDay = {}; for(const g of G){ const k = relDay(g[0]); (byDay[k] = byDay[k] || []).push(g); }
   body.innerHTML = `<div class="card"><b>Teď</b>${L.map(x=>rowI(escH(x.n), x.on==null ? "–" : x.on ? `<b style="color:var(--good)">svítí</b>` : `<span class="sub">nesvítí</span>`)).join("") || `<div class="sub">Flip zatím žádná světla nehlásí.</div>`}</div>
     ${psimChart(d)}
+    ${(d.geo_log||[]).length ? `<div class="card"><b>📍 Poloha telefonu</b> <span class="sub">– příjezdy a odjezdy (okruh kolem chaty)</span><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">${(d.geo_log||[]).slice(-12).reverse().map(g=>`<span style="white-space:nowrap">${g[1]==="prijezd" ? "🏠 příjezd" : "🚗 odjezd"} ${relDay(g[0])} ${hmT(g[0])}</span>`).join("")}</div></div>` : ""}
     <div class="card"><b>Zdání přítomnosti – kdy se rozsvítilo</b>
       ${Object.keys(byDay).length ? Object.entries(byDay).map(([k,a])=>`<div style="margin-top:8px"><b>${cap1(k)}</b> <span class="sub">(${a.length}×)</span><div style="margin-top:2px;line-height:1.6;display:flex;flex-wrap:wrap;gap:2px 14px">${a.slice().reverse().map(g=>`<span style="white-space:nowrap">${(g[3]||0) > 300 ? "🏠 " : ""}${hmT(g[0])} ${escH(String(g[1]).replace(/^\(S\d\)\s*/,"").replace(/ svetlo$/,""))} ${(g[3]||0) > 300 ? `<span class="sub">na příchod</span>` : g[2]===true?`<span style="color:var(--good)">✓</span>`:g[2]===false?`<span style="color:var(--crit)">✗</span>`:`<span class="sub">?</span>`}</span>`).join("")}</div></div>`).join("") : `<div class="sub" style="margin-top:6px">Zatím nic.</div>`}
     </div>

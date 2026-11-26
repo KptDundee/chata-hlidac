@@ -2091,6 +2091,7 @@ def main():
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
                          ("Večerní souhrn", lambda: daily_summary(data, v, st, now, topic, cfg, rise, set_)),
                          ("Co teď udělat", lambda: build_todo(data, st, now)),
+                         ("Poloha telefonu", lambda: geo_poll(data, st, now, topic, cfg)),
                          ("Před odjezdem", lambda: dep_confirm(data, st, now, topic, cfg)),
                          ("Upozornění pro web", lambda: data.__setitem__("alarms", [{"k": k_, "title": e_.get("title", k_), "t0": e_.get("t0"),
                                                                                      "ack": bool(e_.get("ack")), "snz": e_.get("snz")}
@@ -2184,6 +2185,9 @@ def welcome_light(data, st, now, topic, cfg):
     a_, b_ = away_bounds(now)
     if b_ is None or vs.get("b") == int(b_.timestamp()):
         return
+    g_ = st.get("geo") or {}
+    if g_.get("ev") == "prijezd" and a_ is not None and g_.get("t", 0) > a_.timestamp():
+        return                                  # 6.102: už jsi podle polohy přijel – světlo dal příjezd
     pred = float(cfg.get("svetla_vitani_pred_min") or 10)
     if ts < b_.timestamp() - (pred + 5) * 60:
         return
@@ -2203,6 +2207,57 @@ def welcome_light(data, st, now, topic, cfg):
     vs.update(b=int(b_.timestamp()), ip=ip, nm=nm, off_at=int(b_.timestamp() + po * 60))
     psim_log(data, nm, None, b_.timestamp() + po * 60 - ts)
     print(f"Vítání: {nm} rozsvíceno, příchod {b_.strftime('%H:%M')}, zhasne {datetime.fromtimestamp(vs['off_at'], TZ).strftime('%H:%M')}")
+
+
+def geo_poll(data, st, now, topic, cfg):
+    """6.102 (Petr: poloha telefonu – „můžeme ji využít na potvrzení reálné nepřítomnosti; plán z ní dělat nemůžeme (když
+    už budu pryč, je pozdě), ale při příjezdu můžu dostat okamžitý pokyn; stará pravidla nerušit, kdyby lokace chybovala“).
+    Telefon (aplikace Automate, okruh kolem chaty) pošle do ntfy <topic>-geo „prijezd“ / „odjezd“ (a spustí hlídač).
+    Příjezd: za tmy hned světlo na příchod (zhasne po svetla_vitani_po_min + 5 min), zpráva „🏠 Přijíždíš“ s tím, co
+    udělat, zdání přítomnosti stop. Odjezd: zapíše se (potvrzení nepřítomnosti). Kalendář dál platí jako záloha."""
+    try:
+        lines = urllib.request.urlopen(f"https://ntfy.sh/{topic}-geo/json?poll=1&since=12h", timeout=15).read().decode().splitlines()
+    except Exception as e:
+        print("Poloha telefonu (ntfy):", e)
+        return
+    g = st.setdefault("geo", {})
+    for ln in lines:
+        try:
+            m = json.loads(ln)
+        except ValueError:
+            continue
+        if m.get("event") != "message" or int(m.get("time") or 0) <= int(g.get("t") or 0):
+            continue
+        ev = "prijezd" if "prij" in str(m.get("message") or "").lower() else "odjezd" if "odj" in str(m.get("message") or "").lower() else None
+        if not ev:
+            continue
+        t = int(m["time"])
+        g.update(ev=ev, t=t)
+        L = data.setdefault("geo_log", [])
+        L.append([t, ev])
+        data["geo_log"] = L[-60:]
+        print(f"Poloha telefonu: {ev} v {datetime.fromtimestamp(t, TZ).strftime('%H:%M')}")
+        if ev != "prijezd" or time.time() - t > 30 * 60:
+            continue
+        # příjezd: světlo hned (za tmy)
+        if str(cfg.get("svetla_vitani") or "").strip().lower() in ("zapnuto", "ano", "1", "on"):
+            r_, z_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
+            if z_ and now >= z_ or r_ and now < r_:
+                Lt = lights_by(data, str(cfg.get("svetla_vitani_svetlo") or "terasa").split(","))
+                if Lt:
+                    ip, nm = str(Lt[0]["ip"]), str(Lt[0].get("n") or Lt[0]["ip"]).replace(" (TP)", "")
+                    send_cmd(topic, ip, True, "vítání – příjezd (poloha)")
+                    wake_flip(topic, 0)
+                    vs = st.setdefault("vitani", {})
+                    _, b_ = away_bounds(now)
+                    po = float(cfg.get("svetla_vitani_po_min") or 20) + 5
+                    vs.update(ip=ip, nm=nm, off_at=int(time.time() + po * 60), b=int(b_.timestamp()) if b_ else vs.get("b"))
+                    psim_log(data, nm, None, po * 60)
+                    print(f"Poloha telefonu: příjezd → {nm} rozsvíceno")
+        # okamžitý pokyn: co teď udělat (z posledního výpočtu)
+        T = (data.get("todo") or {}).get("list") or []
+        todo = [x.get("txt") or "" for x in T if x.get("lvl") in ("warn", "crit")][:3] or [x.get("txt") or "" for x in T][:2]
+        ntfy(topic, "🏠 Přijíždíš na chatu", ("Co udělat:\n• " + "\n• ".join(t_ for t_ in todo if t_)) if any(todo) else "Nic naléhavého.", 3, "house")
 
 
 def presence_sim(data, st, now, topic, cfg):
@@ -2225,13 +2280,19 @@ def presence_sim(data, st, now, topic, cfg):
     od_ = float(cfg.get("svetla_simulace_od_h") or 1)
     # 6.101: posledních ~15 min před příchodem nic – svítí vítání (terasa)
     vit_ = float(cfg.get("svetla_vitani_pred_min") or 10) + 5 if str(cfg.get("svetla_vitani") or "").strip().lower() in ("zapnuto", "ano", "1", "on") else 0
-    active = (a_ is not None and after_set and (now - a_).total_seconds() >= od_ * 3600
+    # 6.102: poloha telefonu potvrzuje nepřítomnost – po „příjezdu“ (do 12 h, dokud nepřijde „odjezd“) nic; odjezd podle
+    # polohy (později než podle plánu) posune začátek
+    g_ = st.get("geo") or {}
+    geo_home = g_.get("ev") == "prijezd" and now.timestamp() - (g_.get("t") or 0) < 12 * 3600
+    if a_ is not None and g_.get("ev") == "odjezd" and a_.timestamp() < (g_.get("t") or 0) < now.timestamp():
+        a_ = datetime.fromtimestamp(g_["t"], TZ)
+    active = (a_ is not None and after_set and not geo_home and (now - a_).total_seconds() >= od_ * 3600
               and (now - b_).total_seconds() < -vit_ * 60)
     if ps.get("on_ip"):                       # pojistka: zhasnout, co jsme rozsvítili (kdyby předchozí běh nedoběhl)
         send_cmd(topic, ps["on_ip"], False, "zdání přítomnosti – zhasnout")
         wake_flip(topic, 0)
         ps.pop("on_ip", None)
-    data["psim_st"] = {"t": int(now.timestamp()), "active": bool(active), "away": a_ is not None,
+    data["psim_st"] = {"t": int(now.timestamp()), "active": bool(active), "away": a_ is not None, "geo": g_ or None,
                        "from": int((a_ + timedelta(hours=od_)).timestamp()) if a_ is not None else None,
                        "lights": [str(p.get("n") or "").replace(" (TP)", "") for p in lts]}
     if vit_ and b_ is not None:                # 6.101: kdy se rozsvítí světlo na příchod (za tmy)
@@ -8264,6 +8325,10 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             read_ecoflow_app((data.get("rivers") or []) + (data.get("ef_gens") or []), data, st, datetime.now(TZ), force=True)
         except Exception as e:
             print("Generátor – čtení EcoFlow:", e)
+        try:                                           # 6.102: příjezd podle polohy i během dlouhého běhu
+            geo_poll(data, st, datetime.now(TZ), topic, cfg)
+        except Exception as e:
+            print("Poloha telefonu:", e)
         go = step(int(time.time()))
     data["gen_cont"] = bool(gs.get("active"))
 
