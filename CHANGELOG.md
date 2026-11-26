@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.95 – 26. 11. 2026
+- Úkoly 🔴 z večerní kontroly (do 36 h) jsou i v pruhu nahoře („🔴 z večerní kontroly: …“, ťuknutí otevře kontrolu), dokud je Petr v kartě 🔍 neodškrtne tlačítkem „✓ Hotovo“ (pamatuje si prohlížeč).
+- Dlaždice Solární baterie srozumitelněji: když jsi pryč a chata jede z River, jen „jsi pryč – chata jede z River do návratu 13:00, nic nepřepínáš“ (bez rady a bez „co kdyby“). Doma / před odjezdem je informační řádek „ℹ jen pro představu – ze soláru by klesla na 50 # ~17:10 · do návratu 13:00 by vydržela“.
+
 ## 6.94 – 26. 11. 2026
 - Výpadek cloudu Solar Guardian už hlídač nezastaví (26. 11. od 5:30: dispatch vrací 400 – hlídač dřív skončil a nepočítal plán, River ani upozornění). Pokračuje s posledními údaji regulátoru jako „regulátor bez dat“ (stejně jako když regulátor nevysílá): body se nezapisují, po 30 min přijde „📡 Regulátor neposílá data“ s napětím z Victronu, plán, River, generátor a ostatní upozornění běží dál.
 

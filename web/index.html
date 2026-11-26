@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.94", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.95", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -1380,6 +1380,10 @@ function dayFcRow(d, h){
   // 6.18 (Petr): plná solární baterie přes den → nepovinně na solár, zpátky na River při 75 # (stejně jako rada a upozornění)
   // 6.20: jedna sada hranic – od 90 # (plná) přes den ano, zpátky na River při 50 #; ve dny dobíjení do plna ne
   const SF = d.sol_full, SFf = SF && h.now - SF.t <= 1800;
+  // 6.95 (Petr: „té druhé části nerozumím – co dělat, jsme si řekli“): když jsem pryč a chata jede z River, přepnout stejně
+  // nejde – jeden jasný řádek místo rady a „co kdyby“
+  if(f.src==="river" && f.dep && f.dep <= h.now && f.ret_t && f.ret_t > h.now)
+    return ["jsi pryč", `<span style="color:var(--text2)">chata jede z River do návratu ${hmT(f.ret_t)} – nic nepřepínáš</span>`, 1];
   // 6.77 (Petr: „když dobíjíme do 100 # kvůli zdraví, dej na dlaždici info, ať nepřepnu z vlastní iniciativy“)
   if(f.src==="river" && SFf && SF.chg) return ["ℹ dnes dobíjení do plna", `<b style="color:var(--accent,var(--text))">nepřepínej na solár</b> <span class="sub">– chata jede z River, aby se baterie nabila do Float (zdraví baterie)</span>`, 1];
   if(f.src==="river" && SFf && SF.offer) return ["přepnout na solár?", `<b style="color:var(--good)">ano · zpět při ${SF.back} #</b>`, 1];
@@ -1486,9 +1490,12 @@ function t50Row(d, h){
   // 6.92: když odjíždím (ret_t), platí pro solár hranice „pryč“ (25 #) – stejně jako plán a zpráva 🚗 Odjezd
   const aw_ = F.ret_t && F.ret_t > h.now && F.fl_aw != null, T_ = aw_ ? F.taw : F.t50, FL_ = aw_ ? F.fl_aw : F.fl;
   if(F.src!=="solar"){
-    const r_ = aw_ ? ` · do návratu ${hmT(F.ret_t)} ${!T_ || T_ >= F.ret_t ? "by vydržela" : "by nevydržela"}` : "";
-    const v_ = T_ && T_ <= F.t + 60 ? `už pod ${FL_} #` : !T_ ? `do rána by neklesla${r_}` : `~${relDay(T_)==="dnes" ? "" : relDay(T_)+" "}${hmT(T_)}${r_}`;
-    return [[`<span class="sub">ℹ kdyby jela ze soláru – na ${FL_} #${aw_ ? " (hranice, když jsi pryč)" : ""}</span>`, `<span class="sub">${v_} (jen informace)</span>`]];
+    if(F.dep && F.dep <= h.now && aw_) return [];                    // 6.95: pryč na River – nic k rozhodování
+    // 6.95: srozumitelně – jen pro představu, kam by baterie ze soláru klesla
+    const r_ = aw_ ? ` · do návratu ${hmT(F.ret_t)} by ${!T_ || T_ >= F.ret_t ? "vydržela" : "nevydržela"}` : "";
+    const v_ = T_ && T_ <= F.t + 60 ? `ze soláru by už byla pod ${FL_} #` : !T_ ? `ze soláru by do rána neklesla pod ${FL_} #${r_}`
+      : `ze soláru by klesla na ${FL_} # ~${relDay(T_)==="dnes" ? "" : relDay(T_)+" "}${hmT(T_)}${r_}`;
+    return [[`<span class="sub">ℹ jen pro představu</span>`, `<span class="sub">${v_}</span>`]];
   }
   const lab = `na ${F.fl} #`;
   const ret = aw_ ? (!T_ || T_ >= F.ret_t
@@ -3023,20 +3030,37 @@ function tileCheck(d, h){
   return {...t, cls: ok ? "ok" : nr ? "warn" : "ok", v: ok ? "✓" : nr ? `🔴 ${nr}` : `${n || "!"}`,
     st: `${relDay(L[0])} ${hmT(L[0])} · ${ok ? "bez nálezů" : nr ? `pro tebe ${nr} · oprav v hlídači ${nf_}` : nf_ ? `pro tebe nic · oprav v hlídači ${nf_}` : n ? `${n} ${n===1 ? "nález" : n<5 ? "nálezy" : "nálezů"}` : "něco našla"}`};
 }
+function kchkDone(){ try{ return JSON.parse(localStorage.getItem("kchk_done") || "[]"); }catch(_){ return []; } }
+function kchkTodo(d, h){       // 6.95: 🔴 řádky poslední večerní kontroly → {id, line, short}
+  const K = d.kontrola || []; if(!K.length) return [];
+  const L = K[K.length-1]; if(h.now - L[0] > 36*3600) return [];
+  const done = kchkDone();
+  return L[1].split("\n").filter(l=>/🔴/.test(l)).map((l,i)=>{
+    const c = l.replace(/^\s*\d+[.)]\s*/, "").replace(/🔴\s*(Udělej ty:)?\s*/, "").replace(/\*\*/g, "");
+    const f = c.split(/(?<=[.!?])\s/)[0];
+    return {id:`${L[0]}:${i}`, line:l, short: f.length > 90 ? f.slice(0, 88) + "…" : f};
+  }).filter(x=>!done.includes(x.id));
+}
 const askClaude = txt => `https://claude.ai/new?q=${encodeURIComponent(`Tohle je večerní kontrola mého hlídače chaty (off-grid chata, solár + EcoFlow River + generátor; repozitář KptDundee/chata-hlidac). Chci se na ni zeptat:\n\n${txt}\n\nMoje otázka: `)}`;
 function detCheck(body){
   const K = (DATA.kontrola || []).slice().reverse();
   const bs = `display:inline-block;font:inherit;font-weight:600;padding:9px 12px;border-radius:12px;color:var(--text);border:1px solid var(--btnline);background:var(--btn);text-decoration:none`;
-  const fmtK = x => escH(x).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").split("\n").map(l=>
-      /🔴/.test(l) ? `<div style="margin:4px 0;padding:6px 9px;border-radius:9px;background:color-mix(in srgb,var(--crit) 14%,transparent);border-left:3px solid var(--crit)">${l}</div>`
+  const done = kchkDone();
+  let ri_ = 0;
+  const fmtK = (x, t0, last) => { ri_ = 0; return escH(x).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").split("\n").map(l=>
+      /🔴/.test(l) ? (()=>{ const id = `${t0}:${ri_++}`, ok = done.includes(id);
+        return `<div style="margin:4px 0;padding:6px 9px;border-radius:9px;background:color-mix(in srgb,var(${ok?"--good":"--crit"}) 14%,transparent);border-left:3px solid var(${ok?"--good":"--crit"})">${l}${last ? `<div style="margin-top:6px">${ok ? `<span class="sub">✓ hotovo</span>` : `<button type="button" data-kdone="${id}" style="font:inherit;font-weight:600;padding:6px 10px;border-radius:10px;border:1px solid var(--btnline);background:var(--btn);color:var(--text)">✓ Hotovo</button>`}</div>` : ""}</div>`; })()
     : /🔧/.test(l) ? `<div style="margin:4px 0">${l}</div>`
-    : /ℹ/.test(l) ? `<div class="sub" style="margin:4px 0">${l}</div>` : `<div>${l}</div>`).join("");
+    : /ℹ/.test(l) ? `<div class="sub" style="margin:4px 0">${l}</div>` : `<div>${l}</div>`).join(""); };
   body.innerHTML = !K.length ? `<div class="card"><span class="sub">Zatím žádná kontrola. Poprvé proběhne dnes v 19:35, pak každý večer.</span></div>`
     : K.map((x,i)=>`<div class="card"${i ? "" : ` style="border:1px solid var(--line)"`}>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 6px"><b>${relDay(x[0])} ${hmT(x[0])}</b>
           <a href="${askClaude(x[1])}" target="_blank" rel="noopener" style="${bs}">💬 Zeptat se Clauda</a></div>
-        <div style="font-size:14.5px;line-height:1.5">${fmtK(x[1])}</div></div>`).join("")
+        <div style="font-size:14.5px;line-height:1.5">${fmtK(x[1], x[0], i===0)}</div></div>`).join("")
     + `<div class="sub" style="margin:6px 4px"><b style="color:var(--crit)">🔴 Udělej ty</b> = musíš něco udělat sám (je napsané jak) · <b>🔧 Oprava v hlídači</b> = nic nedělej, stačí Claudovi napsat „oprav bod N“ · ℹ = jen informace.<br>Kontrolu dělá každý večer Claude (naplánovaná úloha „Chata – večerní kontrola“). Nic nemění – opravy jen navrhuje. 💬 otevře nový chat s Claudem, kde je text kontroly už vložený.</div>`;
+  body.querySelectorAll("[data-kdone]").forEach(b=>b.onclick = () => { const L = kchkDone(); L.push(b.dataset.kdone);
+    try{ localStorage.setItem("kchk_done", JSON.stringify(L.slice(-60))); }catch(_){}
+    body.innerHTML = ""; detCheck(body); try{ renderHome(DATA); }catch(_){} });
 }
 function tileCost(d, h){
   const t = {k:"naklady", icon:"💰", label:"Náklady"};
@@ -4151,6 +4175,8 @@ function alertItems(d, h){
   const A = (d.alarms||[]).map(x=>({s: x.ack ? 1 : 2, t:`${x.title}${x.ack ? " – řešíš" : ""} (od ${relDay(x.t0)} ${hmT(x.t0)})`, k:K(x.k)}));
   [tileHealth(d,h)].filter(x=>x.cls==="bad").forEach(x=>A.push({s:0, q:true, t:`${x.label}: ${x.st}`, k:x.k}));
   { const lf = d.last_full, lim = h.cfg.plne_nabiti_dni ?? 14; if(lf && (h.now - lf)/86400 >= lim) A.push({s:0, q:true, t:`baterie ${Math.floor((h.now-lf)/86400)} dní bez plného nabití`, k:"health"}); }
+  // 6.95 (Petr: „🔴 z večerní kontroly dej do pruhu“): úkoly pro Petra z poslední kontroly (do 36 h), dokud je neodškrtne
+  for(const x of kchkTodo(d, h)) A.push({s:1, t:`🔴 z večerní kontroly: ${x.short}`, k:"kontrola"});
   return A.sort((a,b)=>b.s-a.s);
 }
 /* 5.15: rozbalovací sekce hlavní stránky. Sekce s červeným nebo oranžovým příznakem se rozbalí vždy, jinak podle toho,
