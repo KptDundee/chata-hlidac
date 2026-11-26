@@ -76,8 +76,15 @@ def post(url, body, headers):
          "languageType": "1", "usr-source": "usr-web"}
     h.update(headers)
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=h, method="POST")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read().decode() or "{}")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode() or "{}")
+    except urllib.error.HTTPError as e:            # 6.93: u chyby i kterou adresu a co server odpověděl (26. 11. „HTTP 400“ bez detailu)
+        try:
+            txt = e.read().decode(errors="replace")[:200]
+        except Exception:
+            txt = ""
+        raise RuntimeError(f"HTTP {e.code} {urllib.parse.urlparse(url).path}: {txt}") from None
 
 
 def find_token(o):
