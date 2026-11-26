@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.104 – 26. 11. 2026
+- Ověření zdání přítomnosti: stav světel se bere ze všech zpráv Flipu (i ze starších, které Flip posílá znovu), ne jen z té, která přidá bod – zpráva z chvíle svícení se jinak zahodila.
+
 ## 6.103 – 26. 11. 2026
 - Zdání přítomnosti – opravy (Petr: „18:31 chodba, 18:33 terasa – v jedné čtvrthodině? proč otazníky? a délku svícení“):
   - Byly to dvě čtvrthodiny (rozsvícení ~18:29 a ~18:31), ale v přehledu byl čas zhasnutí a šly hned po sobě. Teď se zapisuje **čas rozsvícení** a mezi rozsvíceními je **aspoň 5 min**.

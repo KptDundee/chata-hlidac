@@ -656,7 +656,10 @@ def backfill_flip(data, now, cfg):
     added = filled = 0
     for m in msgs[:-1]:                        # poslední zprávu zpracuje běžný běh
         inv = inv_from_msg(m, now, cfg)
-        if not inv or inv["t"] < cut or ts - inv["t"] < 120:
+        if not inv or inv["t"] < cut:
+            continue
+        lt_seen(data, inv)                     # 6.103: stav světel z každé zprávy (i té, co bod už má)
+        if ts - inv["t"] < 120:
             continue
         t = inv["t"]
         plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
@@ -686,7 +689,6 @@ def backfill_flip(data, now, cfg):
             pt["gw"] = inv["gen"]["w"]
         if plugs:
             pt["tp"] = plugs
-        lt_seen(data, inv)
         lt_est(data, pt, inv)                  # 5.226: příkon žárovek z počítadla Wh
         cs_ = inv_src(inv, cfg)
         if cs_:
