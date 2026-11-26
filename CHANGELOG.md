@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.94 – 26. 11. 2026
+- Výpadek cloudu Solar Guardian už hlídač nezastaví (26. 11. od 5:30: dispatch vrací 400 – hlídač dřív skončil a nepočítal plán, River ani upozornění). Pokračuje s posledními údaji regulátoru jako „regulátor bez dat“ (stejně jako když regulátor nevysílá): body se nezapisují, po 30 min přijde „📡 Regulátor neposílá data“ s napětím z Victronu, plán, River, generátor a ostatní upozornění běží dál.
+
 ## 6.93 – 26. 11. 2026
 - Diagnostika: chyba čtení Solar Guardian vypíše i adresu a odpověď serveru (26. 11. od 5:30 jen „HTTP Error 400“ – je to dispatch `/device/getDevServerAddr`, přihlášení projde).
 - Poslední funkční adresa datového serveru regulátoru se pamatuje a při chybě dispatche se použije (zabere od první úspěšné adresy).

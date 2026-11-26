@@ -1926,23 +1926,24 @@ def main():
     try:
         token = login(acc, pw)
         v = read_values(token)
-    except (Exception, SystemExit) as e:  # výpadek cloudu: nespadnout, po ~2 h upozornit
-        print("Chyba čtení cloudu:", e)
-        log("err", f"Solar Guardian nejde přečíst: {str(e)[:100]}")
+    except (Exception, SystemExit) as e:  # výpadek cloudu
+        # 6.94 (26. 11. od 5:30 cloud Solar Guardian nejde – hlídač pak skončil a nepočítal nic: plán, River, upozornění):
+        # pokračovat s posledními údaji regulátoru jako „regulátor bez dat“ (stáří od posledního měření) – stejná cesta
+        # jako když regulátor nevysílá: body se nezapisují, napětí bere web/upozornění z Victronu, plán a River běží dál
+        print("Chyba čtení cloudu:", e, "– pokračuju bez regulátoru")
+        if not st.get("err_n"):
+            log("err", f"Solar Guardian nejde přečíst: {str(e)[:100]}")
         note_run(data, now, sg=False, inv=inv)
-        try:
-            daily_summary(data, None, st, now, topic, cfg, rise, set_)
-        except Exception as e2:
-            print("Souhrn:", e2)
         st["err_n"] = st.get("err_n", 0) + 1
-        alarm(st, topic, "reg", st["err_n"] >= 3, "📡 Regulátor neposílá data",
-              f"Hlídač nemůže číst cloud Solar Guardian (už {st['err_n']}× po sobě): {str(e)[:150]}", 4, "warning")
-        save_data(key, data)
-        return
-    st["err_n"] = 0
-    st["sg_ok"] = True
+        token = None
+        v = dict(data.get("last") or {})
+        lt_ = data.get("updated")
+        v["age_min"] = (now.timestamp() - lt_) / 60 if lt_ else None
+    else:
+        st["err_n"] = 0
+        st["sg_ok"] = True
     data["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
-    if v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
+    if token and v.get("age_min") is not None and v["age_min"] <= cfg["regulator_offline_min"]:
         try:
             backfill_points(token, data, now, 6 if st.get("bf14") else KEEP_DETAIL_DAYS * 24)   # poprvé celých 14 dní
             st["bf14"] = True
@@ -1978,7 +1979,8 @@ def main():
         print("Import zpráv Flipu:", e)
     data.pop("_inv_msgs", None)
     try:
-        import_history(token, data, st, now, cfg)
+        if token:                                      # 6.94: bez cloudu nic
+            import_history(token, data, st, now, cfg)
     except Exception as e:
         print("Import historie selhal:", e)
         log("err", f"Import historie Solar Guardian: {str(e)[:100]}")
@@ -1995,11 +1997,13 @@ def main():
     except Exception as e:
         print("Druh nocí:", e)
     try:
-        import_soc_history(token, data, st, now)
+        if token:
+            import_soc_history(token, data, st, now)
     except Exception as e:
         print("Import historie nabití selhal:", e)
     try:
-        night_history(token, data, st, now, cfg)
+        if token:
+            night_history(token, data, st, now, cfg)
     except Exception as e:
         print("Rozbor nocí selhal:", e)
     try:
