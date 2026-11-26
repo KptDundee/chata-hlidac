@@ -5172,11 +5172,18 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     fl_pct = round(cfg.get("baterie_setrna_pct") or 50)
     fl_ah = (fl_pct - alarm_soc) / 100 * cap
     t50 = int(ts) if hq["pct"] <= fl_pct else None
+    # 6.92 (Petr: dlaždice „kdyby jela ze soláru – na 50 # ~07:39, do návratu by nevydržela“, zpráva „🚗 Odjezd … vydrží“ –
+    # rozpor): když jsem pryč, platí pro solár hranice solar_pryc_pct (25 #, 6.75), ne 50 # – „do návratu“ se měří k ní
+    fa_pct = round(cfg.get("solar_pryc_pct") or 25)
+    fa_ah = (fa_pct - alarm_soc) / 100 * cap
+    taw = int(ts) if hq["pct"] <= fa_pct else None
     for t, wi in zip(steps, w):
         prod_a_h = rem_kwh * 1000 * wi / wsum / 13.0 * 0.9                 # Ah do baterie v tomhle kroku
         lvl = min(lvl + prod_a_h, ah + room) - (load_a if t < set_ts else load_n) * 600 / 3600
         if t50 is None and lvl <= fl_ah:
             t50 = int(t)
+        if taw is None and lvl <= fa_ah:
+            taw = int(t)
         if lvl <= 0:
             t_empty_n = t
             if t < end.timestamp():
@@ -5192,7 +5199,8 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
            "lvl_end": round(lvl, 1) if t_empty_n is None else None, "nf": nf_, "cf": round(cf, 2),
            # 5.271 (Petr: „proč do 18:30, odjíždím v 16“): konec výhledu = návrat z nepřítomnosti → web píše „do návratu“
            "dep": int(AW[0].timestamp()) if AW else None, "ret": 1 if AW else 0,
-           "t50": t50, "fl": fl_pct, "end2": int(end2), "ret_t": int(AW[1].timestamp()) if AW else None}
+           "t50": t50, "fl": fl_pct, "end2": int(end2), "ret_t": int(AW[1].timestamp()) if AW else None,
+           "taw": taw, "fl_aw": fa_pct}
     data["day_fc"] = res
     # 5.201 (Petr): chata jede ze soláru a solární baterie je už pod alarmem (v #) → akutně, kdykoli (i doma, i když
     # napětí při nabíjení vypadá dobře). Konec, až chata jede z River nebo # stoupne aspoň 5 # nad alarm.

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.92 – 26. 11. 2026
+- Dlaždice Solární baterie před odjezdem: „kdyby jela ze soláru … do návratu“ se měří k hranici „pryč“ 25 # (jako plán a zpráva 🚗 Odjezd), ne k 50 # (Petr: dlaždice „na 50 # ~07:39, do návratu by nevydržela“ × zpráva „vydrží do návratu“ – rozpor). Totéž u „do návratu ✓/ne“, když chata jede ze soláru.
+
 ## 6.91 – 26. 11. 2026
 Opravy podle večerní kontroly 25. 11.:
 - **Zdroj chaty, když zásuvka River mlčí:** zásuvka Tapo na výstupu River nemá proud, když je River vypnutá (Petr: „logické“), a občas neodpoví i zapnutá. Místo „zdroj ?“ se vezme výstup té River z EcoFlow (online → její výstup bez 12 V, offline = vypnutá → 0 W). 25. 11. 07:11–12:43 by to bylo „River ŽLUT“ (EcoFlow hlásilo 70 W).
