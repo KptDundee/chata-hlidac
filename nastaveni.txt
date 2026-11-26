@@ -199,3 +199,10 @@ svetla_simulace = zapnuto
 svetla_simulace_svetla = terasa, chodba  # (S1) pokoj, (S2) ložnice, (S3) chodba, (S4) terasa – např. S1, S3 (nebo část názvu)
 svetla_simulace_s = 90            # jak dlouho svítí (s)
 svetla_simulace_od_h = 1          # první hodinu po odchodu (cesta) nesimulovat – byl jsem tam
+# Zdání přítomnosti jen večer: od západu slunce do půlnoci (6.101).
+# 💡 Světlo na příchod (6.101): za tmy ~10 min před příchodem (konec úseku pryč – cesta je v něm) se rozsvítí a svítí;
+# když ho nezhasnu sám, zhasne 20 min po příchodu.
+svetla_vitani = zapnuto
+svetla_vitani_svetlo = terasa
+svetla_vitani_pred_min = 10
+svetla_vitani_po_min = 20

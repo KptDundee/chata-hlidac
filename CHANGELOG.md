@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.101 – 26. 11. 2026
+- Zdání přítomnosti **jen večer** – od západu slunce do půlnoci (Petr: „ráno zloděje nepředpokládám“).
+- **🏠 Světlo na příchod** (Petr: „10 min před příchodem se večer rozsvítí terasa a zůstane svítit, já ji ručně vypnu; když to neudělám do 20 min, sama se vypne – abych viděl na cestu“): příchod = konec úseku pryč (cesta je v něm). Za tmy první běh hlídače od ~15 min před příchodem rozsvítí terasu (hlídač běží co ~10 min → ±5 min), 20 min po příchodu ji zhasne (když ji Petr zhasl sám, nic se nestane). Posledních ~15 min před příchodem zdání přítomnosti nebliká. Nastavení `svetla_vitani`, `svetla_vitani_svetlo`, `svetla_vitani_pred_min`, `svetla_vitani_po_min`. V kartě Světla modře v grafu a „🏠 … na příchod“ v přehledu, na dlaždici čas.
+
 ## 6.100 – 26. 11. 2026
 - Karta 💡 Světla: graf „Posledních 24 h“ – časová osa, řádek = světlo (terasa, chodba), značka = rozsvícení (zeleně svítilo, červeně nesvítilo, šedě bez potvrzení); ťuknutím na značku čas a světlo.
 

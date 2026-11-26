@@ -34,7 +34,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "svetla_simulace": "vypnuto", "svetla_simulace_svetla": "pokoj", "svetla_simulace_s": 90, "svetla_simulace_od_h": 1, "solar_pryc_pct": 25, "chladnuti_vyjimky": "",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "svetla_simulace": "vypnuto", "svetla_simulace_svetla": "pokoj", "svetla_simulace_s": 90, "svetla_simulace_od_h": 1, "svetla_vitani": "vypnuto", "svetla_vitani_svetlo": "terasa", "svetla_vitani_pred_min": 10, "svetla_vitani_po_min": 20, "solar_pryc_pct": 25, "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -2085,6 +2085,7 @@ def main():
                          ("Jednorázové výdaje", lambda: vydaje_entries(data)),
                          ("Večerní kontrola", lambda: kontrola_entries(data)),
                          ("Voda – připomínky", lambda: water_remind(data, st, now, topic)),
+                         ("Světlo na příchod", lambda: welcome_light(data, st, now, topic, cfg)),
                          ("Zdání přítomnosti", lambda: presence_sim(data, st, now, topic, cfg)),
                          ("Venku po dnech", lambda: tout_days(data, st, now, cfg)),
                          ("Zásuvky vidět", lambda: plug_watch(data, st, now, topic, cfg)),
@@ -2141,6 +2142,69 @@ def send_cmd(topic, ip, on, reason):
         return False
 
 
+def away_bounds(now):
+    """Úsek „pryč“, ve kterém teď jsem: (odchod, příchod) – podle plánu / kalendáře (cesta tam i zpět je v úseku), jinak (None, None)."""
+    a_ = b_ = None
+    for i in (-1, 0):
+        for a, b, f in plan_day(PLAN, (now + timedelta(days=i)).date())[0]:
+            if a <= now < b:
+                a_ = a if a_ is None else min(a_, a)
+                b_ = b if b_ is None else max(b_, b)
+    return a_, b_
+
+
+def lights_by(data, names):
+    inv = data.get("inverter") or {}
+    names = [x.strip().lower() for x in names if x.strip()]
+    return [p for p in inv.get("tp", []) if p.get("lt") and p.get("ip") and not p.get("off")
+            and any(n in str(p.get("n") or "").lower() for n in names)]
+
+
+def psim_log(data, nm, ok, dur):
+    L = data.setdefault("psim_log", [])
+    L.append([int(time.time()), nm, ok, int(dur)])
+    data["psim_log"] = L[-60:]
+
+
+def welcome_light(data, st, now, topic, cfg):
+    """6.101 (Petr: „10 min před příchodem (večer) se rozsvítí terasa a zůstane svítit, já ji ručně vypnu; když to neudělám
+    do 20 min, sama se vypne – abych viděl na cestu“): příchod = konec úseku pryč (obsahuje cestu). Za tmy první běh
+    hlídače od ~15 min před příchodem rozsvítí světlo (svetla_vitani_svetlo); 20 min po příchodu ho zhasne (jednou –
+    když ho Petr zhasl sám, nic se nestane)."""
+    if str(cfg.get("svetla_vitani") or "").strip().lower() not in ("zapnuto", "ano", "1", "on"):
+        return
+    vs = st.setdefault("vitani", {})
+    ts = now.timestamp()
+    if vs.get("off_at") and ts >= vs["off_at"]:
+        send_cmd(topic, vs["ip"], False, "vítání – zhasnout")
+        wake_flip(topic, 0)
+        print(f"Vítání: {vs.get('nm')} zhasnuto (po příchodu {int(cfg.get('svetla_vitani_po_min') or 20)} min)")
+        vs.pop("off_at", None)
+        return
+    a_, b_ = away_bounds(now)
+    if b_ is None or vs.get("b") == int(b_.timestamp()):
+        return
+    pred = float(cfg.get("svetla_vitani_pred_min") or 10)
+    if ts < b_.timestamp() - (pred + 5) * 60:
+        return
+    r_, z_ = sun_times(cfg["sirka"], cfg["delka"], b_.date())
+    if not (z_ and b_ >= z_ or r_ and b_ < r_):                 # příchod za světla – netřeba
+        vs["b"] = int(b_.timestamp())
+        return
+    L = lights_by(data, str(cfg.get("svetla_vitani_svetlo") or "terasa").split(","))
+    if not L:
+        print("Vítání: světlo pro příchod v datech Flipu není")
+        return
+    p = L[0]
+    ip, nm = str(p["ip"]), str(p.get("n") or p["ip"]).replace(" (TP)", "")
+    send_cmd(topic, ip, True, "vítání – příchod")
+    wake_flip(topic, 0)
+    po = float(cfg.get("svetla_vitani_po_min") or 20)
+    vs.update(b=int(b_.timestamp()), ip=ip, nm=nm, off_at=int(b_.timestamp() + po * 60))
+    psim_log(data, nm, None, b_.timestamp() + po * 60 - ts)
+    print(f"Vítání: {nm} rozsvíceno, příchod {b_.strftime('%H:%M')}, zhasne {datetime.fromtimestamp(vs['off_at'], TZ).strftime('%H:%M')}")
+
+
 def presence_sim(data, st, now, topic, cfg):
     """6.97 (Petr: „když jsem podle plánu pryč a je po západu, rozsvítí se 4× za hodinu na 90 s – hodina rozdělená na čtvrtiny,
     v každé čtvrtině v náhodnou dobu; dojem, že je někdo doma“): zdání přítomnosti se světly Tapo (L900). V každé čtvrthodině
@@ -2150,21 +2214,19 @@ def presence_sim(data, st, now, topic, cfg):
     if str(cfg.get("svetla_simulace") or "").strip().lower() not in ("zapnuto", "ano", "1", "on"):
         return
     ps = st.setdefault("psim", {})
-    inv = data.get("inverter") or {}
     names = [x.strip().lower() for x in str(cfg.get("svetla_simulace_svetla") or "pokoj").split(",") if x.strip()]
-    lts = [p for p in inv.get("tp", []) if p.get("lt") and p.get("ip") and not p.get("off")
-           and any(n in str(p.get("n") or "").lower() for n in names)]
+    lts = lights_by(data, names)
     rise_, set_ = sun_times(cfg["sirka"], cfg["delka"], now.date())
-    after_set = set_ is not None and (now >= set_ or now < rise_)          # od západu do východu
+    # 6.101 (Petr: „platí mezi západem a východem, ale jen večer – ráno zloděje nepředpokládám“): od západu do půlnoci
+    after_set = set_ is not None and now >= set_
     # 6.99 (Petr: „když odcházím, tu dobu simulovat nemusíme – byl jsem tam; až hodinu po odchodu“; cesta = jsem pryč –
     # úseky pryč z kalendáře už hodinu cesty tam i zpět obsahují): první hodinu úseku pryč (od odchodu) nic
-    a_ = None
-    for i in (-1, 0):
-        for a, b, f in plan_day(PLAN, (now + timedelta(days=i)).date())[0]:
-            if a <= now < b:
-                a_ = a if a_ is None else min(a_, a)
+    a_, b_ = away_bounds(now)
     od_ = float(cfg.get("svetla_simulace_od_h") or 1)
-    active = a_ is not None and after_set and (now - a_).total_seconds() >= od_ * 3600
+    # 6.101: posledních ~15 min před příchodem nic – svítí vítání (terasa)
+    vit_ = float(cfg.get("svetla_vitani_pred_min") or 10) + 5 if str(cfg.get("svetla_vitani") or "").strip().lower() in ("zapnuto", "ano", "1", "on") else 0
+    active = (a_ is not None and after_set and (now - a_).total_seconds() >= od_ * 3600
+              and (now - b_).total_seconds() < -vit_ * 60)
     if ps.get("on_ip"):                       # pojistka: zhasnout, co jsme rozsvítili (kdyby předchozí běh nedoběhl)
         send_cmd(topic, ps["on_ip"], False, "zdání přítomnosti – zhasnout")
         wake_flip(topic, 0)
@@ -2172,6 +2234,10 @@ def presence_sim(data, st, now, topic, cfg):
     data["psim_st"] = {"t": int(now.timestamp()), "active": bool(active), "away": a_ is not None,
                        "from": int((a_ + timedelta(hours=od_)).timestamp()) if a_ is not None else None,
                        "lights": [str(p.get("n") or "").replace(" (TP)", "") for p in lts]}
+    if vit_ and b_ is not None:                # 6.101: kdy se rozsvítí světlo na příchod (za tmy)
+        r2_, z2_ = sun_times(cfg["sirka"], cfg["delka"], b_.date())
+        if z2_ and b_ >= z2_ or r2_ and b_ < r2_:
+            data["psim_st"]["vit"] = int(b_.timestamp() - (vit_ - 5) * 60)
     if not active or not lts:
         if is_away(cfg, PLAN, now) and after_set and not lts:
             print(f"Zdání přítomnosti: žádné světlo z „{', '.join(names)}“ v datech Flipu")
@@ -2208,9 +2274,7 @@ def presence_sim(data, st, now, topic, cfg):
     send_cmd(topic, ip, False, "zdání přítomnosti – zhasnout")
     wake_flip(topic, 0)
     ps.pop("on_ip", None)
-    L = data.setdefault("psim_log", [])
-    L.append([int(now.timestamp()), nm, ok_])
-    data["psim_log"] = L[-40:]
+    psim_log(data, nm, ok_, int(cfg.get("svetla_simulace_s") or 90))
     print(f"Zdání přítomnosti: {nm} rozsvíceno na {int(cfg.get('svetla_simulace_s') or 90)} s")
 
 
