@@ -2175,14 +2175,29 @@ def presence_sim(data, st, now, topic, cfg):
     p = random.choice(lts)
     ip, nm = str(p["ip"]), str(p.get("n") or p["ip"]).replace(" (TP)", "")
     ps.update(done=1, on_ip=ip)
+    t0 = time.time()
     send_cmd(topic, ip, True, "zdání přítomnosti")
     wake_flip(topic, 0)
-    time.sleep(int(cfg.get("svetla_simulace_s") or 90))
+    ok_ = None                                 # ověření: Flip po probuzení pošle data – svítí to světlo?
+    while time.time() - t0 < 70 and ok_ is None:
+        time.sleep(10)
+        try:
+            for ln in urllib.request.urlopen(f"https://ntfy.sh/{topic}-menic/json?poll=1&since={int(t0)}", timeout=15).read().decode().splitlines():
+                m = json.loads(ln)
+                if m.get("event") != "message":
+                    continue
+                q_ = next((x for x in (json.loads(m.get("message") or "{}").get("tp") or []) if str(x.get("ip")) == ip), None)
+                if q_ is not None:
+                    ok_ = q_.get("on") == 1
+        except Exception:
+            pass
+    print(f"Zdání přítomnosti: {nm} – {'Flip potvrdil: svítí' if ok_ else 'Flip hlásí: nesvítí (povel neprošel?)' if ok_ is False else 'potvrzení od Flipu nepřišlo'}")
+    time.sleep(max(0, int(cfg.get("svetla_simulace_s") or 90) - (time.time() - t0)))
     send_cmd(topic, ip, False, "zdání přítomnosti – zhasnout")
     wake_flip(topic, 0)
     ps.pop("on_ip", None)
     L = data.setdefault("psim_log", [])
-    L.append([int(now.timestamp()), nm])
+    L.append([int(now.timestamp()), nm, ok_])
     data["psim_log"] = L[-40:]
     print(f"Zdání přítomnosti: {nm} rozsvíceno na {int(cfg.get('svetla_simulace_s') or 90)} s")
 
