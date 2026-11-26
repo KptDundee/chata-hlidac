@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.103 – 26. 11. 2026
+- Zdání přítomnosti – opravy (Petr: „18:31 chodba, 18:33 terasa – v jedné čtvrthodině? proč otazníky? a délku svícení“):
+  - Byly to dvě čtvrthodiny (rozsvícení ~18:29 a ~18:31), ale v přehledu byl čas zhasnutí a šly hned po sobě. Teď se zapisuje **čas rozsvícení** a mezi rozsvíceními je **aspoň 5 min**.
+  - **Otazníky:** ověření čekalo na data Flipu přes ntfy, ale Flip je posílá přes GitHub. Hlídač si teď z každé zprávy Flipu pamatuje stav světel a rozsvícení ověří z dat z doby svícení (✓ svítilo / ✗ nesvítilo), obvykle do 10 min. Stejně i světlo na příchod.
+  - V přehledu i v grafu **délka svícení** (90 s, u příchodu minuty).
+
 ## 6.102 – 26. 11. 2026
 - **📍 Poloha telefonu** (Petr: „využít na potvrzení reálné nepřítomnosti; plán z ní dělat nemůžeme – když už budu pryč, je pozdě; při příjezdu můžu dostat okamžitý pokyn; stará pravidla nerušit, kdyby lokace chybovala“): telefon (aplikace Automate, okruh ~2 km kolem chaty) pošle do ntfy `<topic>-geo` „prijezd“ / „odjezd“ a spustí hlídač. Hlídač to čte v každém běhu i ve smyčce nabíjení.
   - **Příjezd:** za tmy hned světlo na příchod (terasa, zhasne po 25 min), zpráva „🏠 Přijíždíš na chatu – co udělat: …“ (nejdůležitější rady z „Co teď udělat“), zdání přítomnosti se zastaví (do 12 h nebo do odjezdu).

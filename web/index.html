@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.102", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.103", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2116,6 +2116,7 @@ function tileLights(d, h){
 }
 /* 6.100 (Petr: „kdy které světlo svítilo – nějak graficky“): časová osa za posledních 24 h, řádek = světlo, značka =
    rozsvícení (zeleně potvrzené, červeně nesvítilo, šedě bez potvrzení); ťuknutím na značku čas a světlo */
+const durS = s => !s ? "" : s < 120 ? `${Math.round(s)} s` : `${Math.round(s/60)} min`;   // 6.103: délka svícení
 function psimChart(d){
   const now = Date.now()/1000, t1 = now, t0 = now - 24*3600, G = (d.psim_log||[]).filter(g=>g[0] >= t0);
   const nm = x => String(x).replace(/^\(S\d\)\s*/,"").replace(/ svetlo$/,"").replace(/ \(TP\)$/,"");
@@ -2133,11 +2134,11 @@ function psimChart(d){
   (d.geo_log||[]).filter(g=>g[0] >= t0).forEach(g=>{ const X = x(g[0]);
     sv += `<line x1="${X}" x2="${X}" y1="${top}" y2="${top+lanes.length*lh}" stroke="var(--text2)" stroke-width="1.5"/><text x="${X}" y="12" text-anchor="middle" font-size="11">${g[1]==="prijezd" ? "🏠" : "🚗"}</text>`; });
   G.forEach(g=>{ const i = lanes.indexOf(nm(g[1])); if(i < 0) return; const y = top + i*lh, X = x(g[0]);
-    const lab = (g[3]||0) > 300 ? `${relDay(g[0])} ${hmT(g[0])} · ${nm(g[1])} · na příchod (nejdéle do ${hmT(g[0]+g[3])})`
-      : `${relDay(g[0])} ${hmT(g[0])} · ${nm(g[1])} · ${g[2]===true?"svítilo ✓":g[2]===false?"nesvítilo ✗":"bez potvrzení"}`;
+    const lab = (g[3]||0) > 300 ? `${relDay(g[0])} ${hmT(g[0])} · ${nm(g[1])} · na příchod (nejdéle ${durS(g[3])}, do ${hmT(g[0]+g[3])})`
+      : `${relDay(g[0])} ${hmT(g[0])} · ${nm(g[1])} · ${durS(g[3]||90)} · ${g[2]===true?"svítilo ✓":g[2]===false?"nesvítilo ✗":"zatím neověřeno"}`;
     const wd = Math.max(6, (g[3]||90)/(t1-t0)*(W-L-R)), vit = (g[3]||0) > 300;
     sv += `<rect x="${vit ? X : X-3}" y="${y+6}" width="${wd}" height="${lh-12}" rx="2" fill="${vit ? "var(--s1)" : col(g[2])}" style="cursor:pointer" onclick="document.getElementById('psim_tip').textContent='${lab.replace(/'/g,"")}'"><title>${escH(lab)}</title></rect>`; });
-  return `<div class="card chart"><h2>Posledních 24 h</h2><div class="cs"><span style="color:var(--good)">■</span> svítilo · <span style="color:var(--crit)">■</span> nesvítilo · <span style="color:var(--muted)">■</span> bez potvrzení · <span style="color:var(--s1)">■</span> na příchod · ťukni na značku</div>
+  return `<div class="card chart"><h2>Posledních 24 h</h2><div class="cs"><span style="color:var(--good)">■</span> svítilo · <span style="color:var(--crit)">■</span> nesvítilo · <span style="color:var(--muted)">■</span> neověřeno · <span style="color:var(--s1)">■</span> na příchod · ťukni na značku</div>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${sv}</svg><div id="psim_tip" class="sub" style="min-height:1.4em;margin-top:4px">${G.length ? "" : "Za posledních 24 h nic."}</div></div>`;
 }
 function detLights(body){
@@ -2147,9 +2148,9 @@ function detLights(body){
     ${psimChart(d)}
     ${(d.geo_log||[]).length ? `<div class="card"><b>📍 Poloha telefonu</b> <span class="sub">– příjezdy a odjezdy (okruh kolem chaty)</span><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">${(d.geo_log||[]).slice(-12).reverse().map(g=>`<span style="white-space:nowrap">${g[1]==="prijezd" ? "🏠 příjezd" : "🚗 odjezd"} ${relDay(g[0])} ${hmT(g[0])}</span>`).join("")}</div></div>` : ""}
     <div class="card"><b>Zdání přítomnosti – kdy se rozsvítilo</b>
-      ${Object.keys(byDay).length ? Object.entries(byDay).map(([k,a])=>`<div style="margin-top:8px"><b>${cap1(k)}</b> <span class="sub">(${a.length}×)</span><div style="margin-top:2px;line-height:1.6;display:flex;flex-wrap:wrap;gap:2px 14px">${a.slice().reverse().map(g=>`<span style="white-space:nowrap">${(g[3]||0) > 300 ? "🏠 " : ""}${hmT(g[0])} ${escH(String(g[1]).replace(/^\(S\d\)\s*/,"").replace(/ svetlo$/,""))} ${(g[3]||0) > 300 ? `<span class="sub">na příchod</span>` : g[2]===true?`<span style="color:var(--good)">✓</span>`:g[2]===false?`<span style="color:var(--crit)">✗</span>`:`<span class="sub">?</span>`}</span>`).join("")}</div></div>`).join("") : `<div class="sub" style="margin-top:6px">Zatím nic.</div>`}
+      ${Object.keys(byDay).length ? Object.entries(byDay).map(([k,a])=>`<div style="margin-top:8px"><b>${cap1(k)}</b> <span class="sub">(${a.length}×)</span><div style="margin-top:2px;line-height:1.6;display:flex;flex-wrap:wrap;gap:2px 14px">${a.slice().reverse().map(g=>`<span style="white-space:nowrap">${(g[3]||0) > 300 ? "🏠 " : ""}${hmT(g[0])} ${escH(String(g[1]).replace(/^\(S\d\)\s*/,"").replace(/ svetlo$/,""))} <span class="sub">${durS(g[3]||90)}</span> ${(g[3]||0) > 300 ? `<span class="sub">na příchod</span>` : g[2]===true?`<span style="color:var(--good)">✓</span>`:g[2]===false?`<span style="color:var(--crit)">✗</span>`:`<span class="sub">?</span>`}</span>`).join("")}</div></div>`).join("") : `<div class="sub" style="margin-top:6px">Zatím nic.</div>`}
     </div>
-    <div class="sub" style="margin:6px 4px;line-height:1.5">Když jsi podle plánu pryč a je večer (od západu slunce do půlnoci), rozsvítí se 4× za hodinu na 90 s jedno ze světel (${escH(((P||{}).lights||[]).join(", ") || "podle nastavení")}) – v každé čtvrthodině v náhodnou dobu. První hodinu po odchodu ne (byl jsi tam). 🏠 = světlo na příchod: za tmy ~10 min před příchodem se rozsvítí terasa, a když ji nezhasneš, zhasne 20 min po příchodu. ✓ = Flip potvrdil, že svítilo; ✗ = nesvítilo (povel neprošel); ? = potvrzení nepřišlo.</div>`;
+    <div class="sub" style="margin:6px 4px;line-height:1.5">Když jsi podle plánu pryč a je večer (od západu slunce do půlnoci), rozsvítí se 4× za hodinu na 90 s jedno ze světel (${escH(((P||{}).lights||[]).join(", ") || "podle nastavení")}) – v každé čtvrthodině v náhodnou dobu. První hodinu po odchodu ne (byl jsi tam). 🏠 = světlo na příchod: za tmy ~10 min před příchodem se rozsvítí terasa, a když ji nezhasneš, zhasne 20 min po příchodu. Čas = kdy se rozsvítilo, pak jak dlouho. ✓ = podle dat z Flipu svítilo; ✗ = nesvítilo (povel neprošel); ? = zatím neověřeno (ověří se z dalších dat Flipu, obvykle do 10 min). Mezi rozsvíceními je vždy aspoň 5 min.</div>`;
 }
 function tileUtil(d, h){
   const t = {k:"util", icon:"🧾", label:"Plyn a voda"}, U = d.util || [];

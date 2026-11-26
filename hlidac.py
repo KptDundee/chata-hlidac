@@ -686,6 +686,7 @@ def backfill_flip(data, now, cfg):
             pt["gw"] = inv["gen"]["w"]
         if plugs:
             pt["tp"] = plugs
+        lt_seen(data, inv)
         lt_est(data, pt, inv)                  # 5.226: příkon žárovek z počítadla Wh
         cs_ = inv_src(inv, cfg)
         if cs_:
@@ -723,6 +724,7 @@ def attach_flip(data, st, inv, now, cfg, topic):
     plugs = {p["ip"]: p["w"] for p in inv.get("tp", []) if p.get("w") is not None and p.get("ip")}
     if plugs:
         pt["tp"] = plugs
+    lt_seen(data, inv)
     data["_lt_log"] = True
     lt_est(data, pt, inv)              # 5.226: příkon žárovek z počítadla Wh
     data.pop("_lt_log", None)
@@ -2161,9 +2163,33 @@ def lights_by(data, names):
             and any(n in str(p.get("n") or "").lower() for n in names)]
 
 
-def psim_log(data, nm, ok, dur):
+def lt_seen(data, inv):
+    """6.103: stav světel Tapo z každé zprávy Flipu (čas měření, ip, svítí) – na ověření zdání přítomnosti (Flip po probuzení
+    posílá data přes GitHub, ne přes ntfy, takže potvrzení se dá zjistit až v dalším běhu)."""
+    t = int(inv.get("t") or 0)
+    if not t:
+        return
+    L = data.setdefault("lt_seen", [])
+    for p in inv.get("tp", []):
+        if p.get("lt") and p.get("ip") and p.get("on") is not None and not p.get("off"):
+            L.append([t, str(p["ip"]), 1 if p.get("on") == 1 else 0])
+    data["lt_seen"] = sorted({(a, b): [a, b, c] for a, b, c in L if a > time.time() - 2 * 86400}.values())[-600:]
+
+
+def psim_verify(data):
+    """6.103: rozsvícení bez potvrzení (?) → podle stavu světla ve zprávách Flipu z doby svícení: svítí → ✓, nesvítí → ✗."""
+    S = data.get("lt_seen") or []
+    for g in data.get("psim_log") or []:
+        if len(g) < 5 or g[2] is not None or time.time() - g[0] > 6 * 3600:
+            continue
+        w_ = [c for a, b, c in S if b == g[4] and g[0] - 5 <= a <= g[0] + g[3] + 20]
+        if w_:
+            g[2] = bool(max(w_))
+
+
+def psim_log(data, nm, ok, dur, t0=None, ip=None):
     L = data.setdefault("psim_log", [])
-    L.append([int(time.time()), nm, ok, int(dur)])
+    L.append([int(t0 or time.time()), nm, ok, int(dur), ip])
     data["psim_log"] = L[-60:]
 
 
@@ -2205,7 +2231,7 @@ def welcome_light(data, st, now, topic, cfg):
     wake_flip(topic, 0)
     po = float(cfg.get("svetla_vitani_po_min") or 20)
     vs.update(b=int(b_.timestamp()), ip=ip, nm=nm, off_at=int(b_.timestamp() + po * 60))
-    psim_log(data, nm, None, b_.timestamp() + po * 60 - ts)
+    psim_log(data, nm, None, b_.timestamp() + po * 60 - ts, None, ip)
     print(f"Vítání: {nm} rozsvíceno, příchod {b_.strftime('%H:%M')}, zhasne {datetime.fromtimestamp(vs['off_at'], TZ).strftime('%H:%M')}")
 
 
@@ -2252,7 +2278,7 @@ def geo_poll(data, st, now, topic, cfg):
                     _, b_ = away_bounds(now)
                     po = float(cfg.get("svetla_vitani_po_min") or 20) + 5
                     vs.update(ip=ip, nm=nm, off_at=int(time.time() + po * 60), b=int(b_.timestamp()) if b_ else vs.get("b"))
-                    psim_log(data, nm, None, po * 60)
+                    psim_log(data, nm, None, po * 60, None, ip)
                     print(f"Poloha telefonu: příjezd → {nm} rozsvíceno")
         # okamžitý pokyn: co teď udělat (z posledního výpočtu)
         T = (data.get("todo") or {}).get("list") or []
@@ -2266,6 +2292,7 @@ def presence_sim(data, st, now, topic, cfg):
     se vylosuje okamžik; první běh hlídače po něm rozsvítí náhodně jedno ze světel ze seznamu, probudí Flip, za 90 s zhasne.
     Světla se hledají podle názvu (svetla_simulace_svetla), IP bere z posledních dat Flipu."""
     import random
+    psim_verify(data)
     if str(cfg.get("svetla_simulace") or "").strip().lower() not in ("zapnuto", "ano", "1", "on"):
         return
     ps = st.setdefault("psim", {})
@@ -2306,7 +2333,10 @@ def presence_sim(data, st, now, topic, cfg):
     q = now.replace(minute=now.minute // 15 * 15, second=0, microsecond=0)
     qk = int(q.timestamp())
     if ps.get("q") != qk:
-        ps.update(q=qk, at=qk + random.randint(0, 15 * 60 - 150), done=0)
+        # 6.103 (Petr: „18:31 chodba, 18:33 terasa – v jedné čtvrthodině?“ – byly to dvě čtvrthodiny, ale 2 min po sobě):
+        # od předchozího rozsvícení aspoň 5 min
+        lo_ = max(qk, int(ps.get("last") or 0) + 5 * 60)
+        ps.update(q=qk, at=random.randint(lo_, max(lo_, qk + 15 * 60 - 150)), done=0)
     data["psim_st"]["at"] = ps["at"] if not ps.get("done") else None
     if ps.get("done") or now.timestamp() < ps["at"]:
         print(f"Zdání přítomnosti: tahle čtvrthodina {'hotová' if ps.get('done') else 'rozsvítí ~' + datetime.fromtimestamp(ps['at'], TZ).strftime('%H:%M')}")
@@ -2316,27 +2346,15 @@ def presence_sim(data, st, now, topic, cfg):
     ps.update(done=1, on_ip=ip)
     t0 = time.time()
     send_cmd(topic, ip, True, "zdání přítomnosti")
-    wake_flip(topic, 0)
-    ok_ = None                                 # ověření: Flip po probuzení pošle data – svítí to světlo?
-    while time.time() - t0 < 70 and ok_ is None:
-        time.sleep(10)
-        try:
-            for ln in urllib.request.urlopen(f"https://ntfy.sh/{topic}-menic/json?poll=1&since={int(t0)}", timeout=15).read().decode().splitlines():
-                m = json.loads(ln)
-                if m.get("event") != "message":
-                    continue
-                q_ = next((x for x in (json.loads(m.get("message") or "{}").get("tp") or []) if str(x.get("ip")) == ip), None)
-                if q_ is not None:
-                    ok_ = q_.get("on") == 1
-        except Exception:
-            pass
-    print(f"Zdání přítomnosti: {nm} – {'Flip potvrdil: svítí' if ok_ else 'Flip hlásí: nesvítí (povel neprošel?)' if ok_ is False else 'potvrzení od Flipu nepřišlo'}")
-    time.sleep(max(0, int(cfg.get("svetla_simulace_s") or 90) - (time.time() - t0)))
+    wake_flip(topic, 0)                        # Flip po probuzení změří → stav světla přijde s daty (ověří další běh)
+    dur_ = int(cfg.get("svetla_simulace_s") or 90)
+    time.sleep(max(0, dur_ - (time.time() - t0)))
     send_cmd(topic, ip, False, "zdání přítomnosti – zhasnout")
     wake_flip(topic, 0)
     ps.pop("on_ip", None)
-    psim_log(data, nm, ok_, int(cfg.get("svetla_simulace_s") or 90))
-    print(f"Zdání přítomnosti: {nm} rozsvíceno na {int(cfg.get('svetla_simulace_s') or 90)} s")
+    ps["last"] = int(t0)
+    psim_log(data, nm, None, dur_, t0, ip)
+    print(f"Zdání přítomnosti: {nm} rozsvíceno v {datetime.fromtimestamp(t0, TZ).strftime('%H:%M:%S')} na {dur_} s")
 
 
 def dur(sec):
