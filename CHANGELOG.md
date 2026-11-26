@@ -4,7 +4,8 @@
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
 ## 6.93 – 26. 11. 2026
-- Diagnostika: chyba čtení Solar Guardian vypíše i adresu a odpověď serveru (26. 11. od 5:30 jen „HTTP Error 400“).
+- Diagnostika: chyba čtení Solar Guardian vypíše i adresu a odpověď serveru (26. 11. od 5:30 jen „HTTP Error 400“ – je to dispatch `/device/getDevServerAddr`, přihlášení projde).
+- Poslední funkční adresa datového serveru regulátoru se pamatuje a při chybě dispatche se použije (zabere od první úspěšné adresy).
 
 ## 6.92 – 26. 11. 2026
 - Dlaždice Solární baterie před odjezdem: „kdyby jela ze soláru … do návratu“ se měří k hranici „pryč“ 25 # (jako plán a zpráva 🚗 Odjezd), ne k 50 # (Petr: dlaždice „na 50 # ~07:39, do návratu by nevydržela“ × zpráva „vydrží do návratu“ – rozpor). Totéž u „do návratu ✓/ne“, když chata jede ze soláru.

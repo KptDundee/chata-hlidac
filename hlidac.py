@@ -1085,15 +1085,29 @@ def import_soc_history(token, data, st, now, budget_s=40):
             return
 
 
+def sg_dev_url(hdr):
+    """Adresa datového serveru regulátoru. 6.93 (26. 11. od 5:30: dispatch Solar Guardian vrací „400 Bad Request“,
+    i když přihlášení projde – hlídač pak nic nepočítal): poslední funkční adresa se pamatuje a při chybě dispatche použije."""
+    st_ = (_DATA or {}).setdefault("state", {}) if _DATA is not None else {}
+    try:
+        d = post(DISPATCH + "device/getDevServerAddr", {"type": 3, "deviceNos": [DEVICE_NO]}, hdr)
+        srv = (d.get("data", d) or {}).get("devServer") or []
+        if not srv:
+            raise RuntimeError(f"Dispatch selhal: {str(d)[:200]}")
+        url = srv[0]["url"]
+        url = url if url.startswith("http") else "https://" + url
+        st_["sg_srv"] = url
+        return url
+    except Exception as e:
+        if st_.get("sg_srv"):
+            print(f"Solar Guardian: dispatch nejde ({str(e)[:120]}) – beru poslední adresu serveru")
+            return st_["sg_srv"]
+        raise
+
+
 def read_values(token):
     hdr = {"token": token}
-    d = post(DISPATCH + "device/getDevServerAddr", {"type": 3, "deviceNos": [DEVICE_NO]}, hdr)
-    srv = (d.get("data", d) or {}).get("devServer") or []
-    if not srv:
-        raise SystemExit(f"Dispatch selhal: {str(d)[:200]}")
-    url = srv[0]["url"]
-    if not url.startswith("http"):
-        url = "https://" + url
+    url = sg_dev_url(hdr)
     pts = [{"deviceNo": DEVICE_NO, "slaveIndex": "1", "itemId": it, "dataPointId": dp} for dp, it in POINTS.values()]
     d = post(url.rstrip("/") + "/history/lastDatapoint", {"devDatapoints": pts}, hdr)
     if d.get("status") != 0:
