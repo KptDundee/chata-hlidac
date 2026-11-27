@@ -39,7 +39,7 @@ DEFAULTS = {
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
     "river_sn": "",
-    "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_nadrz_l": 4.0, "gen_plyn_min_C": 0, "kanystry": "", "lahve_pb": "", "gen_rezerva_W": 100,
+    "gen_rizeni": True, "gen_palivo": "benzin", "gen_max_benzin_W": 1800, "gen_max_lpg_W": 1600, "gen_nadrz_l": 4.0, "gen_benzin_dolit_pct": 5, "gen_benzin_stop_pct": 2, "gen_plyn_min_C": 0, "kanystry": "", "lahve_pb": "", "gen_rezerva_W": 100,
     "gen_po_behu_W": 200, "gen_mala_po_behu_W": 100, "gen_povel": "", "gen_jine": "", "gen_rucne": "", "gen_spotrebice": "",
     "zasuvky_stale": "1, 4, 5, 9", "zasuvky_stale_min": 8,
     "zasuvka_flip": "9", "flip_nabijeni_rizeni": True, "flip_min_pct": 30, "brana_restart": "22:10", "zasuvka_router": "5", "router_nabijeni_rizeni": True, "chladnuti_teplomer": "Pokoj", "chladnuti_rano": "7:00", "chladnuti_noc_od": "0:00", "chladnuti_noc_do": "7:00", "chladnuti_cil_C": 21, "chladnuti_min_vecery": 5, "venku_sirka": 50.095, "venku_delka": 14.517, "flip_teplota_max_C": 40, "kabely_ubytek_V": 0.35, "kabely_odpor_mOhm": 20, "oprava_spoju": "2026-10-14 18:00", "nutne_river_v": "22:00", "den_do": "22:00",
@@ -7905,11 +7905,52 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         # a River nic neberou → po 1 min (zahřátí bez zátěže) zapnout zásuvku generátoru přes Flip; když se do 4 min nic
         # nezmění, naléhavě každou minutu
         p7 = str(cfg.get("zasuvka_generator") or "7")
+        # 6.105 (Petr: „nechci vyprázdnit nádrž generátoru na 0 – pro motor to není dobré; naléhavé upozornění vždy, když je
+        # benzín na 5 %, abych dolil; na 2 % generátor zastavit“): jen benzín (u LPG generátor nádrž nehlásí)
+        try:
+            fv_ = float(gd.get("fuel")) if gd.get("fuel") is not None else None
+        except (TypeError, ValueError):
+            fv_ = None
+        benz_ = not str(cfg.get("gen_palivo") or "").lower().startswith(("lpg", "plyn"))
+        # 6.105 (Petr: „pak se dá spočítat, kolik to do plna bylo“): dolití = skok nahoru (i mezi nabíjeními) × objem nádrže
+        if fv_ is not None and 0 <= fv_ <= 100:
+            fl_ = st.get("fuel_last")
+            if fl_ is not None and fv_ >= fl_ + 10:
+                lit_ = round((fv_ - fl_) / 100 * float(cfg.get("gen_nadrz_l") or 4.0), 2)
+                R_ = data.setdefault("gen_refills", [])
+                R_.append([int(tnow), round(fl_), round(fv_), lit_])
+                data["gen_refills"] = R_[-40:]
+                log("ev", f"Dolit benzín do generátoru: z {fl_:.0f} % na {fv_:.0f} % ≈ {fmt(lit_, 2)} l")
+                print(f"Generátor: dolito z {fl_:.0f} % na {fv_:.0f} % ≈ {lit_} l")
+            st["fuel_last"] = fv_
+        lo_, stp_ = float(cfg.get("gen_benzin_dolit_pct") or 5), float(cfg.get("gen_benzin_stop_pct") or 2)
+        if benz_ and motor_on and fv_ is not None and 0 <= fv_ <= lo_:
+            if fv_ <= stp_ and not gs.get("fuel_stop"):
+                gs["fuel_stop"] = tnow                  # odebrat zátěž (zásuvka 7) – motor zastavit musí Petr / generátor
+                send_cmd(topic, p7, False, f"benzín {fv_:.0f} % – zastavit nabíjení")
+                wake_flip(topic, 0)
+                log("ev", f"Benzín v nádrži {fv_:.0f} % – vypnuta zásuvka {p7} (nabíjení)")
+            if tnow - (gs.get("fuel_al") or 0) >= 60:
+                gs["fuel_al"] = tnow
+                if fv_ <= stp_:
+                    ntfy(topic, f"🛑 Benzín {fv_:.0f} % – VYPNI GENERÁTOR",
+                         f"Nádrž je skoro prázdná. Nabíjení jsem zastavil (zásuvka {p7} vypnutá), motor ale běží dál – vypni ho "
+                         f"(nebo dolij benzín, pak zásuvku {p7} zase zapnu). Opakuju každou minutu.", 5, "rotating_light")
+                else:
+                    ntfy(topic, f"⛽ Benzín {fv_:.0f} % – dolij",
+                         f"Ať generátor nedojede na sucho (vadí motoru). Po dolití spočítám, kolik se vešlo. Při {stp_:.0f} % "
+                         f"nabíjení zastavím. Opakuju každou minutu.", 5, "fuelpump")
+        elif fv_ is not None and fv_ > lo_ + 3 and (gs.get("fuel_al") or gs.get("fuel_stop")):
+            if gs.pop("fuel_stop", None):
+                send_cmd(topic, p7, True, "dolito – nabíjení dál")
+                wake_flip(topic, 0)
+            gs.pop("fuel_al", None)
+            ntfy(topic, f"✓ Dolito – nádrž {fv_:.0f} %", "Nabíjení pokračuje.", 2, "white_check_mark")
         # 6.80 (Petr: „zapnutí zásuvky 7 po spuštění generátoru nefunguje nebo s velkým zpožděním – může se zapnout do 30 s“):
         # 1) nezávisle na tom, jestli běží „relace“ nabíjení (od 6.68 vzniká až když River berou – bez zásuvky nikdy);
         # 2) povel hned, jak hlídač vidí motor bez zátěže (motor běží už nějakou dobu, než to EcoFlow nahlásí);
         # 3) Flip povely čte jen při svém měření (bez zátěže co 10 min) → hned po povelu ho probudit (téma -wake)
-        if motor_on and (gw or 0) < 20 and not rv_take and any((soc_(r) if soc_(r) is not None else 0) < 99 for r in ctl):
+        if motor_on and (gw or 0) < 20 and not rv_take and not gs.get("fuel_stop") and any((soc_(r) if soc_(r) is not None else 0) < 99 for r in ctl):
             gs["p7_t"] = gs.get("p7_t") or tnow
             el_ = tnow - gs["p7_t"]
             print(f"Nabíjení z generátoru: generátor běží {el_} s bez zátěže – zásuvka {p7} vypnutá?")

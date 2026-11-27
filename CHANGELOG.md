@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.105 – 27. 11. 2026
+- Benzín v generátoru (Petr: „nechci vyprázdnit nádrž na 0 – pro motor to není dobré“): když motor běží a nádrž je na **5 %** a míň (`gen_benzin_dolit_pct`), naléhavě každou minutu „⛽ Benzín 5 % – dolij“. Na **2 %** (`gen_benzin_stop_pct`) hlídač zastaví nabíjení (vypne zásuvku 7) a naléhavě „🛑 VYPNI GENERÁTOR“ (motor na dálku vypnout zatím neumí). Po dolití zásuvku zase zapne a napíše „✓ Dolito“.
+- Dolití se pozná podle skoku nádrže nahoru (i mezi nabíjeními) a zapíše se, kolik litrů se vešlo (skok × objem nádrže 4 l) – log a data `gen_refills`.
+
 ## 6.104 – 26. 11. 2026
 - Ověření zdání přítomnosti: stav světel se bere ze všech zpráv Flipu (i ze starších, které Flip posílá znovu), ne jen z té, která přidá bod – zpráva z chvíle svícení se jinak zahodila.
 
