@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.112 – 27. 11. 2026
+- Živá chata (Petr): kuchyně má dvě okna přes roh (vpředu a na štítové stěně); panel na střeše přímo nad panelem terasy; střecha terasy končí s chatou (nepřesahuje doprava); dveře uvnitř terasy = chodba (prosklené, svítí i na podlahu).
+- Dole jedna řada: River (malá stranou, štítky „→ 12 V světla“ / „→ 230 V“ místo ikon), solární baterie pod terasou (svisle pod svou polohou), kanystr = benzín v nádrži generátoru (náplň + %). Větší čísla v krabičkách.
+- Dřevník s generátorem: vidět čelo, bok i plochou střechu, stojí za terasou; kabely od generátoru ke všem River jsou vidět vždy, při nabíjení po nich běží pulzy. Zrušen samostatný ukazatel benzínu vedle generátoru.
+
 ## 6.111 – 27. 11. 2026
 - Živá chata překreslená podle Petrovy fotky chaty: lakované prkenné stěny, červenohnědý šindel, zelené okapy, okno s bílými příčkami, stromy za chatou (jehličnany i listnáče). Pohled zleva shora – vidět štít s oknem ložnice (podkroví) i přední svah střechy s panelem.
 - Terasa vpředu pod téměř vodorovným pokračováním střechy (na ní druhý panel), polovysoké zábradlí s truhlíky, uvnitř okno pokoje (při svícení i světlo na podlaze terasy) a dveře (chodba). Světlo terasy = svítící pásek po obvodu střechy terasy – odliší se od okna pokoje. Solární baterie na terase u zadní stěny.
