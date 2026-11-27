@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.118", FLIP_VER = "1.9.19";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.119", FLIP_VER = "1.9.19";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2164,7 +2164,7 @@ function sceneState(d, h){
   // 6.110: co River napájí – 230 V (výstup měniče) / 12 V (zbytek výstupu: autozásuvka, USB); malá stojí stranou
   R.forEach(x=>{ const e = x.ef || {}, ac = e.online ? (e.ac_out_w||0) : 0, all = e.online ? (e.out_w||0) : 0;
     x.small = (e.wh||768) < 500 || /mal|small|mini/i.test(x.name); x.acw = ac; x.dcw = e.online && e.car_w!=null ? e.car_w : e.ac_out_w!=null ? Math.max(0, all - ac) : (small12(x) ? all : 0);   // 6.117: 12 V přímo z EcoFlow (autozásuvka), jinak výstup − 230 V
-    x.v12 = x.dcw > 2; x.v230 = ac > 2; });
+    x.v12 = all > 2 && x.dcw > 2; x.v230 = all > 2 && ac > 2; });   // 6.119: jen když River opravdu něco dává (celkový výstup)
   if(h.rvOn && R.length && !R.some(x=>x.sup)){ const b = R.slice().sort((a,b)=>b.outw-a.outw)[0]; if(b) b.sup = true; }
   const th = (d.inverter && d.inverter.th) || [], cfg = d.cfg || {};
   const tOut = th.find(x=>norm0(x.n)===norm0(cfg.chladnuti_venku_teplomer||"") || /outdoor|venku/.test(norm0(x.n)));
@@ -2324,7 +2324,7 @@ function sceneSvg(s){
   const XS = []; { let x = 38; s.R.forEach((r, i) => { if(r.small && i) x += 10; XS.push(x); x += 41; }); }
   const rx = i => XS[i], rcx = i => rx(i) + BW/2;
   const wallY = x => x < O[0] ? O[1] - 0.36*Math.min(DP, (O[0]-x)/0.66) : O[1] - 0.16*Math.min(70, (x-O[0])/0.92);   // 6.117: kabel River rovně nahoru do stěny chaty
-  const pill = (x, y, t, c) => `<rect x="${x}" y="${y}" width="40" height="13" rx="6.5" fill="${c}" stroke="#000" stroke-width=".7"/><text x="${x+20}" y="${y+9.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#000">${t}</text>`;
+  const pill = (x, y, t, c) => `<rect x="${x}" y="${y}" width="44" height="14" rx="7" fill="${c}" stroke="#000" stroke-width=".8"/><text x="${x+22}" y="${y+10.5}" text-anchor="middle" font-size="10.5" font-weight="800" fill="#000">${t}</text>`;
   s.R.forEach((r, i) => { o += box(rx(i), RY, BW, BH, r.soc, r.color, r.soc!=null ? `${Math.round(r.soc)}%` : "–", r.color)
     + (r.old ? `<text x="${rcx(i)}" y="${RY+BH+9}" text-anchor="middle" font-size="7.5" fill="${D ? "#333" : "#bbb"}">staré</text>` : "");
     [r.v12 ? ["12 V", "#ffe08a"] : null, r.v230 ? ["230 V", "#9fe0ff"] : null].filter(Boolean).forEach((q, k) => { o += pill(rx(i)+BW+3, RY + 1 + k*15, q[0], q[1]); }); });
@@ -2332,7 +2332,7 @@ function sceneSvg(s){
   o += box(BX, RY, BW+4, BH, pc, pcol, pc!=null ? `${Math.round(pc)}#` : "–");
   // 6.116 (Petr): kanystr = symbol benzínu v nádrži generátoru (vypnutý generátor → poslední známý stav)
   { const fp = s.fuel!=null ? Math.max(0, Math.min(100, s.fuel)) : null, fc = fp==null ? "#888" : fp <= 5 ? "#e53935" : fp <= 20 ? "#fb8c00" : "#f0b400";
-    const kx = S((GX0+GX1)/2,0,GZ0)[0] + 8, ky = RY - 2, kw = 30, kh = 33;
+    const kp = S(GX1+5, 0, GZ0-2), kw = 24, kh = 28, kx = kp[0], ky = kp[1] - kh;     // 6.119: kanystr vedle dřevníku s generátorem
     o += `<g transform="translate(${kx.toFixed(1)} ${ky})"><path d="M4 6 H${kw-2} Q${kw} 6 ${kw} 8 V${kh-2} Q${kw} ${kh} ${kw-2} ${kh} H2 Q0 ${kh} 0 ${kh-2} V10 Z" fill="#b71c1c" stroke="#5d0f0f" stroke-width="1.4"/>
       <path d="M8 6 V1.5 H18 V6" fill="none" stroke="#5d0f0f" stroke-width="2"/><path d="M${kw-6} 6 L${kw-1} 0" stroke="#444" stroke-width="2.6"/>
       <rect x="4" y="10" width="${kw-8}" height="${kh-14}" rx="2" fill="#1e2228"/>
@@ -2347,7 +2347,7 @@ function sceneSvg(s){
     gr: i => `M${pt(gb)} V${gy} H${rcx(i)} V${RY+BH}`,                       // 6.118: rovné úseky, žádné oblouky
     br: i => `M${BX + BW/2} ${RY+BH} V${gy-4} H${rcx(i)+6} V${RY+BH}`};
   Pth.v12 = Pth.rh; Pth.v230 = Pth.rh;
-  o += [Pth.pvR, Pth.pvT, Pth.pv, Pth.bh, ...s.R.map((r,i)=>Pth.rh(i)), ...(s.gen ? s.R.map((r,i)=>Pth.gr(i)) : [])].map(p=>`<path d="${p}" fill="none" stroke="${cab}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
+  o += [Pth.pvR, Pth.pvT, Pth.pv, Pth.bh, ...s.R.map((r,i)=>Pth.rh(i)), ...s.R.map((r,i)=>Pth.gr(i))].map(p=>`<path d="${p}" fill="none" stroke="${cab}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
   const C = {pv:"#ffb300", pvR:"#ffb300", pvT:"#ffb300", bh:"#2f86ff", gr:"#8f7dff", br:"#ffb300", v12:"#ffd23f"};
   const lab = {pv:[BT[0]+8, RY-16, "start"], bh:[BX-4, RY-6, "end"]};
   const fl = s.flows.flatMap(f => f.k==="pv" ? [f, {k:"pvR", w:f.w}, ...(terOn ? [{k:"pvT", w:f.w}] : [])] : [f]);
@@ -2392,7 +2392,7 @@ function detScene(body){
       🔆 dva panely – na střeše chaty a na střeše terasy; při výrobě svítí (víc W = víc), šedý = nezapojený (podle hlídače je zapojený jen jeden).<br>
       🪟 ve štítu okno ložnice (podkroví), na terase uvnitř prosklené dveře (chodba) a okno pokoje – při svícení i světlo na podlaze terasy; světlo terasy = svítící pásek po obvodu její střechy; dvě okna přes roh vlevo dole = kuchyně (bez světla Tapo, nesvítí) – svítí, když podle Flipu svítí světlo (${L}).<br>
       🔋 dole v řadě: vlevo River (%), pod terasou solární baterie (#) ve svých barvách – ve skutečnosti jsou uvnitř, každá má svůj kabel do chaty; „staré“ = poslední známá hodnota; štítek „12 V světla“ = River teď napájí 12V světla (autozásuvka), „230 V“ = teď napájí něco ze své zásuvky 230 V – štítek je vidět jen, když opravdu něco napájí; malá River stojí stranou.<br>
-      ⛽ generátor vpravo v nízkém „dřevníku“ – když běží, svítí okénko, jde z něj kouř a po kabelu teče proud do River, kterou nabíjí; kanystr dole vpravo = kolik benzínu je v nádrži generátoru (%); vypnutý generátor nic nehlásí – pak poslední známý stav (konec posledního nabíjení); kabely od generátoru vedou ke všem River.<br>
+      ⛽ generátor vpravo v nízkém „dřevníku“ – když běží, svítí okénko, jde z něj kouř a po kabelu teče proud do River, kterou nabíjí; kanystr vedle generátoru = kolik benzínu je v nádrži generátoru (%); vypnutý generátor nic nehlásí – pak poslední známý stav (konec posledního nabíjení); kabely od generátoru vedou ke všem River.<br>
       ⚡ tenké čáry = kabely; zářící pulzy po kabelu = teď tudy teče proud, čím rychleji, tím víc wattů.</div></div>`;
 }
 /* 6.100 (Petr: „kdy které světlo svítilo – nějak graficky“): časová osa za posledních 24 h, řádek = světlo, značka =
