@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.113 – 27. 11. 2026
+- Generátor „živě“ (Petr: změny při řízení generátoru vidět hned; internet chaty má jen 5 GB – Flip nic navíc neposílá): během nabíjení z generátoru hlídač na GitHubu po každém kroku řízení (~30 s) uloží malý šifrovaný živý balíček (generátor, River – %, příkon, benzín, plán nabíjení) do větve `live`. Web ho při otevřené stránce (s klíčem GitHub) načítá každých 10 s (nezměněný = nic se nestahuje) a hned překreslí dlaždice i živou chatu; po stisku Spustit/Ukončit sleduje 8 min. V pruhu generátoru „🟢 živě (N s)“.
+- Data jdou jen mezi GitHubem a telefonem – internet chaty to nestojí nic. Mimo nabíjení beze změny (po 10 min).
+
 ## 6.112 – 27. 11. 2026
 - Živá chata (Petr): kuchyně má dvě okna přes roh (vpředu a na štítové stěně); panel na střeše přímo nad panelem terasy; střecha terasy končí s chatou (nepřesahuje doprava); dveře uvnitř terasy = chodba (prosklené, svítí i na podlahu).
 - Dole jedna řada: River (malá stranou, štítky „→ 12 V světla“ / „→ 230 V“ místo ikon), solární baterie pod terasou (svisle pod svou polohou), kanystr = benzín v nádrži generátoru (náplň + %). Větší čísla v krabičkách.

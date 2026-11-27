@@ -1325,6 +1325,36 @@ def save_data(passphrase, data):
     json.dump({"v": 1, "salt": b(salt), "iv": b(iv), "ct": b(ct)}, open(DATA_FILE, "w"))
 
 
+# 6.113 (Petr: „řízení generátoru – vidět změny hned“): během nabíjení z generátoru hlídač každých 30 s uloží malý
+# šifrovaný „živý balíček“ (generátor, River) do větve live; web ho při otevřené stránce načítá po ~10 s. Jde jen
+# přes GitHub (internet chaty to nestojí nic). Celá data se zveřejňují dál na konci běhu.
+LIVE_KEYS = ("gen_plan", "gen_cur", "gen_stop", "gen_pts", "gen_q_run", "gen_refills", "rivers", "rivers_t", "rv_last",
+             "ef_gens", "river_sup")
+
+
+def live_push(data):
+    if not os.environ.get("GITHUB_ACTIONS") or not os.environ.get("GH_TOKEN"):
+        return
+    try:
+        import subprocess, tempfile
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        snap = {k: data[k] for k in LIVE_KEYS if k in data}
+        snap["live_t"] = int(time.time())
+        salt, iv = os.urandom(16), os.urandom(12)
+        ct = AESGCM(_key(os.environ["DATA_KEY"].strip(), salt)).encrypt(iv, json.dumps(snap, separators=(",", ":")).encode(), None)
+        b = lambda x: base64.b64encode(x).decode()
+        d_ = tempfile.mkdtemp()
+        json.dump({"v": 1, "salt": b(salt), "iv": b(iv), "ct": b(ct)}, open(os.path.join(d_, "live.enc"), "w"))
+        rep = os.environ.get("GITHUB_REPOSITORY", "KptDundee/chata-hlidac")
+        g = lambda *a: subprocess.run(["git", "-C", d_, *a], capture_output=True, timeout=25, check=True)
+        g("init", "-q", "-b", "live")
+        g("add", "live.enc")
+        g("-c", "user.name=hlidac-bot", "-c", "user.email=hlidac-bot@users.noreply.github.com", "commit", "-qm", "live")
+        g("push", "-qf", f"https://x-access-token:{os.environ['GH_TOKEN']}@github.com/{rep}.git", "live")
+    except Exception as e:
+        print("Živý balíček:", type(e).__name__, str(e)[:80].replace(os.environ.get("GH_TOKEN", "~"), "…"))
+
+
 def clean_soc(data):
     """Nabití % od regulátoru mimo 0–100 (17. 10. 2026 přišlo 1446 %) z uložených bodů a dnů vyhodit."""
     bad = lambda x: x is not None and not 0 <= x <= 100
@@ -8359,6 +8389,8 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         apply({r["sn"]: safe_of(r) for r in data.get("rivers") or [] if ctl_ok(r) and r.get("online")})
     t_start = time.time()
     go = step(int(t_start))
+    if gs.get("active"):
+        live_push(data)
     # smyčka po 30 s (jen během relace) – v jednom běhu hlídače nejvýš ~3 min, pak další běh spustí hlídač sám
     while go and time.time() - t_start < 150:
         time.sleep(30)
@@ -8391,6 +8423,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         except Exception as e:
             print("Poloha telefonu:", e)
         go = step(int(time.time()))
+        live_push(data)
     data["gen_cont"] = bool(gs.get("active"))
 
 def check_river(r, st, topic, cfg, data=None, rivers=None):

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.112", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.113", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -514,6 +514,24 @@ async function decrypt(enc, pw){
   const pt = await crypto.subtle.decrypt({name:"AES-GCM",iv}, key, ct);
   return JSON.parse(new TextDecoder().decode(pt));
 }
+/* 6.113: živý balíček z větve live (během nabíjení z generátoru každých 30 s) – generátor a River hned, bez čekání
+   na celá data; s ETagem (nezměněný = 304, nic se nestahuje). Novější než celá data → přepíše jejich klíče. */
+let LIVE = null, LIVE_ETAG = "", LIVE_UNTIL = 0, LIVE_BUSY = false;
+const liveMerge = d => { if(d && LIVE && LIVE.live_t > (d.checked||0)){ for(const [k,v] of Object.entries(LIVE)) if(k!=="live_t") d[k] = v; d.live_t = LIVE.live_t; } return d; };
+async function livePoll(force){
+  const tok = store.get("ghtok"); if(!tok || !PW || !DATA || LIVE_BUSY || document.hidden) return;
+  const want = force || genLive(DATA) || DATA.gen_cont || Date.now() < LIVE_UNTIL || (LIVE && Date.now()/1000 - LIVE.live_t < 300);
+  if(!want) return;
+  LIVE_BUSY = true;
+  try{
+    const r = await fetch("https://api.github.com/repos/KptDundee/chata-hlidac/contents/live.enc?ref=live",
+      {headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github.raw", ...(LIVE_ETAG ? {"If-None-Match":LIVE_ETAG} : {})}, cache:"no-store"});
+    if(r.status===200){ LIVE_ETAG = r.headers.get("ETag") || ""; const L = await decrypt(await r.json(), PW);
+      if(!LIVE || L.live_t > LIVE.live_t){ LIVE = L; liveMerge(DATA); render(); } }
+  }catch(e){}
+  LIVE_BUSY = false;
+}
+setInterval(()=>livePoll(false), 10000);
 async function load(pw){
   // s tokenem rovnou z GitHubu (bez čekání na zveřejnění stránky, ~1 min rychlejší); jinak ze stránky
   const tok = store.get("ghtok");
@@ -521,12 +539,12 @@ async function load(pw){
     try{
       const g = await fetch("https://api.github.com/repos/KptDundee/chata-hlidac/contents/data.enc?ref=gh-pages&t="+Date.now(),
         {headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github.raw"}, cache:"no-store"});
-      if(g.ok) return decrypt(await g.json(), pw);
+      if(g.ok) return liveMerge(await decrypt(await g.json(), pw));
     }catch(e){}
   }
   const r = await fetch("data.enc?"+Date.now(), {cache:"no-store"});
   if(!r.ok) throw new Error("nodata");
-  return decrypt(await r.json(), pw);
+  return liveMerge(await decrypt(await r.json(), pw));
 }
 
 /* ---------- stav baterie ---------- */
@@ -3575,6 +3593,7 @@ async function genCmd(cmd, el, fel){
         body:JSON.stringify({ref:"main",inputs:{test:false,wake:true,gen:cmd}})});
       if(r.status===401||r.status===403||r.status===404){store.del("ghtok");throw new Error("Token nefunguje – zadej ho znovu.");}
       if(!r.ok) throw new Error("GitHub odpověděl "+r.status);
+      LIVE_UNTIL = Date.now() + 8*60e3;          // 6.113: po povelu hned sledovat živý balíček
     }
     if(el) el.textContent = "✓ Ukončeno";
     const note = document.querySelector("button[data-fuel]")?.parentElement?.nextElementSibling;
@@ -4582,9 +4601,9 @@ function genBar(){
   const run = P && !P.end && now - P.t < 900 && (P.rv||[]).length && P.fin && P.fin > now - 300;
   el.classList.toggle("hide", !run); if(!run) return;
   const left = Math.max(0, Math.round((P.fin - now)/60)), lt = left >= 60 ? hmH(left/60) : `${left} min`;
-  el.innerHTML = `<span class="dot">⛽</span><span class="ab" style="white-space:normal;overflow:visible">Generátor · hotovo ${relDay(P.fin)==="dnes" ? "" : relDay(P.fin)+" "}~${hmT(P.fin)} <span style="font-weight:500;color:var(--text2);white-space:nowrap">· zbývá ${left > 0 ? lt : "chvilka"}</span></span><span class="go" style="position:static">›</span>`;
+  el.innerHTML = `<span class="dot">⛽</span><span class="ab" style="white-space:normal;overflow:visible">Generátor · hotovo ${relDay(P.fin)==="dnes" ? "" : relDay(P.fin)+" "}~${hmT(P.fin)} <span style="font-weight:500;color:var(--text2);white-space:nowrap">· zbývá ${left > 0 ? lt : "chvilka"}${DATA.live_t && now - DATA.live_t < 120 ? ` · 🟢 živě (${Math.max(0, Math.round(now - DATA.live_t))} s)` : ""}</span></span><span class="go" style="position:static">›</span>`;
 }
-setInterval(genBar, 60000);
+setInterval(genBar, 5000);   // 6.113: odpočet a „živě (s)“
 /* 5.149: proužek – plán dobití solární baterie do plna (od 7 dní bez Float, začít nejpozději 14. den) */
 function fullBar(){
   const el = $("fullbar"); if(!el || !DATA) return;
