@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.114 – 27. 11. 2026 (Brána 1.9.19)
+- Méně dat z Flipu (Petr: internet chaty 5 GB): Brána posílá zprávy na GitHub **zkomprimované** (gzip + base64, „gz:“ – hlídač je rozbalí; staré nezkomprimované umí dál) a **každou jen jednou** – hlídač přijaté zprávy potvrzuje (seznam časů „ack“ v ntfy -fc), znovu jde jen nepotvrzená, nejdřív po 12 min, nejvýš 3× (dřív každá zpráva 3× vždy). Odeslání ~10 KB → ~1 KB.
+- Brána u povelů (-cmd) a povolení nabíjení (-fc) stahuje jen poslední zprávu (dřív všechny za 3 h / 6 h); povel starší než 3 h se neprovede (jako dřív).
+- Kolik dat přenese router, Flip a aplikace Brána, ukazuje web už dnes: dlaždice Flip → záložka Wi‑Fi a data.
+
 ## 6.113 – 27. 11. 2026
 - Generátor „živě“ (Petr: změny při řízení generátoru vidět hned; internet chaty má jen 5 GB – Flip nic navíc neposílá): během nabíjení z generátoru hlídač na GitHubu po každém kroku řízení (~30 s) uloží malý šifrovaný živý balíček (generátor, River – %, příkon, benzín, plán nabíjení) do větve `live`. Web ho při otevřené stránce (s klíčem GitHub) načítá každých 10 s (nezměněný = nic se nestahuje) a hned překreslí dlaždice i živou chatu; po stisku Spustit/Ukončit sleduje 8 min. V pruhu generátoru „🟢 živě (N s)“.
 - Data jdou jen mezi GitHubem a telefonem – internet chaty to nestojí nic. Mimo nabíjení beze změny (po 10 min).

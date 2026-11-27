@@ -3444,6 +3444,13 @@ def read_inverter(data, topic, now, cfg=None):
     st = data.setdefault("state", {})
     gh = []
     raw = os.environ.get("FLIP_DATA", "").strip()
+    if raw.startswith("gz:"):                              # 6.114 (Brána 1.9.19): zprávy zkomprimované (gzip + base64)
+        try:
+            import gzip
+            raw = gzip.decompress(base64.b64decode(raw[3:])).decode("utf-8")
+        except Exception as e:
+            print("Data z Flipu (gz):", e)
+            raw = ""
     if raw:
         try:
             for s_ in json.loads(raw):
@@ -3451,6 +3458,9 @@ def read_inverter(data, topic, now, cfg=None):
                 gh.append({"event": "message", "time": int(b_.get("ts") or time.time()), "message": s_})
             st["flip_gh"] = int(now.timestamp())
             print(f"Flip přes GitHub: {len(gh)} zpráv")
+            # 6.114: potvrzení přijatých zpráv (čas měření) – Brána 1.9.19 pak pošle každou zprávu jen jednou (znovu jen nepotvrzenou)
+            ack_ = set(st.get("flip_ack") or []) | {int(m["time"]) for m in gh}
+            st["flip_ack"] = sorted(t_ for t_ in ack_ if now.timestamp() - t_ < 3 * 3600)[-40:]
         except (ValueError, TypeError) as e:
             print("Data z Flipu (GitHub):", e)
     seen = {}
@@ -4917,16 +4927,17 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     # 5.97: zásuvky, které mají být vidět (Brána 1.9.14 při jejich výpadku prohledá síť znovu); měnič jen když dodává
     mip_ = str(cfg.get("zasuvka_menic") or "1")
     stl = [i for i in ips(cfg.get("zasuvky_stale")) if i != mip_ or (str(inv.get("st") or "").upper() == "INVERTING" and not on_river)]
-    if fs.get("stale") != stl or fs.get("allow") != allow or fs.get("full") != full or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
+    ack = st.get("flip_ack") or []
+    if fs.get("ack") != ack or fs.get("stale") != stl or fs.get("allow") != allow or fs.get("full") != full or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
             or fs.get("fmin") != int(cfg.get("flip_min_pct") or 30) or fs.get("rst") != str(cfg.get("brana_restart") or "") or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
             or ts - fs.get("t", 0) >= 3600:
         body = json.dumps({"allow": allow, "full": full, "stale": stl, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0,
                            "fmin": int(cfg.get("flip_min_pct") or 30), "rst": str(cfg.get("brana_restart") or ""),
-                           "why": why, "id": int(ts)})
+                           "why": why, "id": int(ts), "ack": ack})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
-            fs.update(stale=stl, allow=allow, full=full, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), rst=str(cfg.get("brana_restart") or ""), t=int(ts), why=why)
+            fs.update(ack=ack, stale=stl, allow=allow, full=full, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), rst=str(cfg.get("brana_restart") or ""), t=int(ts), why=why)
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc"), "ftgt": fs.get("ftgt"), "f_until": f_until, "rate": rate}

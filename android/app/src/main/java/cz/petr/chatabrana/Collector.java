@@ -574,7 +574,7 @@ public final class Collector {
         String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
         if (topic.isEmpty()) return;
         try {
-            HttpURLConnection c = (HttpURLConnection) new URL("https://ntfy.sh/" + topic + "-cmd/json?poll=1&since=3h").openConnection();
+            HttpURLConnection c = (HttpURLConnection) new URL("https://ntfy.sh/" + topic + "-cmd/json?poll=1&since=latest").openConnection();   // 1.9.19: jen poslední zpráva (dřív vše za 3 h)
             c.setConnectTimeout(15000);
             c.setReadTimeout(15000);
             String body;
@@ -596,6 +596,7 @@ public final class Collector {
             long id = last.optLong("id", 0);
             long done = Prefs.get(ctx).getLong("cmd_done", 0);
             if (id <= done) return;
+            if (System.currentTimeMillis() / 1000 - id > 3 * 3600) return;   // 1.9.19: povel starší než 3 h neplatí (jako dřív)
             String ip = last.optString("ip", "");
             String mapped = plugMap(email, pass).get(ip);                // číslo zásuvky → aktuální IP
             if (mapped != null && !mapped.isEmpty()) ip = mapped;
@@ -628,7 +629,7 @@ public final class Collector {
         android.content.SharedPreferences P = Prefs.get(ctx);
         String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
         try {                                                            // povolení od hlídače
-            HttpURLConnection c = (HttpURLConnection) new URL("https://ntfy.sh/" + topic + "-fc/json?poll=1&since=6h").openConnection();
+            HttpURLConnection c = (HttpURLConnection) new URL("https://ntfy.sh/" + topic + "-fc/json?poll=1&since=latest").openConnection();   // 1.9.19: jen poslední zpráva
             c.setConnectTimeout(15000); c.setReadTimeout(15000);
             String body;
             try (java.io.InputStream in = c.getInputStream()) {
@@ -643,6 +644,8 @@ public final class Collector {
                 JSONObject m = new JSONObject(ln);
                 if ("message".equals(m.optString("event"))) try { last = new JSONObject(m.optString("message")); } catch (Exception ignored) {}
             }
+            if (last != null && last.optJSONArray("ack") != null)                // 1.9.19: hlídač potvrzuje přijaté zprávy
+                P.edit().putString("gh_ack", "," + last.optJSONArray("ack").join(",") + ",").apply();
             if (last != null && last.optLong("id") * 1000 > P.getLong("fc_t", 0)) {
                 P.edit().putBoolean("fc_allow", last.optBoolean("allow", false)).putLong("fc_t", last.optLong("id") * 1000)
                         .putString("fc_ip", last.optString("ip", "9")).putString("fc_why", last.optString("why", ""))
@@ -868,8 +871,8 @@ public final class Collector {
 
     /**
      * Data na GitHub: spuštění hlídače s daty v parametru „flip“ (pole zpráv). Posílá se vždy nejnovější zpráva
-     * a k ní co nejvíc starších z vyrovnávací paměti (od nejstarších) – každá zpráva jde 3× (kdyby GitHub čekající
-     * běh zrušil, přijde znovu v dalším). Hlídač zprávy pozná podle "ts", dvakrát je nezapočítá.
+     * a k ní starší z vyrovnávací paměti, které hlídač ještě nepotvrdil (1.9.19: potvrzení v ntfy -fc „ack“; znovu
+     * nejdřív po 12 min, nejvýš 3×). Zprávy jdou zkomprimované („gz:“ + base64). Hlídač je pozná podle "ts".
      * @return počet poslaných zpráv, -1 = nejde (bez tokenu / chyba) → záloha přes ntfy
      */
     private synchronized int sendGitHub(String msg) {
@@ -883,25 +886,37 @@ public final class Collector {
             for (int i = 0; i < ob.length(); i++) buf.put(new JSONObject().put("m", ob.getString(i)).put("n", 0));
             JSONArray old = new JSONArray(Prefs.get(ctx).getString("ghbuf", "[]"));
             for (int i = 0; i < old.length(); i++) buf.put(old.getJSONObject(i));
-            buf.put(new JSONObject().put("m", msg).put("n", 0));
-            long cut = System.currentTimeMillis() / 1000 - 24 * 3600;
-            JSONArray keep = new JSONArray();                       // starší než den pryč, nejvýš 150 zpráv
+            buf.put(new JSONObject().put("m", msg).put("n", 0).put("s", 0));
+            long nowS = System.currentTimeMillis() / 1000, cut = nowS - 24 * 3600;
+            String acked = Prefs.get(ctx).getString("gh_ack", "");
+            JSONArray keep = new JSONArray();                       // 1.9.19: pryč starší než den, potvrzené hlídačem, poslané 3×
             for (int i = Math.max(0, buf.length() - 150); i < buf.length(); i++) {
                 JSONObject b = buf.getJSONObject(i);
-                if (new JSONObject(b.getString("m")).optLong("ts", 0) >= cut) keep.put(b);
+                long mts = new JSONObject(b.getString("m")).optLong("ts", 0);
+                if (mts < cut || b.optInt("n") >= 3 || acked.contains("," + mts + ",")) continue;
+                keep.put(b);
             }
             buf = keep;
             JSONArray arr = new JSONArray();
             java.util.List<Integer> used = new java.util.ArrayList<>();
             int size = msg.length();
             arr.put(msg); used.add(buf.length() - 1);
-            for (int i = 0; i < buf.length() - 1; i++) {             // starší, od nejstarších, do ~40 000 znaků
-                String m = buf.getJSONObject(i).getString("m");
+            for (int i = 0; i < buf.length() - 1; i++) {             // starší nepotvrzené, od nejstarších – znovu až po 12 min
+                JSONObject b = buf.getJSONObject(i);
+                if (nowS - b.optLong("s", 0) < 12 * 60) continue;
+                String m = b.getString("m");
                 if (size + m.length() > 40000) break;
                 arr.put(m); used.add(i); size += m.length();
             }
+            // 1.9.19: zkomprimovat (gzip + base64) – názvy se opakují, ~3× méně dat; hlídač 6.114 pozná podle „gz:“
+            String flip;
+            try {
+                java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                try (java.util.zip.GZIPOutputStream gz = new java.util.zip.GZIPOutputStream(bo)) { gz.write(arr.toString().getBytes(StandardCharsets.UTF_8)); }
+                flip = "gz:" + android.util.Base64.encodeToString(bo.toByteArray(), android.util.Base64.NO_WRAP);
+            } catch (Exception e) { flip = arr.toString(); }
             JSONObject body = new JSONObject().put("ref", "main").put("inputs",
-                    new JSONObject().put("test", "false").put("wake", "false").put("flip", arr.toString()));
+                    new JSONObject().put("test", "false").put("wake", "false").put("flip", flip));
             // 1.9.18 (11. 11.: „Unable to resolve host api.github.com“ – hlídač pak 24–48 min neběžel): krátký výpadek
             // → ještě 2× za 45 s; odmítnutý klíč (401/403/404) se neopakuje – to opakování nespraví
             int code = -1; String err = "";
@@ -939,7 +954,7 @@ public final class Collector {
             JSONArray rest = new JSONArray();
             for (int i = 0; i < buf.length(); i++) {
                 JSONObject b = buf.getJSONObject(i);
-                if (used.contains(i)) b.put("n", b.optInt("n") + 1);
+                if (used.contains(i)) b.put("n", b.optInt("n") + 1).put("s", System.currentTimeMillis() / 1000);
                 if (b.optInt("n") < 3) rest.put(b);
             }
             Prefs.get(ctx).edit().putString("ghbuf", rest.toString()).putString("outbox", "[]").apply();
