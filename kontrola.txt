@@ -23,3 +23,13 @@ Našel jsem 6 věcí – pro tebe: 0.
 4. 🔧 Oprava v hlídači: **Klidová kotva během nabíjení** – 26. 11. v 9:28 vznikla kotva „12,63 V, 78 %, klid 8,9 h“, přestože regulátor byl v Boost a napětí rostlo od 7:35 (ve 5:35 bylo 12,45 V, 60 %). Návrh: kotvu nebrat při stavu Boost/Float ani při rostoucím napětí. Má to vliv na testy kapacity a medián kapacity (#). Dnes test nevznikl, ale kotva zůstává ve dvojicích na další dny.
 5. ℹ Jen info: **Dnes v noci** ŽLUT (31 %) vydrží asi do 1:30 a plán počítá od 0:00 s ČERV (61 %, teď vypnutá). Hlídač ti připomene od 23:30 – zapnout ČERV a přepnout.
 6. ℹ Jen info: Solar Guardian 5:30–6:10 nedával data. Hlídač podle 6.94 pokračoval a pak se sám chytil. **Počasí** selhalo i po opravě 6.91 v 17 ze 160 běhů (SSL timeout), drží se poslední předpověď. Všech 163 běhů za 24 h skončilo úspěšně, žádný traceback.
+
+=== 2026-11-27 19:45 ===
+Našel jsem 7 věcí – pro tebe: 2.
+1. 🔴 Udělej ty: **Dnes před spaním přepni na ŽLUT** – i kdyby hlídač psal, že ČERV vydrží do 9:12. ČERV (70 %) ubývá ~7 %/h, takže podle mě (domněnka) dojde kolem 5:00, jako dnes ráno. Postup do půlnoci: zapni ŽLUT (100 %), přepoj přívod chaty na ŽLUT a ČERV vypni.
+2. 🔴 Udělej ty: **Benzín** – v nádrži generátoru je po dnešku ~8 % (~0,3 l). Před příštím startem dolij z kanystru. V kanystrech jsou podle záznamu 3 l (asi 2 nabíjení), takže benzín brzy dokup.
+3. 🔧 Oprava v hlídači: **Výdrž River je nadsazená** – ve 22:56 hlídač počítal, že ČERV (60 %) vydrží do 10:1x, ale došla už v ~6:13. Chata i lednice pak byly bez proudu ~6:13–7:43 a ~8:45–10:57. Hlídač počítá s odběrem 17 W, skutečný úbytek je ~7 %/h (včera 0,63 kWh/den). Návrh: když je změřený úbytek % rychlejší, počítat z něj. Vliv: plán, rada před spaním, nabíjení.
+4. 🔧 Oprava v hlídači: **Chata bez proudu – žádná rada** – 9:04–10:44 chatu nic nenapájelo, ale „Co teď udělat“ psalo jen „nabij obě, začni nejpozději ve 20:00“. V noci od 2:17 plán chtěl „nabít ČERV do 2:15“ (termín už prošel a byl noční klid) a rada byla „nic“. Návrh: když nejede žádný zdroj a zmizí zásuvky Lednice a router, naléhavě poradit „přepni na solár“.
+5. 🔧 Oprava v hlídači: **Protichůdné rady** – v 15:42–15:54 hlídač radil „přepni na solár“ při 43–45 #, tedy pod denní hranicí 50 #. Teď stojí „Přepnutí River: nic“ vedle „před spaním na ŽLUT“ (trvá z 26. 11., bod 1).
+6. ℹ Jen info: **Malá River** skončila na 54 %: prvních ~55 min nebrala a nabíjení skončilo, když byly velké plné.
+7. ℹ Jen info: Všech 162 běhů skončilo úspěšně, bez tracebacku. 9 zrušených běhů je jen fronta. **Počasí** selhalo v 24 bězích (SSL timeout). Body 2 a 4 z 26. 11. zatím nejsou opravené.
