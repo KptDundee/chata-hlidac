@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.121 – 27. 11. 2026
+- Oprava 6.120: komentář na řádku rozbil skript webu (stránka se nenačetla) – opraveno.
+
 ## 6.120 – 27. 11. 2026
 - Živá chata: štítek „230 V“ jen u River, která napájí něco jiného než chatu (TV, PC…). River, ze které jede chata, ho neukazuje – to je vidět z toku po jejím kabelu do chaty.
 

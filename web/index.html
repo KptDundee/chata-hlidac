@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.120", FLIP_VER = "1.9.19";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.121", FLIP_VER = "1.9.19";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2327,7 +2327,7 @@ function sceneSvg(s){
   const pill = (x, y, t, c) => `<rect x="${x}" y="${y}" width="44" height="14" rx="7" fill="${c}" stroke="#000" stroke-width=".8"/><text x="${x+22}" y="${y+10.5}" text-anchor="middle" font-size="10.5" font-weight="800" fill="#000">${t}</text>`;
   s.R.forEach((r, i) => { o += box(rx(i), RY, BW, BH, r.soc, r.color, r.soc!=null ? `${Math.round(r.soc)}%` : "–", r.color)
     + (r.old ? `<text x="${rcx(i)}" y="${RY+BH+9}" text-anchor="middle" font-size="7.5" fill="${D ? "#333" : "#bbb"}">staré</text>` : "");
-    [r.v12 ? ["12 V", "#ffe08a"] : null, r.v230 && !r.sup ? ["230 V", "#9fe0ff"] : null]   // 6.120: River, ze které jede chata, štítek nepotřebuje – je vidět tok do chaty.filter(Boolean).forEach((q, k) => { o += pill(rx(i)+BW+3, RY + 1 + k*15, q[0], q[1]); }); });
+    [r.v12 ? ["12 V", "#ffe08a"] : null, r.v230 && !r.sup ? ["230 V", "#9fe0ff"] : null]   /* 6.120: River, ze které jede chata, štítek nepotřebuje – je vidět tok do chaty */.filter(Boolean).forEach((q, k) => { o += pill(rx(i)+BW+3, RY + 1 + k*15, q[0], q[1]); }); });
   const BX = S(140,0,-44)[0] - BW/2;
   o += box(BX, RY, BW+4, BH, pc, pcol, pc!=null ? `${Math.round(pc)}#` : "–");
   // 6.116 (Petr): kanystr = symbol benzínu v nádrži generátoru (vypnutý generátor → poslední známý stav)
