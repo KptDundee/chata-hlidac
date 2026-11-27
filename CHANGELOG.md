@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.120 – 27. 11. 2026
+- Živá chata: štítek „230 V“ jen u River, která napájí něco jiného než chatu (TV, PC…). River, ze které jede chata, ho neukazuje – to je vidět z toku po jejím kabelu do chaty.
+
 ## 6.119 – 27. 11. 2026
 - Živá chata (Petr): kanystr (benzín v nádrži generátoru) stojí vedle dřevníku s generátorem, ne dole v řadě. Kabely generátor → River zase vidět vždy (rovné úseky), při nabíjení po nich běží pulzy.
 - Štítky u River („12 V“, „230 V“) větší a jen když River opravdu něco dává (celkový výstup nad 2 W) – EcoFlow umí hlásit výkon měniče i při nulovém výstupu.
