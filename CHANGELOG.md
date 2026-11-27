@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.115 – 27. 11. 2026
+- Živá chata (Petr: „proč není vidět množství paliva v kanystru“): kanystr ukazuje **benzín v kanystrech** (litry ze zásoby na kartě Palivo – zadané mínus dolité do generátoru, náplň podle objemu kanystrů). Benzín v **nádrži generátoru** je štítek „nádrž %“ nad dřevníkem.
+- Vypnutý generátor do cloudu EcoFlow nic nehlásí (proto na obrázku „?“) – hlídač si teď pamatuje poslední známý stav nádrže (`gen_tank`), použije ho obrázek i výpočet zásoby paliva.
+
 ## 6.114 – 27. 11. 2026 (Brána 1.9.19)
 - Méně dat z Flipu (Petr: internet chaty 5 GB): Brána posílá zprávy na GitHub **zkomprimované** (gzip + base64, „gz:“ – hlídač je rozbalí; staré nezkomprimované umí dál) a **každou jen jednou** – hlídač přijaté zprávy potvrzuje (seznam časů „ack“ v ntfy -fc), znovu jde jen nepotvrzená, nejdřív po 12 min, nejvýš 3× (dřív každá zpráva 3× vždy). Odeslání ~10 KB → ~1 KB.
 - Brána u povelů (-cmd) a povolení nabíjení (-fc) stahuje jen poslední zprávu (dřív všechny za 3 h / 6 h); povel starší než 3 h se neprovede (jako dřív).

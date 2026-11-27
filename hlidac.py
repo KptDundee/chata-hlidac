@@ -4402,7 +4402,8 @@ def _gen_tank_pct(data):
         f_ = (g.get("gd") or {}).get("fuel")
         if f_ is not None:
             return float(f_)
-    return None
+    gt = data.get("gen_tank") or {}                 # 6.115: vypnutý generátor nehlásí nic → poslední známý stav nádrže
+    return float(gt["pct"]) if gt.get("pct") is not None else None
 
 
 def fuel_reserve(data, st, now, cfg):
@@ -7964,6 +7965,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 log("ev", f"Dolit benzín do generátoru: z {fl_:.0f} % na {fv_:.0f} % ≈ {fmt(lit_, 2)} l")
                 print(f"Generátor: dolito z {fl_:.0f} % na {fv_:.0f} % ≈ {lit_} l")
             st["fuel_last"] = fv_
+            data["gen_tank"] = {"pct": round(fv_), "t": int(tnow)}     # 6.115: poslední známý stav nádrže (web, zásoba)
         lo_, stp_ = float(cfg.get("gen_benzin_dolit_pct") or 5), float(cfg.get("gen_benzin_stop_pct") or 2)
         if benz_ and motor_on and fv_ is not None and 0 <= fv_ <= lo_:
             if fv_ <= stp_ and not gs.get("fuel_stop"):
