@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.107 – 27. 11. 2026
+- Živá chata (Petr): chata natočená – vidět štít i střechu se třemi panely (při výrobě svítí, žlutě orámované); ložnice v patře pod štítem, pokoj a dveře (chodba) v přízemí; terasa s pergolou, zábradlím a světlem.
+- Tečky toků energie výraznější – větší, se světlým okrajem, čára pod nimi sytější.
+- Malá River: když napájí 12V světla, je nad ní štítek „💡12 V“ (a v detailu řádek s watty).
+
 ## 6.106 – 27. 11. 2026
 - Web: **🏡 Živá chata** nahoře v záložce Teď – obrázek chaty podle skutečných dat: obloha podle času (slunce jde od východu k západu, v noci hvězdy a měsíc), mraky / déšť / sníh podle dnešní předpovědi (při sněžení sníh na střeše i na zemi), panely na střeši svítí žlutě podle výroby, okna podle světel Tapo (pokoj, ložnice, chodba ve dveřích, lampa na terase), solární baterie (#) a River (%) jako krabičky s náplní, z generátoru jde kouř, když běží, venkovní a vnitřní teplota.
 - Web: **animované toky energie** – běžící tečky po čarách panely → baterie, baterie → chata, River → chata, generátor → River, baterie → River (nabíjení ze soláru); čím víc W, tím rychleji. Pod obrázkem jedna věta (z čeho chata jede, výkon panelů, generátor).

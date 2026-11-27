@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.106", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.107", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2142,7 +2142,7 @@ function sceneState(d, h){
   const MM = rivModel(d, h), GP = genLive(d);
   const sup = d.river_sup || {}, supSn = String(sup.sn||"").slice(-6);
   const R = MM.R.slice(0, 3).map(x=>{ const q = rvSoc(x); return {...x, soc:q.soc, old:!!q.old, inw:(x.ef&&x.ef.in_w)||0, outw:(x.ef&&x.ef.out_w)||0,
-    sup: h.rvOn && (supSn ? x.sn===supSn : sup.name ? x.ef && x.ef.name===sup.name : false)}; });
+    sup: h.rvOn && (supSn ? x.sn===supSn : sup.name ? x.ef && x.ef.name===sup.name : false), v12: !!small12(x)}; });
   if(h.rvOn && R.length && !R.some(x=>x.sup)){ const b = R.slice().sort((a,b)=>b.outw-a.outw)[0]; if(b) b.sup = true; }
   const th = (d.inverter && d.inverter.th) || [], cfg = d.cfg || {};
   const tOut = th.find(x=>norm0(x.n)===norm0(cfg.chladnuti_venku_teplomer||"") || /outdoor|venku/.test(norm0(x.n)));
@@ -2152,78 +2152,86 @@ function sceneState(d, h){
   if(!h.rvOn && h.loadB!=null && h.loadB > 3) flows.push({k:"bh", w:h.loadB});
   R.forEach((x,i)=>{ if(x.sup) flows.push({k:"rh", i, w: x.outw || sup.w || (h.inv && h.inv.mw) || null}); });
   if(GP) R.forEach((x,i)=>{ if(x.inw > 20 || (R.every(y=>y.inw <= 20) && i===0)) flows.push({k:"gr", i, w: x.inw || GP.gw || GP.tot_in || null}); });
+  R.forEach((x,i)=>{ if(x.v12) flows.push({k:"v12", i, w:x.outw}); });   // 6.107: malá River napájí 12V světla (jen v seznamu, na obrázku štítek)
   if(MM.C.on && MM.C.tgt){ const i = R.findIndex(x=>x.id===MM.C.tgt.id); if(i >= 0) flows.push({k:"br", i, w:h.riverW}); }
   return {now, day, dusk, sf, snow, rain, cloud, code, txt:wf.txt||"", pv, stale:RS.stale, pct: d.hq ? d.hq.pct : null, rvOn:h.rvOn, cs:h.cs,
     lit, R, gen:!!GP, genW: GP ? (GP.gw ?? GP.tot_in) : null, flows, tOut: tOut && tOut.t!=null ? tOut.t : null, tIn: tIn && tIn.t!=null ? tIn.t : null};
 }
 const norm0 = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 function sceneSvg(s){
-  const W = 360, H = 214, G = 166;                 // G = zem
+  // 6.107 (Petr): chata natočená – vidět štít i střechu s panely; ložnice v patře pod štítem; terasa se světlem; výraznější tečky
+  const W = 360, H = 214, G = 140;                 // G = obzor (zem)
   const sky = s.day ? (s.dusk ? ["#f0a86c","#7d8fc4"] : s.cloud ? ["#9fb1c4","#dbe3eb"] : ["#5aa7ef","#cfe8ff"]) : (s.dusk ? ["#3b3f78","#c47c63"] : ["#07122b","#1b2a52"]);
   const gnd = s.snow ? (s.day ? "#eef3f7" : "#8c98ad") : (s.day ? "#6fa865" : "#22361f");
+  const ink = s.day && !s.snow ? "#1d1d1d" : "#000";
   let o = `<defs><linearGradient id="scsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient>
     <radialGradient id="scglow"><stop offset="0" stop-color="#ffd76a" stop-opacity=".95"/><stop offset="1" stop-color="#ffd76a" stop-opacity="0"/></radialGradient></defs>
     <rect width="${W}" height="${H}" fill="url(#scsky)"/>`;
-  // hvězdy / slunce / měsíc
   if(!s.day){ let r = 7; const rnd = () => (r = (r*9301 + 49297) % 233280)/233280;
-    for(let i=0;i<28;i++){ const x = rnd()*W, y = rnd()*(G-60), a = (rnd()*3).toFixed(1);
+    for(let i=0;i<28;i++){ const x = rnd()*W, y = rnd()*(G-30), a = (rnd()*3).toFixed(1);
       o += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${rnd() < .2 ? 1.4 : .9}" fill="#fff" class="sctw" style="animation-delay:-${a}s" opacity="${s.cloud ? .35 : .9}"/>`; }
-    o += `<path d="M300 20 A14 14 0 1 0 300 48 A11 14 0 1 1 300 20 Z" fill="#f4f1de"/>`;
-  } else if(s.sf!=null){ const x = 24 + s.sf*(W-48), y = 92 - Math.sin(Math.PI*s.sf)*70;
+    o += `<path d="M318 18 A14 14 0 1 0 318 46 A11 14 0 1 1 318 18 Z" fill="#f4f1de"/>`;
+  } else if(s.sf!=null){ const x = 24 + s.sf*(W-48), y = 80 - Math.sin(Math.PI*s.sf)*58;
     o += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="26" fill="url(#scglow)"/><circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="11" fill="#ffd34d"/>`; }
   if(s.cloud){ const cl = (x, y, k, c) => `<g class="sccl" style="animation-duration:${k}s"><g transform="translate(${x} ${y})" fill="${c}"><ellipse cx="0" cy="0" rx="22" ry="10"/><ellipse cx="14" cy="-7" rx="14" ry="10"/><ellipse cx="-12" cy="-4" rx="11" ry="8"/></g></g>`;
-    const c = s.day ? "rgba(255,255,255,.85)" : "rgba(160,170,190,.35)"; o += cl(60, 34, 70, c) + cl(220, 22, 90, c) + (s.rain || s.snow ? cl(140, 44, 80, c) : ""); }
-  // zem
+    const c = s.day ? "rgba(255,255,255,.85)" : "rgba(160,170,190,.35)"; o += cl(60, 30, 70, c) + cl(250, 20, 90, c) + (s.rain || s.snow ? cl(150, 26, 80, c) : ""); }
   o += `<rect x="0" y="${G}" width="${W}" height="${H-G}" fill="${gnd}"/>`;
-  // chata
-  const wall = s.day ? "#a8744b" : "#5c4130", roof = s.day ? "#6b3b2a" : "#3a2219", winOff = s.day ? "#bcd6e6" : "#26324a";
+  const wall = s.day ? "#b07a4f" : "#5c4130", wallS = s.day ? "#8d5f3c" : "#47321f", roof = s.day ? "#6b3b2a" : "#3a2219", winOff = s.day ? "#bcd6e6" : "#26324a";
   const on = x => x && x.on, wl = x => on(x) ? "#ffd27a" : winOff;
-  o += `<rect x="140" y="95" width="110" height="71" fill="${wall}"/>
-    <polygon points="126,98 195,54 264,98" fill="${roof}"/>`;
-  if(s.snow) o += `<polygon points="126,98 195,54 264,98 258,98 195,61 132,98" fill="#fff" opacity=".95"/><path d="M128 98 Q195 50 262 98" stroke="#fff" stroke-width="3" fill="none"/>`;
-  // panely na střeše (svítí podle výroby)
+  // chata: štít (čelo) vlevo, boční stěna a střecha s panely doprava dozadu
+  o += `<polygon points="190,100 276,88 276,154 190,166" fill="${wallS}"/>
+    <polygon points="110,166 110,100 150,56 190,100 190,166" fill="${wall}"/>
+    <polygon points="150,50 236,38 284,91 198,103" fill="${roof}"/>`;
+  if(s.snow) o += `<polygon points="150,50 236,38 284,91 198,103" fill="#fff" opacity=".92"/>`;
+  // panely na střeše – svítí podle výroby
+  const R0 = [150,50], U = [86,-12], V = [48,53], P = (u, v) => [R0[0]+u*U[0]+v*V[0], R0[1]+u*U[1]+v*V[1]].map(z=>z.toFixed(1)).join(",");
   const pk = s.pv!=null ? Math.min(1, s.pv/350) : 0;
-  o += `${pk > 0.02 ? `<ellipse cx="168" cy="83" rx="34" ry="22" fill="url(#scglow)" opacity="${Math.min(1, 0.3 + pk).toFixed(2)}"/>` : ""}<polygon points="148,90 182,68.5 188,77 154,98.5" fill="${(()=>{ const a = [0x1d,0x35,0x57], b = [0xff,0xd8,0x4a]; return "#" + a.map((v,j)=>Math.round(v + (b[j]-v)*pk).toString(16).padStart(2,"0")).join(""); })()}" stroke="#0e1b2e" stroke-width=".8"/>
-    <path d="M159.3 82.8 L165.3 91.3 M170.7 75.7 L176.7 84.2 M151 94.3 L185 72.8" stroke="#0e1b2e" stroke-width=".6" opacity=".7"/>`;
-  if(s.stale) o += `<text x="168" y="64" font-size="9" fill="${s.day ? "#333" : "#ccc"}" text-anchor="middle">bez dat</text>`;
-  // okna a dveře
-  const win = (x, L_) => `${on(L_) ? `<circle cx="${x+13}" cy="121" r="24" fill="url(#scglow)" opacity=".7"/>` : ""}<rect x="${x}" y="110" width="26" height="22" rx="2" fill="${wl(L_)}" stroke="#3a2a1e" stroke-width="2"/><path d="M${x+13} 110 V132 M${x} 121 H${x+26}" stroke="#3a2a1e" stroke-width="1.5"/>`;
-  o += win(151, s.lit.pokoj) + win(213, s.lit.loznice);
-  o += `<rect x="184" y="122" width="22" height="44" fill="#4a3020"/><rect x="188" y="127" width="14" height="12" fill="${wl(s.lit.chodba)}"/><circle cx="202" cy="146" r="1.5" fill="#d9b36c"/>`;
-  // terasa + lampa
-  o += `<rect x="250" y="152" width="44" height="5" fill="${roof}"/><rect x="252" y="157" width="3" height="9" fill="${roof}"/><rect x="289" y="157" width="3" height="9" fill="${roof}"/>
-    <rect x="283" y="118" width="3" height="34" fill="#2b2b2b"/>${on(s.lit.terasa) ? `<circle cx="284" cy="116" r="30" fill="url(#scglow)"/>` : ""}<circle cx="284" cy="116" r="5" fill="${on(s.lit.terasa) ? "#ffe08a" : "#555"}"/>`;
-  // solární baterie (vlevo dole)
-  const pc = s.pct, pcol = pc==null ? "#888" : pc < 30 ? "var(--crit)" : pc < 50 ? "var(--warn)" : "var(--good)";
+  const pcl = (()=>{ const a = [0x1d,0x35,0x57], b = [0x5f,0xa8,0xff]; return "#" + a.map((v,j)=>Math.round(v + (b[j]-v)*pk).toString(16).padStart(2,"0")).join(""); })();
+  if(pk > 0.02) o += `<ellipse cx="216" cy="70" rx="46" ry="26" fill="url(#scglow)" opacity="${Math.min(1, 0.3 + pk).toFixed(2)}"/>`;
+  for(const [u0,u1] of [[.12,.36],[.39,.63],[.66,.9]])
+    o += `<polygon points="${P(u0,.2)} ${P(u1,.2)} ${P(u1,.8)} ${P(u0,.8)}" fill="${pcl}" stroke="${pk > 0.02 ? "#ffd84a" : "#0e1b2e"}" stroke-width="${pk > 0.02 ? (0.9 + pk*1.6).toFixed(1) : .9}"/><path d="M${P(u0,.5)} L${P(u1,.5)} M${P((u0+u1)/2,.2)} L${P((u0+u1)/2,.8)}" stroke="#0e1b2e" stroke-width=".5" opacity=".6"/>`;
+  if(s.stale) o += `<text x="232" y="34" font-size="9" fill="${s.day ? "#333" : "#ccc"}" text-anchor="middle">panely bez dat</text>`;
+  o += `<polyline points="104,105 150,50 198,104" fill="none" stroke="${s.snow ? "#fff" : roof}" stroke-width="5" stroke-linejoin="round"/>`;
+  const win = (x, y, w, hh, L_, gr) => `${on(L_) ? `<circle cx="${x+w/2}" cy="${y+hh/2}" r="${gr}" fill="url(#scglow)" opacity=".75"/>` : ""}<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="2" fill="${wl(L_)}" stroke="#3a2a1e" stroke-width="2"/><path d="M${x+w/2} ${y} V${y+hh} M${x} ${y+hh/2} H${x+w}" stroke="#3a2a1e" stroke-width="1.4"/>`;
+  o += win(141, 70, 18, 16, s.lit.loznice, 18);          // ložnice – v patře pod štítem
+  o += win(117, 113, 26, 22, s.lit.pokoj, 24);           // pokoj – přízemí
+  o += `<rect x="158" y="122" width="22" height="44" fill="#4a3020"/><rect x="162" y="127" width="14" height="12" fill="${wl(s.lit.chodba)}"/><circle cx="176" cy="146" r="1.5" fill="#d9b36c"/>`;
+  // terasa vlevo od štítu – pergola, zábradlí, světlo
+  o += `<polygon points="40,110 112,110 112,117 36,117" fill="${roof}"/>${s.snow ? `<rect x="40" y="107" width="72" height="4" rx="2" fill="#fff"/>` : ""}
+    <rect x="46" y="117" width="4" height="44" fill="${roof}"/><rect x="100" y="117" width="4" height="44" fill="${roof}"/>
+    <rect x="38" y="160" width="72" height="7" fill="${roof}"/><rect x="48" y="142" width="54" height="3" fill="${roof}"/>
+    ${[56,64,72,80,88,96].map(x=>`<rect x="${x}" y="145" width="2" height="15" fill="${roof}"/>`).join("")}
+    <rect x="75.5" y="117" width="1" height="6" fill="#222"/>${on(s.lit.terasa) ? `<circle cx="76" cy="127" r="30" fill="url(#scglow)"/>` : ""}<circle cx="76" cy="127" r="4.5" fill="${on(s.lit.terasa) ? "#ffe08a" : "#555"}"/>`;
+  // krabičky: solární baterie před chatou, River vpravo, generátor úplně vpravo
   const box = (x, y, w, hh, fr, col, txt, edge) => `<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="4" fill="#1e2228" stroke="${edge||"#9aa"}" stroke-width="1.5"/>`
     + (fr!=null ? `<rect x="${x+2}" y="${(y+2+(hh-4)*(1-fr/100)).toFixed(1)}" width="${w-4}" height="${((hh-4)*fr/100).toFixed(1)}" rx="2" fill="${col}" opacity=".85"/>` : "")
     + `<text x="${x+w/2}" y="${y+hh/2+4}" text-anchor="middle" font-size="${String(txt).length > 2 ? 10 : 11}" font-weight="700" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="2.5">${txt}</text>`;
-  o += box(92, 174, 36, 28, pc, pcol, pc!=null ? `${Math.round(pc)}#` : "–") + `<rect x="102" y="171" width="6" height="3" fill="#9aa"/><rect x="113" y="171" width="6" height="3" fill="#9aa"/>`;
-  // River (vpravo dole)
-  const rx = i => 260 + i*31;
-  s.R.forEach((r, i) => { o += box(rx(i), 176, 28, 26, r.soc, r.color, r.soc!=null ? `${Math.round(r.soc)}%` : "–", r.color) + (r.old ? `<text x="${rx(i)+14}" y="${173}" text-anchor="middle" font-size="7" fill="${s.day ? "#333" : "#bbb"}">staré</text>` : ""); });
-  // generátor (vpravo, za terasou)
-  o += `<rect x="312" y="136" width="38" height="26" rx="4" fill="${s.gen ? "#c0392b" : "#7a3b33"}" stroke="#2b2b2b" stroke-width="1.5"/><rect x="318" y="142" width="14" height="10" rx="2" fill="#2b2b2b"/><rect x="345" y="130" width="3" height="7" fill="#444"/><rect x="314" y="162" width="5" height="4" fill="#222"/><rect x="343" y="162" width="5" height="4" fill="#222"/>`;
-  if(s.gen) for(let i=0;i<3;i++) o += `<circle cx="346" cy="128" r="5" fill="${s.day ? "#9a9a9a" : "#6d6d6d"}" class="scsm" style="animation-delay:${i*0.9}s"/>`;
-  // toky energie: cesta + běžící tečky (rychlost podle W)
-  const P = {pv:"M150 99 L136 112 L110 112 L110 171", bh:"M128 188 L165 188 L165 167",
-    rh: i => `M${rx(i)+14} 176 L${rx(i)+14} 169 L230 169 L230 167`, gr: i => `M350 150 L356 150 L356 207 L${rx(i)+14} 207 L${rx(i)+14} 202`,
-    br: i => `M110 202 L110 210 L${rx(i)+14} 210 L${rx(i)+14} 202`};
-  const C = {pv:"#f5b400", bh:"var(--s1)", rh:null, gr:"#9085e9", br:"#f5b400"};
-  const lab = {pv:[118,132], bh:[147,183], rh:i=>[(rx(i)+13+230)/2, 165], gr:i=>[(331+rx(i)+13)/2, 168], br:i=>[(110+rx(i)+13)/2, 207]};
-  for(const f of s.flows){ const p = typeof P[f.k]==="function" ? P[f.k](f.i) : P[f.k], col = C[f.k] || s.R[f.i].color;
-    const dur = Math.max(0.45, 3 - 0.85*Math.log10(Math.max(1, f.w||10))).toFixed(2);
-    o += `<path d="${p}" fill="none" stroke="${col}" stroke-width="3" opacity=".25" stroke-linejoin="round"/>
-      <path d="${p}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="0.1 11" class="scfl" style="animation-duration:${dur}s"/>`;
-    const lp = typeof lab[f.k]==="function" ? lab[f.k](f.i) : lab[f.k];
-    if(f.w!=null && f.k!=="rh" && f.k!=="gr" && f.k!=="br") o += `<text x="${lp[0]}" y="${lp[1]}" font-size="10" font-weight="700" text-anchor="middle" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="2.5">${nf(f.w)} W</text>`;
+  const pc = s.pct, pcol = pc==null ? "#888" : pc < 30 ? "var(--crit)" : pc < 50 ? "var(--warn)" : "var(--good)";
+  o += box(150, 176, 36, 28, pc, pcol, pc!=null ? `${Math.round(pc)}#` : "–") + `<rect x="160" y="173" width="6" height="3" fill="#9aa"/><rect x="171" y="173" width="6" height="3" fill="#9aa"/>`;
+  const rx = i => 232 + i*31;
+  s.R.forEach((r, i) => { o += box(rx(i), 176, 28, 26, r.soc, r.color, r.soc!=null ? `${Math.round(r.soc)}%` : "–", r.color)
+    + (r.old ? `<text x="${rx(i)+14}" y="173" text-anchor="middle" font-size="7" fill="${s.day ? "#333" : "#bbb"}">staré</text>` : "")
+    + (r.v12 ? `<g><rect x="${rx(i)-1}" y="160" width="30" height="13" rx="6.5" fill="#ffe08a" stroke="#000" stroke-width=".8"/><text x="${rx(i)+14}" y="170" text-anchor="middle" font-size="8.5" font-weight="700" fill="#000">💡12 V</text></g>` : ""); });
+  o += `<rect x="326" y="180" width="31" height="22" rx="4" fill="${s.gen ? "#c0392b" : "#7a3b33"}" stroke="#2b2b2b" stroke-width="1.5"/><rect x="330" y="185" width="12" height="9" rx="2" fill="#2b2b2b"/><rect x="351" y="173" width="3" height="7" fill="#444"/><rect x="328" y="202" width="4" height="4" fill="#222"/><rect x="351" y="202" width="4" height="4" fill="#222"/>`;
+  if(s.gen) for(let i=0;i<3;i++) o += `<circle cx="352" cy="171" r="4.5" fill="${s.day ? "#9a9a9a" : "#6d6d6d"}" class="scsm" style="animation-delay:${i*0.9}s"/>`;
+  // toky energie: běžící tečky (světlý okraj + barva), rychlost podle W
+  const Pth = {pv:"M199 104 L199 190 L187 190", bh:"M150 190 L130 190 L130 167",
+    rh: i => `M${rx(i)+14} 176 L${rx(i)+14} 171 L246 171 L246 159`, gr: i => `M341 206 L341 210 L${rx(i)+14} 210 L${rx(i)+14} 203`,
+    br: i => `M186 198 L210 198 L210 212 L${rx(i)+14} 212 L${rx(i)+14} 203`};
+  const C = {pv:"#ffb300", bh:"#2f86ff", gr:"#8f7dff", br:"#ffb300"};
+  const lab = {pv:[203,150,"start"], bh:[126,184,"end"]};
+  for(const f of s.flows.filter(f=>Pth[f.k])){ const p = typeof Pth[f.k]==="function" ? Pth[f.k](f.i) : Pth[f.k], col = C[f.k] || s.R[f.i].color;
+    const dur = Math.max(0.45, 3 - 0.85*Math.log10(Math.max(1, f.w||10))).toFixed(2), st = `animation-duration:${dur}s`;
+    o += `<path d="${p}" fill="none" stroke="${col}" stroke-width="2.5" opacity=".45" stroke-linejoin="round"/>
+      <path d="${p}" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-dasharray="0.1 12" class="scfl" style="${st}"/>
+      <path d="${p}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round" stroke-dasharray="0.1 12" class="scfl" style="${st}"/>`;
+    const lp = lab[f.k];
+    if(f.w!=null && lp) o += `<text x="${lp[0]}" y="${lp[1]}" font-size="10.5" font-weight="700" text-anchor="${lp[2]}" fill="#fff" style="paint-order:stroke" stroke="${ink}" stroke-width="3">${nf(f.w)} W</text>`;
   }
-  // déšť / sníh
   if(s.rain || s.snow){ let r = 3; const rnd = () => (r = (r*9301 + 49297) % 233280)/233280;
     for(let i=0;i<22;i++){ const x = (rnd()*W).toFixed(0), dl = (rnd()*3).toFixed(2), du = (s.snow ? 4 + rnd()*3 : 0.9 + rnd()*0.5).toFixed(2);
       o += s.snow ? `<circle cx="${x}" cy="-6" r="${rnd() < .5 ? 1.6 : 2.2}" fill="#fff" class="scsn" style="animation-delay:-${dl}s;animation-duration:${du}s"/>`
                   : `<line x1="${x}" y1="-10" x2="${+x-2}" y2="-2" stroke="${s.day ? "#5d7fa3" : "#8aa4c8"}" stroke-width="1.2" class="scrn" style="animation-delay:-${dl}s;animation-duration:${du}s"/>`; } }
-  // teploty
   const tt = [s.tOut!=null ? `venku ${nf(s.tOut,0)} °C` : "", s.tIn!=null ? `uvnitř ${nf(s.tIn,0)} °C` : ""].filter(Boolean).join(" · ");
   if(tt) o += `<text x="8" y="16" font-size="10.5" font-weight="600" fill="#fff" style="paint-order:stroke" stroke="rgba(0,0,0,.55)" stroke-width="2.5">${tt}</text>`;
   return `<svg class="sc" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;border-radius:12px" role="img" aria-label="Chata teď">${o}</svg>`;
@@ -2240,7 +2248,7 @@ function sceneCard(d, h){
 }
 function detScene(body){
   const d = DATA, h = homeData(d), s = sceneState(d, h);
-  const nm = {pv:"panely → solární baterie", bh:"solární baterie → chata", rh:"River → chata", gr:"generátor → River", br:"solární baterie → River (nabíjení ze soláru)"};
+  const nm = {v12:"River → 12V světla", pv:"panely → solární baterie", bh:"solární baterie → chata", rh:"River → chata", gr:"generátor → River", br:"solární baterie → River (nabíjení ze soláru)"};
   const fl = s.flows.map(f=>rowI(nm[f.k] + (f.i!=null && s.R[f.i] ? ` <span class="sub">(${escH(s.R[f.i].short)})</span>` : ""), f.w!=null ? `${nf(f.w)} W` : "teče"));
   const L = Object.entries({pokoj:"pokoj", loznice:"ložnice", chodba:"chodba", terasa:"terasa"}).map(([k,n])=>`${n} ${s.lit[k] ? (s.lit[k].on ? "💡" : "–") : "?"}`).join(" · ");
   body.innerHTML = `<div class="card" style="padding:8px">${sceneSvg(s)}<div class="sub" style="margin:6px 4px 0">${sceneLine(s)}</div></div>
@@ -2249,8 +2257,8 @@ function detScene(body){
       ☀ / 🌙 obloha podle času – slunce jde od východu k západu, v noci hvězdy a měsíc.<br>
       ☁ mraky, déšť a sníh podle <b>dnešní předpovědi</b>${s.txt ? ` (${escH(s.txt)})` : ""} – ne podle toho, jestli zrovna teď prší.<br>
       🔆 panely na střeše tím víc žlutě svítí, čím víc vyrábí.<br>
-      🪟 okna: vlevo pokoj, vpravo ložnice, ve dveřích chodba, lampa na terase – svítí, když podle Flipu svítí světlo (${L}).<br>
-      🔋 vlevo dole solární baterie (#), vpravo dole River (%) ve svých barvách; „staré“ = poslední známá hodnota.<br>
+      🪟 okna: dole pokoj, nahoře pod štítem ložnice (v patře), ve dveřích chodba, vlevo světlo na terase – svítí, když podle Flipu svítí světlo (${L}).<br>
+      🔋 před chatou solární baterie (#), vpravo River (%) ve svých barvách; „staré“ = poslední známá hodnota; štítek 💡12 V = River napájí 12V světla.<br>
       ⛽ generátor vpravo – když běží, jde z něj kouř.<br>
       ⚡ běžící tečky = kudy teče proud; čím rychleji, tím víc wattů.</div></div>`;
 }
