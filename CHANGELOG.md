@@ -3,6 +3,13 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.109 – 27. 11. 2026
+- Živá chata (Petr): generátor úplně vpravo ve vlastní boudě (větší); když běží, svítí uvnitř, z výfuku jde kouř a po kabelu obloukem dole teče proud do River, kterou nabíjí.
+- River posunuté doleva – každá má delší vlastní kabel do chaty (kabely se nekříží).
+- Terasa má téměř rovnou střechu. Panely jsou dva: na střeše chaty a na střeše terasy; při výrobě svítí, nezapojený (podle hlídače `pan.n` = 1) je šedý – pulzy jdou jen od zapojeného.
+- Měsíc ve skutečné fázi podle data (výpočet ze synodického měsíce).
+- Realističtěji: kopce a les na obzoru (v zimě zasněžené), prkna na stěnách, tašky na střeše, stíny pod stavbami, rámy a parapety oken, přechody barev nebe a země.
+
 ## 6.108 – 27. 11. 2026
 - Živá chata (Petr): terasa přesunutá na boční stranu a natočená jako chata (podlaha na sloupcích, zábradlí, pergola se světlem); solární baterie pod terasou.
 - River stojí před chatou (ve skutečnosti jsou uvnitř) a každá má vlastní kabel do chaty – i malá (12V světla, 💡 v rohu). Generátor vlevo, kabel k River obloukem pod nimi – žádná trasa už nevede přes jinou baterii.
