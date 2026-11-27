@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.116 – 27. 11. 2026
+- Živá chata (Petr: „kanystr je jen symbol paliva v generátoru“): kanystr zase ukazuje benzín v nádrži generátoru, štítek „nádrž“ zrušen. Když je generátor vypnutý (nic nehlásí), ukáže poslední známý stav – z posledního měření, jinak konec posledního nabíjení (stejný údaj jako večerní kontrola). Stejně i výpočet zásoby paliva.
+
 ## 6.115 – 27. 11. 2026
 - Živá chata (Petr: „proč není vidět množství paliva v kanystru“): kanystr ukazuje **benzín v kanystrech** (litry ze zásoby na kartě Palivo – zadané mínus dolité do generátoru, náplň podle objemu kanystrů). Benzín v **nádrži generátoru** je štítek „nádrž %“ nad dřevníkem.
 - Vypnutý generátor do cloudu EcoFlow nic nehlásí (proto na obrázku „?“) – hlídač si teď pamatuje poslední známý stav nádrže (`gen_tank`), použije ho obrázek i výpočet zásoby paliva.

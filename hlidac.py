@@ -4403,7 +4403,10 @@ def _gen_tank_pct(data):
         if f_ is not None:
             return float(f_)
     gt = data.get("gen_tank") or {}                 # 6.115: vypnutý generátor nehlásí nic → poslední známý stav nádrže
-    return float(gt["pct"]) if gt.get("pct") is not None else None
+    if gt.get("pct") is not None:
+        return float(gt["pct"])
+    runs_ = [r for r in data.get("fuel_runs") or [] if (r.get("tk") or [None, None])[1] is not None]   # 6.116: konec posledního nabíjení
+    return float(max(runs_, key=lambda r: r.get("t0") or 0)["tk"][1]) if runs_ else None
 
 
 def fuel_reserve(data, st, now, cfg):
