@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.111 – 27. 11. 2026
+- Živá chata překreslená podle Petrovy fotky chaty: lakované prkenné stěny, červenohnědý šindel, zelené okapy, okno s bílými příčkami, stromy za chatou (jehličnany i listnáče). Pohled zleva shora – vidět štít s oknem ložnice (podkroví) i přední svah střechy s panelem.
+- Terasa vpředu pod téměř vodorovným pokračováním střechy (na ní druhý panel), polovysoké zábradlí s truhlíky, uvnitř okno pokoje (při svícení i světlo na podlaze terasy) a dveře (chodba). Světlo terasy = svítící pásek po obvodu střechy terasy – odliší se od okna pokoje. Solární baterie na terase u zadní stěny.
+- Generátor vpravo v nízkém „dřevníku“ s plochou střechou (čela polen), okénko svítí, když běží, výfuk s kouřem; ukazatel benzínu a kanystr před ním.
+
 ## 6.110 – 27. 11. 2026
 - Živá chata (Petr): malá River stojí kousek stranou od velkých. Vpravo od River štítky, co napájí: **💡12 V** (12V výstup – autozásuvka, USB: výstup celkem − výstup měniče) a **🔌230 V** (výstup měniče), po jejím kabelu do chaty běží pulzy.
 - Generátor: na boudě ukazatel benzínu v nádrži (⛽ %, zelená / pod 20 % oranžová / do 5 % červená), před boudou kanystr.
