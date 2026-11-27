@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.106 – 27. 11. 2026
+- Web: **🏡 Živá chata** nahoře v záložce Teď – obrázek chaty podle skutečných dat: obloha podle času (slunce jde od východu k západu, v noci hvězdy a měsíc), mraky / déšť / sníh podle dnešní předpovědi (při sněžení sníh na střeše i na zemi), panely na střeši svítí žlutě podle výroby, okna podle světel Tapo (pokoj, ložnice, chodba ve dveřích, lampa na terase), solární baterie (#) a River (%) jako krabičky s náplní, z generátoru jde kouř, když běží, venkovní a vnitřní teplota.
+- Web: **animované toky energie** – běžící tečky po čarách panely → baterie, baterie → chata, River → chata, generátor → River, baterie → River (nabíjení ze soláru); čím víc W, tím rychleji. Pod obrázkem jedna věta (z čeho chata jede, výkon panelů, generátor).
+- Ťuknutím detail: větší obrázek, seznam „Kudy teď teče proud“ s watty a vysvětlivky. Jen zobrazení – nic nepočítá ani nepřepíná. Při zapnutém „omezit pohyb“ v telefonu se nehýbe.
+
 ## 6.105 – 27. 11. 2026
 - Benzín v generátoru (Petr: „nechci vyprázdnit nádrž na 0 – pro motor to není dobré“): když motor běží a nádrž je na **5 %** a míň (`gen_benzin_dolit_pct`), naléhavě každou minutu „⛽ Benzín 5 % – dolij“. Na **2 %** (`gen_benzin_stop_pct`) hlídač zastaví nabíjení (vypne zásuvku 7) a naléhavě „🛑 VYPNI GENERÁTOR“ (motor na dálku vypnout zatím neumí). Po dolití zásuvku zase zapne a napíše „✓ Dolito“.
 - Dolití se pozná podle skoku nádrže nahoru (i mezi nabíjeními) a zapíše se, kolik litrů se vešlo (skok × objem nádrže 4 l) – log a data `gen_refills`.
