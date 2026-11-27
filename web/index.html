@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.109", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.110", FLIP_VER = "1.9.18";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2142,7 +2142,11 @@ function sceneState(d, h){
   const MM = rivModel(d, h), GP = genLive(d);
   const sup = d.river_sup || {}, supSn = String(sup.sn||"").slice(-6);
   const R = MM.R.slice(0, 3).map(x=>{ const q = rvSoc(x); return {...x, soc:q.soc, old:!!q.old, inw:(x.ef&&x.ef.in_w)||0, outw:(x.ef&&x.ef.out_w)||0,
-    sup: h.rvOn && (supSn ? x.sn===supSn : sup.name ? x.ef && x.ef.name===sup.name : false), v12: !!small12(x)}; });
+    sup: h.rvOn && (supSn ? x.sn===supSn : sup.name ? x.ef && x.ef.name===sup.name : false)}; });
+  // 6.110: co River napájí – 230 V (výstup měniče) / 12 V (zbytek výstupu: autozásuvka, USB); malá stojí stranou
+  R.forEach(x=>{ const e = x.ef || {}, ac = e.online ? (e.ac_out_w||0) : 0, all = e.online ? (e.out_w||0) : 0;
+    x.small = (e.wh||768) < 500 || /mal|small|mini/i.test(x.name); x.acw = ac; x.dcw = e.ac_out_w!=null ? Math.max(0, all - ac) : (small12(x) ? all : 0);
+    x.v12 = x.dcw > 2; x.v230 = ac > 2; });
   if(h.rvOn && R.length && !R.some(x=>x.sup)){ const b = R.slice().sort((a,b)=>b.outw-a.outw)[0]; if(b) b.sup = true; }
   const th = (d.inverter && d.inverter.th) || [], cfg = d.cfg || {};
   const tOut = th.find(x=>norm0(x.n)===norm0(cfg.chladnuti_venku_teplomer||"") || /outdoor|venku/.test(norm0(x.n)));
@@ -2152,10 +2156,10 @@ function sceneState(d, h){
   if(!h.rvOn && h.loadB!=null && h.loadB > 3) flows.push({k:"bh", w:h.loadB});
   R.forEach((x,i)=>{ if(x.sup) flows.push({k:"rh", i, w: x.outw || sup.w || (h.inv && h.inv.mw) || null}); });
   if(GP) R.forEach((x,i)=>{ if(x.inw > 20 || (R.every(y=>y.inw <= 20) && i===0)) flows.push({k:"gr", i, w: x.inw || GP.gw || GP.tot_in || null}); });
-  R.forEach((x,i)=>{ if(x.v12) flows.push({k:"v12", i, w:x.outw}); });   // 6.107: malá River napájí 12V světla (jen v seznamu, na obrázku štítek)
+  R.forEach((x,i)=>{ if(x.v12) flows.push({k:"v12", i, w:x.dcw}); if(x.v230 && !x.sup) flows.push({k:"v230", i, w:x.acw}); });   // 6.110
   if(MM.C.on && MM.C.tgt){ const i = R.findIndex(x=>x.id===MM.C.tgt.id); if(i >= 0) flows.push({k:"br", i, w:h.riverW}); }
   return {now, day, dusk, sf, snow, rain, cloud, code, txt:wf.txt||"", pv, stale:RS.stale, pct: d.hq ? d.hq.pct : null, rvOn:h.rvOn, cs:h.cs,
-    lit, R, pn: d.wxo && d.wxo.pan ? d.wxo.pan.n : null, gen:!!GP, genW: GP ? (GP.gw ?? GP.tot_in) : null, flows, tOut: tOut && tOut.t!=null ? tOut.t : null, tIn: tIn && tIn.t!=null ? tIn.t : null};
+    lit, R, pn: d.wxo && d.wxo.pan ? d.wxo.pan.n : null, fuel: (((d.ef_gens||[]).find(g=>g.gd)||{}).gd||{}).fuel ?? null, gen:!!GP, genW: GP ? (GP.gw ?? GP.tot_in) : null, flows, tOut: tOut && tOut.t!=null ? tOut.t : null, tIn: tIn && tIn.t!=null ? tIn.t : null};
 }
 const norm0 = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 let SC_UID = 0;
@@ -2252,10 +2256,13 @@ function sceneSvg(s){
   o += panel(pp(Q, .25, .75, .15, .85), terOn, 241, 111);
   o += `<line x1="250" y1="120" x2="250" y2="125" stroke="#222"/>${on(s.lit.terasa) ? `<circle cx="250" cy="129" r="30" fill="${url("glow")}"/>` : ""}<circle cx="250" cy="129" r="4.5" fill="${on(s.lit.terasa) ? "#ffe08a" : "#555"}"/>`;
   // River vlevo (ve skutečnosti uvnitř chaty), každá s vlastním kabelem do chaty
-  const rx = i => 14 + i*31, rcx = i => rx(i) + 14, lane = i => 170 + 4*i, ent = i => 120 + 12*i;
+  const XS = []; { let x = 12; s.R.forEach((r, i) => { if(r.small && i) x += 16; XS.push(x); x += 31; }); }
+  const rx = i => XS[i], rcx = i => rx(i) + 14, lane = i => 170 + 4*i, ent = i => 120 + 12*i;
+  const pill = (x, y, t, c) => `<rect x="${x}" y="${y}" width="38" height="12" rx="6" fill="${c}" stroke="#000" stroke-width=".7"/><text x="${x+19}" y="${y+9}" text-anchor="middle" font-size="8.5" font-weight="700" fill="#000">${t}</text>`;
   s.R.forEach((r, i) => { o += box(rx(i), 184, 28, 26, r.soc, r.color, r.soc!=null ? `${Math.round(r.soc)}%` : "–", r.color)
-    + (r.old ? `<text x="${rcx(i)}" y="181" text-anchor="middle" font-size="7" fill="${s.day ? "#333" : "#bbb"}">staré</text>` : "")
-    + (r.v12 ? `<circle cx="${rx(i)+28}" cy="184" r="7" fill="#ffe08a" stroke="#000" stroke-width=".8"/><text x="${rx(i)+28}" y="187" text-anchor="middle" font-size="8">💡</text>` : ""); });
+    + (r.old ? `<text x="${rcx(i)}" y="181" text-anchor="middle" font-size="7" fill="${s.day ? "#333" : "#bbb"}">staré</text>` : "");
+    const pl = [r.v12 ? ["💡12 V", "#ffe08a"] : null, r.v230 ? ["🔌230 V", "#9fe0ff"] : null].filter(Boolean);
+    pl.forEach((q, k) => { o += pill(rx(i)+31, 185 + k*14, q[0], q[1]); }); });
   // generátor v boudě úplně vpravo
   const gOn = s.gen;
   o += `<ellipse cx="328" cy="190" rx="30" ry="5" fill="#000" opacity="${s.day ? .2 : .3}" filter="${url("blur")}"/>
@@ -2265,6 +2272,12 @@ function sceneSvg(s){
     ${gOn ? `<circle cx="324" cy="173" r="18" fill="${url("glow")}" opacity=".55"/>` : ""}
     <rect x="314" y="168" width="20" height="13" rx="2" fill="${gOn ? "#d0392b" : "#7a3b33"}"/><rect x="317" y="171" width="7" height="5" rx="1" fill="#222"/><circle cx="330" cy="174" r="2" fill="#222"/>
     <path d="M352 174 H357 V146" fill="none" stroke="#555" stroke-width="2.5"/>`;
+  { const fp = s.fuel!=null ? Math.max(0, Math.min(100, s.fuel)) : null, fc = fp==null ? "#888" : fp <= 5 ? "#e53935" : fp <= 20 ? "#fb8c00" : "#43a047";
+    o += `<rect x="340" y="163" width="7" height="20" rx="1.5" fill="#1e2228" stroke="#000" stroke-width=".8"/>`
+      + (fp!=null ? `<rect x="341" y="${(164 + 18*(1-fp/100)).toFixed(1)}" width="5" height="${(18*fp/100).toFixed(1)}" fill="${fc}"/>` : "")
+      + `<text x="343.5" y="161" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="2">${fp!=null ? `⛽${Math.round(fp)}%` : "⛽?"}</text>`;
+    // kanystr pod generátorem
+    o += `<g transform="translate(332 192)"><rect x="0" y="3" width="15" height="17" rx="2" fill="#c62828" stroke="#6d1414" stroke-width="1"/><path d="M3 3 V0 H9 V3" fill="none" stroke="#6d1414" stroke-width="1.6"/><path d="M11 3 L14 -1" stroke="#444" stroke-width="2"/><path d="M2 8 L13 18 M13 8 L2 18" stroke="#8e1c1c" stroke-width=".8"/></g>`; }
   if(gOn) for(let i=0;i<3;i++) o += `<circle cx="357" cy="143" r="5" fill="${s.day ? "#9a9a9a" : "#6d6d6d"}" class="scsm" style="animation-delay:${i*0.9}s"/>`;
   // kabely: stálé vedení (tence) + při toku zářící pulzy
   const J = [232, 121];                                                   // spojka panelů na hraně střechy terasy
@@ -2273,7 +2286,7 @@ function sceneSvg(s){
     rh: i => `M${rcx(i)} 184 V${lane(i)+3} Q${rcx(i)} ${lane(i)} ${rcx(i)+3} ${lane(i)} H${ent(i)-3} Q${ent(i)} ${lane(i)} ${ent(i)} ${lane(i)-3} V166`,
     gr: i => `M318 189 C318 214 300 218 ${rcx(i)+40} 218 C${rcx(i)+10} 218 ${rcx(i)} 216 ${rcx(i)} 210`,
     br: i => `M230 179 C230 210 220 214 ${rcx(i)+40} 214 C${rcx(i)+10} 214 ${rcx(i)} 213 ${rcx(i)} 210`};
-  Pth.v12 = Pth.rh;
+  Pth.v12 = Pth.rh; Pth.v230 = Pth.rh;
   o += [Pth.pvR, Pth.pvT, Pth.pv, Pth.bh, ...s.R.map((r,i)=>Pth.rh(i))].map(p=>`<path d="${p}" fill="none" stroke="${cab}" stroke-width="2" stroke-linecap="round"/>`).join("");
   const C = {pv:"#ffb300", pvR:"#ffb300", pvT:"#ffb300", bh:"#2f86ff", gr:"#8f7dff", br:"#ffb300", v12:"#ffd23f"};
   const lab = {pv:[226,146,"end"], bh:[230,191,"middle"]};
@@ -2308,7 +2321,7 @@ function sceneCard(d, h){
 }
 function detScene(body){
   const d = DATA, h = homeData(d), s = sceneState(d, h);
-  const nm = {v12:"River → 12V světla", pv:"panely → solární baterie", bh:"solární baterie → chata", rh:"River → chata", gr:"generátor → River", br:"solární baterie → River (nabíjení ze soláru)"};
+  const nm = {v12:"River → 12 V (světla)", v230:"River → 230 V", pv:"panely → solární baterie", bh:"solární baterie → chata", rh:"River → chata", gr:"generátor → River", br:"solární baterie → River (nabíjení ze soláru)"};
   const fl = s.flows.map(f=>rowI(nm[f.k] + (f.i!=null && s.R[f.i] ? ` <span class="sub">(${escH(s.R[f.i].short)})</span>` : ""), f.w!=null ? `${nf(f.w)} W` : "teče"));
   const L = Object.entries({pokoj:"pokoj", loznice:"ložnice", chodba:"chodba", terasa:"terasa"}).map(([k,n])=>`${n} ${s.lit[k] ? (s.lit[k].on ? "💡" : "–") : "?"}`).join(" · ");
   body.innerHTML = `<div class="card" style="padding:8px">${sceneSvg(s)}<div class="sub" style="margin:6px 4px 0">${sceneLine(s)}</div></div>
@@ -2318,8 +2331,8 @@ function detScene(body){
       ☁ mraky, déšť a sníh podle <b>dnešní předpovědi</b>${s.txt ? ` (${escH(s.txt)})` : ""} – ne podle toho, jestli zrovna teď prší.<br>
       🔆 dva panely – na střeše chaty a na střeše terasy; při výrobě svítí (víc W = víc), šedý = nezapojený (podle hlídače je zapojený jen jeden).<br>
       🪟 okna: dole pokoj, nahoře pod štítem ložnice (v patře), ve dveřích chodba, světlo pod pergolou terasy (na boční straně) – svítí, když podle Flipu svítí světlo (${L}).<br>
-      🔋 pod terasou solární baterie (#); vlevo River (%) ve svých barvách – ve skutečnosti jsou uvnitř, každá má svůj kabel do chaty; „staré“ = poslední známá hodnota; 💡 v rohu = River napájí 12V světla.<br>
-      ⛽ generátor v boudě vpravo – když běží, svítí uvnitř, jde z něj kouř a po kabelu teče proud do River, kterou nabíjí.<br>
+      🔋 pod terasou solární baterie (#); vlevo River (%) ve svých barvách – ve skutečnosti jsou uvnitř, každá má svůj kabel do chaty; „staré“ = poslední známá hodnota; štítek 💡12 V = River napájí 12V světla, 🔌230 V = napájí něco ze zásuvky 230 V; malá River stojí stranou.<br>
+      ⛽ generátor v boudě vpravo – když běží, svítí uvnitř, jde z něj kouř a po kabelu teče proud do River, kterou nabíjí; ukazatel ⛽ % = benzín v nádrži generátoru, před boudou kanystr.<br>
       ⚡ tenké čáry = kabely; zářící pulzy po kabelu = teď tudy teče proud, čím rychleji, tím víc wattů.</div></div>`;
 }
 /* 6.100 (Petr: „kdy které světlo svítilo – nějak graficky“): časová osa za posledních 24 h, řádek = světlo, značka =

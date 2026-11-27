@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.110 – 27. 11. 2026
+- Živá chata (Petr): malá River stojí kousek stranou od velkých. Vpravo od River štítky, co napájí: **💡12 V** (12V výstup – autozásuvka, USB: výstup celkem − výstup měniče) a **🔌230 V** (výstup měniče), po jejím kabelu do chaty běží pulzy.
+- Generátor: na boudě ukazatel benzínu v nádrži (⛽ %, zelená / pod 20 % oranžová / do 5 % červená), před boudou kanystr.
+- Při jednom zapojeném panelu je zapojený ten na střeše chaty (Petr potvrdil).
+
 ## 6.109 – 27. 11. 2026
 - Živá chata (Petr): generátor úplně vpravo ve vlastní boudě (větší); když běží, svítí uvnitř, z výfuku jde kouř a po kabelu obloukem dole teče proud do River, kterou nabíjí.
 - River posunuté doleva – každá má delší vlastní kabel do chaty (kabely se nekříží).
