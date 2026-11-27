@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.118 – 27. 11. 2026
+- Živá chata (Petr): všechny kabely rovnými úseky – žádné oblouky; kabely od generátoru k River jen když generátor běží. Baterie (River, solární, kanystr) níž – kabely do chaty jsou dobře vidět. Zrušen stín pod chatou (vypadala jako ve vzduchu). Štítek „12 V“ (bez „světla“).
+
 ## 6.117 – 27. 11. 2026
 - Živá chata (Petr: „modré uši“ u malé River): kabel každé River vede rovně nahoru do stěny chaty (dřív lomené vedení, u malé jen kousek s oblouky). River posunuté doprava pod chatu.
 - Štítky „12 V světla“ / „230 V“ bez šipky (čitelnější). 12 V se bere přímo z EcoFlow (výstup autozásuvky), když ho hlásí, jinak výstup celkem − 230 V. Štítek je vidět jen, když River opravdu něco napájí.

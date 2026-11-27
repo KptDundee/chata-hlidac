@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.117", FLIP_VER = "1.9.19";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.118", FLIP_VER = "1.9.19";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -246,8 +246,8 @@ details.sec>.in{margin-top:8px}
 .sc .scfl{animation:scfl 1.5s linear infinite}@keyframes scfl{to{stroke-dashoffset:-30}}
 .sc .sctw{animation:sctw 3s ease-in-out infinite}@keyframes sctw{50%{opacity:.25}}
 .sc .sccl{animation:sccl 60s ease-in-out infinite alternate}@keyframes sccl{from{transform:translateX(-30px)}to{transform:translateX(40px)}}
-.sc .scsn{animation:scsn 5s linear infinite}@keyframes scsn{to{transform:translate(12px,262px)}}
-.sc .scrn{animation:scrn 1s linear infinite}@keyframes scrn{to{transform:translate(-14px,262px)}}
+.sc .scsn{animation:scsn 5s linear infinite}@keyframes scsn{to{transform:translate(12px,280px)}}
+.sc .scrn{animation:scrn 1s linear infinite}@keyframes scrn{to{transform:translate(-14px,280px)}}
 .sc .scsm{transform-box:fill-box;transform-origin:center;animation:scsm 2.7s ease-out infinite;opacity:0}@keyframes scsm{0%{opacity:.8;transform:translate(0,0) scale(.6)}100%{opacity:0;transform:translate(-8px,-34px) scale(2.2)}}
 @media (prefers-reduced-motion:reduce){.sc *{animation:none!important}.sc .scsm{opacity:.5}}
 .ht .bar{height:6px;border-radius:3px;background:var(--grid);margin-top:8px;overflow:hidden}.ht .bar div{height:100%;background:var(--c);border-radius:3px}
@@ -2197,7 +2197,7 @@ function sceneSvg(s){
   // (druhý panel), uvnitř terasy okno pokoje a dveře (chodba), světlo terasy = pásek po obvodu; generátor vpravo v nízkém
   // „dřevníku“ s plochou střechou; River vlevo (malá stranou), solární baterie na terase
   const u = "sc" + (++SC_UID) + "_", id = n => u + n, url = n => `url(#${u}${n})`;
-  const W = 360, H = 252, Gh = 150, D = s.day;
+  const W = 360, H = 270, Gh = 150, D = s.day;
   const O = [104, 192], S = (x, y, z) => [O[0] + 0.92*x - 0.66*z, O[1] - 0.16*x - y - 0.36*z];
   const pt = q => q.map(v=>v.toFixed(1)).join(","), poly = (P, f, ex="") => `<polygon points="${P.map(pt).join(" ")}" fill="${f}" ${ex}/>`;
   const ln = (a, b, c, w, ex="") => `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${c}" stroke-width="${w}" ${ex}/>`;
@@ -2238,7 +2238,6 @@ function sceneSvg(s){
     o += fir(70, Gh, 95, tree2) + fir(170, Gh-30, 70, tree2) + fir(300, Gh, 85, tree2);
     o += (s.snow || !D && false ? "" : "") + blob(22, Gh+4, 30, tree) + blob(250, Gh-6, 34, tree) + blob(338, Gh+2, 30, tree) + blob(120, Gh-20, 22, tree2); }
   o += `<rect x="0" y="${Gh}" width="${W}" height="${H-Gh}" fill="${url("gnd")}"/>`;
-  o += `<ellipse cx="188" cy="196" rx="120" ry="12" fill="#000" opacity="${D ? .2 : .35}" filter="${url("blur")}"/>`;
   const on = x => x && x.on, wl = x => on(x) ? "#ffd27a" : winOff;
   const L = 150, DP = 80, HW = 44, ZR = 40, HR = 100;                 // chata: délka, hloubka, stěna, hřeben
   // štít vlevo (x = 0): stěna + trojúhelník, okno ložnice v podkroví
@@ -2321,14 +2320,14 @@ function sceneSvg(s){
       const c = S(112,10,-30); o += `<ellipse cx="${c[0]}" cy="${c[1]}" rx="50" ry="18" fill="${url("glow")}" opacity=".45"/>`; }
     else o += `<path d="${pth}" fill="none" stroke="${D ? "#777" : "#444"}" stroke-width="1.2"/>`; }
   // řada dole: River (malá stranou), solární baterie (pod terasou, svisle pod svou polohou), kanystr = benzín v generátoru
-  const RY = 206, BW = 38, BH = 30;
+  const RY = 226, BW = 38, BH = 30;          // 6.118: River dál od chaty – kabel je vidět
   const XS = []; { let x = 38; s.R.forEach((r, i) => { if(r.small && i) x += 10; XS.push(x); x += 41; }); }
   const rx = i => XS[i], rcx = i => rx(i) + BW/2;
   const wallY = x => x < O[0] ? O[1] - 0.36*Math.min(DP, (O[0]-x)/0.66) : O[1] - 0.16*Math.min(70, (x-O[0])/0.92);   // 6.117: kabel River rovně nahoru do stěny chaty
-  const pill = (x, y, t, c) => `<rect x="${x}" y="${y}" width="58" height="13" rx="6.5" fill="${c}" stroke="#000" stroke-width=".7"/><text x="${x+29}" y="${y+9.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#000">${t}</text>`;
+  const pill = (x, y, t, c) => `<rect x="${x}" y="${y}" width="40" height="13" rx="6.5" fill="${c}" stroke="#000" stroke-width=".7"/><text x="${x+20}" y="${y+9.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#000">${t}</text>`;
   s.R.forEach((r, i) => { o += box(rx(i), RY, BW, BH, r.soc, r.color, r.soc!=null ? `${Math.round(r.soc)}%` : "–", r.color)
     + (r.old ? `<text x="${rcx(i)}" y="${RY+BH+9}" text-anchor="middle" font-size="7.5" fill="${D ? "#333" : "#bbb"}">staré</text>` : "");
-    [r.v12 ? ["12 V světla", "#ffe08a"] : null, r.v230 ? ["230 V", "#9fe0ff"] : null].filter(Boolean).forEach((q, k) => { o += pill(rx(i)+BW+3, RY + 1 + k*15, q[0], q[1]); }); });
+    [r.v12 ? ["12 V", "#ffe08a"] : null, r.v230 ? ["230 V", "#9fe0ff"] : null].filter(Boolean).forEach((q, k) => { o += pill(rx(i)+BW+3, RY + 1 + k*15, q[0], q[1]); }); });
   const BX = S(140,0,-44)[0] - BW/2;
   o += box(BX, RY, BW+4, BH, pc, pcol, pc!=null ? `${Math.round(pc)}#` : "–");
   // 6.116 (Petr): kanystr = symbol benzínu v nádrži generátoru (vypnutý generátor → poslední známý stav)
@@ -2342,13 +2341,13 @@ function sceneSvg(s){
   // kabely: stálé vedení (tence) + při toku zářící pulzy
   const BT = [BX + (BW+4)/2 + 6, RY], J = TR(140,-46);
   const gy = H - 6, gb = S((GX0+GX1)/2,0,GZ0);
-  const Pth = {pvR:`M${pt(rs(126,.12))} L${pt(TR(126,-6))} L${pt(TR(140,-46))}`, pvT:`M${pt(TR(126,-28))} L${pt(TR(140,-46))}`, pv:`M${pt(J)} L${pt(dn(J))} C${J[0].toFixed(1)} ${(J[1]+30).toFixed(1)} ${BT[0]} ${RY-14} ${BT[0]} ${RY}`,
-    bh:`M${BX + 8} ${RY} C${BX + 8} ${RY-12} ${pt(S(132,-4,-46))} ${pt(S(130,0,-44))}`,
+  const Pth = {pvR:`M${pt(rs(126,.12))} L${pt(TR(126,-6))} L${pt(TR(140,-46))}`, pvT:`M${pt(TR(126,-28))} L${pt(TR(140,-46))}`, pv:`M${pt(J)} V${RY-12} H${BT[0]} V${RY}`,
+    bh:`M${BX + 8} ${RY} V${(O[1] - 0.16*((BX + 8 - O[0] - 29)/0.92) + 15.8).toFixed(1)}`,   // 6.118: rovně nahoru na podlahu terasy
     rh: i => `M${rcx(i)} ${RY} V${wallY(rcx(i)).toFixed(1)}`,
-    gr: i => `M${pt(gb)} C${(gb[0]-2).toFixed(1)} ${gy-30} ${(gb[0]-2).toFixed(1)} ${gy} ${(gb[0]-12).toFixed(1)} ${gy} H${rcx(i)+4} Q${rcx(i)} ${gy} ${rcx(i)} ${gy-4} V${RY+BH}`,
-    br: i => `M${BX + BW/2} ${RY+BH} V${gy-6} H${rcx(i)+10} Q${rcx(i)+6} ${gy-6} ${rcx(i)+6} ${gy-10} V${RY+BH}`};
+    gr: i => `M${pt(gb)} V${gy} H${rcx(i)} V${RY+BH}`,                       // 6.118: rovné úseky, žádné oblouky
+    br: i => `M${BX + BW/2} ${RY+BH} V${gy-4} H${rcx(i)+6} V${RY+BH}`};
   Pth.v12 = Pth.rh; Pth.v230 = Pth.rh;
-  o += [Pth.pvR, Pth.pvT, Pth.pv, Pth.bh, ...s.R.map((r,i)=>Pth.rh(i)), ...s.R.map((r,i)=>Pth.gr(i))].map(p=>`<path d="${p}" fill="none" stroke="${cab}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
+  o += [Pth.pvR, Pth.pvT, Pth.pv, Pth.bh, ...s.R.map((r,i)=>Pth.rh(i)), ...(s.gen ? s.R.map((r,i)=>Pth.gr(i)) : [])].map(p=>`<path d="${p}" fill="none" stroke="${cab}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
   const C = {pv:"#ffb300", pvR:"#ffb300", pvT:"#ffb300", bh:"#2f86ff", gr:"#8f7dff", br:"#ffb300", v12:"#ffd23f"};
   const lab = {pv:[BT[0]+8, RY-16, "start"], bh:[BX-4, RY-6, "end"]};
   const fl = s.flows.flatMap(f => f.k==="pv" ? [f, {k:"pvR", w:f.w}, ...(terOn ? [{k:"pvT", w:f.w}] : [])] : [f]);
