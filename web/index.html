@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.139", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.140", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -522,7 +522,7 @@ const liveMerge = d => { if(d && LIVE && LIVE.live_t > (d.checked||0)){ for(cons
 /* 6.123: světla živě – Flip (Brána 1.9.20) při každé změně pošle stav světel do ntfy <téma>-lt (téma je jen v zašifrovaných
    datech); web je napojený a hned překreslí dlaždici Světla i živou chatu. Povel z webu jde do <téma>-ltc rovnou Flipu. */
 let LTL = null, LT_ES = null, LT_PEND = {}, LT_ST = {open:false, n:0, last:0, ka:0};
-const ltDet = () => { if(DET_K==="svetla" && !$("detm").classList.contains("hide")) openDet("svetla"); ltPopUpd(); };
+const ltDet = () => { if(["svetla","scene","inside"].includes(DET_K) && !$("detm").classList.contains("hide")){ const sc = []; for(let e = $("detbody"); e; e = e.parentElement) sc.push([e, e.scrollTop]); openDet(DET_K); for(const [e, y] of sc) e.scrollTop = y; } ltPopUpd(); };   // 6.140: i obrázek chaty / V chatě v podrobnostech
 function ltMerge(d){
   if(!d || !LTL || !d.inverter || !(d.inverter.tp||[]).length) return;
   if(d.inverter.t && d.inverter.t >= LTL.t) return;                       // data z Flipu jsou novější
@@ -4874,10 +4874,10 @@ function renderHome(d){
   const h = homeData(d);
   const C_ = (f, ...x) => tileColor(f(d, h, ...x), d, h);         // 6.25: barva podle pravidla 6.24
   // chata jede z River → River první (jde o chatu), po přepojení na solár zase solární baterie první
+  $("h_scene").innerHTML = sceneCard(d, h);   // 6.106: živá chata (6.140: první – ať se překreslí, i kdyby dlaždice níž spadly)
+  $("h_inside").innerHTML = insideCard(d, h);  // 6.132: co se děje v chatě
   const SRC = h.rvOn ? [C_(tileRivers), C_(tileSolar)] : [C_(tileSolar), C_(tileRivers)];
   $("h_src").innerHTML = SRC.map(tileHtml).join("");
-  $("h_scene").innerHTML = sceneCard(d, h);   // 6.106: živá chata
-  $("h_inside").innerHTML = insideCard(d, h);  // 6.132: co se děje v chatě
   // 5.15: sekce – Chata (teploty, lednice, Flip, spotřebiče), Energie dnes (výroba + spotřeba), Výhled, Uplynulé, Dlouhodobě
   const T = {
     chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h), tileUtil(d, h), tileLights(d, h)].filter(Boolean),   // 6.23: Plyn a voda patří k chatě
