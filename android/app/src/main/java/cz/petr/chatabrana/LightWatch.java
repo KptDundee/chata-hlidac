@@ -38,6 +38,7 @@ final class LightWatch {
     private long noPowerSince = 0;                                 // 1.9.22: chata bez 230 V od (elapsedRealtime)
     private boolean noPowerSent = false;
     private String vicAlarm = "";
+    private boolean fromRiver = false;                              // 1.9.23: naposledy měla chata 230 V z River
     private final BleListener ble;
     private final Map<String, Double> sentW = new HashMap<>();   // naposledy poslané W (zásuvky, „~v“ = Victron)
     static final double DW = 15.0;
@@ -117,6 +118,7 @@ final class LightWatch {
         JSONObject pm = new JSONObject(Prefs.get(ctx).getString("pl_map", "{}"));
         JSONArray tp = new JSONArray();
         Map<String, Double> nowW = new HashMap<>();
+        List<String> reach = new ArrayList<>();
         List<String> pn = new ArrayList<>();
         for (Iterator<String> it = pm.keys(); it.hasNext(); ) pn.add(it.next());
         Collections.sort(pn);
@@ -131,6 +133,7 @@ final class LightWatch {
                     boolean on = info.optBoolean("device_on");
                     x.put("on", on ? 1 : 0);
                     st.append(n).append('=').append(on ? 1 : 0).append(';');
+                    reach.add(n);                                       // 1.9.23: odpověděla = má proud
                 }
                 if (v.length > 1 && "1".equals(v[1])) {
                     JSONObject e = new JSONObject(klap(ip).call("get_energy_usage")).optJSONObject("result");
@@ -153,7 +156,7 @@ final class LightWatch {
             if (iv.acVa != null) { vic.put("w", iv.acVa); nowW.put("~v", (double) iv.acVa); }
             if (iv.batteryV != null) vic.put("v", iv.batteryV);
         }
-        alerts(iv, nowW);
+        alerts(iv, nowW, reach, arr.length() > 0);
         if (arr.length() == 0 && tp.length() == 0 && vic == null) return;
         String s = st.toString();
         boolean big = false;                                        // výkon se změnil o 15 W a víc
@@ -193,26 +196,37 @@ final class LightWatch {
     /**
      * 1.9.22 (Petr): okamžitá upozornění přímo z Flipu (nečekají na hlídače):
      * • chata bez 230 V déle než 1 min (přepínání zdroje trvá kratší chvíli) – 230 V je, když měnič měří
-     *   (INVERTING / LOW_POWER) nebo některá zásuvka River → chata (čísla posílá hlídač v -fc „rv“) dává aspoň 5 W;
-     *   bez 230 V = Flip měnič slyší, neměří, a River do chaty nic nedává. Když měnič neslyší a River nic nedává – nevíme, nic.
+     *   (INVERTING / LOW_POWER), některá zásuvka River → chata (čísla posílá hlídač v -fc „rv“) dává aspoň 5 W, nebo
+ *   odpovídá světlo či zásuvka v okruhu chaty (ne River, ne generátor) – bez proudu by neodpověděla (1.9.23);
+     *   bez 230 V = River do chaty nic nedává a měnič neměří (slyším ho), nebo chata naposledy jela z River (měnič bývá
+ *   vypnutý a neslyšet). Když chata jela z měniče a ten teď neslyším – nevíme, nic (1.9.23).
      * • měnič hlásí alarm / poruchu (hned, a když skončí).
      */
-    private void alerts(VictronParser.Inverter iv, Map<String, Double> nowW) {
-        String rv = Prefs.get(ctx).getString("rv_ids", "");
+    private void alerts(VictronParser.Inverter iv, Map<String, Double> nowW, List<String> reach, boolean lightUp) {
+        String rv = Prefs.get(ctx).getString("rv_ids", ""), gp = Prefs.get(ctx).getString("gp_id", "7");
+        boolean circuit = lightUp;                                   // 1.9.23: světlo nebo zásuvka v okruhu chaty odpovídá = proud je
+        for (String n : reach) {
+            java.util.regex.Matcher mm = java.util.regex.Pattern.compile("^\\s*\\((\\d+)\\)").matcher(n);
+            if (mm.find() && !rv.contains("," + mm.group(1) + ",") && !mm.group(1).equals(gp)) { circuit = true; break; }
+        }
         double rvW = 0;
         for (Map.Entry<String, Double> e : nowW.entrySet()) {
             java.util.regex.Matcher mm = java.util.regex.Pattern.compile("^\\s*\\((\\d+)\\)").matcher(e.getKey());
             if (mm.find() && rv.contains("," + mm.group(1) + ",")) rvW += e.getValue();
         }
+        if (rv.isEmpty()) err("230 V: hlídač zatím neposlal čísla zásuvek River – hlídání 230 V čeká");
         Boolean powered = null;
-        if (iv != null && (iv.state == 9 || iv.state == 1)) powered = true;
-        else if (rvW >= 5) powered = true;
-        else if (iv != null && !rv.isEmpty()) powered = false;
+        if (iv != null && (iv.state == 9 || iv.state == 1)) { powered = true; fromRiver = false; }
+        else if (circuit) powered = true;
+        else if (rvW >= 5) { powered = true; fromRiver = true; }
+        // 1.9.23 (Petr: vypnutá zásuvka River, ze které jela chata – nic nepřišlo): když chata jela z River, měnič bývá
+        // vypnutý a neslyšet – pak stačí, že River do chaty přestala dávat. Jinak bez 230 V jen, když měnič slyším a neměří.
+        else if (!rv.isEmpty() && (iv != null || fromRiver)) powered = false;
         long now = SystemClock.elapsedRealtime();
         if (Boolean.FALSE.equals(powered)) {
             if (noPowerSince == 0) noPowerSince = now;
             if (!noPowerSent && now - noPowerSince >= 60_000) {
-                if (push("⚡ Chata je bez 230 V", "Už přes minutu: měnič " + iv.stateName() + ", River do chaty 0 W. Lednice nejede – zkontroluj zdroj chaty.", 5, "zap,warning"))
+                if (push("⚡ Chata je bez 230 V", "Už přes minutu: měnič " + (iv != null ? iv.stateName() : "neslyším (vypnutý)") + ", River do chaty 0 W. Lednice nejede – zkontroluj zdroj chaty.", 5, "zap,warning"))
                     noPowerSent = true;
             }
         } else if (Boolean.TRUE.equals(powered)) {

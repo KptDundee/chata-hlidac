@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.128 – 28. 11. 2026 (Brána 1.9.23)
+- Hlídání 230 V (Petr: vypnul zásuvku River, ze které jela chata – nic nepřišlo; měnič byl vypnutý a Flip ho neslyšel, Brána 1.9.22 pak „nevěděla“): 
+  - 230 V **je**, když měnič měří, River do chaty dává ≥ 5 W, **nebo odpovídá světlo či zásuvka v okruhu chaty** (ne River, ne generátor – bez proudu by neodpověděla).
+  - 230 V **není**, když nic z toho a měnič slyším (neměří), **nebo chata naposledy jela z River** (měnič vypnutý, neslyšet) → po 1 min „⚡ Chata je bez 230 V“.
+  - Když hlídač ještě neposlal čísla zásuvek River, Brána to zapíše do Deníku. Hlídač v -fc posílá i číslo zásuvky generátoru („gp“).
+
 ## 6.127 – 28. 11. 2026 (Brána 1.9.22)
 - **Okamžitá upozornění přímo z Flipu** (Brána 1.9.22, kontrola po 20 s):
   - **⚡ Chata je bez 230 V** – až když trvá **déle než 1 min** (Petr: přepnutí zdroje kratší chvíli nehlásit). 230 V je, když měnič měří (INVERTING / LOW_POWER) nebo zásuvka River → chata dává aspoň 5 W (čísla zásuvek `zasuvky_river` posílá hlídač v ntfy -fc „rv“). Když Flip měnič neslyší a River nic nedává, neví – nehlásí. Po návratu „✓ Chata má zase 230 V“.

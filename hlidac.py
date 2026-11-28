@@ -4991,7 +4991,7 @@ def flip_charge_cmd(data, st, now, topic, cfg):
             or ts - fs.get("t", 0) >= 3600:
         body = json.dumps({"allow": allow, "full": full, "stale": stl, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0,
                            "fmin": int(cfg.get("flip_min_pct") or 30), "rst": str(cfg.get("brana_restart") or ""),
-                           "why": why, "id": int(ts), "ack": ack, "rv": rvs})
+                           "why": why, "id": int(ts), "ack": ack, "rv": rvs, "gp": str(cfg.get("zasuvka_generator") or "7")})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
