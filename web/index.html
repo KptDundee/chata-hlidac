@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.125", FLIP_VER = "1.9.21";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.126", FLIP_VER = "1.9.22";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -526,6 +526,12 @@ function ltMerge(d){
   if(!d || !LTL || !d.inverter || !(d.inverter.tp||[]).length) return;
   if(d.inverter.t && d.inverter.t >= LTL.t) return;                       // data z Flipu jsou novější
   for(const x of LTL.lt||[]){ const p = d.inverter.tp.find(q=>q.lt && (q.n===x.n || String(q.n||"").replace(" (TP)","")===x.n)); if(p){ p.on = x.on; p.lt_t = LTL.t; } }
+  // 6.126 (Brána 1.9.22): i zásuvky (zap/vyp, W), Victron, teploty a baterie Flipu
+  for(const x of LTL.tp||[]){ const p = d.inverter.tp.find(q=>!q.lt && q.n===x.n); if(p){ if(x.on!=null) p.on = x.on; if(x.w!=null) p.w = x.w; p.lt_t = LTL.t; } }
+  if(LTL.v){ if(LTL.v.w!=null){ d.inverter.w = LTL.v.w; d.inverter.lw = LTL.v.w; delete d.inverter.age; } if(LTL.v.v!=null) d.inverter.v = LTL.v.v; }
+  for(const x of LTL.th||[]){ const p = (d.inverter.th||[]).find(q=>q.n===x.n); if(p){ if(x.t!=null) p.t = x.t; if(x.h!=null) p.h = x.h; p.tm = LTL.t; } }
+  if(LTL.ph && d.inverter.ph && LTL.ph.b!=null){ d.inverter.ph.b = LTL.ph.b; if(LTL.ph.c!=null) d.inverter.ph.c = LTL.ph.c; }
+  if(LTL.tp || LTL.v) d.inverter.t = LTL.t;            // celý stav z Flipu je čerstvý
 }
 function ltStart(){
   // 6.125: spojení se samo obnoví – po chybě, po návratu do aplikace a když 2 min nepřišel ani udržovací signál (ntfy po 45 s)
@@ -570,6 +576,18 @@ async function livePoll(force){
   LIVE_BUSY = false;
 }
 setInterval(()=>livePoll(false), 10000);
+/* 6.126: živý běh na GitHubu, když je web otevřený – 10 min každých 30 s EcoFlow (River, generátor) a regulátor;
+   po ~9 min se prodlouží, po zavření stránky sám skončí. Data chaty to nestojí. */
+let LIVE_REQ = 0;
+async function liveRequest(){
+  const tok = store.get("ghtok"); if(!tok || !PW || !DATA || document.hidden) return;
+  if(Date.now() - LIVE_REQ < 9*60e3) return;
+  LIVE_REQ = Date.now(); LIVE_UNTIL = Math.max(LIVE_UNTIL, Date.now() + 11*60e3);
+  try{ await fetch("https://api.github.com/repos/KptDundee/chata-hlidac/actions/workflows/live.yml/dispatches",
+    {method:"POST", headers:{Authorization:"Bearer "+tok, Accept:"application/vnd.github+json"}, body: JSON.stringify({ref:"main"})}); }catch(_){ LIVE_REQ = 0; }
+}
+setInterval(liveRequest, 30000);
+document.addEventListener("visibilitychange", () => { if(!document.hidden){ liveRequest(); livePoll(true); } });
 async function load(pw){
   // s tokenem rovnou z GitHubu (bez čekání na zveřejnění stránky, ~1 min rychlejší); jinak ze stránky
   const tok = store.get("ghtok");

@@ -62,7 +62,7 @@ public class GatewayService extends Service {
         super.onCreate();
         ble = new BleListener(this);
         collector = new Collector(this, ble);
-        lights = new LightWatch(this);
+        lights = new LightWatch(this, ble);
         NotificationManager nm = getSystemService(NotificationManager.class);
         nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Chata brána", NotificationManager.IMPORTANCE_LOW));
     }

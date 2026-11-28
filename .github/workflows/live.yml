@@ -1,0 +1,39 @@
+name: Hlídač – živě
+
+# 6.126: spouští ho web, když je otevřený (po ~9 min znovu). 10 min každých 30 s přečte EcoFlow a regulátor a pošle
+# živý balíček do větve live. Nic neřídí, neukládá data ani neposílá upozornění – běží vedle hlídače (jiná skupina).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Načíst data
+        run: |
+          git fetch -q origin gh-pages --depth 1 && git show origin/gh-pages:data.enc > data.enc || rm -f data.enc
+          pip install -q cryptography paho-mqtt
+
+      - name: Živě 10 min
+        env:
+          LIVE: "1"
+          SG_ACCOUNT: ${{ secrets.SG_ACCOUNT }}
+          SG_PASSWORD: ${{ secrets.SG_PASSWORD }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          DATA_KEY: ${{ secrets.DATA_KEY }}
+          ECOFLOW_ACCESS_KEY: ${{ secrets.ECOFLOW_ACCESS_KEY }}
+          ECOFLOW_SECRET_KEY: ${{ secrets.ECOFLOW_SECRET_KEY }}
+          ECOFLOW_EMAIL: ${{ secrets.ECOFLOW_EMAIL }}
+          ECOFLOW_PASSWORD: ${{ secrets.ECOFLOW_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 hlidac.py

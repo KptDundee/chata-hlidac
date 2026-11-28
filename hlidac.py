@@ -1332,13 +1332,13 @@ LIVE_KEYS = ("gen_plan", "gen_cur", "gen_stop", "gen_pts", "gen_q_run", "gen_ref
              "ef_gens", "river_sup")
 
 
-def live_push(data):
+def live_push(data, keys=None):
     if not os.environ.get("GITHUB_ACTIONS") or not os.environ.get("GH_TOKEN"):
         return
     try:
         import subprocess, tempfile
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        snap = {k: data[k] for k in LIVE_KEYS if k in data}
+        snap = {k: data[k] for k in (keys or LIVE_KEYS) if k in data}
         snap["live_t"] = int(time.time())
         salt, iv = os.urandom(16), os.urandom(12)
         ct = AESGCM(_key(os.environ["DATA_KEY"].strip(), salt)).encrypt(iv, json.dumps(snap, separators=(",", ":")).encode(), None)
@@ -1353,6 +1353,57 @@ def live_push(data):
         g("push", "-qf", f"https://x-access-token:{os.environ['GH_TOKEN']}@github.com/{rep}.git", "live")
     except Exception as e:
         print("Živý balíček:", type(e).__name__, str(e)[:80].replace(os.environ.get("GH_TOKEN", "~"), "…"))
+
+
+def live_main():
+    """6.126 (Petr: „živě to celé“): živý běh – spouští ho web, když je otevřený (workflow live.yml, 10 min). Každých 30 s
+    přečte EcoFlow (River, generátor) a regulátor a pošle živý balíček do větve live. Nic neřídí, nic neukládá ani
+    neposílá upozornění. Během nabíjení z generátoru EcoFlow nečte (to dělá smyčka hlídače – dvě přihlášení by se rušila)."""
+    key = os.environ["DATA_KEY"].strip()
+    data = load_data(key)
+    st = data.setdefault("state", {})
+    cfg = load_config()
+    end = time.time() + int(os.environ.get("LIVE_S") or 600)
+    token = None
+    while True:
+        t0 = time.time()
+        now = datetime.now(TZ)
+        snap = {}
+        try:
+            if token is None:
+                token = login(os.environ["SG_ACCOUNT"], os.environ["SG_PASSWORD"])
+            v = read_values(token)
+            snap["last"] = {k: (round(x, 2) if isinstance(x, float) else x) for k, x in v.items()}
+        except (Exception, SystemExit) as e:
+            token = None
+            print("Živě – regulátor:", str(e)[:120])
+        if not data.get("gen_cont"):
+            try:
+                import ecoflow
+                ak, sk = os.environ.get("ECOFLOW_ACCESS_KEY", "").strip(), os.environ.get("ECOFLOW_SECRET_KEY", "").strip()
+                if ak and sk:
+                    host, rivers = ecoflow.read_rivers(ak, sk, st.get("eco_host"))
+                    read_ecoflow_app(rivers, data, st, now)
+                    for r in rivers:
+                        for k, rk in (("soc", "pct"), ("in_w", "rv_w"), ("out_w", "rv_w")):
+                            if r.get(k) is not None and ok_val(rk, r[k]) is None:
+                                r[k] = None
+                    snap["ef_gens"] = [r for r in rivers if r.get("gen")]
+                    snap["rivers"] = [r for r in rivers if not r.get("gen")]
+                    snap["rivers_t"] = int(now.timestamp())
+                    rl = dict(data.get("rv_last") or {})
+                    for r in snap["rivers"]:
+                        if r.get("online") and r.get("soc") is not None:
+                            rl[str(r.get("sn", ""))[-6:]] = {"soc": r["soc"], "t": int(now.timestamp())}
+                    snap["rv_last"] = rl
+            except Exception as e:
+                print("Živě – EcoFlow:", str(e)[:120])
+        if snap:
+            data_ = dict(snap)
+            live_push(data_, keys=tuple(snap))
+        if time.time() + 30 > end:
+            break
+        time.sleep(max(5, 30 - (time.time() - t0)))
 
 
 def clean_soc(data):
@@ -8686,4 +8737,7 @@ def urgent_river(data, st, now, topic, cfg, rise, set_):
 
 
 if __name__ == "__main__":
-    main()
+    if os.environ.get("LIVE") == "1":          # 6.126: živý běh (workflow live.yml, spouští ho otevřený web)
+        live_main()
+    else:
+        main()

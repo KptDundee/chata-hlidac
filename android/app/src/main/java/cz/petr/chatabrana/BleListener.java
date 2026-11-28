@@ -260,6 +260,12 @@ public final class BleListener {
         }
     }
 
+    /** 1.9.22: poslední hodnota Victronu bez mazání (pro živé hodnoty); null = nic, nebo starší než 2 min. */
+    public synchronized VictronParser.Inverter peekVictron() {
+        if (last == null || lastSeen == 0 || SystemClock.elapsedRealtime() - lastSeen > 120_000) return null;
+        return last;
+    }
+
     /** Vrátí nasbíraná data a začne sbírat znovu. */
     public synchronized Snapshot takeSnapshot() {
         Snapshot s = new Snapshot();

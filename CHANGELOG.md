@@ -3,6 +3,12 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.126 – 28. 11. 2026 (Brána 1.9.22)
+- **Živě všechno, co jde** (Petr): 
+  - **Z cloudu – River, generátor, regulátor**: otevřený web spustí na GitHubu „živý běh“ (`live.yml`, vlastní skupina – hlídače neblokuje): 10 min každých 30 s přečte EcoFlow a Solar Guardian a pošle živý balíček do větve `live` (web ho čte po 10 s). Po ~9 min ho web prodlouží, po zavření stránky skončí. Nic neřídí, neukládá ani neposílá upozornění; během nabíjení z generátoru EcoFlow nečte (dělá to smyčka hlídače). Data chaty to nestojí.
+  - **Z Flipu – zásuvky, Victron, teploty, baterie Flipu** (Brána 1.9.22): hlídání světel rozšířené – po 20 s po Wi‑Fi/Bluetooth chaty; posílá se jen změna: zap/vyp hned, výkon (o 15 W a zároveň 20 %) nejvýš 1× za minutu; teploty a baterie Flipu jako doplněk. Spojení s ntfy se znovu používá (méně dat). Web hodnoty hned promítne do dlaždic i živé chaty.
+- Plán, rady a upozornění dál po 10 min (počítá celý hlídač).
+
 ## 6.125 – 28. 11. 2026
 - Světla živě (Petr: po chvíli „Web není napojený“, po obnovení stránky OK): spojení webu s ntfy se teď obnoví samo – po chybě, po návratu do aplikace (telefon spojení na pozadí zavírá), když 2 min nepřišel ani udržovací signál, a vždy před povelem Rozsvítit/Zhasnout (po napojení hned přijde poslední stav).
 

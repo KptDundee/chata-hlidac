@@ -444,6 +444,7 @@ public final class Collector {
                 JSONObject info = new JSONObject(t.call("get_device_info")).optJSONObject("result");
                 if (info != null) p.put("on", info.optBoolean("device_on") ? 1 : 0);
                 p.put("nm", 1);
+                if (names.containsKey(ip) && !ip.equals(names.get(ip))) LightWatch.rememberPlug(ctx, names.get(ip), ip, false);   // 1.9.22
                 note(ip, "ok", null);
                 return p;
             }
@@ -452,6 +453,7 @@ public final class Collector {
             if (res.optInt("error_code", 0) == 0 && e != null) {
                 if (e.has("current_power")) p.put("w", round(e.getDouble("current_power") / 1000.0, 1));
                 if (e.has("today_energy")) p.put("wh", e.getInt("today_energy"));
+                if (names.containsKey(ip) && !ip.equals(names.get(ip))) LightWatch.rememberPlug(ctx, names.get(ip), ip, true);   // 1.9.22
             } else {
                 p.put("nm", 1);   // zásuvka spotřebu neměří
             }
