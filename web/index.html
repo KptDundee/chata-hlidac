@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.123", FLIP_VER = "1.9.20";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.124", FLIP_VER = "1.9.21";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -520,7 +520,7 @@ let LIVE = null, LIVE_ETAG = "", LIVE_UNTIL = 0, LIVE_BUSY = false;
 const liveMerge = d => { if(d && LIVE && LIVE.live_t > (d.checked||0)){ for(const [k,v] of Object.entries(LIVE)) if(k!=="live_t") d[k] = v; d.live_t = LIVE.live_t; } ltMerge(d); return d; };
 /* 6.123: světla živě – Flip (Brána 1.9.20) při každé změně pošle stav světel do ntfy <téma>-lt (téma je jen v zašifrovaných
    datech); web je napojený a hned překreslí dlaždici Světla i živou chatu. Povel z webu jde do <téma>-ltc rovnou Flipu. */
-let LTL = null, LT_ES = null, LT_PEND = {};
+let LTL = null, LT_ES = null, LT_PEND = {}, LT_ST = {open:false, n:0, last:0};
 const ltDet = () => { if(DET_K==="svetla" && !$("detm").classList.contains("hide")) openDet("svetla"); };
 function ltMerge(d){
   if(!d || !LTL || !d.inverter || !(d.inverter.tp||[]).length) return;
@@ -531,7 +531,9 @@ function ltStart(){
   if(LT_ES || !DATA || !DATA.nt || typeof EventSource==="undefined") return;
   try{
     LT_ES = new EventSource(`https://ntfy.sh/${encodeURIComponent(DATA.nt)}-lt/sse?since=latest`);
-    LT_ES.onmessage = ev => { try{ const m = JSON.parse(ev.data); if(m.event && m.event!=="message") return;
+    LT_ES.onopen = () => { LT_ST.open = true; ltDet(); };
+    LT_ES.onerror = () => { LT_ST.open = false; };
+    LT_ES.onmessage = ev => { try{ const m = JSON.parse(ev.data); if(m.event && m.event!=="message") return; LT_ST.n++; LT_ST.last = Date.now();
       const L = JSON.parse(m.message); if(!L || !L.lt || (LTL && L.t <= LTL.t)) return;
       LTL = L; for(const x of L.lt) delete LT_PEND[x.n]; ltMerge(DATA); render(); ltDet(); }catch(_){} };
   }catch(_){ LT_ES = null; }
@@ -542,7 +544,7 @@ async function ltSet(name, on){
   ltDet();
   try{ await fetch(`https://ntfy.sh/${encodeURIComponent(DATA.nt)}-ltc`, {method:"POST", body: JSON.stringify({n:name, on, t: Math.round(Date.now()/1000)})}); }
   catch(e){ LT_PEND[name].err = "nepovedlo se odeslat"; ltDet(); }
-  setTimeout(()=>{ if(LT_PEND[name] && Date.now() - LT_PEND[name].t >= 29000){ LT_PEND[name].err = "Flip neodpověděl – potřebuje Bránu 1.9.20, nebo není připojený"; ltDet(); } }, 30000);
+  setTimeout(()=>{ if(LT_PEND[name] && Date.now() - LT_PEND[name].t >= 29000){ LT_PEND[name].err = !LT_ST.open ? "Web není napojený na živé zprávy (ntfy) – zkus stránku obnovit" : LT_ST.n ? "Nový stav světla nepřišel – podívej se do Deníku Brány (řádky „Světla …“)" : "Od Flipu zatím nepřišel žádný stav světel – Brána 1.9.21 v Deníku napíše proč (řádky „Světla …“)"; ltDet(); } }, 30000);
 }
 setInterval(()=>{ if(PW && DATA) ltStart(); }, 3000);
 async function livePoll(force){
@@ -2464,7 +2466,7 @@ function detLights(body){
   const btn = x => { const pd = LT_PEND[x.raw||x.n]; if(!d.nt) return "";
     if(pd && !pd.err) return ` <span class="sub">⏳ ${pd.on ? "rozsvěcím" : "zhasínám"}…</span>`;
     return ` <button type="button" style="margin-left:6px;padding:3px 10px" onclick='ltSet(${JSON.stringify(x.raw||x.n)}, ${!x.on})'>${x.on ? "Zhasnout" : "Rozsvítit"}</button>${pd && pd.err ? `<div class="sub" style="color:var(--crit)">${escH(pd.err)}</div>` : ""}`; };
-  body.innerHTML = `<div class="card"><b>Teď</b>${L.some(x=>x.live) ? ` <span class="sub">🟢 živě</span>` : ""}${L.map(x=>rowI(escH(x.n), (x.on==null ? "–" : x.on ? `<b style="color:var(--good)">svítí</b>` : `<span class="sub">nesvítí</span>`) + btn(x))).join("") || `<div class="sub">Flip zatím žádná světla nehlásí.</div>`}</div>
+  body.innerHTML = `<div class="card"><b>Teď</b>${L.some(x=>x.live) ? ` <span class="sub">🟢 živě</span>` : ""}${d.nt ? `<div class="sub" style="margin:2px 0 4px">Živé spojení: ${LT_ST.open ? "✓ napojeno" : "✗ nenapojeno"} · ${LT_ST.last ? `poslední stav od Flipu ${new Date(LT_ST.last).toLocaleTimeString("cs-CZ")}` : "od Flipu zatím nic"}</div>` : ""}${L.map(x=>rowI(escH(x.n), (x.on==null ? "–" : x.on ? `<b style="color:var(--good)">svítí</b>` : `<span class="sub">nesvítí</span>`) + btn(x))).join("") || `<div class="sub">Flip zatím žádná světla nehlásí.</div>`}</div>
     ${psimChart(d)}
     ${(d.geo_log||[]).length ? `<div class="card"><b>📍 Poloha telefonu</b> <span class="sub">– příjezdy a odjezdy (okruh kolem chaty)</span><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">${(d.geo_log||[]).slice(-12).reverse().map(g=>`<span style="white-space:nowrap">${g[1]==="prijezd" ? "🏠 příjezd" : "🚗 odjezd"} ${relDay(g[0])} ${hmT(g[0])}</span>`).join("")}</div></div>` : ""}
     <div class="card"><b>Zdání přítomnosti – kdy se rozsvítilo</b>

@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.124 – 28. 11. 2026 (Brána 1.9.21)
+- Světla živě – hledání chyby (Petr: světlo se z webu rozsvítilo, ale web to neviděl): v detailu Světla řádek „Živé spojení: ✓ napojeno / ✗ nenapojeno · poslední stav od Flipu HH:MM:SS“; když nový stav nepřijde, web napíše, kde je problém (web nenapojený / Flip stav neposlal).
+- Brána 1.9.21: do Deníku zapíše každý odeslaný stav světel („Světla → web: …“) a proč se nepovedlo (světlo nejde přečíst, žádné nepřečteno, odeslání selhalo – HTTP kód / chyba); téma ntfy bez mezer.
+
 ## 6.123 – 28. 11. 2026 (Brána 1.9.20)
 - **Světla živě** (Petr): Brána kontroluje světla Tapo každých 20 s po Wi‑Fi chaty (mobilní data nestojí) a při každé změně (vypínač, aplikace Tapo, zdání přítomnosti, web) pošle jejich stav do ntfy `<téma>-lt` (pár set bajtů). Web je při otevřené stránce napojený (SSE) a dlaždici Světla, detail i živou chatu překreslí hned; v detailu „🟢 živě“.
 - **Zapínání světel z webu**: v detailu Světla u každého světla tlačítko Rozsvítit / Zhasnout. Povel jde rovnou Flipu přes ntfy `<téma>-ltc` (Flip ho poslouchá trvalým spojením spolu s probuzením), světlo se přepne za pár sekund a hned přijde nový stav. Povel starší než 2 min se neprovede. Když Flip do 30 s neodpoví, web to napíše (potřebuje Bránu 1.9.20).

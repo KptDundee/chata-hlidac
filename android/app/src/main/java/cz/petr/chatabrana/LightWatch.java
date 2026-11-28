@@ -29,7 +29,7 @@ final class LightWatch {
     private final Context ctx;
     private volatile Thread th;
     private final Map<String, TapoKlap> tapo = new HashMap<>();
-    private String lastState = "";
+    private String lastState = "", lastErr = "";
 
     LightWatch(Context c) { ctx = c.getApplicationContext(); }
 
@@ -87,12 +87,22 @@ final class LightWatch {
                 st.append(n).append('=').append(on ? 1 : 0).append(';');
             } catch (Exception e) {
                 tapo.remove(ip);                                   // příště nové přihlášení
+                err("Světla: " + n + " nejde přečíst (" + e.getClass().getSimpleName() + " " + e.getMessage() + ")");
             }
         }
-        if (arr.length() == 0) return;
+        if (arr.length() == 0) { err("Světla: žádné nepřečteno (seznam: " + m.length() + ")"); return; }
         String s = st.toString();
         if (!force && s.equals(lastState)) return;
-        if (post(new JSONObject().put("t", System.currentTimeMillis() / 1000).put("lt", arr))) lastState = s;
+        String r = post(new JSONObject().put("t", System.currentTimeMillis() / 1000).put("lt", arr));
+        if (r == null) { lastState = s; lastErr = ""; Prefs.log(ctx, "Světla → web: " + s.replace(";", " ").trim()); }
+        else err("Světla → web: nepovedlo se odeslat (" + r + ")");
+    }
+
+    /** 1.9.21: chybu zapsat do Deníku jen jednou (ne každých 20 s). */
+    private void err(String e) {
+        if (e.equals(lastErr)) return;
+        lastErr = e;
+        Prefs.log(ctx, e);
     }
 
     /** Povel z webu: světlo podle jména zapnout / vypnout, pak hned poslat nový stav. */
@@ -112,18 +122,20 @@ final class LightWatch {
         }
     }
 
-    private boolean post(JSONObject o) {
-        String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC);
-        if (topic.isEmpty()) return false;
+    /** null = odesláno, jinak důvod chyby. */
+    private String post(JSONObject o) {
+        String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC).trim();
+        if (topic.isEmpty()) return "chybí téma ntfy";
         HttpURLConnection c = null;
         try {
             c = (HttpURLConnection) new URL("https://ntfy.sh/" + topic + "-lt").openConnection();
             c.setConnectTimeout(15000); c.setReadTimeout(15000);
             c.setRequestMethod("POST"); c.setDoOutput(true);
             try (OutputStream out = c.getOutputStream()) { out.write(o.toString().getBytes(StandardCharsets.UTF_8)); }
-            return c.getResponseCode() == 200;
+            int code = c.getResponseCode();
+            return code == 200 ? null : "HTTP " + code;
         } catch (Exception e) {
-            return false;
+            return e.getClass().getSimpleName() + " " + e.getMessage();
         } finally { if (c != null) c.disconnect(); }
     }
 }
