@@ -5620,6 +5620,16 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
         todo_add(data, 2, "dnes dobití solární baterie do plna – nech chatu na River", "ok")
     if on_solar and home_ and fullchg_ and day_ok_:        # 6.77: den dobíjení do plna – na soláru se baterie do Float nedostane
         todo_add(data, 5, "dnes dobití solární baterie do plna (zdraví baterie) – přepni chatu na River", "warn", "sol")
+    # 6.132 (Petr: pojistka): v den dobíjení do plna přepnuto na solár (přes den, doma) → výrazné upozornění, ať dá zpátky River
+    fcw_ = st.setdefault("fc_warn", {})
+    if on_solar and home_ and fullchg_ and rise and set_ and rise <= now < set_:
+        if fcw_.get("d") != now.strftime("%Y-%m-%d") and not in_quiet():
+            ntfy(topic, "⚠️ Dnes se solární baterie dobíjí do plna – přepni chatu zpátky na River",
+                 f"Chata jede ze soláru, ale dnes je den dobíjení do plna (zdraví baterie, {hq['pct']} #). Na soláru se baterie do plna "
+                 "nedostane – přepni chatu na River.", 4, "warning,battery")
+            fcw_["d"] = now.strftime("%Y-%m-%d")
+    elif on_river:
+        fcw_.pop("d", None)                                    # po přepnutí zpět na River se pojistka znovu nabije
     data["sol_full"] = {"offer": 1 if full_offer else 0, "back": back_pct, "back2": back2_pct, "chg": 1 if fullchg_ else 0, "t": int(ts)}
     awake_ = home_ and not asleep(cfg, now)
     rv_ok_ = bool(best and best["soc"] >= 20)                       # River skoro prázdné → nabít generátorem, pak přepnout

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.131", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.132", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -300,6 +300,7 @@ details.sec>.in{margin-top:8px}
     <div id="hp_en">
       <h2 class="hh">Teď</h2>
       <div id="h_scene"></div>
+      <div id="h_inside"></div>
       <div class="hgrid" id="h_src"></div>
       <h2 class="hh">Výhled</h2>
       <div class="hgrid" id="h_now"></div>
@@ -2436,6 +2437,110 @@ function sceneSvg(s){
   const tt = [s.tOut!=null ? `venku ${nf(s.tOut,0)} °C` : "", s.tIn!=null ? `uvnitř ${nf(s.tIn,0)} °C` : ""].filter(Boolean).join(" · ");
   if(tt) o += `<text x="8" y="16" font-size="10.5" font-weight="600" fill="#fff" style="paint-order:stroke" stroke="rgba(0,0,0,.55)" stroke-width="2.5">${tt}</text>`;
   return `<svg class="sc" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;border-radius:12px" role="img" aria-label="Chata teď">${o}</svg>`;
+}
+/* 6.132 (Petr: „animace toho, co se děje v chatě“): půdorys podle Petrova náčrtu – terasa, pokoj, chodba (Žlutá a Červená
+   River na stěně k pokoji), lednice, kuchyně (malá River), koupelna, ložnice v patře. Z čeho chata jede (tok do rozvodu
+   s W), lednice, světla (místnost svítí), 12 V z malé River, ostatní zásuvky, teploty. Jen zobrazení. */
+function insideData(d, h){
+  const s = sceneState(d, h), cfg = d.cfg || {}, inv = h.invF ? h.inv : null, tp = (inv && inv.tp) || [];
+  const rids = riverIds(cfg), gid = String(cfg.zasuvka_generator ?? "7"), mid = menicId(), fid = String(cfg.zasuvka_lednice ?? "4");
+  const fr = tp.find(p=>String(p.ip)===fid && !p.lt);
+  const th = (inv && inv.th) || (d.inverter && d.inverter.th) || [];
+  const T = re => { const x = th.find(q=>re.test(norm0(q.n))); return x && x.t!=null ? x.t : null; };
+  const temps = {pokoj:T(/pokoj/), loznice:T(/loznic/), kuchyne:T(/kuchyn/), koupelna:T(/koupel/), lednice:T(/lednic/), baterie:T(/bater/), venku:T(/outdoor|venku/)};
+  const cw = h.cs==="s" ? (inv && inv.mw!=null ? inv.mw : null) : h.cs==="r" ? (()=>{ const r = s.R.find(x=>x.sup); return r ? (r.outw || r.w || null) : null; })() : null;
+  const other = tp.filter(p=>!p.lt && !p.off && ![...rids, gid, mid, fid].includes(String(p.ip)))
+    .map(p=>({n:String(p.n||p.ip).replace(/^\s*\(\d+\)\s*/,"").replace(" (TP)",""), id:String(p.ip), on:p.on, w:p.w}))
+    .sort((a,b)=>(b.w||0)-(a.w||0)).slice(0, 6);
+  const small = s.R.find(x=>x.small);
+  return {s, cs:h.cs, cw, fr: fr ? {w:fr.w, on:fr.on} : null, temps, other, small, big: s.R.filter(x=>!x.small)};
+}
+function insideSvg(I){
+  const u = "in" + (++SC_UID) + "_", url = n => `url(#${u}${n})`, s = I.s;
+  const W = 360, H = 412, wall = "#5a4632", txt = "#2b2b2b", sub = "#6b6b6b";
+  const floor = {pokoj:"#efe3cf", chodba:"#e7ddd0", kuch:"#eef0ea", koup:"#e4eef3", led:"#e9eef0", ter:"#d9c7a6", loz:"#efe3cf"};
+  const on = x => x && x.on;
+  let o = `<defs><radialGradient id="${u}g"><stop offset="0" stop-color="#ffd76a" stop-opacity=".85"/><stop offset="1" stop-color="#ffd76a" stop-opacity="0"/></radialGradient>
+    <pattern id="${u}deck" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0 7.5 H8" stroke="#000" stroke-opacity=".12" stroke-width=".8"/></pattern></defs>
+    <rect width="${W}" height="${H}" rx="12" fill="${s.day ? "#bcd8a8" : "#2a3a2a"}"/>`;
+  const room = (x, y, w, hh, f, name, lit, temp, glowR, by) => {
+    let r = `<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${f}" stroke="${wall}" stroke-width="2.5"/>`;
+    if(!s.day) r += `<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="#0b1530" opacity="${lit ? .25 : .62}"/>`;
+    if(lit) r += `<ellipse cx="${x+w/2}" cy="${y+hh/2}" rx="${glowR || Math.max(w,hh)*0.6}" ry="${(glowR || Math.max(w,hh)*0.6)*0.8}" fill="${url("g")}"/>`
+      + `<circle cx="${x+w/2}" cy="${by || y+14}" r="5" fill="#ffd84a" stroke="#a07800" stroke-width="1"/><path d="M${x+w/2-2.5} ${(by || y+14)+6} h5" stroke="#555" stroke-width="2"/>`;
+    r += `<text x="${x+6}" y="${y+hh-7}" font-size="10.5" font-weight="700" fill="${!s.day && !lit ? "#cfd6e4" : txt}">${name}</text>`;
+    if(temp!=null) r += `<text x="${x+w-5}" y="${y+hh-7}" text-anchor="end" font-size="10.5" font-weight="700" fill="${!s.day && !lit ? "#cfd6e4" : "#b23a2a"}">${nf(temp,1)} °C</text>`;
+    return r; };
+  // terasa (s podlahou z prken), ložnice v patře (čárkovaně), přízemí
+  o += room(14, 18, 218, 104, floor.ter, "Terasa", on(s.lit.terasa), null) + `<rect x="14" y="18" width="218" height="104" fill="${url("deck")}"/>`;
+  if(on(s.lit.terasa)) o += `<rect x="16" y="20" width="214" height="100" fill="none" stroke="#ffe58a" stroke-width="3" opacity=".9"/>`;
+  o += room(240, 18, 104, 86, floor.loz, "Ložnice · patro", on(s.lit.loznice), null, null, 40) + `<rect x="240" y="18" width="104" height="86" fill="none" stroke="${s.day ? "#fff" : "#888"}" stroke-width="1.5" stroke-dasharray="4 3"/>`
+    + (I.temps.loznice!=null ? `<text x="338" y="32" text-anchor="end" font-size="10.5" font-weight="700" fill="#b23a2a">${nf(I.temps.loznice,1)} °C</text>` : "");
+  o += room(18, 122, 164, 244, floor.pokoj, "Pokoj", on(s.lit.pokoj), I.temps.pokoj, 95);
+  o += room(182, 114, 52, 252, floor.chodba, "Chodba", on(s.lit.chodba), null, 60, 300);
+  o += room(234, 170, 108, 76, floor.kuch, "Kuchyně", false, I.temps.kuchyne);
+  o += room(234, 246, 108, 110, floor.koup, "Koupelna", false, I.temps.koupelna);
+  o += room(234, 112, 108, 58, floor.led, "", false, null);
+  // lednice
+  const fw = I.fr ? I.fr.w : null, fOn = fw!=null && fw > 5;
+  o += `<rect x="244" y="118" width="46" height="46" rx="4" fill="${s.day ? "#f7fbff" : "#9aa7b6"}" stroke="#7b8a99" stroke-width="2"/><path d="M244 134 H290" stroke="#7b8a99" stroke-width="1.5"/>`
+    + `<text x="267" y="129" text-anchor="middle" font-size="9" font-weight="700" fill="${txt}">Lednice</text>`
+    + `<text x="267" y="152" text-anchor="middle" font-size="10.5" font-weight="800" fill="${fOn ? "#1565c0" : sub}">${fw!=null ? `${nf(fw)} W` : "–"}</text>`
+    + (I.temps.lednice!=null ? `<text x="${316}" y="${150}" text-anchor="middle" font-size="10" font-weight="700" fill="#1565c0">${nf(I.temps.lednice,1)} °C</text>` : "")
+    + (fOn ? `<text x="316" y="134" text-anchor="middle" font-size="11">❄</text>` : "");
+  // zdroj: solár (baterie + měnič pod terasou) nebo River v chodbě → rozvod
+  const RZ = [208, 132];
+  o += `<rect x="196" y="124" width="24" height="16" rx="3" fill="#444" stroke="#222"/><text x="208" y="135" text-anchor="middle" font-size="7" fill="#fff">rozvod</text>`;
+  const sol = I.cs==="s";
+  o += `<rect x="22" y="88" width="78" height="28" rx="5" fill="${sol ? "#fff6d6" : "#eee"}" stroke="${sol ? "#e0a800" : "#999"}" stroke-width="1.6"/>`
+    + `<text x="61" y="100" text-anchor="middle" font-size="9" font-weight="700" fill="${txt}">☀ baterie + měnič</text>`
+    + `<text x="61" y="111" text-anchor="middle" font-size="9" fill="${sub}">${s.pct!=null ? `${Math.round(s.pct)} #` : ""}${I.temps.baterie!=null ? ` · ${nf(I.temps.baterie,1)} °C` : ""}</text>`;
+  const box = (x, y, w, hh, r, lbl) => `<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="3" fill="#1e2228" stroke="${r.color}" stroke-width="2"/>`
+    + (r.soc!=null ? `<rect x="${x+2}" y="${(y+2+(hh-4)*(1-r.soc/100)).toFixed(1)}" width="${w-4}" height="${((hh-4)*r.soc/100).toFixed(1)}" fill="${r.color}" opacity=".85"/>` : "")
+    + `<text x="${x+w/2}" y="${y+hh/2+4}" text-anchor="middle" font-size="${w < 24 ? 8.5 : 10}" font-weight="800" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="2.5">${r.soc!=null ? Math.round(r.soc)+"%" : "–"}</text>`
+    + (lbl ? `<text x="${x+w+3}" y="${y+hh/2+3}" font-size="8.5" font-weight="700" fill="${txt}">${lbl}</text>` : "");
+  const BG = I.big.slice(0, 2), RP = [[185, 200], [209, 200]];          // Žlutá a Červená vedle sebe na stěně chodby
+  BG.forEach((r, i) => { const [x, y] = RP[i]; o += box(x, y, 22, 34, r, "") + (r.inw > 20 ? `<text x="${x+11}" y="${y+44+i*10}" text-anchor="middle" font-size="8.5" font-weight="800" fill="#2e7d32" style="paint-order:stroke" stroke="#fff" stroke-width="2">⚡+${nf(r.inw)} W</text>` : ""); });
+  // tok zdroj → rozvod (W), rozvod → lednice
+  const fl = (p, col, w, lbl, lx, ly) => { const dur = Math.max(0.6, 3.4 - 0.9*Math.log10(Math.max(1, w||10))).toFixed(2), st = `animation-duration:${dur}s`;
+    return `<path d="${p}" fill="none" stroke="${col}" stroke-width="2.2" opacity=".7"/><path d="${p}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" stroke-dasharray="8 22" class="scfl" style="${st}" opacity=".35"/>
+      <path d="${p}" fill="none" stroke="${col}" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="8 22" class="scfl" style="${st}"/><path d="${p}" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="8 22" class="scfl" style="${st}" opacity=".9"/>`
+      + (lbl ? `<text x="${lx}" y="${ly}" font-size="10.5" font-weight="800" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="3">${lbl}</text>` : ""); };
+  if(sol) o += fl("M100 102 H150 V132 H196", "#ffb300", I.cw, I.cw!=null ? `${nf(I.cw)} W` : "", 112, 96);
+  else if(I.cs==="r"){ const i = BG.findIndex(x=>x.sup); if(i >= 0){ const [x, y] = RP[i]; o += fl(`M${x+11} ${y} V140`, BG[i].color, I.cw, I.cw!=null ? `${nf(I.cw)} W` : "", 185, 162); } }
+  if(fOn && (sol || I.cs==="r")) o += fl("M220 132 H244", "#1e88e5", fw, "", 0, 0);
+  // malá River v kuchyni a 12 V
+  if(I.small){ const r = I.small; o += box(306, 178, 26, 36, r, "");
+    if(r.v12) o += fl("M306 198 H248", "#ffd23f", r.dcw, `12 V ${nf(r.dcw)} W`, 244, 191);
+    if(r.v230) o += `<text x="319" y="226" text-anchor="middle" font-size="8.5" font-weight="700" fill="#1565c0">230 V ${nf(r.acw)} W</text>`; }
+  // ostatní zásuvky (místnost nevíme) – řádek dole
+  const ch = I.other; let x = 14;
+  o += `<text x="14" y="${H-28}" font-size="9" fill="${s.day ? "#2b3b2b" : "#cfd6e4"}">Zásuvky:</text>`;
+  for(const p of ch){ const t = `${p.n.slice(0,14)} ${p.on===0 ? "vyp" : p.w!=null ? nf(p.w)+" W" : "zap"}`, w = Math.min(130, 8 + t.length*5.2);
+    if(x + w > W - 8){ break; }
+    o += `<rect x="${x}" y="${H-22}" width="${w}" height="15" rx="7.5" fill="${p.on===0 ? "#ddd" : (p.w||0) > 5 ? "#ffe9a8" : "#fff"}" stroke="#777" stroke-width=".8"/><text x="${x+w/2}" y="${H-11}" text-anchor="middle" font-size="9" fill="#222">${escH(t)}</text>`;
+    x += w + 4; }
+  if(I.temps.venku!=null) o += `<text x="${W-10}" y="${H-28}" text-anchor="end" font-size="10" font-weight="700" fill="${s.day ? "#2b3b2b" : "#cfd6e4"}">venku ${nf(I.temps.venku,1)} °C</text>`;
+  return `<svg class="sc" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;border-radius:12px" role="img" aria-label="V chatě teď">${o}</svg>`;
+}
+function insideLine(I){
+  const src = I.cs==="s" ? "chata jede ze soláru" : I.cs==="r" ? `chata jede z River${(()=>{ const r = I.big.find(x=>x.sup); return r ? ` ${escH(r.short)}` : ""; })()}` : I.cs==="0" ? "chata je bez proudu" : "zdroj chaty nevím";
+  return [src + (I.cw!=null ? ` · ${nf(I.cw)} W` : ""), I.fr && I.fr.w!=null ? `lednice ${nf(I.fr.w)} W` : "", I.small && I.small.v12 ? `12 V ${nf(I.small.dcw)} W` : ""].filter(Boolean).join(" · ");
+}
+function insideCard(d, h){
+  let I; try{ I = insideData(d, h); }catch(e){ console.log("inside", e); return ""; }
+  return `<div class="card scard" data-det="inside" role="button" style="padding:8px;cursor:pointer">${insideSvg(I)}<div class="sub" style="margin:6px 4px 0">${insideLine(I)}</div></div>`;
+}
+function detInside(body){
+  const d = DATA, h = homeData(d), I = insideData(d, h);
+  body.innerHTML = `<div class="card" style="padding:8px">${insideSvg(I)}<div class="sub" style="margin:6px 4px 0">${insideLine(I)}</div></div>
+    <div class="card"><b>Co je na obrázku</b><div class="sub" style="margin-top:6px;line-height:1.55">
+      Půdorys podle tvého náčrtu – ložnice je v patře (čárkovaně vpravo nahoře).<br>
+      ⚡ Tok do <b>rozvodu</b> (v chodbě) = z čeho chata teď jede a kolik W bere – ze soláru (baterie + měnič pod terasou), nebo z River v chodbě.<br>
+      ❄ Lednice: W ze své zásuvky; modrý tok, když běží.<br>
+      💡 Místnost se rozsvítí, když svítí její světlo Tapo (pokoj, ložnice, chodba, terasa = žlutý obvod).<br>
+      🔋 Žlutá a Červená na stěně chodby, malá River v kuchyni – % nabití; „⚡+W“ = nabíjí se; „12 V“ = malá napájí 12V světla.<br>
+      Dole ostatní zásuvky (kde v chatě jsou, zatím nevím – řekni a dám je do místností) a venkovní teplota; teploty v místnostech z teploměrů Xiaomi.</div></div>`;
 }
 function sceneLine(s){
   const rf = s.flows.find(f=>f.k==="rh"), r = rf ? s.R[rf.i] : null;
@@ -4643,6 +4748,7 @@ function renderHome(d){
   const SRC = h.rvOn ? [C_(tileRivers), C_(tileSolar)] : [C_(tileSolar), C_(tileRivers)];
   $("h_src").innerHTML = SRC.map(tileHtml).join("");
   $("h_scene").innerHTML = sceneCard(d, h);   // 6.106: živá chata
+  $("h_inside").innerHTML = insideCard(d, h);  // 6.132: co se děje v chatě
   // 5.15: sekce – Chata (teploty, lednice, Flip, spotřebiče), Energie dnes (výroba + spotřeba), Výhled, Uplynulé, Dlouhodobě
   const T = {
     chata: [tileTemps(d, h), tileFridge(d, h), tileFlip(d, h), tileUtil(d, h), tileLights(d, h)].filter(Boolean),   // 6.23: Plyn a voda patří k chatě
@@ -4704,6 +4810,7 @@ const DET = {
   bat:   {t:"🔆 Solární baterie", s:"Údaje · grafy · výklad", build:detBat},
   kontrola: {t:"🔍 Večerní kontrola", s:"Každý večer Claude projde záznamy hlídače – poslední výsledek nahoře", build:detCheck},
   naklady: {t:"💰 Náklady na chatu", s:"Elektřina (z River – cena z nabíjení generátorem, ze soláru 0), plyn a voda, jednorázové výdaje", build:detCost},
+  inside: {t:"🏠 V chatě", s:"Půdorys – z čeho chata jede, lednice, světla, 12 V, zásuvky, teploty", build:detInside},
   scene: {t:"🏡 Živá chata", s:"Obrázek podle skutečných dat – co vyrábí, kam teče proud, co svítí", build:detScene},
   svetla: {t:"💡 Světla", s:"Světla Tapo – co svítí a kdy je rozsvítilo zdání přítomnosti", build:detLights},
   util: {t:"🧾 Plyn a voda v chatě", s:"Lahve PB (vaření, primotop, sprcha) a voda – kolik to stojí za měsíc a rok", build:detUtil},

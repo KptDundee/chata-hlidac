@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.132 – 28. 11. 2026
+- **🏠 V chatě** – nová animace pod živou chatou (Petr): půdorys podle Petrova náčrtu (terasa, pokoj, chodba se Žlutou a Červenou River na stěně, lednice, kuchyně s malou River, koupelna, ložnice v patře). Tok do rozvodu = z čeho chata jede a kolik W (ze soláru – baterie + měnič pod terasou, nebo z River); lednice s W a tokem, když běží; místnosti se rozsvítí podle světel Tapo (terasa žlutým obvodem); % River a „⚡+W“ při nabíjení; 12 V a 230 V z malé River; ostatní zásuvky v řádku dole; teploty v místnostech, u lednice, baterie a venku. Živě s ostatními hodnotami. Ťuknutím detail s vysvětlivkami.
+- **Pojistka v den dobíjení do plna** (Petr): když chata přes den doma přesto jede ze soláru, výrazné upozornění „⚠️ Dnes se solární baterie dobíjí do plna – přepni chatu zpátky na River“ (jednou; po přepnutí na River znovu připravené). Na dlaždici dál „dnes dobití do plna – nech chatu na River“ / „přepni na River“.
+
 ## 6.131 – 28. 11. 2026
 - **Přes den ze soláru, kdykoli panely vyrábějí** (Petr: přímá spotřeba šetří i bez plné baterie – menší ztráty, nevybíjí se River = benzín): doma, chata na River, panely teď vyrábějí (≥ 10 W, průměr 30 min) a solární baterie od **`solar_den_od_pct` (70 #, nové nastavení)** → oranžová rada „přepni na solár – panely vyrábějí ~X W…“ a výrazné upozornění (jednou za den). Zpátky na River při `baterie_setrna_pct` (50 #) – rozdíl 70/50, ať se za chvíli nepřepíná zpátky.
 - Nahrazuje „od 90 #“ i „2 h před západem“ (teď: panely vyrábějí). Beze změny: ve dny dobíjení do plna nic, pryč nic, večer/noc podle večerního pravidla (plná − zítřejší přebytek), plán se přepočítá podle skutečnosti. Ruší zimní „na solár až skoro plná“ (Petr: hranice 50 # a dny dobíjení do plna baterii chrání dost).
