@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.135", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.136", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2418,7 +2418,8 @@ function sceneSvg(s){
   const C = {pv:"#ffb300", pvR:"#ffb300", pvT:"#ffb300", bh:"#2f86ff", gr:"#8f7dff", br:"#ffb300", v12:"#ffd23f"};
   const rmid = i => (RY + wallY(rcx(i))) / 2;
   const lab = {pv:[BT[0]+8, RY-16, "start"], bh:[BX-4, RY-6, "end"],
-    rh: i => [rcx(i)+5, rmid(i)+4, "start"], v12: i => [rcx(i)+5, rmid(i)+16, "start"], v230: i => [rcx(i)+5, rmid(i)+28, "start"]};   // 6.122: W i u toku River → chata
+    rh: i => [rcx(i)+5, rmid(i)+4, "start"], v12: i => [rcx(i)+5, rmid(i)+16, "start"], v230: i => [rcx(i)+5, rmid(i)+28, "start"],
+    gr: i => [rcx(i)+4, RY+BH+13, "start"], br: i => [rcx(i)+4, RY+BH+13, "start"]};   // 6.136 (Petr): W i u nabíjení River   // 6.122: W i u toku River → chata
   const fl = s.flows.flatMap(f => f.k==="pv" ? [f, {k:"pvR", w:f.w}, ...(terOn ? [{k:"pvT", w:f.w}] : [])] : [f]);
   for(const f of fl){ if(!Pth[f.k]) continue;
     const p = typeof Pth[f.k]==="function" ? Pth[f.k](f.i) : Pth[f.k], col = C[f.k] || s.R[f.i].color;

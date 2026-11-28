@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.136 – 28. 11. 2026
+- Obrázek chaty: u nabíjení River (z generátoru i ze solární baterie) je vidět, kolik W do které River teče.
+
 ## 6.135 – 28. 11. 2026
 - V chatě: teploty s ikonou teploměru; rozsvícená žárovka má jemné paprsky (pomalu pulzují).
 - Obrázek chaty: střecha dřevníku s generátorem stejná jako na chatě; pod River už není „staré“; kabel z panelu na střeše vede z jeho pravého dolního rohu, z panelu na terase z levého dolního – nepřekrývají se; teploměr u teplot nahoře.
