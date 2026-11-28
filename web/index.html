@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.142", FLIP_VER = "1.9.25";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.143", FLIP_VER = "1.9.25";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2267,6 +2267,7 @@ function sceneState(d, h){
   const th = (d.inverter && d.inverter.th) || [], cfg = d.cfg || {};
   const tOut = th.find(x=>norm0(x.n)===norm0(cfg.chladnuti_venku_teplomer||"") || /outdoor|venku/.test(norm0(x.n)));
   const tIn = th.find(x=>norm0(x.n)===norm0(cfg.chladnuti_teplomer||"") ) || th.find(x=>/pokoj/.test(norm0(x.n)));
+  const tLoz = th.find(x=>/loznic/.test(norm0(x.n)));                 // 6.143: ložnice na střeše u okna
   const flows = [];
   if(pv!=null && pv > 3) flows.push({k:"pv", w:pv});
   if(!h.rvOn && h.loadB!=null && h.loadB > 3) flows.push({k:"bh", w:h.loadB});
@@ -2277,7 +2278,7 @@ function sceneState(d, h){
   return {now, day, dusk, sf, snow, rain, cloud, overcast, cc, hourly: !!hw, code, txt:wf.txt||"", pv, stale:RS.stale, pct: d.hq ? d.hq.pct : null, rvOn:h.rvOn, cs:h.cs,
     lit, R, pn: d.wxo && d.wxo.pan ? d.wxo.pan.n : null, fuel: (((d.ef_gens||[]).find(g=>g.gd)||{}).gd||{}).fuel ?? (()=>{   // 6.116: vypnutý generátor nic nehlásí → poslední známý stav nádrže
       if(d.gen_tank && d.gen_tank.pct!=null) return d.gen_tank.pct;
-      const r = (d.fuel_runs||[]).filter(r=>r.tk && r.tk[1]!=null).sort((a,b)=>(a.t0||0)-(b.t0||0)).pop(); return r ? r.tk[1] : null; })(), gen:!!GP, genW: GP ? (GP.gw ?? GP.tot_in) : null, flows, tOut: tOut && tOut.t!=null ? tOut.t : null, tIn: tIn && tIn.t!=null ? tIn.t : null};
+      const r = (d.fuel_runs||[]).filter(r=>r.tk && r.tk[1]!=null).sort((a,b)=>(a.t0||0)-(b.t0||0)).pop(); return r ? r.tk[1] : null; })(), gen:!!GP, genW: GP ? (GP.gw ?? GP.tot_in) : null, flows, tLoz: tLoz && tLoz.t!=null ? tLoz.t : null, lpk: ((d.fuel||{}).benzin||{}).lpk ?? null, tOut: tOut && tOut.t!=null ? tOut.t : null, tIn: tIn && tIn.t!=null ? tIn.t : null};
 }
 const norm0 = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 let SC_UID = 0;
@@ -2439,6 +2440,11 @@ function sceneSvg(s){
       <rect x="4" y="10" width="${kw-8}" height="${kh-14}" rx="2" fill="#1e2228"/>
       ${fp!=null ? `<rect x="5" y="${(11 + (kh-16)*(1-fp/100)).toFixed(1)}" width="${kw-10}" height="${((kh-16)*fp/100).toFixed(1)}" rx="1.5" fill="${fc}"/>` : ""}
       <text x="${kw/2}" y="${kh/2+8}" text-anchor="middle" font-size="${fp!=null && fp >= 100 ? 10 : 12}" font-weight="800" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="3">${fp!=null ? `${Math.round(fp)}%` : "?"}</text></g>`; }
+  // 6.143 (Petr): hadička nádrž → generátor; když běží, teče benzín (~l/h = naučená spotřeba l/kWh × výkon – odhad, průtok se neměří)
+  { const kp = S(GX1+5, 0, GZ0-2), a0 = [kp[0]+2, kp[1]-8], g0 = S(GX1-1, 6, GZ0-0.5), pth = `M${pt(a0)} Q${(a0[0]-4).toFixed(1)} ${(a0[1]+12).toFixed(1)} ${pt(g0)}`;
+    o += `<path d="${pth}" fill="none" stroke="${D ? "#333" : "#111"}" stroke-width="3" stroke-linecap="round"/>`;
+    if(gOn) o += `<path d="${pth}" fill="none" stroke="#ffb74d" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 5" class="scfl" style="animation-duration:1.2s"/>`;
+    if(gOn && s.lpk && s.genW) o += `<text x="352" y="${(kp[1]+13).toFixed(1)}" text-anchor="end" font-size="10.5" font-weight="700" fill="#ffe0b2" style="paint-order:stroke" stroke="#000" stroke-width="3">~${nf(s.lpk*s.genW/1000,2)} l/h</text>`; }
   // kabely: stálé vedení (tence) + při toku zářící pulzy
   const BT = [BX + (BW+4)/2 + 6, RY], J = TR(151,-46);
   const gy = H - 18, gb = S((GX0+GX1)/2,0,GZ0);
@@ -2473,14 +2479,13 @@ function sceneSvg(s){
     for(let i=0;i<24;i++){ const x = (rnd()*W).toFixed(0), dl = (rnd()*3).toFixed(2), du = (s.snow ? 4 + rnd()*3 : 0.9 + rnd()*0.5).toFixed(2);
       o += s.snow ? `<circle cx="${x}" cy="-6" r="${rnd() < .5 ? 1.5 : 2.1}" fill="#fff" class="scsn" style="animation-delay:-${dl}s;animation-duration:${du}s"/>`
                   : `<line x1="${x}" y1="-10" x2="${+x-2}" y2="-2" stroke="${D ? "#5d7fa3" : "#8aa4c8"}" stroke-width="1.2" class="scrn" style="animation-delay:-${dl}s;animation-duration:${du}s"/>`; } }
-  const tt = [s.tOut!=null ? `venku ${nf(s.tOut,0)} °C` : "", s.tIn!=null ? `uvnitř ${nf(s.tIn,0)} °C` : ""].filter(Boolean).join(" · ");
-  // 6.139: klepací místa světel – okno ložnice ve štítu, dveře chodby, okno pokoje, LED pásek terasy
-  { const hit = (k, P) => s.lit[k] ? `<polygon points="${P.map(pt).join(" ")}" fill="transparent" data-lt="${k}" style="cursor:pointer"/>` : "";
-    o += hit("loznice", [S(0,52,24), S(0,52,56), S(0,84,56), S(0,84,24)]) + hit("chodba", [S(44,0,0), S(68,0,0), S(68,38,0), S(44,38,0)])
-      + (s.lit.terasa ? `<path d="M${pt(TR(64,-48))} L${pt(TR(L+6,-48))} L${pt(TR(L+6,-6))}" fill="none" stroke="transparent" stroke-width="10" data-lt="terasa" style="cursor:pointer;pointer-events:stroke"/>` : "")
-      + hit("pokoj", [S(86,-2,0), S(140,-2,0), S(140,14,0), S(86,14,0)]); }   /* okno pokoje: jen část pod okrajem střechy terasy, ať se nepletou */
-  if(s.gen && s.genW!=null){ const q = S(GX1+6, GH+16, GZ0); o += `<text x="${q[0].toFixed(1)}" y="${q[1].toFixed(1)}" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="3">⚡ ${nf(s.genW)} W</text>`; }   // 6.138: výkon generátoru (nad dřevníkem)
-  if(tt) o += `<g transform="translate(9 5)"><rect x="1.6" y="0" width="3.6" height="9" rx="1.8" fill="#fff" stroke="#000" stroke-opacity=".5" stroke-width=".8"/><circle cx="3.4" cy="11" r="3" fill="#e53935" stroke="#fff" stroke-width="1"/><rect x="2.6" y="4" width="1.6" height="6" fill="#e53935"/></g><text x="19" y="16" font-size="10.5" font-weight="600" fill="#fff" style="paint-order:stroke" stroke="rgba(0,0,0,.55)" stroke-width="2.5">${tt}</text>`;
+  // 6.143 (Petr: „ať je to názorné“): teploměry tam, kde měří – venku pod kanystrem u generátoru, pokoj na štítové
+  // stěně pod oknem ložnice (vedle okna kuchyně), ložnice na střeše vedle okna
+  const thm = (q, t, left) => { if(t==null) return ""; const x = q[0], y = q[1];
+    return `<g><rect x="${(x-2).toFixed(1)}" y="${(y-12).toFixed(1)}" width="4" height="11" rx="2" fill="#fff" stroke="#000" stroke-opacity=".55" stroke-width=".8"/><circle cx="${x.toFixed(1)}" cy="${(y+1).toFixed(1)}" r="3.4" fill="#e53935" stroke="#fff" stroke-width="1"/><rect x="${(x-0.9).toFixed(1)}" y="${(y-7).toFixed(1)}" width="1.8" height="7" fill="#e53935"/>
+      <text x="${(left ? x-6 : x+6).toFixed(1)}" y="${(y+1).toFixed(1)}" text-anchor="${left ? "end" : "start"}" font-size="11" font-weight="800" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="3">${nf(t,1)} °C</text></g>`; };
+  { const gq = S(GX0+6, 0, GZ0); o += thm([gq[0], gq[1]+18], s.tOut, true); }
+  o += thm(S(0, 30, 56), s.tIn) + thm(rs(3, .74), s.tLoz);
   return `<svg class="sc" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;border-radius:12px" role="img" aria-label="Chata teď">${o}</svg>`;
 }
 /* 6.133 (Petr: „hrůza – chci obrázek, ne výkres; lednice ať vypadá jako lednice; stěny přesně podle náčrtu“):
