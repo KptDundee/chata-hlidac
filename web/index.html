@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.121", FLIP_VER = "1.9.19";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.122", FLIP_VER = "1.9.19";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2146,10 +2146,13 @@ function tileLights(d, h){
    když běží; tečky po čarách = kudy teče proud, čím víc W, tím rychleji. Jen zobrazení – nic nepočítá ani nepřepíná. */
 function sceneState(d, h){
   const now = h.now, S = d.sun, tday = new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Prague"});
-  const wf = (d.wxf||{})[tday] || {}, code = wf.code ?? null;
+  const wf = (d.wxf||{})[tday] || {};
+  // 6.122 (Petr: obloha podle počasí teď): počasí po hodinách (kód + oblačnost); bez nich denní předpověď
+  const hk = new Date(now*1000).toLocaleString("sv-SE",{timeZone:"Europe/Prague"}).slice(0,13).replace(" ","T") + ":00", hw = (d.wxhc||{})[hk];
+  const code = hw && hw[0]!=null ? hw[0] : (wf.code ?? null), cc = hw && hw[1]!=null ? hw[1] : (code==null ? null : code >= 3 ? 90 : code === 2 ? 50 : code === 1 ? 20 : 0);
   const snow = code!=null && ((code >= 71 && code <= 77) || code===85 || code===86);
   const rain = code!=null && !snow && ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95);
-  const cloud = code!=null && (code >= 2);
+  const cloud = cc!=null && cc >= 25, overcast = (cc!=null && cc >= 75) || rain || snow || (code===45 || code===48);
   const rise = S ? S[0] : null, set = S ? S[1] : null;
   const day = rise ? now >= rise && now < set : h.day;
   const dusk = rise && (Math.abs(now - rise) < 2400 || Math.abs(now - set) < 2400);
@@ -2176,7 +2179,7 @@ function sceneState(d, h){
   if(GP) R.forEach((x,i)=>{ if(x.inw > 20 || (R.every(y=>y.inw <= 20) && i===0)) flows.push({k:"gr", i, w: x.inw || GP.gw || GP.tot_in || null}); });
   R.forEach((x,i)=>{ if(x.v12) flows.push({k:"v12", i, w:x.dcw}); if(x.v230 && !x.sup) flows.push({k:"v230", i, w:x.acw}); });   // 6.110
   if(MM.C.on && MM.C.tgt){ const i = R.findIndex(x=>x.id===MM.C.tgt.id); if(i >= 0) flows.push({k:"br", i, w:h.riverW}); }
-  return {now, day, dusk, sf, snow, rain, cloud, code, txt:wf.txt||"", pv, stale:RS.stale, pct: d.hq ? d.hq.pct : null, rvOn:h.rvOn, cs:h.cs,
+  return {now, day, dusk, sf, snow, rain, cloud, overcast, cc, hourly: !!hw, code, txt:wf.txt||"", pv, stale:RS.stale, pct: d.hq ? d.hq.pct : null, rvOn:h.rvOn, cs:h.cs,
     lit, R, pn: d.wxo && d.wxo.pan ? d.wxo.pan.n : null, fuel: (((d.ef_gens||[]).find(g=>g.gd)||{}).gd||{}).fuel ?? (()=>{   // 6.116: vypnutý generátor nic nehlásí → poslední známý stav nádrže
       if(d.gen_tank && d.gen_tank.pct!=null) return d.gen_tank.pct;
       const r = (d.fuel_runs||[]).filter(r=>r.tk && r.tk[1]!=null).sort((a,b)=>(a.t0||0)-(b.t0||0)).pop(); return r ? r.tk[1] : null; })(), gen:!!GP, genW: GP ? (GP.gw ?? GP.tot_in) : null, flows, tOut: tOut && tOut.t!=null ? tOut.t : null, tIn: tIn && tIn.t!=null ? tIn.t : null};
@@ -2201,8 +2204,8 @@ function sceneSvg(s){
   const O = [104, 192], S = (x, y, z) => [O[0] + 0.92*x - 0.66*z, O[1] - 0.16*x - y - 0.36*z];
   const pt = q => q.map(v=>v.toFixed(1)).join(","), poly = (P, f, ex="") => `<polygon points="${P.map(pt).join(" ")}" fill="${f}" ${ex}/>`;
   const ln = (a, b, c, w, ex="") => `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${c}" stroke-width="${w}" ${ex}/>`;
-  const sky = D ? (s.dusk ? ["#7d8fc4","#e9b98f","#f0a86c"] : s.cloud ? ["#8fa2b6","#b9c6d3","#dfe6ec"] : ["#4b93dc","#9ccaf0","#e2f0fb"])
-                : (s.dusk ? ["#26295a","#5a4f86","#c47c63"] : ["#050c1f","#0d1a3a","#1f2f58"]);
+  const sky = D ? (s.overcast ? ["#8e99a6","#aab4bf","#c9d0d7"] : s.dusk ? ["#7d8fc4","#e9b98f","#f0a86c"] : s.cloud ? ["#6fa3d6","#a9cbea","#e0ecf6"] : ["#4b93dc","#9ccaf0","#e2f0fb"])
+                : (s.overcast ? ["#10151f","#1a2130","#283142"] : s.dusk ? ["#26295a","#5a4f86","#c47c63"] : ["#050c1f","#0d1a3a","#1f2f58"]);
   const g0 = s.snow ? (D ? "#e3ebf1" : "#7d889b") : (D ? "#79b84a" : "#1b2e17"), g1 = s.snow ? (D ? "#f7f9fb" : "#9aa5b8") : (D ? "#4f9a2e" : "#122110");
   const tree = s.snow ? (D ? "#5f7f69" : "#162418") : (D ? "#3f7a2c" : "#0f1f10"), tree2 = s.snow ? (D ? "#7c9a86" : "#1d2d20") : (D ? "#2f6a3a" : "#0b170c");
   const cab = D && !s.snow ? "rgba(30,30,30,.55)" : "rgba(220,225,235,.45)", ink = "#000";
@@ -2221,16 +2224,17 @@ function sceneSvg(s){
     <filter id="${id("blur")}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
     <filter id="${id("soft")}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
   </defs><rect width="${W}" height="${H}" fill="${url("sky")}"/>`;
-  if(!D){ let r = 7; const rnd = () => (r = (r*9301 + 49297) % 233280)/233280;
+  if(!D && !s.overcast){ let r = 7; const rnd = () => (r = (r*9301 + 49297) % 233280)/233280;
     for(let i=0;i<36;i++){ const x = rnd()*W, y = rnd()*(Gh-60), a = (rnd()*3).toFixed(1);
       o += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${rnd() < .2 ? 1.3 : .8}" fill="#fff" class="sctw" style="animation-delay:-${a}s" opacity="${s.cloud ? .3 : .85}"/>`; }
     const mp = moonPhase(s.now);
     o += `<circle cx="318" cy="30" r="22" fill="#f4f1de" opacity="${(0.12*Math.sin(Math.PI*mp)+0.04).toFixed(2)}" filter="${url("blur")}"/><circle cx="318" cy="30" r="11" fill="#f4f1de" opacity=".1"/>`
       + (mp > 0.02 && mp < 0.98 ? `<path d="${moonPath(318, 30, 11, mp)}" fill="#f4f1de"/>` : "");
-  } else if(s.sf!=null){ const x = 24 + s.sf*(W-48), y = 70 - Math.sin(Math.PI*s.sf)*50;
+  } else if(D && s.sf!=null && !s.overcast){ const x = 24 + s.sf*(W-48), y = 70 - Math.sin(Math.PI*s.sf)*50;
     o += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="30" fill="${url("glow")}"/><circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="11" fill="#ffd34d"/>`; }
-  if(s.cloud){ const cl = (x, y, k, c) => `<g class="sccl" style="animation-duration:${k}s"><g transform="translate(${x} ${y})" fill="${c}"><ellipse cx="0" cy="0" rx="24" ry="10"/><ellipse cx="14" cy="-7" rx="15" ry="11"/><ellipse cx="-13" cy="-4" rx="12" ry="8"/></g></g>`;
-    const c = D ? "rgba(255,255,255,.85)" : "rgba(150,160,185,.3)"; o += cl(60, 26, 70, c) + cl(230, 18, 90, c) + (s.rain || s.snow ? cl(150, 22, 80, c) : ""); }
+  if(s.cloud || s.overcast){ const cl = (x, y, k, c) => `<g class="sccl" style="animation-duration:${k}s"><g transform="translate(${x} ${y})" fill="${c}"><ellipse cx="0" cy="0" rx="24" ry="10"/><ellipse cx="14" cy="-7" rx="15" ry="11"/><ellipse cx="-13" cy="-4" rx="12" ry="8"/></g></g>`;
+    const c = s.overcast ? (D ? "rgba(120,130,142,.85)" : "rgba(70,78,92,.6)") : D ? "rgba(255,255,255,.85)" : "rgba(150,160,185,.3)";
+    o += cl(60, 26, 70, c) + cl(230, 18, 90, c) + (s.overcast ? cl(150, 22, 80, c) + cl(320, 34, 75, c) + cl(-10, 40, 85, c) + cl(110, 44, 95, c) : ""); }
   // stromy za chatou (jehličnany + listnáče jako na fotce)
   { let r = 5; const rnd = () => (r = (r*9301 + 49297) % 233280)/233280;
     const fir = (x, b, h, c) => { let p = ""; for(let k=0;k<4;k++){ const y0 = b - h*k/4.2, w = h*0.34*(1 - k/5); p += `<path d="M${x} ${(y0 - h*0.42).toFixed(1)} L${(x+w).toFixed(1)} ${y0.toFixed(1)} L${(x-w).toFixed(1)} ${y0.toFixed(1)} Z" fill="${c}"/>`; } return p + (s.snow ? `<path d="M${x} ${(b-h*1.12).toFixed(1)} L${x+3} ${(b-h*0.98).toFixed(1)} L${x-3} ${(b-h*0.98).toFixed(1)} Z" fill="#fff" opacity=".85"/>` : ""); };
@@ -2255,14 +2259,16 @@ function sceneSvg(s){
   o += kwin([S(12,14,0), S(34,14,0), S(34,36,0), S(12,36,0)], [S(14,16,0), S(32,16,0), S(32,34,0), S(14,34,0)],
     [20,26].map(x=>ln(S(x,16,0), S(x,34,0), "#f5f5f0", 1)).join("") + [22,28].map(y=>ln(S(14,y,0), S(32,y,0), "#f5f5f0", 1)).join(""));
   o += poly([S(70,0,0), S(L,0,0), S(L,HW,0), S(70,HW,0)], wIn);
-  // uvnitř terasy: dveře do chodby (prosklené – svítí, když svítí chodba) a okno pokoje
-  for(const [L_, c] of [[s.lit.chodba, S(86,14,0)], [s.lit.pokoj, S(118,15,0)]]) if(on(L_)) o += `<circle cx="${c[0]}" cy="${c[1]}" r="22" fill="${url("glow")}" opacity=".85"/>`;
-  o += poly([S(77,0,0), S(95,0,0), S(95,34,0), S(77,34,0)], D ? "#f7f3ea" : "#3a3a36") + poly([S(80,6,0), S(92,6,0), S(92,30,0), S(80,30,0)], wl(s.lit.chodba))
-    + ln(S(80,18,0), S(92,18,0), D ? "#f7f3ea" : "#3a3a36", 1.2)
-    + poly([S(104,5,0), S(132,5,0), S(132,25,0), S(104,25,0)], "#f5f5f0") + poly([S(106,7,0), S(130,7,0), S(130,23,0), S(106,23,0)], wl(s.lit.pokoj)) + ln(S(118,7,0), S(118,23,0), "#f5f5f0", 1.2);
+  // 6.122 (Petr): dveře do chodby hned vlevo vedle terasy (prosklené – svítí, když svítí chodba); na terase větší okno pokoje
+  for(const [L_, c] of [[s.lit.chodba, S(56,18,0)], [s.lit.pokoj, S(112,14,0)]]) if(on(L_)) o += `<circle cx="${c[0]}" cy="${c[1]}" r="24" fill="${url("glow")}" opacity=".85"/>`;
+  o += poly([S(45,0,0), S(67,0,0), S(67,38,0), S(45,38,0)], D ? "#f5f5f0" : "#3a3a36") + poly([S(47,0,0), S(65,0,0), S(65,36,0), S(47,36,0)], D ? "#8a5a2b" : "#3d2a16")
+    + poly([S(50,16,0), S(62,16,0), S(62,33,0), S(50,33,0)], wl(s.lit.chodba)) + ln(S(56,16,0), S(56,33,0), D ? "#f5f5f0" : "#3a3a36", 1.1)
+    + (() => { const k = S(63,17,0); return `<circle cx="${k[0].toFixed(1)}" cy="${k[1].toFixed(1)}" r="1.4" fill="#d9b36c"/>`; })()
+    + poly([S(88,2,0), S(138,2,0), S(138,27,0), S(88,27,0)], "#f5f5f0") + poly([S(90,4,0), S(136,4,0), S(136,25,0), S(90,25,0)], wl(s.lit.pokoj))
+    + ln(S(113,4,0), S(113,25,0), "#f5f5f0", 1.4) + ln(S(90,14.5,0), S(136,14.5,0), "#f5f5f0", 1.1);
   const TX1 = L + 4;                                                        // terasa končí s chatou (střecha nepřesahuje)
   o += poly([S(68,0,0), S(TX1,0,0), S(TX1,0,-44), S(68,0,-44)], flr);
-  for(const [L_, x] of [[s.lit.chodba, 86], [s.lit.pokoj, 118]]) if(on(L_)){ const c = S(x,0,-12); o += `<ellipse cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" rx="26" ry="8" fill="${url("glow")}" opacity=".7"/>`; }
+  for(const [L_, x, z] of [[s.lit.chodba, 56, -8], [s.lit.pokoj, 112, -12]]) if(on(L_)){ const c = S(x,0,z); o += `<ellipse cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" rx="26" ry="8" fill="${url("glow")}" opacity=".7"/>`; }
   // krabičky – velká čísla
   const box = (x, y, w, hh, fr, col, txt, edge) => `<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="5" fill="#1e2228" stroke="${edge||"#9aa"}" stroke-width="1.8"/>`
     + (fr!=null ? `<rect x="${x+2.5}" y="${(y+2.5+(hh-5)*(1-fr/100)).toFixed(1)}" width="${w-5}" height="${((hh-5)*fr/100).toFixed(1)}" rx="2.5" fill="${col}" opacity=".9"/>` : "")
@@ -2349,7 +2355,9 @@ function sceneSvg(s){
   Pth.v12 = Pth.rh; Pth.v230 = Pth.rh;
   o += [Pth.pvR, Pth.pvT, Pth.pv, Pth.bh, ...s.R.map((r,i)=>Pth.rh(i)), ...s.R.map((r,i)=>Pth.gr(i))].map(p=>`<path d="${p}" fill="none" stroke="${cab}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
   const C = {pv:"#ffb300", pvR:"#ffb300", pvT:"#ffb300", bh:"#2f86ff", gr:"#8f7dff", br:"#ffb300", v12:"#ffd23f"};
-  const lab = {pv:[BT[0]+8, RY-16, "start"], bh:[BX-4, RY-6, "end"]};
+  const rmid = i => (RY + wallY(rcx(i))) / 2;
+  const lab = {pv:[BT[0]+8, RY-16, "start"], bh:[BX-4, RY-6, "end"],
+    rh: i => [rcx(i)+5, rmid(i)+4, "start"], v12: i => [rcx(i)+5, rmid(i)+16, "start"], v230: i => [rcx(i)+5, rmid(i)+28, "start"]};   // 6.122: W i u toku River → chata
   const fl = s.flows.flatMap(f => f.k==="pv" ? [f, {k:"pvR", w:f.w}, ...(terOn ? [{k:"pvT", w:f.w}] : [])] : [f]);
   for(const f of fl){ if(!Pth[f.k]) continue;
     const p = typeof Pth[f.k]==="function" ? Pth[f.k](f.i) : Pth[f.k], col = C[f.k] || s.R[f.i].color;
@@ -2358,7 +2366,7 @@ function sceneSvg(s){
       <path d="${p}" fill="none" stroke="${col}" stroke-width="8" stroke-linecap="round" stroke-dasharray="8 22" class="scfl" style="${st}" opacity=".35"/>
       <path d="${p}" fill="none" stroke="${col}" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="8 22" class="scfl" style="${st}"/>
       <path d="${p}" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="8 22" class="scfl" style="${st}" opacity=".9"/>`;
-    const lp = lab[f.k];
+    const lp = typeof lab[f.k]==="function" ? lab[f.k](f.i) : lab[f.k];
     if(f.w!=null && lp) o += `<text x="${lp[0].toFixed(1)}" y="${lp[1].toFixed(1)}" font-size="10.5" font-weight="700" text-anchor="${lp[2]}" fill="#fff" style="paint-order:stroke" stroke="${ink}" stroke-width="3">${nf(f.w)} W</text>`;
   }
   if(s.rain || s.snow){ let r = 3; const rnd = () => (r = (r*9301 + 49297) % 233280)/233280;
@@ -2388,9 +2396,9 @@ function detScene(body){
     <div class="card"><b>Kudy teď teče proud</b>${fl.join("") || `<div class="sub" style="margin-top:6px">Teď nikam – nic neteče, nebo o tom nejsou data.</div>`}</div>
     <div class="card"><b>Co je na obrázku</b><div class="sub" style="margin-top:6px;line-height:1.55">
       ☀ / 🌙 obloha podle času – slunce jde od východu k západu, v noci hvězdy a měsíc ve skutečné fázi (podle data).<br>
-      ☁ mraky, déšť a sníh podle <b>dnešní předpovědi</b>${s.txt ? ` (${escH(s.txt)})` : ""} – ne podle toho, jestli zrovna teď prší.<br>
+      ☁ obloha podle předpovědi <b>na tuto hodinu</b> (oblačnost, déšť, sníh; při zatažení není vidět slunce ani hvězdy)${s.cc!=null ? ` – teď oblačnost ${Math.round(s.cc)} %` : ""}; sníh na střeše, když teď sněží.<br>
       🔆 dva panely – na střeše chaty a na střeše terasy; při výrobě svítí (víc W = víc), šedý = nezapojený (podle hlídače je zapojený jen jeden).<br>
-      🪟 ve štítu okno ložnice (podkroví), na terase uvnitř prosklené dveře (chodba) a okno pokoje – při svícení i světlo na podlaze terasy; světlo terasy = svítící pásek po obvodu její střechy; dvě okna přes roh vlevo dole = kuchyně (bez světla Tapo, nesvítí) – svítí, když podle Flipu svítí světlo (${L}).<br>
+      🪟 ve štítu okno ložnice (podkroví), hned vlevo vedle terasy prosklené dveře (chodba), na terase okno pokoje – při svícení i světlo na podlaze terasy; světlo terasy = svítící pásek po obvodu její střechy; dvě okna přes roh vlevo dole = kuchyně (bez světla Tapo, nesvítí) – svítí, když podle Flipu svítí světlo (${L}).<br>
       🔋 dole v řadě: vlevo River (%), pod terasou solární baterie (#) ve svých barvách – ve skutečnosti jsou uvnitř, každá má svůj kabel do chaty; „staré“ = poslední známá hodnota; štítek „12 V světla“ = River teď napájí 12V světla (autozásuvka), „230 V“ = teď napájí něco ze své zásuvky 230 V – štítek je vidět jen, když opravdu něco napájí; malá River stojí stranou.<br>
       ⛽ generátor vpravo v nízkém „dřevníku“ – když běží, svítí okénko, jde z něj kouř a po kabelu teče proud do River, kterou nabíjí; kanystr vedle generátoru = kolik benzínu je v nádrži generátoru (%); vypnutý generátor nic nehlásí – pak poslední známý stav (konec posledního nabíjení); kabely od generátoru vedou ke všem River.<br>
       ⚡ tenké čáry = kabely; zářící pulzy po kabelu = teď tudy teče proud, čím rychleji, tím víc wattů.</div></div>`;

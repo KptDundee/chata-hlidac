@@ -78,7 +78,7 @@ def update_weather(data, cfg, now, log=print, budget_days=900):
     # 2) předpověď + posledních 5 dní (analýza modelu jako „skutečnost“, než dorazí archiv)
     try:
         js = _get(FC_URL, {"latitude": lat, "longitude": lon, "past_days": 5, "forecast_days": 8,
-                           "hourly": "shortwave_radiation,diffuse_radiation",
+                           "hourly": "shortwave_radiation,diffuse_radiation,weather_code,cloud_cover",
                            "daily": "weather_code,temperature_2m_max,temperature_2m_min",
                            "timezone": "Europe/Prague"})
         sums = _daily_sums(js)
@@ -87,6 +87,9 @@ def update_weather(data, cfg, now, log=print, budget_days=900):
         lo_, hi_ = today.isoformat(), (today + timedelta(days=2)).isoformat()
         data["wxh"] = {t: g for t, g in zip(h_.get("time", []), h_.get("shortwave_radiation", []))
                        if g is not None and lo_ <= t[:10] < hi_}
+        # 6.122: počasí po hodinách (kód WMO + oblačnost %) na dnešek a zítřek – obloha na obrázku chaty podle teď
+        data["wxhc"] = {t: [c, cc] for t, c, cc in zip(h_.get("time", []), h_.get("weather_code", []), h_.get("cloud_cover", []))
+                        if lo_ <= t[:10] < hi_}
         d = js.get("daily") or {}
         fc = {}
         for i, k in enumerate(d.get("time", [])):

@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.122 – 28. 11. 2026
+- Živá chata (Petr): obloha podle počasí **na tuto hodinu** – hlídač nově stahuje z Open-Meteo hodinový kód počasí a oblačnost (`wxhc`, dnes a zítra). Zataženo = šedá obloha, víc mraků, bez slunce (v noci bez hvězd a měsíce); polojasno = mraky se sluncem. Bez hodinových dat denní předpověď jako dřív.
+- U toku River → chata (a 12 V / 230 V) watty jako u panelů a baterie.
+- Prosklené dveře do chodby hned vlevo vedle terasy (dobře vidět, i jejich světlo), okno pokoje na terase větší.
+
 ## 6.121 – 27. 11. 2026
 - Oprava 6.120: komentář na řádku rozbil skript webu (stránka se nenačetla) – opraveno.
 
