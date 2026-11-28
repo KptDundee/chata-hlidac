@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.144", FLIP_VER = "1.9.25";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.145", FLIP_VER = "1.9.25";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2268,6 +2268,12 @@ function sceneState(d, h){
   const tOut = th.find(x=>norm0(x.n)===norm0(cfg.chladnuti_venku_teplomer||"") || /outdoor|venku/.test(norm0(x.n)));
   const tIn = th.find(x=>norm0(x.n)===norm0(cfg.chladnuti_teplomer||"") ) || th.find(x=>/pokoj/.test(norm0(x.n)));
   const tLoz = th.find(x=>/loznic/.test(norm0(x.n)));                 // 6.143: ložnice na střeše u okna
+  // 6.145 (Petr: kouř z komína, když se topí): pokoj je aspoň o 4 °C tepleji než venku a za poslední hodinu klesl
+  // méně než o polovinu toho, o kolik by bez topení vychladl podle naučeného modelu chladnutí (k × rozdíl proti venku).
+  // Bez modelu: jen když teplota neklesá. Jen obrázek – upozornění „Zatop“ se nemění.
+  const smoke = (()=>{ const c = d.cool || {}, T = c.T_now, To = c.out_now, tr = c.trend;
+    if(T==null || To==null || tr==null || T - To < 4) return false;
+    return c.k ? tr > -0.5 * c.k * (T - To) : tr >= 0; })();
   const flows = [];
   if(pv!=null && pv > 3) flows.push({k:"pv", w:pv});
   if(!h.rvOn && h.loadB!=null && h.loadB > 3) flows.push({k:"bh", w:h.loadB});
@@ -2278,7 +2284,7 @@ function sceneState(d, h){
   return {now, day, dusk, sf, snow, rain, cloud, overcast, cc, hourly: !!hw, code, txt:wf.txt||"", pv, stale:RS.stale, pct: d.hq ? d.hq.pct : null, rvOn:h.rvOn, cs:h.cs,
     lit, R, pn: d.wxo && d.wxo.pan ? d.wxo.pan.n : null, fuel: (((d.ef_gens||[]).find(g=>g.gd)||{}).gd||{}).fuel ?? (()=>{   // 6.116: vypnutý generátor nic nehlásí → poslední známý stav nádrže
       if(d.gen_tank && d.gen_tank.pct!=null) return d.gen_tank.pct;
-      const r = (d.fuel_runs||[]).filter(r=>r.tk && r.tk[1]!=null).sort((a,b)=>(a.t0||0)-(b.t0||0)).pop(); return r ? r.tk[1] : null; })(), gen:!!GP, genW: GP ? (GP.gw ?? GP.tot_in) : null, flows, tLoz: tLoz && tLoz.t!=null ? tLoz.t : null, lpk: ((d.fuel||{}).benzin||{}).lpk ?? null, tOut: tOut && tOut.t!=null ? tOut.t : null, tIn: tIn && tIn.t!=null ? tIn.t : null};
+      const r = (d.fuel_runs||[]).filter(r=>r.tk && r.tk[1]!=null).sort((a,b)=>(a.t0||0)-(b.t0||0)).pop(); return r ? r.tk[1] : null; })(), gen:!!GP, genW: GP ? (GP.gw ?? GP.tot_in) : null, flows, smoke, tLoz: tLoz && tLoz.t!=null ? tLoz.t : null, lpk: ((d.fuel||{}).benzin||{}).lpk ?? null, tOut: tOut && tOut.t!=null ? tOut.t : null, tIn: tIn && tIn.t!=null ? tIn.t : null};
 }
 const norm0 = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 let SC_UID = 0;
@@ -2386,6 +2392,11 @@ function sceneSvg(s){
       + ln([(P4[0][0]+P4[1][0])/2, (P4[0][1]+P4[1][1])/2], [(P4[2][0]+P4[3][0])/2, (P4[2][1]+P4[3][1])/2], "#0e1b2e", .6, `opacity=".6"`); };
   const PX0 = 106, PX1 = 146;
   o += panel([rs(PX0,.12), rs(PX1,.12), rs(PX1,.5), rs(PX0,.5)], true, rs((PX0+PX1)/2,.31));
+  // 6.145: komín (podle fotky na hřebeni vlevo); když se topí, jde z něj kouř
+  { const b1 = rs(34,.9), b2 = rs(44,.9), up = 15, t1 = [b1[0], b1[1]-up], t2 = [b2[0], b2[1]-up];
+    o += poly([b1, b2, t2, t1], D ? "#9c4a33" : "#4a2418") + poly([[t1[0]-1.5, t1[1]], [t2[0]+1.5, t2[1]], [t2[0]+1.5, t2[1]-3], [t1[0]-1.5, t1[1]-3]], D ? "#5b5b5b" : "#2a2a2a");
+    if(s.smoke){ const cx = (t1[0]+t2[0])/2, cy = Math.min(t1[1], t2[1]) - 5;
+      for(let i=0;i<4;i++) o += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.5" fill="${D ? "#b0b0b0" : "#7a7a7a"}" class="scsm" style="animation-delay:${(i*0.7).toFixed(1)}s;animation-duration:2.8s"/>`; } }
   // generátor vpravo v nízkém „dřevníku“ (plochá střecha) – kus za terasou, vidět čelo, levý bok a střecha
   const gOn = s.gen, GX0 = 182, GX1 = 214, GZ0 = -26, GZ1 = 6, GH = 22;
   const logs = (face) => { let r = 9, p = ""; const rnd = () => (r = (r*9301 + 49297) % 233280)/233280;

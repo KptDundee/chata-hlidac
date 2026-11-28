@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.145 – 28. 11. 2026
+- Obrázek chaty: komín na střeše; když se topí, jde z něj kouř. Topí se = pokoj aspoň o 4 °C tepleji než venku a za poslední hodinu klesl méně než o polovinu toho, o kolik by bez topení vychladl podle naučeného modelu chladnutí (bez modelu: když teplota neklesá). Upozornění „Zatop“ se nemění (Petr: funguje dobře).
+
 ## 6.144 – 28. 11. 2026
 - Oprava 6.143: při přesunu teploměrů omylem zmizela klepací místa světel a výkon generátoru v obrázku chaty – vrácené.
 
