@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.143", FLIP_VER = "1.9.25";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.144", FLIP_VER = "1.9.25";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2486,6 +2486,12 @@ function sceneSvg(s){
       <text x="${(left ? x-6 : x+6).toFixed(1)}" y="${(y+1).toFixed(1)}" text-anchor="${left ? "end" : "start"}" font-size="11" font-weight="800" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="3">${nf(t,1)} °C</text></g>`; };
   { const gq = S(GX0+6, 0, GZ0); o += thm([gq[0], gq[1]+18], s.tOut, true); }
   o += thm(S(0, 30, 56), s.tIn) + thm(rs(3, .74), s.tLoz);
+  // 6.139: klepací místa světel – okno ložnice ve štítu, dveře chodby, okno pokoje, LED pásek terasy
+  { const hit = (k, P) => s.lit[k] ? `<polygon points="${P.map(pt).join(" ")}" fill="transparent" data-lt="${k}" style="cursor:pointer"/>` : "";
+    o += hit("loznice", [S(0,52,24), S(0,52,56), S(0,84,56), S(0,84,24)]) + hit("chodba", [S(44,0,0), S(68,0,0), S(68,38,0), S(44,38,0)])
+      + (s.lit.terasa ? `<path d="M${pt(TR(64,-48))} L${pt(TR(L+6,-48))} L${pt(TR(L+6,-6))}" fill="none" stroke="transparent" stroke-width="10" data-lt="terasa" style="cursor:pointer;pointer-events:stroke"/>` : "")
+      + hit("pokoj", [S(86,-2,0), S(140,-2,0), S(140,14,0), S(86,14,0)]); }   /* okno pokoje: jen část pod okrajem střechy terasy, ať se nepletou */
+  if(s.gen && s.genW!=null){ const q = S(GX1+6, GH+16, GZ0); o += `<text x="${q[0].toFixed(1)}" y="${q[1].toFixed(1)}" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="3">⚡ ${nf(s.genW)} W</text>`; }   // 6.138: výkon generátoru (nad dřevníkem)
   return `<svg class="sc" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;border-radius:12px" role="img" aria-label="Chata teď">${o}</svg>`;
 }
 /* 6.133 (Petr: „hrůza – chci obrázek, ne výkres; lednice ať vypadá jako lednice; stěny přesně podle náčrtu“):

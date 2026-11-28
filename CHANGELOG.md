@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.144 – 28. 11. 2026
+- Oprava 6.143: při přesunu teploměrů omylem zmizela klepací místa světel a výkon generátoru v obrázku chaty – vrácené.
+
 ## 6.143 – 28. 11. 2026
 - Obrázek chaty (Petr: „ať je to názorné“): teploměry tam, kde měří – venku pod generátorem, pokoj na štítové stěně pod oknem ložnice, ložnice na střeše u štítu; nahoře vlevo už teploty nejsou.
 - Hadička z nádrže (kanystr) do generátoru; když běží, teče v ní benzín a vedle je ~l/h = naučená spotřeba l/kWh × výkon generátoru (odhad – generátor hlásí jen % nádrže, průtok neměří).
