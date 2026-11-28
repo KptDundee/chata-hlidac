@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.130 – 28. 11. 2026
+- Zdroj chaty živě (Petr: chata 5 min na soláru, web pořád „napájí River“): když přijdou živé hodnoty z Flipu (Brána 1.9.22+) novější než výpočet hlídače, web určí zdroj chaty z nich (měnič měří → solár; měnič neslyšet a River do chaty dává → River) – dlaždice, rady i živá chata se přepnou hned, ne až s dalším během hlídače (do 10 min).
+
 ## 6.129 – 28. 11. 2026
 - Solár při plné baterii (Petr: „97 # a jen zelená nabídka – musí to být výrazné, šetří to peníze“): přes den, doma, chata na River a solární baterie od `solar_start_pct` (90 #) → **rada „přepni na solár“ (oranžová)** a **výrazné upozornění** (priorita 4, jednou za den): výroba by se zahodila a vybíjí se River (= benzín). Dřív jen nepovinná zelená nabídka s tichým upozorněním. Beze změny: ve dny dobíjení do plna nic, pryč nic, 2 h před západem nic, zpátky na River při 50 #.
 

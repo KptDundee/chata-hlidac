@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.129", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.130", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -528,10 +528,11 @@ function ltMerge(d){
   for(const x of LTL.lt||[]){ const p = d.inverter.tp.find(q=>q.lt && (q.n===x.n || String(q.n||"").replace(" (TP)","")===x.n)); if(p){ p.on = x.on; p.lt_t = LTL.t; } }
   // 6.126 (Brána 1.9.22): i zásuvky (zap/vyp, W), Victron, teploty a baterie Flipu
   for(const x of LTL.tp||[]){ const p = d.inverter.tp.find(q=>!q.lt && q.n===x.n); if(p){ if(x.on!=null) p.on = x.on; if(x.w!=null) p.w = x.w; p.lt_t = LTL.t; } }
-  if(LTL.v){ if(LTL.v.w!=null){ d.inverter.w = LTL.v.w; d.inverter.lw = LTL.v.w; delete d.inverter.age; } if(LTL.v.v!=null) d.inverter.v = LTL.v.v; }
+  if(LTL.v){ if(LTL.v.w!=null){ d.inverter.w = LTL.v.w; d.inverter.lw = LTL.v.w; d.inverter.mw = LTL.v.w; delete d.inverter.age; } if(LTL.v.v!=null) d.inverter.v = LTL.v.v; }
+  else if(LTL.tp){ delete d.inverter.mw; delete d.inverter.st; d.inverter.w = -1; }            // měnič teď neslyšet (vypnutý) → zdroj podle zásuvek
   for(const x of LTL.th||[]){ const p = (d.inverter.th||[]).find(q=>q.n===x.n); if(p){ if(x.t!=null) p.t = x.t; if(x.h!=null) p.h = x.h; p.tm = LTL.t; } }
   if(LTL.ph && d.inverter.ph && LTL.ph.b!=null){ d.inverter.ph.b = LTL.ph.b; if(LTL.ph.c!=null) d.inverter.ph.c = LTL.ph.c; }
-  if(LTL.tp || LTL.v) d.inverter.t = LTL.t;            // celý stav z Flipu je čerstvý
+  if(LTL.tp || LTL.v){ d.inverter.t = LTL.t; d.inverter.lt_live = 1; }   // celý stav z Flipu je čerstvý
 }
 function ltStart(){
   // 6.125: spojení se samo obnoví – po chybě, po návratu do aplikace a když 2 min nepřišel ani udržovací signál (ntfy po 45 s)
@@ -1352,7 +1353,9 @@ function homeData(d){
   // 5.92: chyba čtení (err) neznamená vypnutý měnič – jen nedostupná / chybějící zásuvka (27. 10. web dlouho psal „měnič vypnutý“)
   // 5.102: Victron hlásí, že měnič běží (INVERTING) → měnič vypnutý není, jen jeho zásuvka (1) neodpovídá
   // 5.113: jeden výpočet s hlídačem (cabinSrc / data.cabin): „vypnutý“ jen když to hlásí Victron (OFF), jinak „nevíme“
-  const C = d.cabin && ref - (d.cabin.t||0) < 1800 ? d.cabin : null;
+  // 6.130 (Petr: chata 5 min na soláru, web pořád „River“): živé hodnoty z Flipu novější než výpočet hlídače → zdroj z nich
+  const liveInv = invF && inv.lt_live && d.cabin && (inv.t||0) > (d.cabin.t||0);
+  const C = d.cabin && ref - (d.cabin.t||0) < 1800 && !liveInv ? d.cabin : null;
   const cs = C ? C.cs : invF ? invSrc(inv, cfg) : null;
   const menicOff = invF && inv.mw==null && vicState(inv)==="OFF";
   const srcUnk = cs==="?";
