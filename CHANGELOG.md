@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.134 – 28. 11. 2026
+- Obrázek „V chatě“ přesunutý do záložky Spotřeba (pod „Spotřeba dnes“).
+- Větší čísla a písmena (štítky, názvy místností, % River, zásuvky dole – až ve 2 řádcích); ložnice jako podkroví se štítkem „patro“.
+
 ## 6.133 – 28. 11. 2026
 - „V chatě“ předělané z technického výkresu na obrázek: stěny přesně podle Petrova náčrtu (terasa nad pokojem a chodbou, chodba, kuchyně s lednicí v rohu, koupelna), ložnice v patře jako podkroví pod střechou.
 - Věci kreslené tak, aby byly hned poznat: lednice (dvířka, mrazák, ❄ když běží), River s madlem a % nabití, router s Wi‑Fi a Flip na poličce v pokoji (jejich baterie), žárovky (svítí = místnost se rozzáří), gauč, stůl na terase, linka, sprcha, záchod.

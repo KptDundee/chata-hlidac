@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.133", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.134", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -300,7 +300,6 @@ details.sec>.in{margin-top:8px}
     <div id="hp_en">
       <h2 class="hh">Teď</h2>
       <div id="h_scene"></div>
-      <div id="h_inside"></div>
       <div class="hgrid" id="h_src"></div>
       <h2 class="hh">Výhled</h2>
       <div class="hgrid" id="h_now"></div>
@@ -311,6 +310,7 @@ details.sec>.in{margin-top:8px}
     </div>
     <div id="hp_sp" class="hide">
       <h2 class="hh">Spotřeba dnes</h2>
+      <div id="h_inside"></div>
       <div class="hgrid" id="h_use"></div>
     </div>
     <div id="hp_ch" class="hide">
@@ -2460,7 +2460,12 @@ function insideData(d, h){
 }
 function insideSvg(I){
   const u = "in" + (++SC_UID) + "_", url = n => `url(#${u}${n})`, s = I.s, day = s.day;
-  const W = 360, H = 420, on = x => !!(x && x.on);
+  const W = 360, on = x => !!(x && x.on);
+  const PL = []; { let x = 14, row = 0;                       // ostatní zásuvky dole – nejvýš 2 řádky
+    for(const p of I.other){ const t = `🔌 ${p.n.slice(0,16)} ${p.on===0 ? "vyp" : p.w!=null ? nf(p.w)+" W" : "zap"}`, w = 14 + t.length*6.6;
+      if(x + w > W - (row ? 10 : 92)){ if(row) break; row = 1; x = 14; }
+      PL.push({p, t, w, x, row}); x += w + 5; } }
+  const H = 420 + (PL.some(q=>q.row) ? 24 : 0);
   // půdorys podle náčrtu (měřítko 0,56 z mřížky): terasa nad pokojem+chodbou, vpravo kuchyně (lednice v rohu) a koupelna
   const L = 20, R = 340, TT = 14, MT = 119, B = 361, C1 = 189, C2 = 239, KB = 244, LX = 290, LY = 168;
   const wallC = "#5b3f27", ink = "#2a2320";
@@ -2492,7 +2497,7 @@ function insideSvg(I){
   // kuchyně: linka se sporákem a dřezem podél stěny ke koupelně
   o += `<g filter="${url("sh")}"><rect x="${C2+6}" y="${KB-20}" width="${R-C2-12}" height="16" rx="2" fill="#cfd5db"/></g>
     <rect x="${C2+12}" y="${KB-18}" width="20" height="12" rx="2" fill="#9fb3c2"/>`
-    + [0,1].map(k=>`<circle cx="${C2+50+k*14}" cy="${KB-12}" r="4.4" fill="#2b2b2b"/><circle cx="${C2+50+k*14}" cy="${KB-12}" r="2.2" fill="#555"/>`).join("");
+    + [0,1].map(k=>`<circle cx="${C2+42+k*14}" cy="${KB-12}" r="4.4" fill="#2b2b2b"/><circle cx="${C2+42+k*14}" cy="${KB-12}" r="2.2" fill="#555"/>`).join("");
   // koupelna: sprcha, záchod, umyvadlo
   o += `<rect x="${R-44}" y="${KB+8}" width="38" height="38" rx="3" fill="#ffffff" stroke="#9cb9c6"/><circle cx="${R-25}" cy="${KB+27}" r="2.5" fill="#9cb9c6"/>`
     + `<g filter="${url("sh")}"><ellipse cx="${R-22}" cy="${B-26}" rx="9" ry="12" fill="#fff" stroke="#b7c7cf"/><rect x="${R-32}" y="${B-12}" width="20" height="7" rx="2" fill="#fff" stroke="#b7c7cf"/></g>`
@@ -2517,15 +2522,15 @@ function insideSvg(I){
   const bulb = (x, y, l) => (l ? `<circle cx="${x}" cy="${y}" r="13" fill="${url("g")}"/>` : "")
     + `<path d="M${x-5} ${y+1} a5.5 5.5 0 1 1 10 0 q-2 2.4 -2 4.6 h-6 q0 -2.2 -2 -4.6z" fill="${l ? "#ffd84a" : "#d8d8d8"}" stroke="${l ? "#b58900" : "#888"}" stroke-width="1"/>
        <rect x="${x-3}" y="${y+6.4}" width="6" height="3.6" rx="1" fill="#777"/>`;
-  const pill = (x, y, t, bg="#fff", fg=ink, anchor="middle") => { const w = 7 + String(t).replace(/<[^>]+>/g,"").length*5.6, x0 = anchor==="middle" ? x - w/2 : anchor==="end" ? x - w : x;
-    return `<rect x="${x0.toFixed(1)}" y="${y-10}" width="${w.toFixed(1)}" height="14" rx="7" fill="${bg}" opacity=".95" filter="${url("sh")}"/><text x="${(x0+w/2).toFixed(1)}" y="${y+0.5}" text-anchor="middle" font-size="10" font-weight="800" fill="${fg}">${t}</text>`; };
-  const name = (x, y, t) => `<text x="${x}" y="${y}" font-size="11" font-weight="800" fill="${!day ? "#f1eadf" : "#3b2a1c"}" style="paint-order:stroke" stroke="${!day ? "#0b1430" : "#fff8ec"}" stroke-width="3">${t}</text>`;
+  const pill = (x, y, t, bg="#fff", fg=ink, anchor="middle") => { const w = 9 + String(t).replace(/<[^>]+>/g,"").length*7, x0 = anchor==="middle" ? x - w/2 : anchor==="end" ? x - w : x;
+    return `<rect x="${x0.toFixed(1)}" y="${y-12.5}" width="${w.toFixed(1)}" height="17" rx="8.5" fill="${bg}" opacity=".95" filter="${url("sh")}"/><text x="${(x0+w/2).toFixed(1)}" y="${y+1}" text-anchor="middle" font-size="12.5" font-weight="800" fill="${fg}">${t}</text>`; };
+  const name = (x, y, t) => `<text x="${x}" y="${y}" font-size="13.5" font-weight="800" fill="${!day ? "#f1eadf" : "#3b2a1c"}" style="paint-order:stroke" stroke="${!day ? "#0b1430" : "#fff8ec"}" stroke-width="3">${t}</text>`;
   const temp = (x, y, t, anchor="end") => t==null ? "" : pill(x, y, `${nf(t,1)}°`, "#fff", "#c0392b", anchor);
   const river = (x, y, w, h, r) => { const soc = r.soc, lv = soc==null ? 0 : Math.max(0, Math.min(100, soc));
     return `<g filter="${url("sh")}"><rect x="${x+3}" y="${y}" width="${w-6}" height="5" rx="2.5" fill="none" stroke="#333" stroke-width="2"/>
       <rect x="${x}" y="${y+3}" width="${w}" height="${h-3}" rx="4" fill="#2b2f36" stroke="${r.color}" stroke-width="2.2"/>
       <rect x="${x+2.5}" y="${(y+5.5+(h-8)*(1-lv/100)).toFixed(1)}" width="${w-5}" height="${((h-8)*lv/100).toFixed(1)}" rx="2" fill="${r.color}" opacity=".9"/></g>
-      <text x="${x+w/2}" y="${y+h/2+6}" text-anchor="middle" font-size="${w < 26 ? 9.5 : 10.5}" font-weight="900" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="2.6">${soc!=null ? Math.round(soc) : "–"}%</text>`; };
+      <text x="${x+w/2}" y="${y+h/2+6}" text-anchor="middle" font-size="12" font-weight="900" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="2.6">${soc!=null ? Math.round(soc) : "–"}%</text>`; };
   // lednice v rohu kuchyně – vypadá jako lednice (dvířka, mrazák, madla)
   const fw = I.fr ? I.fr.w : null, fOn = fw!=null && fw > 5, fx = 250, fy = 124, fwd = 28, fh = 40;
   o += `<g filter="${url("sh")}"><rect x="${fx}" y="${fy}" width="${fwd}" height="${fh}" rx="4" fill="#fbfdff" stroke="#8fa1b3" stroke-width="1.5"/></g>
@@ -2534,10 +2539,10 @@ function insideSvg(I){
   o += pill(fx+fwd+5, fy+33, fw!=null ? `${nf(fw)} W` : "–", fOn ? "#e3f1ff" : "#fff", fOn ? "#1565c0" : "#666", "start");
   if(I.temps.lednice!=null) o += pill(fx+fwd+5, fy+12, `${nf(I.temps.lednice,1)}°`, "#e3f1ff", "#1565c0", "start");
   // River Žlutá a Červená na stěně chodby u pokoje (pod sebou, jako v náčrtu)
-  const BG = I.big.slice(0, 2), RP = [[C1+4, 192], [C1+4, 228]];
-  BG.forEach((r, i) => { const [x, y] = RP[i]; o += river(x, y, 24, 32, r); if(r.inw > 20) o += pill(x-6, y+20, `⚡+${nf(r.inw)} W`, "#e8f7e8", "#2e7d32", "end"); });
+  const BG = I.big.slice(0, 2), RP = [[C1+3, 190], [C1+3, 230]];
+  BG.forEach((r, i) => { const [x, y] = RP[i]; o += river(x, y, 29, 36, r); if(r.inw > 20) o += pill(x-6, y+20, `⚡+${nf(r.inw)} W`, "#e8f7e8", "#2e7d32", "end"); });
   // malá River na stěně kuchyně
-  if(I.small){ const r = I.small; o += river(310, 176, 26, 34, r); }
+  if(I.small){ const r = I.small; o += river(306, 174, 30, 38, r); }
   // pokoj: router M7000 a Flip na poličce u chodby
   { const sx = 134, sy = 272;
     o += `<rect x="${sx-6}" y="${sy+14}" width="48" height="8" rx="2" fill="#8a5a2b" filter="${url("sh")}"/>`
@@ -2551,7 +2556,7 @@ function insideSvg(I){
     o += `<g filter="${url("sh")}"><rect x="${bx}" y="${by}" width="46" height="26" rx="4" fill="#2b2f36" stroke="${sol ? "#ffb300" : "#777"}" stroke-width="2"/></g>
       <rect x="${bx+46}" y="${by+8}" width="4" height="10" rx="1" fill="${sol ? "#ffb300" : "#777"}"/>
       ${pc!=null ? `<rect x="${bx+3}" y="${by+3}" width="${(40*Math.max(0,Math.min(100,pc))/100).toFixed(1)}" height="20" rx="2" fill="${pc <= 50 ? "#fb8c00" : "#43a047"}" opacity=".9"/>` : ""}
-      <text x="${bx+23}" y="${by+17}" text-anchor="middle" font-size="10.5" font-weight="900" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="2.6">☀ ${pc!=null ? Math.round(pc)+"#" : "–"}</text>`; }
+      <text x="${bx+23}" y="${by+18}" text-anchor="middle" font-size="13" font-weight="900" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="2.6">☀ ${pc!=null ? Math.round(pc)+"#" : "–"}</text>`; }
   // --- tok proudu: zdroj → chodba → lednice a pokoj (router, Flip) ---
   const fl = (p, col, w) => { const dur = Math.max(0.6, 3.4 - 0.9*Math.log10(Math.max(1, w||10))).toFixed(2), st = `animation-duration:${dur}s`;
     return `<path d="${p}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
@@ -2561,35 +2566,34 @@ function insideSvg(I){
   const TX = 226;                         // páteř rozvodu: střed chodby
   let src = null, col = "#ffb300";
   if(sol) src = `M${L+56} ${MT-21} H${TX} V${MT+26}`;
-  else if(I.cs==="r"){ const i = BG.findIndex(x=>x.sup); if(i >= 0){ const [x, y] = RP[i]; col = BG[i].color; src = `M${x+24} ${y+16} H${TX} V${MT+26}`; } }
+  else if(I.cs==="r"){ const i = BG.findIndex(x=>x.sup); if(i >= 0){ const [x, y] = RP[i]; col = BG[i].color; src = `M${x+29} ${y+18} H${TX} V${MT+26}`; } }
   if(src){ o += fl(src, col, I.cw) + fl(`M${TX} ${MT+26} V${272+18} H${134+42}`, col, 30);
     if(fOn) o += fl(`M${TX} ${MT+26} V${LY+5} H${fx+fwd/2} V${fy+fh+1}`, "#2f8fe0", fw);
-    o += sol ? pill(150, MT-16, `⚡ ${I.cw!=null ? nf(I.cw)+" W" : "chata"}`, "#fff3cf", "#8a5a00") : pill((C1+C2)/2, MT+14, `⚡ ${I.cw!=null ? nf(I.cw)+" W" : ""}`, "#fff", ink); }
+    o += sol ? pill(112, MT-16, `⚡ ${I.cw!=null ? nf(I.cw)+" W" : "chata"}`, "#fff3cf", "#8a5a00") : pill((C1+C2)/2, MT+14, `⚡ ${I.cw!=null ? nf(I.cw)+" W" : ""}`, "#fff", ink); }
   // 12 V z malé River
-  if(I.small && I.small.v12){ const r = I.small; o += fl(`M310 199 H${C2+14}`, "#ffd23f", r.dcw) + pill(272, 191, `12 V ${nf(r.dcw)} W`, "#fff6c7", "#7a5c00"); }
+  if(I.small && I.small.v12){ const r = I.small; o += fl(`M310 199 H${C2+14}`, "#ffd23f", r.dcw) + pill(C2+7, 191, `12V ${nf(r.dcw)}W`, "#fff6c7", "#7a5c00", "start"); }
   // žárovky (světla Tapo)
   o += bulb(105, 150, lit.pok) + bulb(207, 168, lit.cho) + bulb(207, 40, lit.ter);
   // názvy místností a teploty
   o += name(L+8, B-10, "Pokoj") + temp(C1-6, B-10, I.temps.pokoj)
-    + `<text x="${(C1+C2)/2}" y="${B-36}" text-anchor="middle" font-size="11" font-weight="800" fill="${!day ? "#f1eadf" : "#3b2a1c"}" style="paint-order:stroke" stroke="${!day ? "#0b1430" : "#fff8ec"}" stroke-width="3" transform="rotate(-90 ${(C1+C2)/2-6} ${B-36})">Chodba</text>`
-    + name(C2+8, KB-26, "Kuchyně") + temp(R-6, KB-27, I.temps.kuchyne)
+    + `<text x="${(C1+C2)/2}" y="${B-36}" text-anchor="middle" font-size="13.5" font-weight="800" fill="${!day ? "#f1eadf" : "#3b2a1c"}" style="paint-order:stroke" stroke="${!day ? "#0b1430" : "#fff8ec"}" stroke-width="3" transform="rotate(-90 ${(C1+C2)/2-6} ${B-36})">Chodba</text>`
+    + name(C2+8, KB-26, "Kuchyně") + temp(R-5, KB-8, I.temps.kuchyne)
     + name(C2+8, B-10, "Koupelna") + temp(C2+8, B-30, I.temps.koupelna, "start")
-    + name(L+8, MT-40, "") + `<text x="${C2-6}" y="${MT-8}" text-anchor="end" font-size="11" font-weight="800" fill="#fff" style="paint-order:stroke" stroke="#5b3f27" stroke-width="3">Terasa</text>`;
+    + name(L+8, MT-40, "") + `<text x="${C2-6}" y="${MT-8}" text-anchor="end" font-size="13.5" font-weight="800" fill="#fff" style="paint-order:stroke" stroke="#5b3f27" stroke-width="3">Terasa</text>`;
   // ložnice v patře – podkroví pod střechou (vpravo nahoře, mimo půdorys přízemí)
-  { const x0 = 252, x1 = 338, yb = 108, yr = 58, ap = 22;
+  { const x0 = 248, x1 = 342, yb = 110, yr = 50, ap = 14;
     o += `<g filter="${url("sh")}"><path d="M${x0-6} ${yr} L${(x0+x1)/2} ${ap} L${x1+6} ${yr} Z" fill="#a8432f" stroke="#6e2a1c" stroke-width="1.5"/>
       <rect x="${x0}" y="${yr}" width="${x1-x0}" height="${yb-yr}" fill="#e9cfa3" stroke="#6b4a2e" stroke-width="2"/></g>
-      <path d="M${x0+8} ${yr+12} h28 v18 h-28 z" fill="#f5f5f5" stroke="#8d8d8d"/><rect x="${x0+8}" y="${yr+12}" width="28" height="6" fill="#7aa7d6"/>`;
+      <text x="${(x0+x1)/2}" y="${yr-7}" text-anchor="middle" font-size="11.5" font-weight="800" fill="#fff">patro</text>
+      <path d="M${x0+8} ${yr+8} h30 v20 h-30 z" fill="#f5f5f5" stroke="#8d8d8d"/><rect x="${x0+8}" y="${yr+8}" width="30" height="7" fill="#7aa7d6"/>`;
     if(!day) o += rect(x0, yr, x1-x0, yb-yr, "#0b1430", `opacity="${lit.loz ? .1 : .6}"`);
     if(lit.loz) o += glow((x0+x1)/2, (yr+yb)/2, 46);
-    o += bulb(x1-18, yr+12, lit.loz) + `<text x="${(x0+x1)/2}" y="${yb-6}" text-anchor="middle" font-size="10.5" font-weight="800" fill="${!day && !lit.loz ? "#f1eadf" : "#3b2a1c"}">Ložnice · patro</text>`
-      + (I.temps.loznice!=null ? pill((x0+x1)/2, yr-6, `${nf(I.temps.loznice,1)}°`, "#fff", "#c0392b") : ""); }
+    o += bulb(x1-16, yr+10, lit.loz) + `<text x="${x0+6}" y="${yb-7}" font-size="13.5" font-weight="800" fill="${!day && !lit.loz ? "#f1eadf" : "#3b2a1c"}">Ložnice</text>`
+      + (I.temps.loznice!=null ? pill(x1-4, yr+36, `${nf(I.temps.loznice,1)}°`, "#fff", "#c0392b", "end") : ""); }
   // ostatní zásuvky – kde jsou, zatím nevím
-  { let x = 14; const y = H-14;
-    for(const p of I.other){ const t = `🔌 ${p.n.slice(0,14)} ${p.on===0 ? "vyp" : p.w!=null ? nf(p.w)+" W" : "zap"}`, w = 12 + t.length*5.3;
-      if(x + w > W - 70) break;
-      o += `<rect x="${x}" y="${y-11}" width="${w.toFixed(0)}" height="16" rx="8" fill="${p.on===0 ? "#e0e0e0" : (p.w||0) > 5 ? "#ffe9a8" : "#fff"}" filter="${url("sh")}"/><text x="${(x+w/2).toFixed(1)}" y="${y+1}" text-anchor="middle" font-size="9.5" font-weight="600" fill="#222">${escH(t)}</text>`;
-      x += w + 5; }
+  { const y = 406;
+    for(const {p, t, w, x, row} of PL){ const yy = y + row*24;
+      o += `<rect x="${x}" y="${yy-13}" width="${w.toFixed(0)}" height="18" rx="9" fill="${p.on===0 ? "#e0e0e0" : (p.w||0) > 5 ? "#ffe9a8" : "#fff"}" filter="${url("sh")}"/><text x="${(x+w/2).toFixed(1)}" y="${yy+1}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#222">${escH(t)}</text>`; }
     if(I.temps.venku!=null) o += pill(W-12, y, `venku ${nf(I.temps.venku,1)}°`, "#fff", "#1a5c2a", "end"); }
   return `<svg class="sc" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;border-radius:12px" role="img" aria-label="V chatě teď">${o}</svg>`;
 }
