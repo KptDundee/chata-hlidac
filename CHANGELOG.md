@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.138 – 28. 11. 2026
+- Obrázek chaty: u běžícího generátoru jeho výkon ve W; W nabíjení Žluté vlevo u jejího rohu, ať se nemačká s Červenou.
+
 ## 6.137 – 28. 11. 2026
 - V chatě: když se River nabíjejí, vede k nim svítící kabel – fialový zvenku od generátoru (vstupuje stěnou pokoje), oranžový od solární baterie; u malé River je taky „⚡+W“.
 - Nabíjení z generátoru (Petr: ručně stáhl Červenou na 259 W, když za běhu připojil malou, a hlídač to neopravil – přišla jen hláška): když River přes 1 min bere málo (pod 260 W, hlídač chce ≥ 350 W), hlídač jí svůj výkon pošle znovu (nejvýš 1× za minutu). Hláška „nastavení se nedaří“ přijde, jen když to ani pak nepomůže (po 2 min). Dřív si hlídač pamatoval, že výkon už nastavil, a znovu ho neposílal.
