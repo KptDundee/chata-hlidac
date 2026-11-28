@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.125 – 28. 11. 2026
+- Světla živě (Petr: po chvíli „Web není napojený“, po obnovení stránky OK): spojení webu s ntfy se teď obnoví samo – po chybě, po návratu do aplikace (telefon spojení na pozadí zavírá), když 2 min nepřišel ani udržovací signál, a vždy před povelem Rozsvítit/Zhasnout (po napojení hned přijde poslední stav).
+
 ## 6.124 – 28. 11. 2026 (Brána 1.9.21)
 - Světla živě – hledání chyby (Petr: světlo se z webu rozsvítilo, ale web to neviděl): v detailu Světla řádek „Živé spojení: ✓ napojeno / ✗ nenapojeno · poslední stav od Flipu HH:MM:SS“; když nový stav nepřijde, web napíše, kde je problém (web nenapojený / Flip stav neposlal).
 - Brána 1.9.21: do Deníku zapíše každý odeslaný stav světel („Světla → web: …“) a proč se nepovedlo (světlo nejde přečíst, žádné nepřečteno, odeslání selhalo – HTTP kód / chyba); téma ntfy bez mezer.

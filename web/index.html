@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.124", FLIP_VER = "1.9.21";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.125", FLIP_VER = "1.9.21";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -520,7 +520,7 @@ let LIVE = null, LIVE_ETAG = "", LIVE_UNTIL = 0, LIVE_BUSY = false;
 const liveMerge = d => { if(d && LIVE && LIVE.live_t > (d.checked||0)){ for(const [k,v] of Object.entries(LIVE)) if(k!=="live_t") d[k] = v; d.live_t = LIVE.live_t; } ltMerge(d); return d; };
 /* 6.123: světla živě – Flip (Brána 1.9.20) při každé změně pošle stav světel do ntfy <téma>-lt (téma je jen v zašifrovaných
    datech); web je napojený a hned překreslí dlaždici Světla i živou chatu. Povel z webu jde do <téma>-ltc rovnou Flipu. */
-let LTL = null, LT_ES = null, LT_PEND = {}, LT_ST = {open:false, n:0, last:0};
+let LTL = null, LT_ES = null, LT_PEND = {}, LT_ST = {open:false, n:0, last:0, ka:0};
 const ltDet = () => { if(DET_K==="svetla" && !$("detm").classList.contains("hide")) openDet("svetla"); };
 function ltMerge(d){
   if(!d || !LTL || !d.inverter || !(d.inverter.tp||[]).length) return;
@@ -528,19 +528,28 @@ function ltMerge(d){
   for(const x of LTL.lt||[]){ const p = d.inverter.tp.find(q=>q.lt && (q.n===x.n || String(q.n||"").replace(" (TP)","")===x.n)); if(p){ p.on = x.on; p.lt_t = LTL.t; } }
 }
 function ltStart(){
-  if(LT_ES || !DATA || !DATA.nt || typeof EventSource==="undefined") return;
+  // 6.125: spojení se samo obnoví – po chybě, po návratu do aplikace a když 2 min nepřišel ani udržovací signál (ntfy po 45 s)
+  if(!DATA || !DATA.nt || typeof EventSource==="undefined") return;
+  if(LT_ES && LT_ES.readyState !== 2 && !(LT_ST.open && Date.now() - (LT_ST.ka||0) > 120000)) return;
+  if(LT_ES){ try{ LT_ES.close(); }catch(_){} }
+  LT_ST.open = false;
   try{
-    LT_ES = new EventSource(`https://ntfy.sh/${encodeURIComponent(DATA.nt)}-lt/sse?since=latest`);
-    LT_ES.onopen = () => { LT_ST.open = true; ltDet(); };
-    LT_ES.onerror = () => { LT_ST.open = false; };
-    LT_ES.onmessage = ev => { try{ const m = JSON.parse(ev.data); if(m.event && m.event!=="message") return; LT_ST.n++; LT_ST.last = Date.now();
+    const es = new EventSource(`https://ntfy.sh/${encodeURIComponent(DATA.nt)}-lt/sse?since=latest`);
+    LT_ES = es;
+    es.onopen = () => { if(LT_ES!==es) return; LT_ST.open = true; LT_ST.ka = Date.now(); ltDet(); };
+    es.onerror = () => { if(LT_ES!==es) return; LT_ST.open = false; };
+    es.addEventListener("keepalive", () => { LT_ST.ka = Date.now(); });
+    es.onmessage = ev => { LT_ST.ka = Date.now(); try{ const m = JSON.parse(ev.data); if(m.event && m.event!=="message") return; LT_ST.n++; LT_ST.last = Date.now();
       const L = JSON.parse(m.message); if(!L || !L.lt || (LTL && L.t <= LTL.t)) return;
       LTL = L; for(const x of L.lt) delete LT_PEND[x.n]; ltMerge(DATA); render(); ltDet(); }catch(_){} };
   }catch(_){ LT_ES = null; }
 }
+const ltReconnect = () => { if(LT_ES){ try{ LT_ES.close(); }catch(_){} } LT_ES = null; ltStart(); };
+document.addEventListener("visibilitychange", () => { if(!document.hidden && DATA && DATA.nt && (!LT_ES || LT_ES.readyState !== 1)) ltReconnect(); });
 async function ltSet(name, on){
   if(!DATA || !DATA.nt) return;
   LT_PEND[name] = {on, t: Date.now()};
+  if(!LT_ES || LT_ES.readyState !== 1 || Date.now() - (LT_ST.ka||0) > 100000) ltReconnect();   // 6.125: před povelem obnovit spojení
   ltDet();
   try{ await fetch(`https://ntfy.sh/${encodeURIComponent(DATA.nt)}-ltc`, {method:"POST", body: JSON.stringify({n:name, on, t: Math.round(Date.now()/1000)})}); }
   catch(e){ LT_PEND[name].err = "nepovedlo se odeslat"; ltDet(); }
