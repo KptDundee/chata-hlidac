@@ -304,21 +304,21 @@ final class LightWatch {
             String ip = m.optString(name);
             if (ip.isEmpty()) { Prefs.log(ctx, "Světlo z webu: „" + name + "“ neznám"); return; }
             JSONObject r = new JSONObject(klap(ip).call("set_device_info", "{\"device_on\":" + on + "}"));
-            if (r.optInt("error_code", -1) == 0) {
-                Prefs.log(ctx, "Světlo " + name + " " + (on ? "ROZSVÍCENO" : "ZHASNUTO") + " (z webu)");
-                lastLt.put(name, on ? 1 : 0);
-                // 1.9.24: hned stav světel (z paměti + tohle), ať web nečeká na čtení všech zásuvek
-                JSONArray arr = new JSONArray();
-                for (Map.Entry<String, Integer> e : lastLt.entrySet()) {
-                    String ip2 = m.optString(e.getKey());
-                    arr.put(new JSONObject().put("n", e.getKey()).put("ip", ip2.substring(ip2.lastIndexOf('.') + 1)).put("on", e.getValue()));
-                }
-                String pr = post(new JSONObject().put("t", System.currentTimeMillis() / 1000).put("lt", arr));
-                if (pr != null) err("Světla → web (hned po povelu): nepovedlo se odeslat (" + pr + ")");
-            }
+            if (r.optInt("error_code", -1) == 0) Prefs.log(ctx, "Světlo " + name + " " + (on ? "ROZSVÍCENO" : "ZHASNUTO") + " (z webu)");
             else Prefs.log(ctx, "Světlo " + name + " z webu: selhalo " + r);
-            SystemClock.sleep(600);
-            poll(true);
+            // 1.9.25 (Petr: „stačí hned zkontrolovat jen to jedno světlo, zbytek v normálních intervalech“):
+            // přečíst jen tohle světlo a hned poslat stav světel (ostatní z posledního čtení)
+            SystemClock.sleep(300);
+            JSONObject info = new JSONObject(klap(ip).call("get_device_info")).optJSONObject("result");
+            if (info != null && info.has("device_on")) lastLt.put(name, info.optBoolean("device_on") ? 1 : 0);
+            JSONArray arr = new JSONArray();
+            for (Map.Entry<String, Integer> e : lastLt.entrySet()) {
+                String ip2 = m.optString(e.getKey());
+                if (ip2.isEmpty()) continue;
+                arr.put(new JSONObject().put("n", e.getKey()).put("ip", ip2.substring(ip2.lastIndexOf('.') + 1)).put("on", e.getValue()));
+            }
+            String pr = post(new JSONObject().put("t", System.currentTimeMillis() / 1000).put("lt", arr));
+            if (pr != null) err("Světla → web (po povelu): nepovedlo se odeslat (" + pr + ")");
         } catch (Exception e) {
             tapo.clear();
             Prefs.log(ctx, "Světlo z webu: " + e.getMessage());
