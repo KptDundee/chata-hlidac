@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.131 – 28. 11. 2026
+- **Přes den ze soláru, kdykoli panely vyrábějí** (Petr: přímá spotřeba šetří i bez plné baterie – menší ztráty, nevybíjí se River = benzín): doma, chata na River, panely teď vyrábějí (≥ 10 W, průměr 30 min) a solární baterie od **`solar_den_od_pct` (70 #, nové nastavení)** → oranžová rada „přepni na solár – panely vyrábějí ~X W…“ a výrazné upozornění (jednou za den). Zpátky na River při `baterie_setrna_pct` (50 #) – rozdíl 70/50, ať se za chvíli nepřepíná zpátky.
+- Nahrazuje „od 90 #“ i „2 h před západem“ (teď: panely vyrábějí). Beze změny: ve dny dobíjení do plna nic, pryč nic, večer/noc podle večerního pravidla (plná − zítřejší přebytek), plán se přepočítá podle skutečnosti. Ruší zimní „na solár až skoro plná“ (Petr: hranice 50 # a dny dobíjení do plna baterii chrání dost).
+
 ## 6.130 – 28. 11. 2026
 - Zdroj chaty živě (Petr: chata 5 min na soláru, web pořád „napájí River“): když přijdou živé hodnoty z Flipu (Brána 1.9.22+) novější než výpočet hlídače, web určí zdroj chaty z nich (měnič měří → solár; měnič neslyšet a River do chaty dává → River) – dlaždice, rady i živá chata se přepnou hned, ne až s dalším během hlídače (do 10 min).
 

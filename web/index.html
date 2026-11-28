@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.130", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.131", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -484,7 +484,7 @@ document.addEventListener("click", e => { const c = e.target.closest(".cfgv"); i
 /* nastavení, která ovlivňují jednotlivé detaily (řádek „⚙ Nastavení k této kartě“) */
 const DETCFG = {
   svetla: ["svetla_simulace","svetla_simulace_svetla","svetla_simulace_s","svetla_simulace_od_h","svetla_vitani","svetla_vitani_svetlo","svetla_vitani_pred_min","svetla_vitani_po_min"],
-  bat: ["baterie_slabne_V","baterie_kriticka_V","baterie_setrna_pct","odpojeni_V","noc_spotreba_W","menic_vlastni_W","kapacita_Ah","nutne_river_v","plne_nabiti_od_dni","plne_nabiti_dni","odber_hlidat","odber_z_baterie_A"],
+  bat: ["baterie_slabne_V","baterie_kriticka_V","solar_den_od_pct","baterie_setrna_pct","odpojeni_V","noc_spotreba_W","menic_vlastni_W","kapacita_Ah","nutne_river_v","plne_nabiti_od_dni","plne_nabiti_dni","odber_hlidat","odber_z_baterie_A"],
   night: ["nutne_river_v","baterie_kriticka_V","noc_spotreba_W","menic_vlastni_W","ticho"],
   wx: ["pocasi","rezim","panely_pocet","sezona_upozornit"],
   gen: ["gen_rizeni","gen_palivo","gen_max_lpg_W","gen_max_benzin_W","gen_nadrz_l","gen_rezerva_W","gen_po_behu_W","gen_mala_po_behu_W"],
@@ -5489,6 +5489,7 @@ const SETTINGS = [
   ["Napětí baterie", [
     ["baterie_slabne_V","Baterie slábne","Jen do souhrnu ve 22:00","V",0.05,"num"],
     ["baterie_kriticka_V","Přepni na River","Jediné upozornění na solární baterii","V",0.05,"num"],
+    ["solar_den_od_pct","Přes den na solár od","Přes den doma, když panely vyrábějí: od tohoto # přijde rada přepnout z River na solár (šetří River, výroba jde rovnou do chaty). Zpátky na River při spodní hranici – rozdíl, ať se za chvíli nepřepíná zpátky","#",5,"num"],
     ["baterie_setrna_pct","Spodní hranice baterie","Níž se ze soláru nejezdí: při ní upozornění přepnout na River, o 5 # níž důrazně; plán ji drží (rezerva a ochrana baterie)","#",5,"num"],
     ["odpojeni_V","Měnič se vypíná","Ochrana baterie v měniči Victron","V",0.05,"num"],
   ]],

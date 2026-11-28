@@ -34,7 +34,7 @@ DEFAULTS = {
     "regulator_offline_min": 30, "vecerni_souhrn_hodina": 20,
     "predpoved_noc": True, "nabijeni_od_vychodu_min": 90,
     "kapacita_Ah": 200, "kapacita_odhad_Ah": 150, "noc_spotreba_W": 30, "menic_vlastni_W": 6, "desulfator_W": 0.25, "lednice_hlidat": True, "lednice_ticho_h": 3, "lednice_bezi_h": 2,
-    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "svetla_simulace": "vypnuto", "svetla_simulace_svetla": "pokoj", "svetla_simulace_s": 90, "svetla_simulace_od_h": 1, "svetla_vitani": "vypnuto", "svetla_vitani_svetlo": "terasa", "svetla_vitani_pred_min": 10, "svetla_vitani_po_min": 20, "solar_pryc_pct": 25, "chladnuti_vyjimky": "",
+    "mraz_hlidat": True, "mraz_C": 0, "mraz_hash": 40, "plne_nabiti_dni": 14, "plne_nabiti_od_dni": 7, "chladnuti_min_C": 19, "chladnuti_predstih_min": 60, "chladnuti_spat": "0:00", "spani": "", "river_rezerva_noc_pct": 15, "solar_start_pct": 90, "solar_den_od_pct": 70, "svetla_simulace": "vypnuto", "svetla_simulace_svetla": "pokoj", "svetla_simulace_s": 90, "svetla_simulace_od_h": 1, "svetla_vitani": "vypnuto", "svetla_vitani_svetlo": "terasa", "svetla_vitani_pred_min": 10, "svetla_vitani_po_min": 20, "solar_pryc_pct": 25, "chladnuti_vyjimky": "",
     "teplomer_baterie": "", "teplomer_lednice": "", "lednice_max_C": 8,
     "teplomery": "", "teplomery_ticho_min": 60, "teplomery_baterie": "10, 5",
     "vlhkost_hlidat": "", "vlhkost_min": 35,
@@ -5598,17 +5598,22 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     plan_s_ = ((wp_now(data, now) or {}).get("cur") == "s") and on_river and home_
     # 6.77 (Petr: „doma přes den na solár i pod 90 # – panely krmí chatu přímo, při 50 # přepnu“): rada podle plánu
     # kdykoli přes den; nepovinná nabídka při plné baterii (90 #) zůstává, když s ní plán nepočítá
-    full_offer = on_river and home_ and day_ok_ and (plan_s_ or hq["pct"] >= full_pct) and not fullchg_
+    # 6.131 (Petr): přes den doma ze soláru, kdykoli panely vyrábějí – výroba jde rovnou do chaty (bez ztrát v baterii)
+    # a šetří River (benzín). Od solar_den_od_pct (70 #, ať se za chvíli nepřepíná zpátky) do baterie_setrna_pct (50 #).
+    # Místo „2 h před západem“: panely teď vyrábějí (≥ 10 W). Ve dny dobíjení do plna nic, pryč nic.
+    den_pct = round(cfg.get("solar_den_od_pct") or 70)
+    sun_ = bool(rise and set_ and rise <= now < set_) and (pv_ or 0) >= 10
+    full_offer = on_river and home_ and ((day_ok_ and plan_s_) or (sun_ and hq["pct"] >= den_pct)) and not fullchg_
     if full_offer:
         # 6.129 (Petr: „při 97 # jen zelená nabídka – musí to být výrazné, šetří to peníze“): plná baterie přes den doma =
         # rada „přepni“ (ne nabídka) a výrazné upozornění – výroba by se zahazovala a vybíjí se River (palivo)
         todo_add(data, 4, (f"přepni na solár – plán s tím počítá (zpátky na River při {back_pct} #)" if plan_s_ else
-                           f"přepni na solár – baterie {hq['pct']} # je skoro plná, výroba by se nevyužila (zpátky na River při {back_pct} #)"), "warn")
+                           f"přepni na solár – panely vyrábějí ~{fmt(pv_)} W, jde to rovnou do chaty a šetří River (zpátky na River při {back_pct} #)"), "warn")
         if (sf.get("d") != now.strftime("%Y-%m-%d") or sf.get("v") != 2) and not in_quiet():
             ntfy(topic, f"☀️ Přepni chatu na solár – solární baterie {hq['pct']} #",
                  (f"Plán s tím počítá – šetří se River (palivo). Když do hodiny nepřepneš, plán přepočítám bez soláru "
                   f"(a když River nebudou stačit, poradím je nabít).\n" if plan_s_ else
-                  f"Baterie je skoro plná – výroba z panelů by se zahodila a mezitím se vybíjí River (= benzín, peníze).\n") +
+                  f"Panely teď dávají ~{fmt(pv_)} W – co vyrobí, jde rovnou do chaty (bez ztrát v baterii), a nevybíjí se River (= benzín, peníze).\n") +
                  f"Při {back_pct} # napíšu, ať přepneš zpátky na River.", 4, "sunny,moneybag")
             sf.update(d=now.strftime("%Y-%m-%d"), t=int(ts), v=2)
     if on_river and home_ and fullchg_:

@@ -23,6 +23,7 @@ baterie_slabne_reset_V = 12.5
 # kritické = alarm regulátoru (Undervoltage Alarm 12,00 / recovery 12,20)
 baterie_kriticka_V = 12
 solar_pryc_pct = 25             # 6.75: když jsem pryč, smí solár až sem (alarm ~20 # + rezerva) – přepnout stejně nejde
+solar_den_od_pct = 70           # 6.131: přes den doma, panely vyrábějí → od tohoto # rada z River na solár (zpátky při baterie_setrna_pct)
 baterie_setrna_pct = 50         # šetrná hranice v # – pod ní rada přepnout na River (doma, chata na soláru); plán ji drží
 baterie_kriticka_reset_V = 12.2
 # vypnutí měniče Victron (Vypnutí vybité baterie 11,60) = i LOAD regulátoru (11,60 / 12,80)
