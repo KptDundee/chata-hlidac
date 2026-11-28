@@ -2003,7 +2003,8 @@ def main():
     except Exception as e:
         print("Historie zásuvek:", e)
     check_gateway(inv, st, now, topic, cfg)
-    if inv and now.timestamp() - inv["t"] < 1200:   # alarm / vypnutí hlášené samotným měničem
+    flip_al = tuple(int(x) for x in re.findall(r"\d+", str((inv or {}).get("av") or "0"))[:3]) >= (1, 9, 22)
+    if inv and now.timestamp() - inv["t"] < 1200 and not flip_al:   # alarm měniče; 6.127: Brána 1.9.22+ ho hlásí sama hned
         al = inv.get("al") if inv.get("al") not in ("0", "NONE", "No alarm") else None
         alarm(st, topic, "inv_al", bool(al), f"⚠️ Měnič hlásí alarm: {al}",
               f"Victron: {al} (stav {inv.get('st', '?')}), baterie {fmt(inv.get('v'), 2)} V.", 4, "warning",
@@ -4984,16 +4985,17 @@ def flip_charge_cmd(data, st, now, topic, cfg):
     mip_ = str(cfg.get("zasuvka_menic") or "1")
     stl = [i for i in ips(cfg.get("zasuvky_stale")) if i != mip_ or (str(inv.get("st") or "").upper() == "INVERTING" and not on_river)]
     ack = st.get("flip_ack") or []
-    if fs.get("ack") != ack or fs.get("stale") != stl or fs.get("allow") != allow or fs.get("full") != full or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
+    rvs = [str(x) for x in ips(cfg.get("zasuvky_river"))]          # 6.127: River → chata (Brána hlídá 230 V v chatě)
+    if fs.get("rv") != rvs or fs.get("ack") != ack or fs.get("stale") != stl or fs.get("allow") != allow or fs.get("full") != full or fs.get("ip") != pid or fs.get("rip") != rip or fs.get("rfree") != rfree \
             or fs.get("fmin") != int(cfg.get("flip_min_pct") or 30) or fs.get("rst") != str(cfg.get("brana_restart") or "") or abs((fs.get("ftgt") or 0) - (ftgt or 0)) >= 5 \
             or ts - fs.get("t", 0) >= 3600:
         body = json.dumps({"allow": allow, "full": full, "stale": stl, "ip": pid, "rip": rip, "rfree": rfree, "ftgt": ftgt or 0,
                            "fmin": int(cfg.get("flip_min_pct") or 30), "rst": str(cfg.get("brana_restart") or ""),
-                           "why": why, "id": int(ts), "ack": ack})
+                           "why": why, "id": int(ts), "ack": ack, "rv": rvs})
         try:
             urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{topic}-fc", data=body.encode(),
                                                           headers={"Title": "fc", "Priority": "1"}, method="POST"), timeout=20).read()
-            fs.update(ack=ack, stale=stl, allow=allow, full=full, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), rst=str(cfg.get("brana_restart") or ""), t=int(ts), why=why)
+            fs.update(rv=rvs, ack=ack, stale=stl, allow=allow, full=full, ip=pid, rip=rip, rfree=rfree, ftgt=ftgt, fmin=int(cfg.get("flip_min_pct") or 30), rst=str(cfg.get("brana_restart") or ""), t=int(ts), why=why)
         except Exception as e:
             print("Povolení nabíjení Flipu:", e)
     data["flip_chg"] = {"allow": allow, "why": why, "ip": pid, "fc": inv.get("fc"), "ftgt": fs.get("ftgt"), "f_until": f_until, "rate": rate}

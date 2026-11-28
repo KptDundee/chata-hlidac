@@ -647,6 +647,8 @@ public final class Collector {
                 JSONObject m = new JSONObject(ln);
                 if ("message".equals(m.optString("event"))) try { last = new JSONObject(m.optString("message")); } catch (Exception ignored) {}
             }
+            if (last != null && last.optJSONArray("rv") != null)                 // 1.9.22: zásuvky River → chata (hlídání 230 V)
+                P.edit().putString("rv_ids", "," + last.optJSONArray("rv").join(",").replace("\"", "") + ",").apply();
             if (last != null && last.optJSONArray("ack") != null)                // 1.9.19: hlídač potvrzuje přijaté zprávy
                 P.edit().putString("gh_ack", "," + last.optJSONArray("ack").join(",") + ",").apply();
             if (last != null && last.optLong("id") * 1000 > P.getLong("fc_t", 0)) {

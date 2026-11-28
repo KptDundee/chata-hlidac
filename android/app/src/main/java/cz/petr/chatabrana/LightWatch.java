@@ -35,6 +35,9 @@ final class LightWatch {
     private final Map<String, TapoKlap> tapo = new HashMap<>();
     private String lastState = "", lastErr = "";
     private long lastSend = 0;
+    private long noPowerSince = 0;                                 // 1.9.22: chata bez 230 V od (elapsedRealtime)
+    private boolean noPowerSent = false;
+    private String vicAlarm = "";
     private final BleListener ble;
     private final Map<String, Double> sentW = new HashMap<>();   // naposledy poslané W (zásuvky, „~v“ = Victron)
     static final double DW = 15.0;
@@ -150,6 +153,7 @@ final class LightWatch {
             if (iv.acVa != null) { vic.put("w", iv.acVa); nowW.put("~v", (double) iv.acVa); }
             if (iv.batteryV != null) vic.put("v", iv.batteryV);
         }
+        alerts(iv, nowW);
         if (arr.length() == 0 && tp.length() == 0 && vic == null) return;
         String s = st.toString();
         boolean big = false;                                        // výkon se změnil o 15 W a víc
@@ -184,6 +188,69 @@ final class LightWatch {
             if (lightChg) Prefs.log(ctx, "Světla → web: " + lightPart(s).replace(";", " ").trim());
         }
         else err("Živé hodnoty → web: nepovedlo se odeslat (" + r + ")");
+    }
+
+    /**
+     * 1.9.22 (Petr): okamžitá upozornění přímo z Flipu (nečekají na hlídače):
+     * • chata bez 230 V déle než 1 min (přepínání zdroje trvá kratší chvíli) – 230 V je, když měnič měří
+     *   (INVERTING / LOW_POWER) nebo některá zásuvka River → chata (čísla posílá hlídač v -fc „rv“) dává aspoň 5 W;
+     *   bez 230 V = Flip měnič slyší, neměří, a River do chaty nic nedává. Když měnič neslyší a River nic nedává – nevíme, nic.
+     * • měnič hlásí alarm / poruchu (hned, a když skončí).
+     */
+    private void alerts(VictronParser.Inverter iv, Map<String, Double> nowW) {
+        String rv = Prefs.get(ctx).getString("rv_ids", "");
+        double rvW = 0;
+        for (Map.Entry<String, Double> e : nowW.entrySet()) {
+            java.util.regex.Matcher mm = java.util.regex.Pattern.compile("^\\s*\\((\\d+)\\)").matcher(e.getKey());
+            if (mm.find() && rv.contains("," + mm.group(1) + ",")) rvW += e.getValue();
+        }
+        Boolean powered = null;
+        if (iv != null && (iv.state == 9 || iv.state == 1)) powered = true;
+        else if (rvW >= 5) powered = true;
+        else if (iv != null && !rv.isEmpty()) powered = false;
+        long now = SystemClock.elapsedRealtime();
+        if (Boolean.FALSE.equals(powered)) {
+            if (noPowerSince == 0) noPowerSince = now;
+            if (!noPowerSent && now - noPowerSince >= 60_000) {
+                if (push("⚡ Chata je bez 230 V", "Už přes minutu: měnič " + iv.stateName() + ", River do chaty 0 W. Lednice nejede – zkontroluj zdroj chaty.", 5, "zap,warning"))
+                    noPowerSent = true;
+            }
+        } else if (Boolean.TRUE.equals(powered)) {
+            if (noPowerSent && push("✓ Chata má zase 230 V", iv != null && (iv.state == 9 || iv.state == 1) ? "Z měniče." : "Z River (" + Math.round(rvW) + " W).", 3, "white_check_mark"))
+                noPowerSent = false;
+            noPowerSince = 0;
+        } else noPowerSince = 0;
+        if (iv != null) {
+            String al = iv.alarm != 0 ? iv.alarmName() : iv.state == 2 ? "FAULT" : "";
+            if (!al.equals(vicAlarm)) {
+                boolean ok = al.isEmpty()
+                        ? push("✓ Měnič už alarm nehlásí", "Victron: " + iv.stateName(), 3, "white_check_mark")
+                        : push("⚠️ Měnič hlásí alarm: " + al, "Victron: " + al + " (stav " + iv.stateName() + ")" + (iv.batteryV != null ? ", baterie " + String.format(java.util.Locale.US, "%.2f", iv.batteryV).replace('.', ',') + " V" : "") + ".", 5, "warning");
+                if (ok) vicAlarm = al;
+            }
+        }
+    }
+
+    /** Upozornění do hlavního tématu ntfy (stejné jako upozornění hlídače). JSON kvůli diakritice v nadpisu. */
+    private boolean push(String title, String msg, int prio, String tags) {
+        String topic = Prefs.s(ctx, Prefs.NTFY_TOPIC).trim();
+        if (topic.isEmpty()) return false;
+        HttpURLConnection c = null;
+        try {
+            JSONObject o = new JSONObject().put("topic", topic).put("title", title).put("message", msg).put("priority", prio)
+                    .put("tags", new JSONArray(java.util.Arrays.asList(tags.split(","))));
+            c = (HttpURLConnection) new URL("https://ntfy.sh/").openConnection();
+            c.setConnectTimeout(15000); c.setReadTimeout(15000);
+            c.setRequestMethod("POST"); c.setDoOutput(true);
+            c.setRequestProperty("Content-Type", "application/json");
+            try (OutputStream out = c.getOutputStream()) { out.write(o.toString().getBytes(StandardCharsets.UTF_8)); }
+            int code = c.getResponseCode();
+            Prefs.log(ctx, "Upozornění z Flipu: " + title + (code == 200 ? "" : " – HTTP " + code));
+            return code == 200;
+        } catch (Exception e) {
+            Prefs.log(ctx, "Upozornění z Flipu nešlo poslat: " + e.getMessage());
+            return false;
+        } finally { if (c != null) c.disconnect(); }
     }
 
     /** Část stavu jen se světly (do Deníku jen změny světel, ne každou zásuvku). */

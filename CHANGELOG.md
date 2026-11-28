@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.127 – 28. 11. 2026 (Brána 1.9.22)
+- **Okamžitá upozornění přímo z Flipu** (Brána 1.9.22, kontrola po 20 s):
+  - **⚡ Chata je bez 230 V** – až když trvá **déle než 1 min** (Petr: přepnutí zdroje kratší chvíli nehlásit). 230 V je, když měnič měří (INVERTING / LOW_POWER) nebo zásuvka River → chata dává aspoň 5 W (čísla zásuvek `zasuvky_river` posílá hlídač v ntfy -fc „rv“). Když Flip měnič neslyší a River nic nedává, neví – nehlásí. Po návratu „✓ Chata má zase 230 V“.
+  - **⚠️ Měnič hlásí alarm** (přetížení, nízké napětí, přehřátí, porucha…) hned a „✓ už alarm nehlásí“, když skončí. Hlídač tenhle alarm s Bránou 1.9.22+ už neposílá (byl by dvakrát).
+
 ## 6.126 – 28. 11. 2026 (Brána 1.9.22)
 - **Živě všechno, co jde** (Petr): 
   - **Z cloudu – River, generátor, regulátor**: otevřený web spustí na GitHubu „živý běh“ (`live.yml`, vlastní skupina – hlídače neblokuje): 10 min každých 30 s přečte EcoFlow a Solar Guardian a pošle živý balíček do větve `live` (web ho čte po 10 s). Po ~9 min ho web prodlouží, po zavření stránky skončí. Nic neřídí, neukládá ani neposílá upozornění; během nabíjení z generátoru EcoFlow nečte (dělá to smyčka hlídače). Data chaty to nestojí.
