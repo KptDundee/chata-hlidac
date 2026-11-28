@@ -37,6 +37,7 @@ public class GatewayService extends Service {
     private final ExecutorService exec = Executors.newSingleThreadExecutor();
     private long namesAt;
     private volatile Thread wakeThread;
+    private LightWatch lights;                      // 1.9.20: světla živě + ovládání z webu
     private volatile long lastWake;
 
     public static void start(Context c) { start(c, false); }
@@ -61,6 +62,7 @@ public class GatewayService extends Service {
         super.onCreate();
         ble = new BleListener(this);
         collector = new Collector(this, ble);
+        lights = new LightWatch(this);
         NotificationManager nm = getSystemService(NotificationManager.class);
         nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Chata brána", NotificationManager.IMPORTANCE_LOW));
     }
@@ -94,6 +96,7 @@ public class GatewayService extends Service {
             Prefs.get(this).edit().putBoolean(Prefs.RUNNING, false).apply();
             cancelAlarm(this);
             Thread w = wakeThread; wakeThread = null; if (w != null) w.interrupt();
+            lights.stop();
             ble.stop();
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
@@ -111,6 +114,7 @@ public class GatewayService extends Service {
         ble.ensureRunning(intent != null && intent.getBooleanExtra("restart", false));
         scheduleAlarm(this);
         startWakeListener();
+        lights.start();
         tick();
         return START_STICKY;
     }
@@ -127,13 +131,24 @@ public class GatewayService extends Service {
                 if (topic.isEmpty()) { SystemClock.sleep(60_000); continue; }
                 java.net.HttpURLConnection c = null;
                 try {
-                    c = (java.net.HttpURLConnection) new java.net.URL("https://ntfy.sh/" + topic + "-wake/json").openConnection();
+                    c = (java.net.HttpURLConnection) new java.net.URL("https://ntfy.sh/" + topic + "-wake," + topic + "-ltc/json").openConnection();   // 1.9.20: + povely pro světla z webu
                     c.setConnectTimeout(20_000);
                     c.setReadTimeout(150_000);              // ntfy posílá „keepalive“ každých 45 s
                     java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(c.getInputStream(), "UTF-8"));
                     String ln;
                     while ((ln = r.readLine()) != null && wakeThread == Thread.currentThread()) {
                         if (!ln.contains("\"event\":\"message\"")) continue;
+                        try {                               // 1.9.20: povel pro světlo z webu {"n":"(S4) terasa","on":true}
+                            org.json.JSONObject m = new org.json.JSONObject(ln);
+                            if (m.optString("topic").endsWith("-ltc")) {
+                                if (System.currentTimeMillis() / 1000 - m.optLong("time") < 120) {
+                                    org.json.JSONObject cmd = new org.json.JSONObject(m.optString("message"));
+                                    final String n = cmd.optString("n"); final boolean on = cmd.optBoolean("on");
+                                    new Thread(() -> lights.command(n, on), "light-cmd").start();
+                                }
+                                continue;
+                            }
+                        } catch (Exception ignored) {}
                         if (SystemClock.elapsedRealtime() - lastWake < 60_000) continue;
                         lastWake = SystemClock.elapsedRealtime();
                         boolean fromWatch = ln.contains("\"message\":\"hodinky\"");

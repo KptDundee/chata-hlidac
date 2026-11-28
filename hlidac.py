@@ -1887,6 +1887,7 @@ def main():
     global _DATA
     _DATA = data
     st = data.setdefault("state", {})
+    data["nt"] = topic.strip()         # 6.123: téma ntfy pro web (světla živě a jejich ovládání) – jen v zašifrovaných datech
     now = datetime.now(TZ)
     cfg = load_config()
     global PLAN, QUIET

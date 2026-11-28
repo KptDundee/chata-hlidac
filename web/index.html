@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.122", FLIP_VER = "1.9.19";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.123", FLIP_VER = "1.9.20";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -517,7 +517,34 @@ async function decrypt(enc, pw){
 /* 6.113: živý balíček z větve live (během nabíjení z generátoru každých 30 s) – generátor a River hned, bez čekání
    na celá data; s ETagem (nezměněný = 304, nic se nestahuje). Novější než celá data → přepíše jejich klíče. */
 let LIVE = null, LIVE_ETAG = "", LIVE_UNTIL = 0, LIVE_BUSY = false;
-const liveMerge = d => { if(d && LIVE && LIVE.live_t > (d.checked||0)){ for(const [k,v] of Object.entries(LIVE)) if(k!=="live_t") d[k] = v; d.live_t = LIVE.live_t; } return d; };
+const liveMerge = d => { if(d && LIVE && LIVE.live_t > (d.checked||0)){ for(const [k,v] of Object.entries(LIVE)) if(k!=="live_t") d[k] = v; d.live_t = LIVE.live_t; } ltMerge(d); return d; };
+/* 6.123: světla živě – Flip (Brána 1.9.20) při každé změně pošle stav světel do ntfy <téma>-lt (téma je jen v zašifrovaných
+   datech); web je napojený a hned překreslí dlaždici Světla i živou chatu. Povel z webu jde do <téma>-ltc rovnou Flipu. */
+let LTL = null, LT_ES = null, LT_PEND = {};
+const ltDet = () => { if(DET_K==="svetla" && !$("detm").classList.contains("hide")) openDet("svetla"); };
+function ltMerge(d){
+  if(!d || !LTL || !d.inverter || !(d.inverter.tp||[]).length) return;
+  if(d.inverter.t && d.inverter.t >= LTL.t) return;                       // data z Flipu jsou novější
+  for(const x of LTL.lt||[]){ const p = d.inverter.tp.find(q=>q.lt && (q.n===x.n || String(q.n||"").replace(" (TP)","")===x.n)); if(p){ p.on = x.on; p.lt_t = LTL.t; } }
+}
+function ltStart(){
+  if(LT_ES || !DATA || !DATA.nt || typeof EventSource==="undefined") return;
+  try{
+    LT_ES = new EventSource(`https://ntfy.sh/${encodeURIComponent(DATA.nt)}-lt/sse?since=latest`);
+    LT_ES.onmessage = ev => { try{ const m = JSON.parse(ev.data); if(m.event && m.event!=="message") return;
+      const L = JSON.parse(m.message); if(!L || !L.lt || (LTL && L.t <= LTL.t)) return;
+      LTL = L; for(const x of L.lt) delete LT_PEND[x.n]; ltMerge(DATA); render(); ltDet(); }catch(_){} };
+  }catch(_){ LT_ES = null; }
+}
+async function ltSet(name, on){
+  if(!DATA || !DATA.nt) return;
+  LT_PEND[name] = {on, t: Date.now()};
+  ltDet();
+  try{ await fetch(`https://ntfy.sh/${encodeURIComponent(DATA.nt)}-ltc`, {method:"POST", body: JSON.stringify({n:name, on, t: Math.round(Date.now()/1000)})}); }
+  catch(e){ LT_PEND[name].err = "nepovedlo se odeslat"; ltDet(); }
+  setTimeout(()=>{ if(LT_PEND[name] && Date.now() - LT_PEND[name].t >= 29000){ LT_PEND[name].err = "Flip neodpověděl – potřebuje Bránu 1.9.20, nebo není připojený"; ltDet(); } }, 30000);
+}
+setInterval(()=>{ if(PW && DATA) ltStart(); }, 3000);
 async function livePoll(force){
   const tok = store.get("ghtok"); if(!tok || !PW || !DATA || LIVE_BUSY || document.hidden) return;
   const want = force || genLive(DATA) || DATA.gen_cont || Date.now() < LIVE_UNTIL || (LIVE && Date.now()/1000 - LIVE.live_t < 300);
@@ -2131,7 +2158,8 @@ function utilSummary(d){   // posledních 12 měsíců (bez rozběhnutého měs�
 /* 6.99 (Petr: „chtěl bych vidět přehled, kdy bylo zapnuté co – na kartě, pro kontrolu“): 💡 Světla Tapo (S1–S4) –
    co teď svítí, zdání přítomnosti (aktivní / od kdy) a přehled rozsvícení */
 const lightsNow = d => { const I = d.inverter, f = I && Date.now()/1000 - I.t < 1800;
-  return ((I||{}).tp||[]).filter(p=>p.lt && !p.off).map(p=>({n:String(p.n||p.ip).replace(" (TP)",""), on: f ? p.on===1 : null}))
+  return ((I||{}).tp||[]).filter(p=>p.lt && !p.off).map(p=>({n:String(p.n||p.ip).replace(" (TP)",""), raw:p.n, live:!!(p.lt_t && Date.now()/1000 - p.lt_t < 1800),
+    on: f || (p.lt_t && Date.now()/1000 - p.lt_t < 1800) ? p.on===1 : null}))
     .sort((a,b)=>a.n.localeCompare(b.n)); };
 function tileLights(d, h){
   const L = lightsNow(d), P = d.psim_st, G = d.psim_log || [], last = G[G.length-1];
@@ -2433,7 +2461,10 @@ function psimChart(d){
 function detLights(body){
   const d = DATA, L = lightsNow(d), G = (d.psim_log||[]).slice().reverse(), P = d.psim_st;
   const byDay = {}; for(const g of G){ const k = relDay(g[0]); (byDay[k] = byDay[k] || []).push(g); }
-  body.innerHTML = `<div class="card"><b>Teď</b>${L.map(x=>rowI(escH(x.n), x.on==null ? "–" : x.on ? `<b style="color:var(--good)">svítí</b>` : `<span class="sub">nesvítí</span>`)).join("") || `<div class="sub">Flip zatím žádná světla nehlásí.</div>`}</div>
+  const btn = x => { const pd = LT_PEND[x.raw||x.n]; if(!d.nt) return "";
+    if(pd && !pd.err) return ` <span class="sub">⏳ ${pd.on ? "rozsvěcím" : "zhasínám"}…</span>`;
+    return ` <button type="button" style="margin-left:6px;padding:3px 10px" onclick='ltSet(${JSON.stringify(x.raw||x.n)}, ${!x.on})'>${x.on ? "Zhasnout" : "Rozsvítit"}</button>${pd && pd.err ? `<div class="sub" style="color:var(--crit)">${escH(pd.err)}</div>` : ""}`; };
+  body.innerHTML = `<div class="card"><b>Teď</b>${L.some(x=>x.live) ? ` <span class="sub">🟢 živě</span>` : ""}${L.map(x=>rowI(escH(x.n), (x.on==null ? "–" : x.on ? `<b style="color:var(--good)">svítí</b>` : `<span class="sub">nesvítí</span>`) + btn(x))).join("") || `<div class="sub">Flip zatím žádná světla nehlásí.</div>`}</div>
     ${psimChart(d)}
     ${(d.geo_log||[]).length ? `<div class="card"><b>📍 Poloha telefonu</b> <span class="sub">– příjezdy a odjezdy (okruh kolem chaty)</span><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">${(d.geo_log||[]).slice(-12).reverse().map(g=>`<span style="white-space:nowrap">${g[1]==="prijezd" ? "🏠 příjezd" : "🚗 odjezd"} ${relDay(g[0])} ${hmT(g[0])}</span>`).join("")}</div></div>` : ""}
     <div class="card"><b>Zdání přítomnosti – kdy se rozsvítilo</b>

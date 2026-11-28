@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.123 – 28. 11. 2026 (Brána 1.9.20)
+- **Světla živě** (Petr): Brána kontroluje světla Tapo každých 20 s po Wi‑Fi chaty (mobilní data nestojí) a při každé změně (vypínač, aplikace Tapo, zdání přítomnosti, web) pošle jejich stav do ntfy `<téma>-lt` (pár set bajtů). Web je při otevřené stránce napojený (SSE) a dlaždici Světla, detail i živou chatu překreslí hned; v detailu „🟢 živě“.
+- **Zapínání světel z webu**: v detailu Světla u každého světla tlačítko Rozsvítit / Zhasnout. Povel jde rovnou Flipu přes ntfy `<téma>-ltc` (Flip ho poslouchá trvalým spojením spolu s probuzením), světlo se přepne za pár sekund a hned přijde nový stav. Povel starší než 2 min se neprovede. Když Flip do 30 s neodpoví, web to napíše (potřebuje Bránu 1.9.20).
+- Téma ntfy dostává web jen v zašifrovaných datech (`nt`), v kódu ani v repozitáři není.
+
 ## 6.122 – 28. 11. 2026
 - Živá chata (Petr): obloha podle počasí **na tuto hodinu** – hlídač nově stahuje z Open-Meteo hodinový kód počasí a oblačnost (`wxhc`, dnes a zítra). Zataženo = šedá obloha, víc mraků, bez slunce (v noci bez hvězd a měsíce); polojasno = mraky se sluncem. Bez hodinových dat denní předpověď jako dřív.
 - U toku River → chata (a 12 V / 230 V) watty jako u panelů a baterie.

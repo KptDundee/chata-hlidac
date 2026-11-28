@@ -436,6 +436,7 @@ public final class Collector {
                     else p.put("nm", 1);
                 } catch (Exception ue) { p.put("nm", 1); }
                 p.put("lt", 1);
+                if (names.containsKey(ip) && !ip.equals(names.get(ip))) LightWatch.remember(ctx, names.get(ip), ip);   // 1.9.20: pro hlídání světel
                 note(ip, "ok", null);
                 return p;
             }
