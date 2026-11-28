@@ -3,6 +3,11 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.133 – 28. 11. 2026
+- „V chatě“ předělané z technického výkresu na obrázek: stěny přesně podle Petrova náčrtu (terasa nad pokojem a chodbou, chodba, kuchyně s lednicí v rohu, koupelna), ložnice v patře jako podkroví pod střechou.
+- Věci kreslené tak, aby byly hned poznat: lednice (dvířka, mrazák, ❄ když běží), River s madlem a % nabití, router s Wi‑Fi a Flip na poličce v pokoji (jejich baterie), žárovky (svítí = místnost se rozzáří), gauč, stůl na terase, linka, sprcha, záchod.
+- Svítící čára ukazuje, odkud chata bere proud (solární baterie pod terasou, nebo River v chodbě) a kam vede (lednice, router a Flip).
+
 ## 6.132 – 28. 11. 2026
 - **🏠 V chatě** – nová animace pod živou chatou (Petr): půdorys podle Petrova náčrtu (terasa, pokoj, chodba se Žlutou a Červenou River na stěně, lednice, kuchyně s malou River, koupelna, ložnice v patře). Tok do rozvodu = z čeho chata jede a kolik W (ze soláru – baterie + měnič pod terasou, nebo z River); lednice s W a tokem, když běží; místnosti se rozsvítí podle světel Tapo (terasa žlutým obvodem); % River a „⚡+W“ při nabíjení; 12 V a 230 V z malé River; ostatní zásuvky v řádku dole; teploty v místnostech, u lednice, baterie a venku. Živě s ostatními hodnotami. Ťuknutím detail s vysvětlivkami.
 - **Pojistka v den dobíjení do plna** (Petr): když chata přes den doma přesto jede ze soláru, výrazné upozornění „⚠️ Dnes se solární baterie dobíjí do plna – přepni chatu zpátky na River“ (jednou; po přepnutí na River znovu připravené). Na dlaždici dál „dnes dobití do plna – nech chatu na River“ / „přepni na River“.
