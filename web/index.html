@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.140", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.141", FLIP_VER = "1.9.24";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -548,7 +548,7 @@ function ltStart(){
     es.onerror = () => { if(LT_ES!==es) return; LT_ST.open = false; };
     es.addEventListener("keepalive", () => { LT_ST.ka = Date.now(); });
     es.onmessage = ev => { LT_ST.ka = Date.now(); try{ const m = JSON.parse(ev.data); if(m.event && m.event!=="message") return; LT_ST.n++; LT_ST.last = Date.now();
-      const L = JSON.parse(m.message); if(!L || !L.lt || (LTL && L.t <= LTL.t)) return;
+      const L = JSON.parse(m.message); if(!L || !L.lt || (LTL && L.t < LTL.t)) return;   /* 6.141: < – rychlý stav po povelu a plný stav můžou mít stejnou sekundu */
       LTL = L; for(const x of L.lt) delete LT_PEND[x.n]; ltMerge(DATA); render(); ltDet(); }catch(_){} };
   }catch(_){ LT_ES = null; }
 }

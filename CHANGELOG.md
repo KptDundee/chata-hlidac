@@ -3,6 +3,10 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.141 – 28. 11. 2026 (Brána 1.9.24)
+- Rozsvícení z webu (Petr: „světlo se rozsvítí do 5 s, ale na obrázku se dlouho nic neděje a pak ‚Nový stav světla nepřišel‘“): Flip po povelu čekal, až přečte všechna světla i zásuvky, a nedostupná zařízení (přesouvání mezi Wi‑Fi) každé čtení zdržela o vypršení spojení. Brána 1.9.24 pošle stav světel hned po povelu a zařízení, které neodpovídá, 60 s přeskakuje, takže čtení zůstává rychlé.
+- Web přijme i stav se stejnou sekundou jako předchozí (rychlý stav po povelu a hned za ním plný).
+
 ## 6.140 – 28. 11. 2026
 - Rozsvícení z obrázku (Petr: „ohlásí, že je rozsvíceno, ale dveře se nerozsvítí – musel jsem obnovit stránku“): po novém stavu světel z Flipu se překreslí i obrázek chaty / V chatě otevřený v podrobnostech (dřív jen seznam Světla). Obrázky na hlavní stránce se překreslují jako první, aby je nezastavila případná chyba v dlaždicích pod nimi.
 

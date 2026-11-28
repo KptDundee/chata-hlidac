@@ -41,6 +41,11 @@ final class LightWatch {
     private boolean fromRiver = false;                              // 1.9.23: naposledy měla chata 230 V z River
     private final BleListener ble;
     private final Map<String, Double> sentW = new HashMap<>();   // naposledy poslané W (zásuvky, „~v“ = Victron)
+    // 1.9.24 (Petr: „světlo se rozsvítí do 5 s, ale web stav nedostane“): nedostupné zařízení (jiná Wi‑Fi, bez proudu)
+    // zdržovalo každé čtení o vypršení spojení → po chybě se 60 s přeskakuje; po povelu z webu jde stav světel hned.
+    private final Map<String, Long> down = new HashMap<>();
+    private final Map<String, Integer> lastLt = new java.util.TreeMap<>();
+    static final long DOWN_MS = 60_000L;
     static final double DW = 15.0;
 
     LightWatch(Context c, BleListener b) { ctx = c.getApplicationContext(); ble = b; }
@@ -102,14 +107,18 @@ final class LightWatch {
         for (String n : names) {
             String ip = m.optString(n);
             if (ip.isEmpty()) continue;
+            Long dn = down.get(ip);
+            if (dn != null && SystemClock.elapsedRealtime() < dn) continue;
             try {
                 JSONObject info = new JSONObject(klap(ip).call("get_device_info")).optJSONObject("result");
                 if (info == null || !info.has("device_on")) continue;
                 boolean on = info.optBoolean("device_on");
+                lastLt.put(n, on ? 1 : 0); down.remove(ip);
                 arr.put(new JSONObject().put("n", n).put("ip", ip.substring(ip.lastIndexOf('.') + 1)).put("on", on ? 1 : 0));
                 st.append(n).append('=').append(on ? 1 : 0).append(';');
             } catch (Exception e) {
                 tapo.remove(ip);                                   // příště nové přihlášení
+                down.put(ip, SystemClock.elapsedRealtime() + DOWN_MS);
                 err("Světla: " + n + " nejde přečíst (" + e.getClass().getSimpleName() + " " + e.getMessage() + ")");
             }
         }
@@ -126,6 +135,8 @@ final class LightWatch {
             String[] v = pm.optString(n).split("\\|");
             String ip = v[0];
             if (ip.isEmpty()) continue;
+            Long dn = down.get(ip);
+            if (dn != null && SystemClock.elapsedRealtime() < dn) continue;
             try {
                 JSONObject x = new JSONObject().put("n", n);
                 JSONObject info = new JSONObject(klap(ip).call("get_device_info")).optJSONObject("result");
@@ -144,8 +155,10 @@ final class LightWatch {
                     }
                 }
                 tp.put(x);
+                down.remove(ip);
             } catch (Exception e) {
                 tapo.remove(ip);
+                down.put(ip, SystemClock.elapsedRealtime() + DOWN_MS);
             }
         }
         // Victron (Bluetooth – co Flip právě zachytil)
@@ -291,7 +304,18 @@ final class LightWatch {
             String ip = m.optString(name);
             if (ip.isEmpty()) { Prefs.log(ctx, "Světlo z webu: „" + name + "“ neznám"); return; }
             JSONObject r = new JSONObject(klap(ip).call("set_device_info", "{\"device_on\":" + on + "}"));
-            if (r.optInt("error_code", -1) == 0) Prefs.log(ctx, "Světlo " + name + " " + (on ? "ROZSVÍCENO" : "ZHASNUTO") + " (z webu)");
+            if (r.optInt("error_code", -1) == 0) {
+                Prefs.log(ctx, "Světlo " + name + " " + (on ? "ROZSVÍCENO" : "ZHASNUTO") + " (z webu)");
+                lastLt.put(name, on ? 1 : 0);
+                // 1.9.24: hned stav světel (z paměti + tohle), ať web nečeká na čtení všech zásuvek
+                JSONArray arr = new JSONArray();
+                for (Map.Entry<String, Integer> e : lastLt.entrySet()) {
+                    String ip2 = m.optString(e.getKey());
+                    arr.put(new JSONObject().put("n", e.getKey()).put("ip", ip2.substring(ip2.lastIndexOf('.') + 1)).put("on", e.getValue()));
+                }
+                String pr = post(new JSONObject().put("t", System.currentTimeMillis() / 1000).put("lt", arr));
+                if (pr != null) err("Světla → web (hned po povelu): nepovedlo se odeslat (" + pr + ")");
+            }
             else Prefs.log(ctx, "Světlo " + name + " z webu: selhalo " + r);
             SystemClock.sleep(600);
             poll(true);
