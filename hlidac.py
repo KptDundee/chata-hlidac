@@ -8269,6 +8269,17 @@ def gen_charge_ctl(data, st, now, topic, cfg):
             if gs.get("active") and charging and gs.get("first") and tnow - gs["first"] >= 120 and not gs.get("manual") else []
         if lw_:
             gs["w200_t"] = gs.get("w200_t") or tnow
+            # 6.137 (Petr 28. 11.: ručně stáhl Červenou na 259 W, když za běhu připojil malou – „mělo by se to vzápětí
+            # opravit“): hlídač si pamatoval, že ji nastavil na 690 W, a znovu ji neposlal. Po 1 min nízkého odběru pošle
+            # svůj výkon znovu (nejvýš 1× za minutu); poplach jen, když to ani pak nepomůže (beze změny po 2 min).
+            if tnow - gs["w200_t"] >= 60 and tnow - (gs.get("w200_rs") or 0) >= 60:
+                gs["w200_rs"] = tnow
+                for r in lw_:
+                    sets.pop(r["sn"], None)
+                print("Nabíjení z generátoru: nízký odběr – posílám výkon znovu: "
+                      + ", ".join(f"{pn_(byid(r['sn']).get('name'))} {plan[r['sn']]:.0f} W" for r in lw_))
+                res_ = apply({r["sn"]: plan[r["sn"]] for r in lw_})
+                out += res_
             if tnow - gs["w200_t"] >= 120 and tnow - (gs.get("w200_al") or 0) >= 60:
                 gs["w200_al"] = tnow
                 nm_ = ", ".join(f"{pn_(byid(r['sn']).get('name'))} bere {acw(r):.0f} W (chci {plan[r['sn']]:.0f} W)" for r in lw_)
@@ -8280,7 +8291,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
         elif gs.get("w200_t"):
             if gs.get("w200_al"):
                 ntfy(topic, "✓ River zase nabíjejí plným výkonem", "Nastavení výkonu zase funguje.", 2, "white_check_mark")
-            for k_ in ("w200_t", "w200_al"):
+            for k_ in ("w200_t", "w200_al", "w200_rs"):
                 gs.pop(k_, None)
         rv, fins = [], []
         for r in con:
@@ -8454,7 +8465,7 @@ def gen_charge_ctl(data, st, now, topic, cfg):
                 print("Souhrn generátoru:", e)
             gs.pop("fwh", None)
             data["gen_plan"]["end"] = tnow
-            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w", "nodraw", "off_note", "off_names", "off_map", "p7_t", "p7_cmd", "p7_sent", "p7_al", "soon", "w200_t", "w200_al", "last_err"):
+            for k in ("active", "btn", "first", "idle", "stop", "ever", "con", "low", "chg_t", "sig", "f_t", "f_w", "rp", "rwh", "rs", "c0", "stop_t", "plan_t", "soc_ok", "soc_bad_t", "rpo", "ro", "tk", "tk_u", "jine", "xwh", "x_w", "manual", "man_w", "nodraw", "off_note", "off_names", "off_map", "p7_t", "p7_cmd", "p7_sent", "p7_al", "soon", "w200_t", "w200_al", "w200_rs", "last_err"):
                 gs.pop(k, None)
             return False
         return True
