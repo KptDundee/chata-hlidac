@@ -5600,15 +5600,17 @@ def day_outlook(data, st, now, topic, cfg, rise, set_):
     # kdykoli přes den; nepovinná nabídka při plné baterii (90 #) zůstává, když s ní plán nepočítá
     full_offer = on_river and home_ and day_ok_ and (plan_s_ or hq["pct"] >= full_pct) and not fullchg_
     if full_offer:
+        # 6.129 (Petr: „při 97 # jen zelená nabídka – musí to být výrazné, šetří to peníze“): plná baterie přes den doma =
+        # rada „přepni“ (ne nabídka) a výrazné upozornění – výroba by se zahazovala a vybíjí se River (palivo)
         todo_add(data, 4, (f"přepni na solár – plán s tím počítá (zpátky na River při {back_pct} #)" if plan_s_ else
-                           f"můžeš přepnout na solár (zpátky na River při {back_pct} #)"), "warn" if plan_s_ else "ok")
-        if sf.get("d") != now.strftime("%Y-%m-%d") and not in_quiet():
-            ntfy(topic, f"☀️ Solární baterie {hq['pct']} # – " + ("přepni chatu na solár" if plan_s_ else "můžeš chatu přepnout na solár"),
+                           f"přepni na solár – baterie {hq['pct']} # je skoro plná, výroba by se nevyužila (zpátky na River při {back_pct} #)"), "warn")
+        if (sf.get("d") != now.strftime("%Y-%m-%d") or sf.get("v") != 2) and not in_quiet():
+            ntfy(topic, f"☀️ Přepni chatu na solár – solární baterie {hq['pct']} #",
                  (f"Plán s tím počítá – šetří se River (palivo). Když do hodiny nepřepneš, plán přepočítám bez soláru "
                   f"(a když River nebudou stačit, poradím je nabít).\n" if plan_s_ else
-                  f"Baterie je skoro plná, výroba by se jinak nevyužila a šetří se River (palivo). Nepovinné.\n") +
-                 f"Při {back_pct} # napíšu, ať přepneš zpátky na River.", 3, "sunny")
-            sf.update(d=now.strftime("%Y-%m-%d"), t=int(ts))
+                  f"Baterie je skoro plná – výroba z panelů by se zahodila a mezitím se vybíjí River (= benzín, peníze).\n") +
+                 f"Při {back_pct} # napíšu, ať přepneš zpátky na River.", 4, "sunny,moneybag")
+            sf.update(d=now.strftime("%Y-%m-%d"), t=int(ts), v=2)
     if on_river and home_ and fullchg_:
         todo_add(data, 2, "dnes dobití solární baterie do plna – nech chatu na River", "ok")
     if on_solar and home_ and fullchg_ and day_ok_:        # 6.77: den dobíjení do plna – na soláru se baterie do Float nedostane
