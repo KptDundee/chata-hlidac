@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chata</title>
-<script>const WEB_VER = "6.138", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
+<script>const WEB_VER = "6.139", FLIP_VER = "1.9.23";  // FLIP_VER = nejnovější aplikace pro Flip v repozitáři</script>
 <meta name="theme-color" content="#1a1a19">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -522,7 +522,7 @@ const liveMerge = d => { if(d && LIVE && LIVE.live_t > (d.checked||0)){ for(cons
 /* 6.123: světla živě – Flip (Brána 1.9.20) při každé změně pošle stav světel do ntfy <téma>-lt (téma je jen v zašifrovaných
    datech); web je napojený a hned překreslí dlaždici Světla i živou chatu. Povel z webu jde do <téma>-ltc rovnou Flipu. */
 let LTL = null, LT_ES = null, LT_PEND = {}, LT_ST = {open:false, n:0, last:0, ka:0};
-const ltDet = () => { if(DET_K==="svetla" && !$("detm").classList.contains("hide")) openDet("svetla"); };
+const ltDet = () => { if(DET_K==="svetla" && !$("detm").classList.contains("hide")) openDet("svetla"); ltPopUpd(); };
 function ltMerge(d){
   if(!d || !LTL || !d.inverter || !(d.inverter.tp||[]).length) return;
   if(d.inverter.t && d.inverter.t >= LTL.t) return;                       // data z Flipu jsou novější
@@ -563,6 +563,40 @@ async function ltSet(name, on){
   catch(e){ LT_PEND[name].err = "nepovedlo se odeslat"; ltDet(); }
   setTimeout(()=>{ if(LT_PEND[name] && Date.now() - LT_PEND[name].t >= 29000){ LT_PEND[name].err = !LT_ST.open ? "Web není napojený na živé zprávy (ntfy) – zkus stránku obnovit" : LT_ST.n ? "Nový stav světla nepřišel – podívej se do Deníku Brány (řádky „Světla …“)" : "Od Flipu zatím nepřišel žádný stav světel – Brána 1.9.21 v Deníku napíše proč (řádky „Světla …“)"; ltDet(); } }, 30000);
 }
+/* 6.139 (Petr: „rozsvěcet světla přímo z obrázku“): klepnutí na žárovku (V chatě) nebo na okno / dveře / pásek terasy
+   (obrázek chaty) → bublina „💡 Pokoj – Rozsvítit“; povel se pošle až klepnutím na tlačítko v bublině. */
+let LT_POP = null;
+const LT_NM = {pokoj:"Pokoj", loznice:"Ložnice", chodba:"Chodba", terasa:"Terasa"};
+function ltPopFind(k){ const L = DATA ? lightsNow(DATA) : []; return L.find(x=>norm0(x.n).includes(k)); }
+function ltPopOpen(k, ev){
+  LT_POP = {k, x: ev.clientX, y: ev.clientY, sent: null};
+  let el = $("ltpop"); if(!el){ el = document.createElement("div"); el.id = "ltpop"; document.body.appendChild(el);
+    el.addEventListener("click", e => { e.stopPropagation(); const b = e.target.closest("[data-ltgo]"); if(!b || !LT_POP) return;
+      const x = ltPopFind(LT_POP.k); if(!x) return; const on = b.dataset.ltgo === "1"; LT_POP.sent = {on, t: Date.now()}; ltSet(x.raw||x.n, on); ltPopUpd(); }); }
+  ltPopUpd();
+}
+function ltPopClose(){ LT_POP = null; const el = $("ltpop"); if(el) el.style.display = "none"; }
+function ltPopUpd(){
+  const el = $("ltpop"); if(!el) return; if(!LT_POP){ el.style.display = "none"; return; }
+  const x = ltPopFind(LT_POP.k), nm = LT_NM[LT_POP.k] || LT_POP.k, pd = x ? LT_PEND[x.raw||x.n] : null, sn = LT_POP.sent;
+  let body;
+  if(!x) body = `<div class="sub">Světlo „${escH(nm)}“ Flip nehlásí.</div>`;
+  else if(!DATA.nt) body = `<div class="sub">Ovládání světel tu zatím nejde (chybí živé spojení).</div>`;
+  else if(pd && !pd.err) body = `<div>⏳ ${pd.on ? "rozsvěcím" : "zhasínám"}…</div>`;
+  else if(pd && pd.err) body = `<div style="color:var(--crit)">${escH(pd.err)}</div>`;
+  else if(sn && x.on === sn.on) body = `<div style="color:var(--good)">✓ ${x.on ? "svítí" : "zhasnuto"}</div>`;
+  else body = `<div class="sub" style="margin-bottom:6px">${x.on ? "svítí" : x.on===0 || x.on===false ? "nesvítí" : "stav nevím"}</div><button type="button" data-ltgo="${x.on ? 0 : 1}" style="padding:6px 16px;font-weight:700">${x.on ? "Zhasnout" : "Rozsvítit"}</button>`;
+  el.innerHTML = `<div style="font-weight:800;margin-bottom:4px">💡 ${escH(nm)}</div>${body}`;
+  el.style.cssText = "position:fixed;z-index:9999;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.35);min-width:120px;text-align:center;display:block";
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = Math.max(8, Math.min(innerWidth - w - 8, LT_POP.x - w/2)) + "px";
+  el.style.top = (LT_POP.y - h - 14 > 8 ? LT_POP.y - h - 14 : LT_POP.y + 18) + "px";
+  if(sn && x && x.on === sn.on && !pd){ clearTimeout(LT_POP.tm); LT_POP.tm = setTimeout(ltPopClose, 2500); }
+}
+document.addEventListener("click", e => { const t = e.target.closest("[data-lt]");
+  if(t){ e.stopPropagation(); e.preventDefault(); ltPopOpen(t.dataset.lt, e); return; }
+  if(LT_POP && !e.target.closest("#ltpop")) ltPopClose(); }, true);
+window.addEventListener("scroll", () => { if(LT_POP && !LT_POP.sent) ltPopClose(); }, {passive:true});
 setInterval(()=>{ if(PW && DATA) ltStart(); }, 3000);
 async function livePoll(force){
   const tok = store.get("ghtok"); if(!tok || !PW || !DATA || LIVE_BUSY || document.hidden) return;
@@ -2436,6 +2470,11 @@ function sceneSvg(s){
       o += s.snow ? `<circle cx="${x}" cy="-6" r="${rnd() < .5 ? 1.5 : 2.1}" fill="#fff" class="scsn" style="animation-delay:-${dl}s;animation-duration:${du}s"/>`
                   : `<line x1="${x}" y1="-10" x2="${+x-2}" y2="-2" stroke="${D ? "#5d7fa3" : "#8aa4c8"}" stroke-width="1.2" class="scrn" style="animation-delay:-${dl}s;animation-duration:${du}s"/>`; } }
   const tt = [s.tOut!=null ? `venku ${nf(s.tOut,0)} °C` : "", s.tIn!=null ? `uvnitř ${nf(s.tIn,0)} °C` : ""].filter(Boolean).join(" · ");
+  // 6.139: klepací místa světel – okno ložnice ve štítu, dveře chodby, okno pokoje, LED pásek terasy
+  { const hit = (k, P) => s.lit[k] ? `<polygon points="${P.map(pt).join(" ")}" fill="transparent" data-lt="${k}" style="cursor:pointer"/>` : "";
+    o += hit("loznice", [S(0,52,24), S(0,52,56), S(0,84,56), S(0,84,24)]) + hit("chodba", [S(44,0,0), S(68,0,0), S(68,38,0), S(44,38,0)])
+      + (s.lit.terasa ? `<path d="M${pt(TR(64,-48))} L${pt(TR(L+6,-48))} L${pt(TR(L+6,-6))}" fill="none" stroke="transparent" stroke-width="10" data-lt="terasa" style="cursor:pointer;pointer-events:stroke"/>` : "")
+      + hit("pokoj", [S(86,-2,0), S(140,-2,0), S(140,14,0), S(86,14,0)]); }   /* okno pokoje: jen část pod okrajem střechy terasy, ať se nepletou */
   if(s.gen && s.genW!=null){ const q = S(GX1+6, GH+16, GZ0); o += `<text x="${q[0].toFixed(1)}" y="${q[1].toFixed(1)}" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff" style="paint-order:stroke" stroke="#000" stroke-width="3">⚡ ${nf(s.genW)} W</text>`; }   // 6.138: výkon generátoru (nad dřevníkem)
   if(tt) o += `<g transform="translate(9 5)"><rect x="1.6" y="0" width="3.6" height="9" rx="1.8" fill="#fff" stroke="#000" stroke-opacity=".5" stroke-width=".8"/><circle cx="3.4" cy="11" r="3" fill="#e53935" stroke="#fff" stroke-width="1"/><rect x="2.6" y="4" width="1.6" height="6" fill="#e53935"/></g><text x="19" y="16" font-size="10.5" font-weight="600" fill="#fff" style="paint-order:stroke" stroke="rgba(0,0,0,.55)" stroke-width="2.5">${tt}</text>`;
   return `<svg class="sc" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;border-radius:12px" role="img" aria-label="Chata teď">${o}</svg>`;
@@ -2521,10 +2560,10 @@ function insideSvg(I){
   const win = (x1, y1, x2, y2) => `<path d="M${x1} ${y1} L${x2} ${y2}" stroke="#bfe3f5" stroke-width="3.2"/><path d="M${x1} ${y1} L${x2} ${y2}" stroke="#fff" stroke-width="1" opacity=".8"/>`;
   o += win(62, MT, 150, MT) + win(298, MT, 330, MT) + win(R, 128, R, 158);
   // --- ikony ---
-  const bulb = (x, y, l) => (l ? `<circle cx="${x}" cy="${y}" r="13" fill="${url("g")}"/><g class="lray" stroke="#ffc928" stroke-width="2" stroke-linecap="round">${[0,45,90,135,180,225,270,315].map(a=>{ const c = Math.cos(a*Math.PI/180), sn = Math.sin(a*Math.PI/180);
+  const bulb = (x, y, l, k) => `<g data-lt="${k}" style="cursor:pointer"><circle cx="${x}" cy="${y+2}" r="17" fill="transparent"/>` + (l ? `<circle cx="${x}" cy="${y}" r="13" fill="${url("g")}"/><g class="lray" stroke="#ffc928" stroke-width="2" stroke-linecap="round">${[0,45,90,135,180,225,270,315].map(a=>{ const c = Math.cos(a*Math.PI/180), sn = Math.sin(a*Math.PI/180);
       return `<line x1="${(x+c*10).toFixed(1)}" y1="${(y+1+sn*10).toFixed(1)}" x2="${(x+c*16).toFixed(1)}" y2="${(y+1+sn*16).toFixed(1)}"/>`; }).join("")}</g>` : "")   /* 6.135: jemné paprsky, když svítí */
     + `<path d="M${x-5} ${y+1} a5.5 5.5 0 1 1 10 0 q-2 2.4 -2 4.6 h-6 q0 -2.2 -2 -4.6z" fill="${l ? "#ffd84a" : "#d8d8d8"}" stroke="${l ? "#b58900" : "#888"}" stroke-width="1"/>
-       <rect x="${x-3}" y="${y+6.4}" width="6" height="3.6" rx="1" fill="#777"/>`;
+       <rect x="${x-3}" y="${y+6.4}" width="6" height="3.6" rx="1" fill="#777"/></g>`;
   const pill = (x, y, t, bg="#fff", fg=ink, anchor="middle") => { const w = 9 + String(t).replace(/<[^>]+>/g,"").length*7, x0 = anchor==="middle" ? x - w/2 : anchor==="end" ? x - w : x;
     return `<rect x="${x0.toFixed(1)}" y="${y-12.5}" width="${w.toFixed(1)}" height="17" rx="8.5" fill="${bg}" opacity=".95" filter="${url("sh")}"/><text x="${(x0+w/2).toFixed(1)}" y="${y+1}" text-anchor="middle" font-size="12.5" font-weight="800" fill="${fg}">${t}</text>`; };
   const name = (x, y, t) => `<text x="${x}" y="${y}" font-size="13.5" font-weight="800" fill="${!day ? "#f1eadf" : "#3b2a1c"}" style="paint-order:stroke" stroke="${!day ? "#0b1430" : "#fff8ec"}" stroke-width="3">${t}</text>`;
@@ -2588,7 +2627,7 @@ function insideSvg(I){
   // 12 V z malé River
   if(I.small && I.small.v12){ const r = I.small; o += fl(`M310 199 H${C2+14}`, "#ffd23f", r.dcw) + pill(C2+7, 191, `12V ${nf(r.dcw)}W`, "#fff6c7", "#7a5c00", "start"); }
   // žárovky (světla Tapo)
-  o += bulb(105, 150, lit.pok) + bulb(207, 168, lit.cho) + bulb(207, 40, lit.ter);
+  o += bulb(105, 150, lit.pok, "pokoj") + bulb(207, 168, lit.cho, "chodba") + bulb(207, 40, lit.ter, "terasa");
   // názvy místností a teploty
   o += name(L+8, B-10, "Pokoj") + temp(C1-6, B-10, I.temps.pokoj)
     + `<text x="${(C1+C2)/2}" y="${B-36}" text-anchor="middle" font-size="13.5" font-weight="800" fill="${!day ? "#f1eadf" : "#3b2a1c"}" style="paint-order:stroke" stroke="${!day ? "#0b1430" : "#fff8ec"}" stroke-width="3" transform="rotate(-90 ${(C1+C2)/2-6} ${B-36})">Chodba</text>`
@@ -2603,7 +2642,7 @@ function insideSvg(I){
       <path d="M${x0+8} ${yr+8} h30 v20 h-30 z" fill="#f5f5f5" stroke="#8d8d8d"/><rect x="${x0+8}" y="${yr+8}" width="30" height="7" fill="#7aa7d6"/>`;
     if(!day) o += rect(x0, yr, x1-x0, yb-yr, "#0b1430", `opacity="${lit.loz ? .1 : .6}"`);
     if(lit.loz) o += glow((x0+x1)/2, (yr+yb)/2, 46);
-    o += bulb(x1-16, yr+10, lit.loz) + `<text x="${x0+6}" y="${yb-7}" font-size="13.5" font-weight="800" fill="${!day && !lit.loz ? "#f1eadf" : "#3b2a1c"}">Ložnice</text>`
+    o += bulb(x1-16, yr+10, lit.loz, "loznice") + `<text x="${x0+6}" y="${yb-7}" font-size="13.5" font-weight="800" fill="${!day && !lit.loz ? "#f1eadf" : "#3b2a1c"}">Ložnice</text>`
       + (I.temps.loznice!=null ? tpill(x1-4, yr+36, I.temps.loznice, "#fff", "#c0392b", "end") : ""); }
   // ostatní zásuvky – kde jsou, zatím nevím
   { const y = 406;

@@ -3,6 +3,9 @@
 Číslo verze: soubor `VERSION` (hlídač), `WEB_VER` / `FLIP_VER` ve `web/index.html`, `versionName` v `android/app/build.gradle`.
 Každá změna = +0.1. Aplikace pro Flip dostane nové číslo jen, když se mění její kód (FLIP_VER pak ukazuje, co je nejnovější).
 
+## 6.139 – 28. 11. 2026
+- Rozsvěcení přímo z obrázků: V chatě klepnutím na žárovku (pokoj, chodba, terasa, ložnice); na obrázku chaty klepnutím na okno pokoje (pod terasou), dveře (chodba), okno ve štítu (ložnice) nebo LED pásek po obvodu střechy terasy. Vyskočí bublina „💡 Pokoj – Rozsvítit/Zhasnout“, povel se pošle až tlačítkem; v bublině je vidět ⏳ a ✓, když Flip potvrdí. Jinde klepnutí do obrázku dál otevírá podrobnosti.
+
 ## 6.138 – 28. 11. 2026
 - Obrázek chaty: u běžícího generátoru jeho výkon ve W; W nabíjení Žluté vlevo u jejího rohu, ať se nemačká s Červenou.
 
